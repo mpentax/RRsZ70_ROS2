@@ -1,3 +1,10 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../ros2.md), [command/API contract](../thin-api.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+This proposed lease/admission/review ladder was not adopted as current policy and establishes no navigation capability. A map cache or saved robot pose is not live localisation.
+
+## Historical record
+
 # Private offline navigation boundary design — no production capability
 
 **Status: RESEARCH ONLY; no live method, route, MCP tool, deployment, or movement permit.** `src/navigation-service-boundary.ts` anchors the service's disabled `pinGo` claims and an unsatisfiable admission preflight. `src/navigation-controller.ts` is a fake-transport research controller; its test-only idle seed is not a production grant. The service supplies null active-map/pose/transform/readiness/supervision/route evidence. A cached V1 raster, status-derived map ID candidate, map header index, dock marker, receipt time, trace and page click cannot establish current localization. No pose-specific timestamp, verified active-map binding, display-to-robot transform or physical stop proof exists.

@@ -1,3 +1,12 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../ros2.md), [command/API contract](../thin-api.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+Results below are reported phase-1 provenance. build_path_map.py, verify_phase1.py and npm-test.txt are unavailable at their historical docs/migration paths; no original output was reconstructed. These are not current maintenance commands.
+
+**Historical outputs unavailable in this checkout:** `docs/migration/build_path_map.py`, `docs/migration/npm-test.txt`, `docs/migration/verify_phase1.py`. Results citing them below are reported history only.
+
+## Historical record
+
 # Phase-1 verification
 
 This records offline documentation checks, not runtime/robot qualification.

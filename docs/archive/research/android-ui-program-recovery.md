@@ -1,3 +1,12 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../../ros2.md), [command/API contract](../../thin-api.md), [arm model](../../z70-arm-model.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+Retained supporting provenance: original-generator output uses synthetic Blockly/DOM adapters, not the full original UI or physical robot. Proprietary originals are private-owner inputs, not portable checkout dependencies; hashes and public sanitized fixtures remain. A past task boundary is not reusable authorization.
+
+External HASM/editor inputs below are private-owner provenance, unavailable from the public checkout; full original replay needs the authentic matching inputs. No private files were opened or copied during this curation.
+
+## Historical record
+
 # Android original program-editor recovery
 
 Updated: 2026-10-07. **Offline only:** no real app/browser, robot/cloud/camera requests, programming-mode entry, physical movement, deployment, commit or push. Source export left unchanged.
@@ -77,12 +86,10 @@ ANDROID_HASM=/private/path/index.android.hasm python3 -m unittest discover -s re
 
 Verified: Node original-generator regression **1 passed**, Python static regressions **3 passed**, no skips/failures. Normal execution recorded only the deliberately denied missing-serializer probe, **zero network/native attempts**; explicit fetch/XHR/WebSocket/native/SDK trap tests all threw and were recorded. Sanitized fixtures distinguish generator execution from unavailable workspace serialization. Source assets remain private. Existing historical static recovery tooling retained.
 
-## Integration implications and separately authorized first test proposal
+## Historical integration implications
 
 A vendor-unit discrete-joint adapter is now grounded in original command-generation evidence: preserve M3/M4/M5/M6 vector order, enum direction, bounded UI repetition choices, sequential numeric IDs and explicit arm-out context. Do not label step 1 as 10 measured degrees: ±10° in the RN preview remains a predictive model constant, not hardware calibration. M6 step 1 is an open/grip selection, not rotary target feedback. BreakRecover remains unresolved.
 
 Runtime `program_state` and command results are software reports; preserve raw codes and unknowns, correlate to a submission, and independently observe cessation. Do not copy the app's `value || -1` loss of successful zero or treat the final successful entry as physical/full queue completion. Generic `app_stop []` is not proven arm-only/queue-draining; no stop test occurred.
-
-**Future proposal only — separate explicit authorization required:** physically supervised clear work area, baseline runtime/status, observe entry alone and distinguish it from arm deployment; then use normal vendor UI with its required arm-out context to submit M4 up one step, capture exact sanitized RN/RPC payload, ACK and correlated runtime, independently measure motion and cessation. No automatic replay on timeout, no step-2/down/gripper/stop trial bundled into that authorization. Bounds do not establish firmware limits; actual displacement, delay timing, startup/stow prerequisites, acceptance, stop/drain scope and mode readback remain open.
 
 Concrete remaining offline input: original cached **version-matched Blockly external JS companions**, including its serializer, or the relevant original saved workspace export. Their unversioned CDN URLs alone do not pin the original version. Without them, full UI-generated `blocks`/complete save serialization cannot honestly be claimed; **command generation is no longer blocked**.

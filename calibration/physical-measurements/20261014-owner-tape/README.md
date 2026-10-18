@@ -1,3 +1,5 @@
+> **Supersession pointer — 2026-10-18.** Original photo hashes, owner landmark explanations and dated implementation receipts below are unchanged. Current anatomy and consumers are documented in [the CAD-backed arm model](../../../docs/z70-arm-model.md); bent-tape exterior envelopes are not surveyed joint-centre lengths.
+
 # Owner tape-measure photographs — retained originals
 
 These original photographs are retained in the project, outside Hermes session/composer caches and scratch cleanup. Keep them: they are physical reference evidence, not disposable trial captures. PNGs are git-ignored for privacy; this is a local archive, not a remote backup.

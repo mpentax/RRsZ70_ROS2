@@ -1,3 +1,10 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../../ros2.md), [command/API contract](../../thin-api.md), [arm model](../../z70-arm-model.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+Operator-reported entry undock, unsaved accepted payloads, runtime and zero-joint observations remain unchanged. Final unverified stow/unexited session describe that session only, not the current robot state or a universal firmware result.
+
+## Historical record
+
 # Supervised Z70 programming-mode live trial — 2026-10-06
 
 Status: paused awaiting operator stow/stationary confirmation; cancellation and exit tests not performed. Operator: Michael; requested live tests, reported robot initially docked and supervised. All robot interactions through RoboClaw MCP `robot_rpc` or `get_state`, local L01; no direct HTTP/shell robot transport, no auto retries, no camera activation, no program saving/deletion. Parent exclusively controls robot. Read-only parallel source audit checked primary Android disassembly. Firmware version not queried; model roborock.vacuum.a179.

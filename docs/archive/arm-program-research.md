@@ -1,3 +1,12 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../ros2.md), [command/API contract](../thin-api.md), [arm model](../z70-arm-model.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+Later editor recovery and the 2026-10-06 live trial partly resolve the missing-editor/acceptance questions below; see [editor recovery](research/android-ui-program-recovery.md) and [live trial](research/z70-programming-live-trial-2026-10-06.md). AppStop maps to app_stop; generated programs, runtime reports and physical completion remain separate. Full Blockly save replay and stop/drain guarantees were not established.
+
+External HASM/editor inputs below are private-owner provenance, unavailable from the public checkout; full original replay needs the authentic matching inputs. No private files were opened or copied during this curation.
+
+## Historical record
+
 # Z70 Hermes program serialization, sequencing, telemetry and cancellation
 
 Research date: 2026-10-03. Entirely offline: static Hermes instruction inspection and APK/ZIP directory inspection. No robot, camera, live HTTP, RPC, or motion. Only this document was edited by this workstream. Mode/camera behavior is outside this report.

@@ -1,100 +1,56 @@
-# Phase 3 — installed resources and durable calibration
+# Installed resources and durable calibration — owner reference
 
-## Binding CalibrationState schema (for interface owner)
+Current operations belong to [the ROS guide](../ros2.md),
+[odometry](../../src/z70_odometry/README.md) and
+[the arm-model guide](../z70-arm-model.md). This entrypoint preserves import
+semantics and the original phase-3 receipts separately; historical hashes below
+are not claims about today's active calibration or deployed robot.
 
-Add `z70_interfaces/msg/CalibrationState.msg` exactly as below. All consumers of
-`/z70/chassis_calibration` switch together from String to this type. Publisher
-and subscribers use RELIABLE TRANSIENT_LOCAL depth 1. Values are SI; gains are
-dimensionless. Unknown numeric values are zero with their known flag false, not
-NaN or fabricated certainty. `camera_x_ready` retains the existing fit gate;
-fit uncertainty is not absolute accuracy. Calibration is ESTIMATED, never OBSERVED.
+## Resource and state ownership
 
-```msg
-std_msgs/Header header
-z70_interfaces/EvidenceStamp evidence
-z70_interfaces/Validity validity
-string<=128 calibration_id
-uint32 sample_count
-uint32 skipped_count
-bool yaw_positive_known
-float64 yaw_positive_gain
-bool yaw_positive_sigma_known
-float64 yaw_positive_sigma
-uint32 yaw_positive_count
-bool yaw_negative_known
-float64 yaw_negative_gain
-bool yaw_negative_sigma_known
-float64 yaw_negative_sigma
-uint32 yaw_negative_count
-bool forward_known
-float64 forward_gain
-bool forward_sigma_known
-float64 forward_sigma
-uint32 forward_count
-bool camera_x_known
-float64 camera_x_m
-bool camera_x_sigma_known
-float64 camera_x_sigma_m
-uint32 camera_x_count
-bool camera_x_residual_known
-float64 camera_x_residual_rms_m
-bool camera_x_ready
-string<=256 model
-```
+- Description's [config resolver](../../src/z70_description/z70_description/resources.py)
+  uses installed package resources, with package-local source fallback, not checkout
+  ancestor discovery. Active intrinsics, mounts, CAD and contact proxies have
+  distinct consumers; consult current arm-model documentation rather than the old
+  migration assertion that geometry/model values never changed.
+- Odometry's [resource/state implementation](../../src/z70_odometry/z70_odometry/resources.py)
+  owns immutable historical chassis seeds and the mutable default
+  `$XDG_DATA_HOME/RRsZ70_ROS2/calibration/chassis/online.json`, with
+  `~/.local/share` fallback (relative XDG values are treated as unset).
+  `output_file` explicitly overrides the destination; never point reproduction
+  tests at a retained measurement archive or a user's runtime file.
+- `initial_state_file` defaults empty. It imports a version-1 sample file only
+  when `output_file` is absent: byte-preserving, atomic, no-clobber. It never
+  searches the checkout. An existing destination is never overwritten by import.
+  This is an explicit operator operation, not a silent migration or new observation.
+- `seed_directory=''` disables historical seeds for isolated tests. Standalone
+  `initial_camera_x_m()` reads the retained 0.16 m seed; ordinary bringup supplies
+  the current mount value (0.275 m). A ready passive fit can replace initialization;
+  neither source initialization alone is an independently surveyed physical offset.
+- State saves use same-directory temporary data, fsync and atomic replacement;
+  unchanged state is not rewritten. Retained update timestamps, sample identity
+  and content hash survive restart/no-op publication.
 
-`header.stamp`/evidence source time identify persisted estimator update, not timer
-publication or physical measurement time. Evidence received_at is initial load
-or update receipt; repeated publication retains identity. Source clock HOST_SYSTEM,
-timestamp_kind ESTIMATE_UPDATE; session UUID is calibrator-process scope. Immutable
-content SHA-256 is calibration_id. No samples => validity UNKNOWN, evidence invalid.
-Historical fits remain historical; neither startup nor restoration invents fresh
-physical observations.
+## Calibration evidence contract
 
-## Integration API for parent
+The exact schema is [CalibrationState.msg](../../src/z70_interfaces/msg/CalibrationState.msg),
+not the old embedded draft. Its [publisher/adapter](../../src/z70_odometry/z70_odometry/calibration_state.py)
+uses reliable transient-local publication and known/value flags for each gain,
+uncertainty/count and camera offset. Consumers honor validity/staleness and known
+flags. Calibration is ESTIMATED, not OBSERVED; fit uncertainty is not absolute
+accuracy. No samples means unknown evidence, not zero error. Source time identifies
+persisted estimate update, not periodic publication or physical exposure; a content
+SHA-256 identifies calibration content. Manipulation consumes typed calibration,
+not checkout `online.json`.
 
-- `z70_manipulation.perception.front_camera(repo=None)`,
-  `calibration(repo=None)`, `front_objects(image, repo=None, thresholds=None)`,
-  `front_jaw(image, repo=None)` default to installed package resources. An explicit
-  repo override is for archive/tests only. Remove executor `parents[4]` discovery;
-  call without repo in production. Planner uses the same active gripper K/D.
-- `z70_odometry.resources.runtime_calibration_path()` is the default mutable file:
-  `$XDG_DATA_HOME/RRsZ70_ROS2/calibration/chassis/online.json`, or
-  `~/.local/share/RRsZ70_ROS2/calibration/chassis/online.json` when unset.
-  `output_file` remains the calibrator override. Do not launch with a checkout
-  calibration path. Manipulation should subscribe to typed CalibrationState,
-  not read repository online.json; gain consumers must honor known flags.
-- Description owns the installed active front-camera JSON, camera-info YAML and
-  unchanged floor-geometry module; odometry owns immutable historical chassis-fit
-  seeds and mutable online state.
+## Historical phase-3 resource receipts (reported, not rerun)
 
-## Runtime API and migration
-
-- `z70_description.resources.config_path(name)` resolves installed package share
-  files. Missing installed data fails closed; source-mode fallback is confined to
-  that package's config directory (no checkout ancestor walk). Pincher geometry
-  now uses this same resolver, with no changes to geometry/model values.
-- `FloorCamera.load()` and the odometry/mosaic `calibration` parameter default to
-  the installed front-camera JSON. `initial_camera_x_m()` reads the retained
-  **0.16 m initial VO guess** from `z70_odometry/config/odometry.yaml`. This is not
-  silently replaced by the separate provisional 0.275 m model-preview mount.
-  Existing estimation/ready gates and all geometry tolerances are unchanged.
-- `seed_directory` defaults to installed historical chassis fits; set it to an
-  empty string in synthetic integration tests to disable measured-history seeds.
-- `initial_state_file` (default empty) explicitly imports an existing version-1
-  online file **only when output_file does not exist**. Import is atomic,
-  byte-preserving and no-clobber; there is no automatic checkout search. To retain
-  existing observed samples on the new durable default, an operator can start
-  the calibrator once with `-p initial_state_file:=/absolute/archive/online.json`.
-  This run tested the import into scratch only, not the user's durable state.
-- Saves fsync a private same-directory temporary, atomically replace and fsync
-  the directory. Unchanged data is not rewritten. Restart/no-op publication
-  retains update timestamps, content hashes and fit evidence; periodic state
-  publication does not invent a new observation identity.
-- `z70_odometry.calibration_state.gains_from_state(msg)` returns the existing
-  executor gain-dictionary layout, honoring validity/stale/known flags. Parent
-  manipulation node can use it in the typed calibration subscriber; if imported,
-  declare its z70_odometry runtime dependency. `calibrated_camera_x(msg)` is now
-  typed and used by both VO and mosaic. No String calibration publisher remains.
+Everything below records that migration's originals, hashes, scratch import and
+software checks unchanged. The scratch prefix
+`/Users/mpentax/.hermes/cache/scratch/phase3-resources-y2zzp5gk/installed` is an
+unavailable/ephemeral historical output, not a portable install prefix. Old `ros2/`
+commands and coordinated-worker instructions are not present-day instructions.
+No historical hash, sample count or optical expected failure is upgraded here.
 
 ## Measured data and provenance
 
@@ -127,7 +83,7 @@ Front CameraInfo's historical export rounds K to 3 decimal places and D to 6;
 tests assert that exact export against the full-precision JSON. Gripper planner
 K/D match the active adopted YAML exactly. No tolerance was changed.
 
-## Executed offline verification
+## Historical executed offline verification
 
 Using `/Users/mpentax/.pixi/bin/pixi` in `ros2/`:
 
@@ -153,7 +109,7 @@ No colcon, robot/MCP, service, Docker, private state, live calibration or commit
 were run by this resource worker. Wheel/unit proof is **not** a claim that the full
 coordinated installed ROS suite passes.
 
-## Required coordinated handoff (parent/interface owner)
+## Historical coordinated handoff (completed migration)
 
 Parent integration replaced the initial CalibrationState draft with the binding
 schema above and compiled the generated types. Serialization and the typed DDS

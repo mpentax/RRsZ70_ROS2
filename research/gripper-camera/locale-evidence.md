@@ -1,3 +1,5 @@
+> **Supporting historical evidence — 2026-10-18 curation.** The original audit/replay body below is retained verbatim. Static negative findings and implementation statements are bounded to the inspected sources; replay is not a second physical acquisition. Current behavior: [camera guide](../cameras/FINDINGS.md) and [arm model](../../docs/z70-arm-model.md).
+
 # Gripper-camera locale evidence (offline primary-source extraction)
 
 Source: `/Volumes/GOLD16-HFSP/WD16GOLD01/Michael/s/Z70Android/targeted-plugin/index.android.hasm`.

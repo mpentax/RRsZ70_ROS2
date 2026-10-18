@@ -1,5 +1,9 @@
-> Historical/superseded architecture. Current contract: [thin-api.md](thin-api.md).
-> The service-owned admission, recovery and workflow policies described below have been removed.
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../ros2.md), [command/API contract](../thin-api.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+Defects and fixes below concern the dated implementation, not verified current vulnerabilities. Preserve the distinction between transport dispatch, vendor rejection, ACK and observed physical outcome; former all-writer recovery/admission recommendations are retired.
+
+## Historical record
 
 # Legacy outcome audit (offline, 2026-09-30)
 

@@ -156,6 +156,7 @@ def local_bodies(m6=90.):
 
 
 def hand_pose(state):
+    """CAD M5 wrist in base_footprint, with retained optical yaw/M3 registration."""
     m3,m4,m5,_=validate_state(state)
     a1=math.radians(270-m3+CAL['measured_M3_offset_deg'])
     a2=math.radians(m4-m3+90);yaw=math.radians(CAL['arm_yaw_deg'])

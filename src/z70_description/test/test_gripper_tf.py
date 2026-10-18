@@ -1,4 +1,4 @@
-"""Measured effective camera chain through real robot_state_publisher; no robot access."""
+"""CAD camera chain through real robot_state_publisher; no physical accuracy claim."""
 import time
 import numpy as np
 import pytest
@@ -35,8 +35,8 @@ def test_measured_gripper_tf(tf_robot,m3,m4,m5):
                      [2*(x*y+z*w),1-2*(x*x+z*z),2*(y*z-x*w)],
                      [2*(x*z-y*w),2*(y*z+x*w),1-2*(x*x+y*y)]])
     assert actual==pytest.approx(R,abs=1e-8)
-    # Shared effective geometry: contact remains the marker-relative surrogate,
-    # not an independently measured pad, and nominal L2 stays a gauge.
+    # CAD wrist/camera geometry and the retained optical contact surrogate
+    # remain separate; the legacy 0.205m offset below records its old gauge.
     cfg=planner._CALIBRATION
     camera=np.array([planner.CAD_L2,0,0])+np.array(planner._CAD['camera_from_wrist_m'],float)
     marker=np.array([planner.CAD_L2,0,0])+np.array(planner._CAD['marker_from_wrist_m'],float)

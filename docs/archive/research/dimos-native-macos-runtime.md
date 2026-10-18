@@ -1,3 +1,12 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../../ros2.md), [command/API contract](../../thin-api.md), [mapping/depth guide](../../../src/z70_mapping/README.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+The DimOS/relay installation and host-readiness plan is retired. Pinned backend and SDK-license distinctions remain historical source evidence; hardware availability is not permission to use or redistribute a licensed SDK.
+
+External HASM/editor inputs below are private-owner provenance, unavailable from the public checkout; full original replay needs the authentic matching inputs. No private files were opened or copied during this curation.
+
+## Historical record
+
 # Native macOS DimOS CPU/Metal assessment
 
 Research date: 2026-10-07. Read-only hardware/environment/source checks and public locked-source HTTP reads; only this research document was written. No installation, build, restart, deployment, camera request, recording, robot RPC, motion, credential change or model download. No benchmark was run.

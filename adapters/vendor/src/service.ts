@@ -174,6 +174,7 @@ export async function createService(options: ServiceOptions) {
   const savedPairing = await store.loadPairing?.();
   let device = savedPairing?.device ?? await store.loadDevice();
   let camera = savedPairing?.camera ?? await store.loadCamera();
+  let pinConfigured = !!camera?.pin && /^[1-9]{4,12}$/.test(camera.pin);
   let home = savedPairing?.home ?? await store.loadHome?.() ?? null;
   let robot: ServiceRobot | null = null;
   let cloudRobot: ServiceRobot | null = null;
@@ -317,8 +318,22 @@ export async function createService(options: ServiceOptions) {
     if (req.url !== path) return fail(400, "Query parameters are not accepted.");
     if (path === "/healthz" && req.method === "GET") return reply(res, stopped ? 503 : 200, { available: !stopped });
     if (path === "/api/session") {
-      if (req.method === "GET") return reply(res, 200, { authenticated: !!auth.authenticate(req) });
-      if (req.method === "POST") { auth.login(req, res, (await readJson(req)).pin, camera?.pin); return reply(res, 200, { authenticated: true }); }
+      const sessionStatus = () => {
+        const session = auth.authenticate(req);
+        return { authenticated: session?.scope === "control", scope: session?.scope ?? null, setupAvailable: !pinConfigured };
+      };
+      if (req.method === "GET") return reply(res, 200, sessionStatus());
+      if (req.method === "POST") {
+        const body = await readJson(req);
+        if (body.setup === true) {
+          auth.checkOrigin(req);
+          if (pinConfigured) return fail(409, "Initial setup is complete. Sign in with the camera PIN.");
+          auth.setup(req, res);
+          return reply(res, 200, { authenticated: false, scope: "setup", setupAvailable: true });
+        }
+        auth.login(req, res, body.pin, camera?.pin);
+        return reply(res, 200, { authenticated: true, scope: "control", setupAvailable: false });
+      }
       if (req.method === "DELETE") { auth.logout(req, res); return reply(res, 200, { authenticated: false }); }
       return fail(405, "Method not allowed.");
     }
@@ -328,6 +343,10 @@ export async function createService(options: ServiceOptions) {
     }
     const caller = auth.require(req);
     if (stopped) return fail(503, "Service is stopping.");
+    // Explicit allowlist: setup authority never reaches ROS, telemetry or private transports.
+    if (caller.scope === "setup" && !(req.method === "GET" && path === "/api/setup") &&
+      !(req.method === "POST" && ["/api/account/code", "/api/account/login", "/api/account/select", "/api/camera/pin"].includes(path)))
+      return fail(403, "Initial setup session cannot access control or observation APIs.");
     if (path.startsWith('/api/ros/')) {
       if (!rosRoute(req.method ?? '', path)) return fail(404, 'Unsupported ROS route.');
       const body = req.method === 'POST' ? await readJson(req) : undefined;
@@ -335,7 +354,7 @@ export async function createService(options: ServiceOptions) {
     }
     if (path === '/api/setup' && req.method === 'GET')
       return reply(res, 200, { device: device ? { id: device.duid, name: device.name, model: device.model, host: device.host, localProtocol: selectedLocalProtocol(device) } : null,
-        accountConfigured: !!camera, pinConfigured: !!camera?.pin, regions: ['eu', 'us', 'cn', 'asia'], protocols: ['1.0', 'L01'] });
+        accountConfigured: !!camera, pinConfigured, regions: ['eu', 'us', 'cn', 'asia'], protocols: ['1.0', 'L01'] });
     // Acquisition transport endpoints are private to the ROS driver. Browser consumers
     // use the shared ROS cache and cannot open additional previews or workflows.
     if (caller.kind === 'cookie' && !path.startsWith('/api/account/') && path !== '/api/camera/pin' && path !== '/api/v1/capabilities')
@@ -436,6 +455,7 @@ export async function createService(options: ServiceOptions) {
     }
     if (path.startsWith("/api/account/") && req.method === "POST") {
       const body = await readJson(req);
+      auth.require(req);
       if (path === "/api/account/code") {
         if (typeof body.email !== "string" || body.email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email) || !["eu", "us", "cn", "asia"].includes(String(body.region))) return fail(400, "Invalid email or region.");
         if (Date.now() - lastCode < 60000) return fail(429, "Wait before requesting another code.");
@@ -443,6 +463,7 @@ export async function createService(options: ServiceOptions) {
         const cloud = options.cloudFactory?.(body.region as "eu") ?? new RoborockCloud(body.region as "eu");
         try { await cloud.requestCode(body.email); }
         catch { return fail(502, 'Sign-in code request failed. Check account email, region and network; wait before requesting another code.'); }
+        auth.require(req);
         account = { owner: caller.id, email: body.email, cloud, expiresAt: Date.now() + 1200000, attempts: 0 };
         return reply(res, 200, { sent: true });
       }
@@ -454,6 +475,7 @@ export async function createService(options: ServiceOptions) {
         let login: CameraLogin;
         try { login = await attempt.cloud.loginCameraWithCode(attempt.email, body.code); }
         catch { return fail(502, 'Account verification failed. Check region, verification code, network and computer clock; request a new code if it expired.'); }
+        auth.require(req);
         if (account !== attempt || attempt.expiresAt < Date.now() || attempt.login) return fail(409, "Account login changed.");
         attempt.login = login; attempt.email = "";
         return reply(res, 200, { devices: login.devices.map(item => ({ id: item.duid, name: item.name, model: item.model })) });
@@ -466,25 +488,32 @@ export async function createService(options: ServiceOptions) {
         // Stop using the old account pairing before changing credentials. Failed persistence remains disconnected.
         if (!store.savePairing) return fail(503, "Atomic authenticated pairing persistence unavailable.");
         await persistPairing(async () => {
+          auth.require(req);
           if (account !== attempt || attempt.login !== login) return fail(409, "Account login changed.");
           robot?.close(); cloudRobot?.close(); robot = null; cloudRobot = null; device = null; camera = null; home = null; configured = false;
           await store.savePairing!({ device: nextDevice, camera: nextCamera, home: nextHome });
-          device = nextDevice; camera = nextCamera; home = nextHome; atomicPairing = true; if (account === attempt) account = null; replaceRobot();
+          device = nextDevice; camera = nextCamera; home = nextHome; atomicPairing = true; if (account === attempt) account = null;
+          pinConfigured = /^[1-9]{4,12}$/.test(nextCamera.pin);
+          if (pinConfigured) { auth.revokeSetup(); account = null; }
+          replaceRobot();
         });
 
         return reply(res, 200, { selected: true });
       }
     }
     if (path === "/api/camera/pin" && req.method === "POST") {
-      const body = await readJson(req); if (!camera) return fail(503, "Authenticated account required.");
+      const body = await readJson(req); auth.require(req); if (!camera) return fail(503, "Authenticated account required.");
       const selected = device, selectedCamera = camera, authorization = home;
       const next = { ...selectedCamera, pin: pinValue(body.pin) };
       await persistPairing(async () => {
+        auth.require(req);
         if (device !== selected || camera !== selectedCamera || home !== authorization) return fail(409, "Selected account changed.");
         if (atomicPairing && store.savePairing && selected && authorization)
           await store.savePairing({ device: selected, camera: next, home: authorization });
         else await store.saveCamera(next);
         camera = next; configured = false;
+        if (!pinConfigured) account = null;
+        pinConfigured = true; auth.revokeSetup();
       });
       return reply(res, 200, { pinCached: true });
     }

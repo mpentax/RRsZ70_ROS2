@@ -1,3 +1,10 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../ros2.md), [command/API contract](../thin-api.md), [arm model](../z70-arm-model.md), [shared-camera guidance](../validation/shared-camera-mode.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+The TypeScript constructors and metric-admission mechanism below are retired. Receipt time is still not exposure time; REP-103 optical axes and floor-only ray intersection remain useful derivations, not arbitrary-depth measurements.
+
+## Historical record
+
 # Camera observation and calibration contracts
 
 `src/camera-observation.ts` is dependency-free, pure evidence validation and geometry.

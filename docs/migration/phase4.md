@@ -1,3 +1,12 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../ros2.md), [command/API contract](../thin-api.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+Shared MCP/UI/DDS testing below is reported historical software evidence, not deployment/hardware acceptance. The old cd ros2 recipe and handoff task are inactive; named missing verification artifacts are unavailable.
+
+**Historical outputs unavailable in this checkout:** `docs/migration/phase4-cross-surface.json`, `docs/migration/phase4-npm-audit-final.json`, `docs/migration/phase4-npm-build-final.txt`, `docs/migration/phase4-npm-final.txt`, `docs/migration/phase4-release.txt`, `docs/migration/phase4-ros-pass.txt`, `docs/migration/phase4-verification.json`. Results citing them below are reported history only.
+
+## Historical record
+
 # Phase 4 — shared ROS MCP/web controls and web setup
 
 Task `t_6d59fe24`. Implemented and qualified offline at unchanged HEAD
@@ -74,13 +83,13 @@ Exact API, bounds, enums and retention/restart behavior: [phase4-api.md](phase4-
   passes. npm audit reports zero vulnerabilities after semver-compatible MCP SDK
   and source-map-js lockfile updates. happy-dom is test-only.
 
-Evidence: [phase4-verification.json](phase4-verification.json),
-[phase4-cross-surface.json](phase4-cross-surface.json),
-[phase4-npm-final.txt](phase4-npm-final.txt),
-[phase4-npm-build-final.txt](phase4-npm-build-final.txt),
-[phase4-release.txt](phase4-release.txt) (fresh build and earlier test-race failure),
-[phase4-ros-pass.txt](phase4-ros-pass.txt) (final full installed suite),
-[phase4-npm-audit-final.json](phase4-npm-audit-final.json).
+Evidence: phase4-verification.json (historical path `docs/migration/phase4-verification.json`; unavailable),
+phase4-cross-surface.json (historical path `docs/migration/phase4-cross-surface.json`; unavailable),
+phase4-npm-final.txt (historical path `docs/migration/phase4-npm-final.txt`; unavailable),
+phase4-npm-build-final.txt (historical path `docs/migration/phase4-npm-build-final.txt`; unavailable),
+phase4-release.txt (historical path `docs/migration/phase4-release.txt`; unavailable) (fresh build and earlier test-race failure),
+phase4-ros-pass.txt (historical path `docs/migration/phase4-ros-pass.txt`; unavailable) (final full installed suite),
+phase4-npm-audit-final.json (historical path `docs/migration/phase4-npm-audit-final.json`; unavailable).
 
 An earlier verification used a stale pre-existing domain-92 CLI daemon and failed
 with InvalidHandle. The test now uses explicit daemon-free `ros2 topic/param`
@@ -94,9 +103,13 @@ These are offline fake-driver and rendered-DOM results, not a real-browser or
 hardware trial, motor-cessation proof, camera recovery, calibrated accuracy or
 successful physical pickup claim.
 
-## Reproduce offline
+## Historical reproduction recipe (retired workspace)
 
-From the repository root:
+The following is the original receipt, not a present-day command. Use the
+[current ROS guide](../ros2.md) and root manifests for supported checks. The
+old `ros2` subworkspace no longer exists.
+
+Original working-directory description:
 
 ```sh
 npm test

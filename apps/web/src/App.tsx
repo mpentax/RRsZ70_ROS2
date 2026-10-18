@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ApiError, deleteSession, json, snapshot, SESSION_EXPIRED } from "./api.ts";
+import { ApiError, deleteSession, json, snapshot, SESSION_EXPIRED, type SessionStatus } from "./api.ts";
 import { cancelTask, listTasks, startTask, stopRobot, setControlSession, terminal, type Task, type RosState, type Setup } from './ros.ts';
 import { SetupForm } from './SetupForm.tsx';
 import { robotRpc } from './rpc.ts';
@@ -21,7 +21,7 @@ function fmtDeg(val: unknown): string {
   return typeof val === 'number' && Number.isFinite(val) ? `${ (val * 180 / Math.PI).toFixed(0) }°` : '—';
 }
 
-export function App({ session }: { session: Promise<{ authenticated: boolean }> }) {
+export function App({ session }: { session: Promise<SessionStatus> }) {
   const [authenticated, setAuthenticated] = useState(false);
   const [pin, setPin] = useState("");
   const [state, setState] = useState<RosState | null>(null);
@@ -66,13 +66,46 @@ export function App({ session }: { session: Promise<{ authenticated: boolean }> 
     finally { setSessionBusy(false); }
   }
 
+  const [setupSession, setSetupSession] = useState(false);
+  const [setupAvailable, setSetupAvailable] = useState(false);
+  const [accessMessage, setAccessMessage] = useState('');
+  function applySession(value: SessionStatus) {
+    setAuthenticated(value.authenticated);
+    setSetupSession(value.scope === 'setup');
+    setSetupAvailable(value.setupAvailable === true);
+  }
+  async function setupUpdated() {
+    if (setupSession) {
+      const status = await json<SessionStatus>('/api/session');
+      applySession(status);
+      if (status.scope !== 'setup') {
+        setSetup(null); setPin('');
+        setAccessMessage('Setup complete. Sign in with your camera PIN.');
+        return;
+      }
+    }
+    setSetup(await json<Setup>('/api/setup'));
+  }
   useEffect(() => {
     let active = true;
-    void session.then(value => { if (active) setAuthenticated(value.authenticated); }).catch(() => { if (active) setError("Session check failed."); });
-    const expired = () => { setAuthenticated(false); setPin(''); setState(null); setSetup(null); setTasks([]); setOutcome(null); setImage(""); setAutoStream(false); };
+    void session.then(value => { if (active) applySession(value); }).catch(() => { if (active) setError("Session check failed."); });
+    const expired = () => {
+      setAuthenticated(false); setSetupSession(false); setSetupAvailable(false); setPin(''); setState(null); setSetup(null); setTasks([]); setOutcome(null); setImage(""); setAutoStream(false);
+      void json<SessionStatus>('/api/session').then(value => { if (active) applySession(value); }).catch(() => {});
+    };
     window.addEventListener(SESSION_EXPIRED, expired);
     return () => { active = false; window.removeEventListener(SESSION_EXPIRED, expired); };
   }, [session]);
+
+  // Setup must not depend on the ROS gateway being started or reachable.
+  useEffect(() => {
+    if (!authenticated && !setupSession) return;
+    const controller = new AbortController();
+    void json<Setup>('/api/setup', {signal:controller.signal}).then(value => {
+      if (!controller.signal.aborted) setSetup(value);
+    }).catch(e => { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : 'Setup unavailable.'); });
+    return () => controller.abort();
+  }, [authenticated, setupSession]);
 
   useEffect(() => () => { if (image) URL.revokeObjectURL(image); }, [image]);
 
@@ -82,12 +115,11 @@ export function App({ session }: { session: Promise<{ authenticated: boolean }> 
     let timer: ReturnType<typeof setTimeout>;
     async function refresh() {
       try {
-        const [s, t, input] = await Promise.all([
+        const [s, t] = await Promise.all([
           json<RosState>('/api/ros/state', {signal:controller.signal}),
           listTasks(controller.signal),
-          json<Setup>('/api/setup', {signal:controller.signal}),
         ]);
-        if (!controller.signal.aborted) { setState(s); setTasks(t.tasks); setSetup(input); setConnectionError(''); }
+        if (!controller.signal.aborted) { setState(s); setTasks(t.tasks); setConnectionError(''); }
       } catch (e) {
         if (!controller.signal.aborted) { setState(null); setConnectionError(e instanceof Error ? e.message : 'ROS unavailable. No action is replayed.'); }
       } finally {
@@ -160,6 +192,14 @@ export function App({ session }: { session: Promise<{ authenticated: boolean }> 
     setOutcome(await robotRpc({...command, ...(transport ? {transport} : {}), timeoutMs}));
   }
 
+  if (setupSession) return <main className="app-shell">
+    <h1>Initial local setup</h1>
+    <p className="muted">Setup only: control, camera and ROS access remain locked. Saving the camera PIN ends this setup session; then sign in normally.</p>
+    {error && <p role="alert" className="error">{error}</p>}
+    <SetupForm setup={setup} onUpdated={setupUpdated} />
+    <button className="quiet" onClick={() => void run(async () => { await deleteSession(); setSetupSession(false); setSetup(null); })}>Exit setup</button>
+  </main>;
+
   if (!authenticated) return <main className="access-page">
     <div className="access-shell">
       <div className="brand">
@@ -172,13 +212,26 @@ export function App({ session }: { session: Promise<{ authenticated: boolean }> 
       <section className="card access-card">
         <p className="eyebrow">OPERATOR AUTHENTICATION</p>
         <h1>RoboClaw</h1>
+        {accessMessage && <p role="status" className="notice">{accessMessage}</p>}
+        {setupAvailable ? <>
+          <p className="muted">No camera PIN is saved. Pair your account and device locally before signing in. No service token is needed.</p>
+          <button className="primary" disabled={busy} onClick={() => void run(async () => {
+            try {
+              applySession(await json<SessionStatus>('/api/session', {body:{setup:true}}));
+            } catch (e) {
+              if (e instanceof ApiError && e.status === 409) applySession(await json<SessionStatus>('/api/session'));
+              throw e;
+            }
+          })}>Start local setup</button>
+        </> : <>
         <p className="muted">Enter your configured Roborock camera pattern to unlock the local ROS 2 control and observation console.</p>
         <form onSubmit={e => { e.preventDefault(); const value = pin; setPin(""); void run(async () => {
-          const result = await json<{ authenticated: boolean }>("/api/session", { body: { pin: value } }); setAuthenticated(result.authenticated);
+          const result = await json<SessionStatus>("/api/session", { body: { pin: value } }); applySession(result); setAccessMessage('');
         }); }}>
           <label>Camera PIN<input type="password" inputMode="numeric" pattern="[1-9]{4,12}" placeholder="4–12 digits (1–9)" autoComplete="off" value={pin} onChange={e => setPin(e.target.value)} /></label>
           <button className="primary" disabled={busy || !pin}>Sign in</button>
         </form>
+        </>}
         {error && <p role="alert" className="error">{error}</p>}
         <div className="access-footnote">
           <span className="dot good-text" />
@@ -523,7 +576,7 @@ export function App({ session }: { session: Promise<{ authenticated: boolean }> 
       </div>
     </div>
 
-    <SetupForm setup={setup} onUpdated={async () => setSetup(await json<Setup>('/api/setup'))} />
+    <SetupForm setup={setup} onUpdated={setupUpdated} />
 
     <footer className="app-footer">
       <span>ROBOCLAW · ROBOROCK SAROS Z70 ROS 2 CONTROL PLANE</span>

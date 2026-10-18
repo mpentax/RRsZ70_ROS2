@@ -1,3 +1,5 @@
+> **Historical / superseded guidance — 2026-10-18 curation.** Original body below is preserved verbatim. Measurements, failed fits, cleanup uncertainty, test counts and commands describe only the dated experiment/source revision, not current runtime state or reusable authorization. Current guidance: [odometry guide](../../../src/z70_odometry/README.md), [camera guidance](../../../research/cameras/FINDINGS.md).
+
 # Chassis trial results
 
 **DON'T ADOPT** — yaw_positive: need >= 4 measured samples; yaw_positive: duration dependence untested; yaw_negative: need >= 4 measured samples; yaw_negative: scatter unavailable or >20%; yaw_negative: duration dependence untested; forward: need >= 4 measured samples; rotation-circle RMS unavailable or >2 mm; positive/negative yaw gains differ >10%

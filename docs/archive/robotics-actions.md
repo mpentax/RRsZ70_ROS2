@@ -1,5 +1,11 @@
-> Historical/superseded architecture. Current contract: [thin-api.md](thin-api.md).
-> The service-owned admission, recovery and workflow policies described below have been removed.
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../ros2.md), [command/API contract](../thin-api.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+The leased BoundedOperation schemas and production-enable flags below are retired. Current actions are generated from z70_interfaces; synthetic historical tests are not hardware qualification.
+
+Temporary/scratch paths below are historical ephemeral references, not retained portable outputs; their original contents are unavailable from this checkout and were not reconstructed.
+
+## Historical record
 
 # Bounded ROS actions — shared authority client
 

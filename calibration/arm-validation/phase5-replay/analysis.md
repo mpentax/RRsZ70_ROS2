@@ -1,3 +1,5 @@
+> **Supporting historical evidence — 2026-10-18 curation.** The original audit/replay body below is retained verbatim. Static negative findings and implementation statements are bounded to the inspected sources; replay is not a second physical acquisition. Current behavior: [camera guide](../../../research/cameras/FINDINGS.md) and [arm model](../../../docs/z70-arm-model.md).
+
 | Snapshot | Value |
 | --- | --- |
 | Scope | PARTIAL snapshot; final acquisition is not complete |

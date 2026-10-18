@@ -1,3 +1,5 @@
+> **Historical / superseded guidance — 2026-10-18 curation.** Original body below is preserved verbatim. Measurements, failed fits, cleanup uncertainty, test counts and commands describe only the dated experiment/source revision, not current runtime state or reusable authorization. Current guidance: [current arm model](../../docs/z70-arm-model.md), [camera/calibration guide](../../research/cameras/FINDINGS.md).
+
 # Camera regression — resolved
 
 ## Root cause established on hardware

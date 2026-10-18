@@ -1,5 +1,9 @@
-> Historical/superseded architecture. Current contract: [thin-api.md](thin-api.md).
-> The service-owned admission, recovery and workflow policies described below have been removed.
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../ros2.md), [command/API contract](../thin-api.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+The v1 observation/docking envelope, always-disabled docking and reservation procedure are retired. Receipt timestamps and unmeasured-joint limitations remain evidence distinctions, not justification to restore that API.
+
+## Historical record
 
 # Robotics interface v1
 

@@ -1,3 +1,10 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../ros2.md), [command/API contract](../thin-api.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+This dated defect review includes later fixes; it is not a current vulnerability list or a reason to restore leases/docking journals. Its results and scope remain historical.
+
+## Historical record
+
 # Second independent review — supervised docking / ROS actions
 
 2026-09-30, evolving working tree. Owned only this report. No robot calls, live observations, builds, restarts, or commits. Line references describe the inspected snapshot; parent service fault-case fixes may supersede findings.

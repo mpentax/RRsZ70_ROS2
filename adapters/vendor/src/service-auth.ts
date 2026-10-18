@@ -17,7 +17,7 @@ function digest(value: string): Buffer { return createHash("sha256").update(valu
 export class ServiceAuth {
   #token: Buffer;
   #config: ServiceConfig;
-  #sessions = new Map<string, number>();
+  #sessions = new Map<string, { expires: number; scope: "control" | "setup" }>();
   #attempts = 0;
   #window = 0;
 
@@ -54,21 +54,22 @@ export class ServiceAuth {
     return /^[a-f0-9]{64}$/.test(value) ? digest(value).toString("hex") : undefined;
   }
 
-  authenticate(req: IncomingMessage): { kind: "bearer" | "cookie"; id: string } | null {
+  authenticate(req: IncomingMessage): { kind: "bearer" | "cookie"; id: string; scope: "control" | "setup" } | null {
     if (req.headers.authorization !== undefined) {
       const value = /^Bearer ([^\s]{1,4096})$/.exec(req.headers.authorization)?.[1];
-      return value && timingSafeEqual(digest(value), this.#token) ? { kind: "bearer", id: "bearer" } : null;
+      return value && timingSafeEqual(digest(value), this.#token) ? { kind: "bearer", id: "bearer", scope: "control" } : null;
     }
     const id = this.#cookie(req);
     if (!id) return null;
-    if ((this.#sessions.get(id) ?? 0) <= Date.now()) {
+    const session = this.#sessions.get(id);
+    if (!session || session.expires <= Date.now()) {
       this.#sessions.delete(id);
       return null;
     }
-    return { kind: "cookie", id };
+    return { kind: "cookie", id, scope: session.scope };
   }
 
-  require(req: IncomingMessage): { kind: "bearer" | "cookie"; id: string } {
+  require(req: IncomingMessage): NonNullable<ReturnType<ServiceAuth["authenticate"]>> {
     const auth = this.authenticate(req);
     if (!auth) throw new ServiceHttpError(401, "Authentication required.");
     if (auth.kind === "cookie" && !["GET", "HEAD"].includes(req.method ?? "")) this.checkOrigin(req);
@@ -88,13 +89,35 @@ export class ServiceAuth {
       !timingSafeEqual(digest(pin), digest(expectedPin))) {
       throw new ServiceHttpError(401, "Invalid camera PIN.");
     }
-    for (const [id, expires] of this.#sessions) if (expires <= now) this.#sessions.delete(id);
+    this.#issue(req, res, "control", SESSION_MS);
+  }
+
+  setup(req: IncomingMessage, res: ServerResponse): void {
+    this.checkOrigin(req);
+    // Trust the exact localhost Host + configured Origin, not forwarded headers or
+    // socket peer: Docker's loopback-published port has a bridge peer inside the container.
+    // Deployment must keep the published port loopback-bound during initial setup.
+    const hostname = new URL(`http://${req.headers.host}`).hostname;
+    if (!["localhost", "127.0.0.1", "[::1]"].includes(hostname) ||
+      !["localhost", "127.0.0.1", "[::1]"].includes(new URL(this.#config.publicOrigin).hostname)) {
+      throw new ServiceHttpError(403, "Initial setup requires localhost.");
+    }
+    this.#issue(req, res, "setup", 20 * 60_000);
+  }
+
+  revokeSetup(): void {
+    for (const [id, session] of this.#sessions) if (session.scope === "setup") this.#sessions.delete(id);
+  }
+
+  #issue(req: IncomingMessage, res: ServerResponse, scope: "control" | "setup", duration: number): void {
+    const now = Date.now();
+    for (const [id, session] of this.#sessions) if (session.expires <= now) this.#sessions.delete(id);
     const old = this.#cookie(req);
     if (old) this.#sessions.delete(old);
     if (this.#sessions.size >= 64) throw new ServiceHttpError(429, "Too many active sessions.");
     const value = randomBytes(32).toString("hex");
-    this.#sessions.set(digest(value).toString("hex"), now + SESSION_MS);
-    res.setHeader("Set-Cookie", this.#header(value, SESSION_MS / 1000));
+    this.#sessions.set(digest(value).toString("hex"), { expires: now + duration, scope });
+    res.setHeader("Set-Cookie", this.#header(value, duration / 1000));
   }
 
   logout(req: IncomingMessage, res: ServerResponse): void {

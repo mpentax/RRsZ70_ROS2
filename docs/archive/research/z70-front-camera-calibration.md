@@ -1,3 +1,12 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../../ros2.md), [command/API contract](../../thin-api.md), [arm model](../../z70-arm-model.md), [shared-camera guidance](../../validation/shared-camera-mode.md), [calibration entrypoint](../../../calibration/front-camera/README.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+The no-calibration finding and private DimOS/venv command describe the original preflight only. Current installed calibration and reproducible-method guidance are linked above; true target scale, pose diversity and held-out validation remain useful.
+
+External HASM/editor inputs below are private-owner provenance, unavailable from the public checkout; full original replay needs the authentic matching inputs. No private files were opened or copied during this curation.
+
+## Historical record
+
 # Z70 fixed-front camera calibration preflight
 
 2026-10-07. Local/public read-only research; no camera/robot connection, motion, credential access or service changes.

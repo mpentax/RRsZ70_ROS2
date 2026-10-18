@@ -1,3 +1,10 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../ros2.md), [command/API contract](../thin-api.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+IBVS and local empirical-effect modelling below are research, not a deployed controller. Receipt age does not establish exposure latency; the former authority/completion and calibration-approval ladders are not current prerequisites.
+
+## Historical record
+
 # Encoder-free visual control: offline foundation
 
 Implemented only in new `src/visual-replay.ts`, `src/visual-action-learning.ts` and

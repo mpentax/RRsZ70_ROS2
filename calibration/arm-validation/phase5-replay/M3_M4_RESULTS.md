@@ -1,3 +1,5 @@
+> **Supporting historical evidence — 2026-10-18 curation.** The original audit/replay body below is retained verbatim. Static negative findings and implementation statements are bounded to the inspected sources; replay is not a second physical acquisition. Current behavior: [camera guide](../../../research/cameras/FINDINGS.md) and [arm model](../../../docs/z70-arm-model.md).
+
 # M4 then M3: supervised estimator check
 
 Outcome: direction and coarse nominal 10-degree increments supported in the tested poses. No vendor constants changed; full arm calibration remains unvalidated.

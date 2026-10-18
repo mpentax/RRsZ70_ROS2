@@ -1,3 +1,10 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../ros2.md), [command/API contract](../thin-api.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+Security/integration findings below concern removed or superseded modules; source/test scope is retained, not asserted as current defects or current operating requirements.
+
+## Historical record
+
 # Independent robotics safety/integration review
 
 Reviewed 2026-09-30. Read-only code review except this report; no commits, live robot reads/actions, service restarts, Docker builds, or ROS starts. Findings refer to the inspected working tree, which other workers may subsequently change.

@@ -1,13 +1,13 @@
 <?xml version="1.0"?>
 <!--
   Roborock Saros Z70 - kinematic description.
-  PROVISIONAL shared geometry: config/mount_calibration.yaml, 20261015.
-  L2=0.205 and the vendor shoulder reference define a coordinate gauge, NOT measured wrist anatomy.
-  M4 zero/physical L2 remain confounded with unknown marker mounts. Firmware FK stays in arm_model.py.
-  Display assembly length follows rough owner tape; internal wrist/finger split and M6 remain provisional.
-  M5 stays at the nominal gauge station; rolling visuals are translated back along the same x axis.
+  CAD structure, camera and display marker: config/cad_arm.yaml (L1=0.1772, elbow-to-M5=0.1157 m).
+  Retained yaw/M3/front-camera registration and legacy TCP: config/mount_calibration.yaml.
+  Photo-estimated collision/contact proxies and nominal M6 coupling: config/pincher_geometry.yaml.
+  App end_pos uses separate 0.1775/0.205 m geometry in arm_model.py; it is not this wrist.
+  CAD representation is not independent physical registration or contact validation.
 
-  URDF joint values (radians) from app angles (degrees), computed in z70_bridge:
+  URDF joint values (radians) from app angles (degrees), computed in z70_driver.driver.app_to_urdf:
     m3_joint = rad(M3 - 270)      link1 absolute app angle = 270 - M3 (from +x toward up)
     m4_joint = rad(180 - M4)      link2 relative to link1 = M4 - 180
     m5_joint = -rad(M5), axis -x  => physical positive roll (live 20261014T144906Z)
@@ -24,8 +24,8 @@
   <xacro:property name="l1" value="${cad['L1_m']}"/>
   <xacro:property name="l2" value="${cad['L2_m']}"/>
   <xacro:property name="cal" value="${xacro.load_yaml('$(find z70_description)/config/mount_calibration.yaml')}"/>
-  <!-- Rough exterior wrist-cover extent, not an identified M5/M6 axis.
-       Head and fingers are defined only in pincher_geometry.yaml. -->
+  <!-- Retained legacy exterior extent; CAD visuals and photo-estimated collision
+       proxies have separate geometry and finger roots. -->
   <xacro:property name="visual_proximal_len" value="${cal['visual_open_assembly_length_m']-cal['visual_terminal_span_m']}"/>
   <xacro:property name="cam_x" value="${cal['front_camera_x_m']}"/>
   <xacro:property name="cam_z" value="${cal['front_camera_z_m']}"/>
@@ -148,7 +148,7 @@
     <limit lower="${10*pi/180}" upper="${145*pi/180}" effort="5" velocity="1"/>
   </joint>
 
-  <!-- Camera rolls with M5 (measured 20261014T144906Z); nominal L2 is only a gauge. -->
+  <!-- Camera rolls with M5 (observed 20261014T144906Z); mount and M5 station are CAD-backed. -->
   <link name="gripper_camera_link">
     <!-- Small glass surface INSIDE the shared shell's real pocket. +X is view direction. -->
     <visual><geometry><mesh filename="package://z70_description/meshes/pincher_lens.stl"/></geometry><material name="moving"/></visual>
@@ -180,8 +180,8 @@
     <limit lower="${-155*pi/180}" upper="0" effort="5" velocity="1"/>
   </joint>
 
-  <!-- Photo-estimated side roots and nominal coupling; NOT measured linkage.
-       Keep bridge drive coordinates M6/2, with an explicit mimic multiplier. -->
+  <!-- Collision fingers use photo-estimated roots; CAD display jaws have separate roots below.
+       Both use nominal coupling, not measured linkage. Driver coordinates are M6/2. -->
   <xacro:macro name="finger" params="side sign">
     <link name="m6_${side}_drive"/>
     <joint name="m6_${side}_joint" type="revolute">
@@ -242,7 +242,7 @@
   <link name="gripper_tcp"/>
   <joint name="tcp_joint" type="fixed">
     <parent link="arm_wrist_link"/><child link="gripper_tcp"/>
-    <!-- Provisional marker-relative terminal-region surrogate, not an exact pad/contact-seam midpoint; physical M5 station and pad anatomy remain unmeasured. -->
+    <!-- Provisional marker-relative terminal-region surrogate, not an exact pad/contact-seam midpoint; CAD M5 station is represented; exact physical contact remains uncalibrated. -->
     <origin xyz="${cal['effective_jaw_from_elbow_m'][0] - l2} ${cal['effective_jaw_from_elbow_m'][1]} ${cal['effective_jaw_from_elbow_m'][2]}"/>
   </joint>
 </robot>

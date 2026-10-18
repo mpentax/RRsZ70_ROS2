@@ -1,3 +1,10 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../ros2.md), [command/API contract](../thin-api.md), [arm model](../z70-arm-model.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+The old MCP names, per-action permissions and authority recovery are retired. Manual-first camera instructions below are superseded by shared-camera guidance; single-axis wire and stop-coverage observations remain historical evidence.
+
+## Historical record
+
 # Manual joint and retained-camera trial interface
 
 Implemented service/MCP operations:

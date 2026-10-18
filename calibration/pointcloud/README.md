@@ -1,3 +1,5 @@
+> **Historical / superseded guidance — 2026-10-18 curation.** Original body below is preserved verbatim. Measurements, failed fits, cleanup uncertainty, test counts and commands describe only the dated experiment/source revision, not current runtime state or reusable authorization. Current guidance: [mapping/depth guide](../../src/z70_mapping/README.md), [current calibration](../front-camera/README.md).
+
 # Historical single-frame depth experiment evidence
 
 The unused standalone Depth Pro / DA2 Base prototype was retired during phase 5.

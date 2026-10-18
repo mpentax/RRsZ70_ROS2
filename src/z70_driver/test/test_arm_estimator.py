@@ -21,6 +21,23 @@ def test_unknown_start_and_deploy_requires_unrestored_stow():
     assert not e.observe('app_arm_out_compartment',{},'received')
 
 
+def test_nominal_vendor_endpoint_is_not_the_cad_wrist():
+    # Independent source arithmetic avoids a self-referential estimator/FK test.
+    a1, a2 = map(math.radians, (120, -15))
+    x = .0475 + .1775*math.cos(a1) + .205*math.cos(a2)
+    y = .14 + .1775*math.sin(a1) + .205*math.sin(a2)
+    e = deployed()
+    assert e.snapshot()['wrist'] == pytest.approx(dict(x=x, y=y))
+    assert e.observe('app_arm_direction_move', {'direction': 3}, 'received')
+    d = e.snapshot()
+    assert d['wrist'] == pytest.approx(dict(x=x+.04, y=y))
+    # Decode joints independently back into the vendor endpoint after hand IK.
+    j = d['joints']
+    u, v = map(math.radians, (270-j['m3'], j['m4']-j['m3']+90))
+    assert .0475+.1775*math.cos(u)+.205*math.cos(v) == pytest.approx(x+.04)
+    assert .14+.1775*math.sin(u)+.205*math.sin(v) == pytest.approx(y)
+
+
 def test_nominal_fk_ik_and_hand_not_physical_transform():
     for m3,m4 in ((150,45),(200,90),(240,130)):
         assert inverse(*forward(m3,m4)[1],(m3,m4))==pytest.approx((m3,m4))

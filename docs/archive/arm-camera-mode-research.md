@@ -1,3 +1,12 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../ros2.md), [command/API contract](../thin-api.md), [arm model](../z70-arm-model.md), [shared-camera guidance](../validation/shared-camera-mode.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+The manual-first/no-mode-2 recommendation is superseded by observed pickup-mode/arm-out gripper acquisition. Mode, selector, bit-15 feedback and actual pixels remain distinct; do not write a status bit or restart preview as a selector fallback. Preserve the HASM hashes and call chains below.
+
+External HASM/editor inputs below are private-owner provenance, unavailable from the public checkout; full original replay needs the authentic matching inputs. No private files were opened or copied during this curation.
+
+## Historical record
+
 # Z70 arm/camera mode-transition compatibility
 
 Research date: 2026-10-03. Scope: offline Android disassembly and static repository
@@ -412,7 +421,7 @@ and an upward step both returned `[0,0,0]` from `app_get_arm_joints_data`
   unresolved late start. This is different from go2rtc and is not proof of arm
   neutrality. `CameraPreview` in `src/preview.ts` wraps this diagnostic lifecycle.
 - Repo guidance explicitly says viewing may disturb arm mode
-  (`README.md:212–218`; `docs/robotics-next-milestones.md:18`). This run found no
+  (`README.md:212–218`; `docs/robotics-next-milestones.md:18` (historical citation to a removed retired plan)). This run found no
   reproducible hardware trace establishing exactly which start/stop event moves,
   stows, resets, or changes mode. Historical retained-stream/off/on experiments
   did not identify a gripper view (`robotics/SOCK_PICKUP_TEST_PLAN.md:40`).

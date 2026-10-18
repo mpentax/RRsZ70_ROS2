@@ -1,13 +1,29 @@
-# Z70 front camera: lens + floor-distance calibration
+# Front-camera calibration
 
+## Current consumers
 
-## Active provisional floor update — 2026-10-15
+Normal ROS bringup and floor projection use the installed `z70_description` resources, not a writable checkout archive:
 
-`front_camera.json` now keeps the **original lens K/D** below but uses the new-run best front-board registration for its **PROVISIONAL floor extrinsics**, synchronized with ROS optical TF: height **58.233433936mm**, pitch-down **−1.358765985°** (slightly up), roll **−0.415796432°**. The robot-floor heading is optical-forward projected into the observed plane, not arbitrary board yaw. This supports a self-consistent physical preview with shoulder height126.430291524mm; rough owner lens60mm/shoulder127mm are crosschecks, not hard constraints. Print scale/flatness, pose/glare and retained front-lens systematics remain unresolved. **Not precision-certified mapping or manipulation geometry.**
+- [front_camera.json](../../src/z70_description/config/front_camera.json): retained original lens K/D with the later **provisional** floor registration.
+- [z70_front_camera_info.yaml](../../src/z70_description/config/z70_front_camera_info.yaml): front ROS intrinsics; the rejected joint front-lens refit was not adopted.
+- [mount_calibration.yaml](../../src/z70_description/config/mount_calibration.yaml): coherent optical TF/floor alignment and launch mount offset.
+- [Current arm model](../../docs/z70-arm-model.md): CAD shoulder/anatomy and separate optical registration/proxy consumers. The older optical-preview shoulder is not today's structural geometry.
 
-Source: `calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/arm/front-registration.json` (`T_F_W`,1332residuals,3.2425px RMS). Exact derivation and limitations: [`20261015-provisional-model/README.md`](../arm-calibration/20261015-provisional-model/README.md). The original active JSON, including its68.355862410mm floor height, is preserved byte-for-byte in [`prior-front-camera.json`](../arm-calibration/20261015-provisional-model/prior-front-camera.json) with an adjacent SHA-256 note. Front `z70_front_camera_info.yaml` is unchanged; the rejected fcyk1 intrinsics were **not** adopted.
+The floor update came from [the pincher-session front registration](../arm-calibration/20261015T080103Z-pincher-intrinsics-arm/arm/front-registration.json). Its [dated preview derivation](../arm-calibration/20261015-provisional-model/README.md) retains the prior active JSON and failure/uncertainty record. Print flatness/scale, lens extrapolation and physical registration remain systematics; coherent TF/projector inputs do **not** certify mapping or manipulation accuracy.
 
-**The remainder is the historical one-frame baseline report. Its floor-height, horizon, metric validation and range-error table are NOT current-projector accuracy claims.** `export.py` reproduces that historical baseline and would overwrite the active provisional floor; run only into an explicitly separate reproduction/archive, not as an active-model update.
+After building/installing and sourcing the workspace, load the owning package resource rather than hard-coding this archive:
+
+```python
+from z70_description.resources import config_path
+from z70_description.floor_geometry import FrontCamera
+cam = FrontCamera.load(config_path("front_camera.json"))
+# Floor origin: directly below the camera; x forward, y left, z up.
+p = cam.pixel_to_floor(800, 700)  # None for rays not intersecting the forward floor
+```
+
+## Historical one-frame baseline — preserved report
+
+**All measurements, range/uncertainty claims and improvement advice in this section describe the original one-frame floor model, not current-projector accuracy.** The historical floor extrinsics were superseded; the original lens was retained. No new physical validation is implied.
 
 From **one** frame (frame-3, two A4 ChArUco boards flat on the floor in front of the dock,
 1600×1200 stream), fitted jointly with both boards constrained to the same floor plane.
@@ -71,27 +87,22 @@ The camera is fixed, so the board has to move. Hold the 40 mm board at 3–4 til
 including the upper half of the frame, and grab ~10 frames. Run `detect.py <img>` per frame plus a multi-view fit.
 This would pin down the principal point and upper-image distortion. Floor distance doesn't need it.
 
-## Use
+## Safe baseline reproduction
 
-```python
-from floor_geometry import FrontCamera
-cam = FrontCamera.load("calibration/front-camera/front_camera.json")
-cam.pixel_to_floor(800, 700)   # {'forward_mm': ~401, 'left_mm': -11, 'range_mm': ~401, 'bearing_deg': -1.6}
-cam.floor_to_pixel(500, 0)     # where a floor point 50 cm ahead appears
-```
-
-Floor frame: origin on the floor directly under the camera, x forward, y left, z up.
-
-## Reproduce
+The baseline scripts use their own `__file__` directory, not the current working directory, for outputs. `export.py` writes `front_camera.json` beside itself plus validation/overlays; merely changing directory or supplying another input image does **not** isolate it. Copy code and evidence first, then execute the copies. The following replays fitting/export from the **retained detected corners**. Raw re-detection is historical: the original OpenCV 5.0 receipt is not reproduced by current Pixi OpenCV 4.13.0 (the dense board returned “no corners detected” in an isolated check). Do not replace retained detections with an empty/changed result. From repository root, with the installed Pixi environment and `~/.pixi/bin` on PATH:
 
 ```sh
-PY=~/.openclaw/workspace/dimos-v1/native-slam/.module-venv/bin/python   # opencv 5.0, numpy, scipy
-cd calibration/front-camera
-$PY detect.py raw/frame-3-telegram.jpg   # -> out/detections.json, out/detections.jpg
-$PY fit.py                               # model comparison -> out/fit_results.json
-$PY export.py                            # -> front_camera.json, out/validation.json, overlays
-$PY uncertainty.py                       # bootstrap -> out/uncertainty.json
+SCRATCH_ROOT="${TMPDIR:-$HOME/.cache}/rrsz70-replays"
+export TMPDIR="$SCRATCH_ROOT"
+mkdir -p "$SCRATCH_ROOT"
+S=$(mktemp -d "$SCRATCH_ROOT/z70-front-baseline.XXXXXX")
+cp -R calibration/front-camera "$S/front-camera"
+pixi run python -B "$S/front-camera/fit.py"
+pixi run python -B "$S/front-camera/export.py"
+pixi run python -B "$S/front-camera/uncertainty.py"
 ```
+
+The private raw frame and retained `out/detections.json` must be present locally. Historical raw detection used `detect.py raw/frame-3-telegram.jpg` in the old environment; it is not a verified current regeneration command. All new JSON/images remain in scratch; preserve originals by hash, and move desired outputs into a new durable archive, never onto adopted package resources. The old OpenClaw/DimOS `~/.openclaw/workspace/dimos-v1/native-slam/.module-venv/bin/python` invocation was historical environment provenance, not a current dependency or installation command.
 
 Boards: carlosmccosta/charuco_detector black-and-white A4. One is 5×7 squares, 40/30 mm (modern layout);
 the other is 10×14 squares, 20/15 mm (**legacy** layout). Both use DICT_4X4_1000; ids overlap, so each board is detected inside its own image region.

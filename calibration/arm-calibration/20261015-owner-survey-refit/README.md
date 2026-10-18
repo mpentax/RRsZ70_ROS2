@@ -1,28 +1,37 @@
 # Offline owner-survey refit
 
-Read `RESULTS.md` first: **no geometry adoption**. This directory is separate from the untouched source archive `../20261015T061415Z-physical-base/`.
+Read [RESULTS.md](RESULTS.md): this optical refit was **not adopted**. Its failures and conditional identifiability are evidence about that experiment, not absence of a structural model today. Use [the current arm guide](../../../docs/z70-arm-model.md) for copied CAD anatomy and the optical/CAD/proxy consumer split.
 
-## Reproduce from the repository root
+## Safe reproduction from the repository root
+
+The old `calibration/arm-validation/.venv/bin/python` environment is removed. The current manifest supplies Python, NumPy, SciPy and OpenCV through Pixi (macOS Apple Silicon); ensure `~/.pixi/bin` is on PATH and the environment is installed. Private retained images and JSON inputs must exist locally; Git alone is not a backup of them.
+
+`survey_refit.py` reads its session and writes the separate second positional argument. Allocate a new scratch directory for each run; never choose this retained report directory or its `reproduction/` subdirectory:
 
 ```sh
-PY=calibration/arm-validation/.venv/bin/python
-$PY calibration/arm-calibration/physical_base/survey_refit.py \
+SCRATCH_ROOT="${TMPDIR:-$HOME/.cache}/rrsz70-replays"
+export TMPDIR="$SCRATCH_ROOT"
+mkdir -p "$SCRATCH_ROOT"
+S=$(mktemp -d "$SCRATCH_ROOT/z70-survey-refit.XXXXXX")
+pixi run python -B calibration/arm-calibration/physical_base/survey_refit.py \
   calibration/arm-calibration/20261015T061415Z-physical-base \
-  calibration/arm-calibration/20261015-owner-survey-refit/reproduction \
-  --bootstrap 100
-$PY calibration/arm-calibration/20261015-owner-survey-refit/verify.py
-$PY calibration/arm-calibration/20261015-owner-survey-refit/diagnostics.py
-$PY -m py_compile \
-  calibration/arm-calibration/physical_base/survey_refit.py \
-  calibration/arm-calibration/physical_base/test_survey_refit.py \
-  calibration/arm-calibration/20261015-owner-survey-refit/verify.py \
-  calibration/arm-calibration/20261015-owner-survey-refit/diagnostics.py
-git diff --check
+  "$S/refit" --bootstrap 100
 ```
 
-No installation or network is needed: the retained venv has numpy2.0.2, scipy1.13.1, OpenCV5.0.0. Commands use real retained images/corners. `reproduction/` is a fresh output location; it does not replace the retained run/report. `diagnostics.py` intentionally reads this directory's retained `pincher-fits.json`; it regenerates `residual-diagnostics.json`. `verify.py` checks this directory's pre-refit source snapshot and runs all12 offline tests. Temporary test copies live under the configured TMPDIR and are removed automatically.
+The analyzer rejects source/output ancestor overlap, but permits an existing unrelated output directory: the fresh name above is important. Its archive-before/after SHA-256 files and original JPEG manifest check must agree. Scratch is disposable; copy any desired new outputs to a separately named durable evidence directory, without replacing the archive.
 
-**Do not run the existing unrestricted `python -m unittest` or old analyze/validate commands on the original session.** The old integration tests write `fit.json`, `validation.json`, overlays and other analyses into their session. `verify.py` redirects those two legacy test modules' session constants to a disposable full copy. The4 new tests independently check the mathematical constrained-pixel fit, content-sensitive provenance, whole-frame/pose split consistency and archive preservation, and alternate planar-start selection based on training pixels only. The numerical fixture is explicitly mathematical, not fabricated hardware evidence.
+`verify.py` and `diagnostics.py` are **historical fixed-location helpers**, not current commands. `verify.py` compares obsolete absolute checkout keys and writes this retained directory's `verification.json`; its legacy analyzer tests also require removed `ros2/src/...` resources. `diagnostics.py` writes `residual-diagnostics.json` beside itself. Do not run either in place. A full replay requires a separate complete evidence/code copy and deliberate adaptation of those historical roots/hashes, never replacement of retained manifests or restoration of old paths in this checkout.
+
+### Historical command receipt (not executable current guidance)
+
+```text
+PY=calibration/arm-validation/.venv/bin/python
+$PY calibration/arm-calibration/physical_base/survey_refit.py calibration/arm-calibration/20261015T061415Z-physical-base calibration/arm-calibration/20261015-owner-survey-refit/reproduction --bootstrap 100
+$PY calibration/arm-calibration/20261015-owner-survey-refit/verify.py
+$PY calibration/arm-calibration/20261015-owner-survey-refit/diagnostics.py
+```
+
+The retained `tests.txt` and `all-tests.txt` are distinct earlier/later receipts; do not rewrite either to a new count. The numerical fixtures are mathematical, not hardware observations.
 
 ## Model and outputs
 

@@ -1,3 +1,10 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../ros2.md), [command/API contract](../thin-api.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+The 502/unknown undock, possible movement and unverified cessation are dated observations, retained unchanged. The browser-clearance requirement and pending-tool/deployment notes describe that retired implementation, not a current prerequisite or present robot state.
+
+## Historical record
+
 # Deployed undock trial — 2026-10-03
 
 Owner explicitly authorized deployment, supervised undocking and camera feedback.
@@ -32,11 +39,10 @@ The durable unresolved record is intentionally retained; no journal deletion,
 restart clearance, motion-policy change or fabricated measured-completion source
 was used to bypass it. Arm deployment/joint/camera-selector actuation was not attempted.
 
-No trusted hardware controller-terminal or sustained measured cessation source is
-implemented. The onboard image does not show the arm or exclude delayed execution.
-The existing explicit browser recovery route remains the only installed clearance
-path; agent control cannot supply its operator assertion. That limits continuation
-of this hardware trial even with general permission to test.
+At the end of this trial, no trusted hardware controller-terminal or sustained
+measured cessation source had been established. The onboard image did not show
+the arm or exclude delayed execution. The retired implementation's browser-clearance
+policy blocked continuation; it is not a current recovery prerequisite.
 
 ## Software follow-up
 
@@ -45,6 +51,4 @@ distinguish RPC failure from a non-ACK response without logging vendor payloads.
 The service records only fixed command/category labels for future undock failures.
 This diagnostic update is source-only pending deployment and does not retry the trial.
 
-New `arm_joint_step` and `stop_arm_grasp` registrations also require MCP harness
-reload before appearing in the running agent's tool list. Service routes are
-deployed, but this agent session still has its original discovery list.
+The pending-tool discovery diary is retired; current controls are linked above.

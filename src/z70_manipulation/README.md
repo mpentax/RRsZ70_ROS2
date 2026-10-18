@@ -1,64 +1,135 @@
 # z70_manipulation
 
-Deterministic HSV perception, nominal 10-degree arm planning, and closed-loop
-manipulation actions through RoboClaw. **One supervised yellow-object pickup and >10 s hold
-was verified on 2026-10-15**, after one failed attempt. Evidence and limitations:
-`calibration/pickup/20261015T053609.715453Z-ros/RESULTS.md`.
+HSV perception, CAD-backed discrete arm planning and ROS manipulation actions.
+`z70_driver` owns command scheduling, estimation and acquisition; this package
+uses ROS interfaces through its adapter, not a second vendor connection.
 
-## Run
+## Start and inspect
 
-From the repository root:
+From the repository root, after pairing and within authorized live observation:
 
 ```sh
-~/.pixi/bin/pixi run test
-~/.pixi/bin/pixi run bringup manipulation:=true mapping:=false foxglove_port:=8765
-# Separate terminal; allow approximately 60 s for bringup/discovery:
-~/.pixi/bin/pixi run pick yellow --dry-run
-~/.pixi/bin/pixi run pick yellow
-~/.pixi/bin/pixi run stack yellow blue purple --dry-run
-~/.pixi/bin/pixi run stack yellow blue purple
+pixi run bringup web_gateway:=true manipulation:=true
+# Separate terminal:
+pixi run pick yellow --dry-run
+pixi run stack yellow blue purple --dry-run
 ```
 
-Ordinary bringup commands no motion, but reads live camera/state, refreshes maps
-and may write chassis calibration.
-`manipulation:=true` starts the manipulation action servers (`z70_pick_server`); only a live goal
-commands motion. One active manipulation goal is accepted at a time. Cancellation and
-`/z70/safety_stop` stop the active task.
+`manipulation:=true` starts idle servers; only live goals command motion. Ordinary
+bringup still acquires camera/status/maps and may persist estimates/calibration.
+Dry-run reads state/estimate/frames without selecting a camera or commanding motion;
+it validates inputs, not physical pickup or placement.
 
-## Curated ROS 2 Actions
+Standard ROS examples, inside a sourced Pixi shell:
 
-When `manipulation:=true` is enabled, `z70_pick_server` exposes both the composite `/z70/pick` action and its composable building blocks (all wired through `z70_web_gateway` and Hermes MCP `start_task`):
+```sh
+pixi run bash
+source install/setup.bash
+ros2 action list -t
+ros2 interface show z70_interfaces/action/MoveArm
+ros2 action send_goal /z70/pick z70_interfaces/action/Pick '{color: yellow, dry_run: true}' --feedback
+```
 
-- **`/z70/arm/deploy` (`z70_interfaces/action/DeployArm`, task kind `deploy_arm`)**
-  - Goal: `{settle: bool}`
-  - Enters remote pickup mode (`app_pick_up_enter_exit {flag: 2}`), unstows the arm (`app_arm_out_compartment`), waits for readiness (`WORKING_POS`), and optionally waits 15 s for the vendor obstruction-check spin to settle.
-- **`/z70/align_target` (`z70_interfaces/action/AlignToTarget`, task kind `align_target`)**
-  - Goal: `{color: string}`
-  - Acquires and confirms the target on two fresh front frames and visually servos the chassis (`BasePulse` + `/odom` + `/z70/chassis_calibration` gains) until bearing (`<= 2 deg`) and standoff range (`<= 15 mm`) converge.
-- **`/z70/arm/move` (`z70_interfaces/action/MoveArm`, task kind `move_arm`)**
-  - Goal: `{m3_deg: float, m4_deg: float, m5_deg: float}`
-  - Plans a legal sequence of 10-degree steps from `/z70/arm_estimate` using the recovered vendor kinematic envelope (`arm_model.check` + `planner.joint_plan`) and steps via RPC receipt without requiring per-step front-camera marker checks.
-- **`/z70/arm/grasp_and_lift` (`z70_interfaces/action/GraspAndLift`, task kind `grasp_and_lift`)**
-  - Goal: `{lift_steps: uint8, verify_color: string}`
-  - Closes jaws (`app_grip`), executes `lift_steps` upward hand steps (`app_arm_direction_move {direction: 1}`), and optionally verifies object elevation and floor disappearance when `verify_color` is non-empty.
-- **`/z70/arm/release_and_stow` (`z70_interfaces/action/ReleaseAndStow`, task kind `release_and_stow`)**
-  - Goal: `{put_down: bool}`
-  - Optionally runs `app_put_down {flag: 0}` with 20 s program settling, then stows (`app_arm_in_compartment`) and reconciles `IN_ROBOT`.
-- **`/z70/pick` (`z70_interfaces/action/Pick`, task kind `pick`)**
-  - Goal: `{color: string, dry_run: bool}`
-  - Composes `align_front` -> `deploy` -> `post_deploy_align` -> `move_arm` -> optional `front_servo` -> `grasp_and_lift` -> `release_and_stow`.
-- **`/z70/stack` (`z70_interfaces/action/Stack`, task kind `stack`)**
-  - Goal: `{base_color: string, middle_color: string, top_color: string, dry_run: bool}`
-  - Plans a 3-tier dodecahedron stack. Nominal 66 mm objects imply equator heights of 33/99/165 mm; those are planning targets, not measured achieved heights.
-  - Normal in-place release uses Manual Arm Control (`app_pick_up_enter_exit {flag: 1}`, observed grab mode 1) followed by `app_put_down {flag: 0}`. In auto mode 2 the same put-down RPC can lower the arm and rotate the chassis; `app_open_gripper` is not the normal manual-release button.
-  - Elevated release alone does not validate stacking. Placement must align the measured held object, lower to the support without a free drop, and verify detachment and stable support before counting a completed tier. The retained Gemini trials opened successfully but did not produce a stable stack.
+For a supervised **live** pickup, `pixi run pick yellow` (without `--dry-run`)
+executes motion. Likewise `pixi run stack yellow blue purple` attempts placement.
+Do not mistake either command example for standing motion authorization.
 
-## Safety and interfaces
+## Actions
 
-HSV does not identify people/pets. Supervision or an external detector must
-publish `/z70/safety_stop`. Robot errors (`error_code != 0`), unexpected clean/dock,
-and external stops remain hazards. Battery threshold is 15%.
+All are exposed through the [shared web/MCP facade](../../docs/thin-api.md).
+Goal fields are generated by `z70_interfaces/action/*.action`.
 
-Perception publishes `/z70/objects` (MarkerArray) and `/z70/objects/json`
-(String), in `base_footprint`, alongside bridge front/gripper image and CameraInfo
-topics.
+| ROS endpoint / type | task kind | Goal |
+|---|---|---|
+| `/z70/arm/deploy` DeployArm | `deploy_arm` | `{settle: bool}` |
+| `/z70/align_target` AlignToTarget | `align_target` | `{color: string}` |
+| `/z70/arm/move` MoveArm | `move_arm` | `{m3_deg: float, m4_deg: float, m5_deg: float}` |
+| `/z70/arm/grasp_and_lift` GraspAndLift | `grasp_and_lift` | `{lift_steps: uint8, verify_color: string}` |
+| `/z70/arm/release_and_stow` ReleaseAndStow | `release_and_stow` | `{put_down: bool}` |
+| `/z70/pick` Pick | `pick` | `{color: string, dry_run: bool}` |
+| `/z70/stack` Stack | `stack` | `{base_color: string, middle_color: string, top_color: string, dry_run: bool}` |
+
+Deploy checks current action state to avoid repeating an already-deployed arm-out.
+Otherwise it enters manual control (`app_pick_up_enter_exit {flag:1}`), waits,
+unstows and observes readiness, optionally allowing 15 seconds of settling.
+The firmware obstruction check may turn the chassis. The current executor also
+contains bounded reverse pulses and an unstow reissue for a persistent stowed
+clutter-refusal state; **deploy is not an arm-only motion**. Readiness is not a
+universal common_status bit-8 guarantee.
+
+Alignment confirms a target on fresh front frames and servos the chassis using
+BasePulse, odometry and typed chassis gains. MoveArm plans legal nominal 10-degree
+steps at the actual M3/M4/M5/M6 state. Physical reach/clearance uses copied CAD
+geometry; recovered vendor endpoint FK/check remains a separate command-admission
+model. The CAD wrist must not be substituted for that historical app endpoint.
+Routine steps use model bounds and RPC outcomes, not mandatory per-step ID68 gates.
+
+GraspAndLift closes jaws (`app_grip`), then explicitly sends upward hand steps
+(`app_arm_direction_move {direction:1}`); grip alone is not a lift. A nonempty
+verify_color requests front-view elevated-object/floor-disappearance checks.
+ReleaseAndStow optionally invokes the mode-dependent put-down routine, allows
+20 seconds of program settling, then stows and reconciles the estimate. It is
+not the supported-contact stacking placement operation.
+
+Pick composes alignment → deployment → post-deploy realignment → arm approach →
+optional front servo → grasp/lift → release/stow. Stack adds held-object/support
+geometry, actual placement movement, release and post-withdrawal verification.
+Nominal 66 mm objects imply 33/99/165 mm equator targets, not achieved heights.
+Normal in-place opening is manual grab mode 1 plus `app_put_down {flag:0}`; in auto
+mode 2 that same RPC can run an autonomous lowering/turning program.
+`app_open_gripper` belongs to abnormal-arm recovery, not normal release.
+
+## Geometry, perception and validity
+
+Installed description resources supply both lens models, copied CAD arm/shoulder/
+hand geometry and optical registration. [Arm model](../../docs/z70-arm-model.md)
+distinguishes CAD wrist, historical command endpoint, physical display jaws,
+collision proxies and optical marker reconstruction. Available CAD geometry does
+not validate hardware registration, joint coupling/backlash or an exact grasp
+contact. Visual task-local pose recovery does not anchor the authoritative ROS
+estimator. TF presence/visual joints alone cannot authorize planning: use typed
+ArmEstimate joints/validity.
+
+`/z70/objects` (MarkerArray) and `/z70/objects/json` (String) publish HSV objects in
+base_footprint from matched calibrated frames. HSV does not detect people/pets.
+Supervision or an external detector publishing `/z70/safety_stop` is needed.
+Robot error, unexpected clean/dock and external stops are hazards; the executor
+also rejects pickup at the charging threshold (default 15%). One manipulation
+goal runs at a time; cancellation and task-token revocation use driver priority stop.
+
+## Reusable measurement and acceptance
+
+- Save pregrip, explicit-lift, front verification and hold frames, with distinct
+  tier/attempt names, command outcomes, frame/session identities and source stamps.
+  Host receipt after dispatch/settling is not a measured exposure timestamp.
+- Verify elevation **and** disappearance from the original floor spot. An unchanged
+  gripper blob or gripper timeout proves neither grasp nor release.
+- Measure a hold interval (the retained pickup used more than ten seconds), not a
+  single apparently held image. Preserve failed attempts and operator observations.
+- Place into observed support, not a free drop. Verify detachment after opening,
+  then stable support **after hand withdrawal** before advancing a dependent tier.
+  A planned pose/log event or `tiers_completed` alone is not physical stack evidence.
+- Use observation-backed anchors only for known stowed/deployed poses. Missing
+  frames/markers or UNKNOWN delivery require observation, not blind replay or
+  compensating motion. Stop for actual hazards; report failed physical cleanup.
+
+For calibration, first measure stationary detection noise and actual coverage.
+Fit only identifiable transforms; a marker is not the wrist/TCP, rotation-only
+views do not measure lengths, and CAD already supplies structural priors. Keep
+lens/floor/registration gauges explicit. Hold out whole poses and independent
+sessions, propagate lens/target scale/flatness uncertainty separately from fit
+sigma, and require cross-method agreement before adoption. Do not relax optical
+tolerances to make a model agree or overwrite retained originals during reanalysis.
+
+## Physical evidence, not a performance promise
+
+[One supervised pickup and 10.803933 s hold](../../calibration/pickup/20261015T053609.715453Z-ros/RESULTS.md)
+was verified on 2026-10-15 after a failed attempt. It does not establish repeatability
+or validate all later CAD/planner changes. The
+[2026-10-18 stack analysis](../../calibration/pickup/20261018T141117Z-gpt-stack/ANALYSIS.md)
+records successful manual opening but lost support after withdrawal and no verified
+two/three-tier stack. Implemented placement checks and dry-run success are not
+hardware qualification.
+
+Offline verification: `pixi run test` from the repository root. It exercises real
+logic/generated interfaces with fake inputs; it does not establish physical success.

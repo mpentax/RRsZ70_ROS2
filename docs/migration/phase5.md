@@ -1,3 +1,12 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../ros2.md), [command/API contract](../thin-api.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+The cutover and replay are historical, not current operator closeout or deployment status. Named missing qualification logs/manifests are unavailable, so numerical results below remain reported history, not newly verified passes. Do not regenerate pre-cutover evidence from HEAD.
+
+**Historical outputs unavailable in this checkout:** `docs/migration/phase5-build.txt`, `docs/migration/phase5-clean-colcon.txt`, `docs/migration/phase5-clean-installed.txt`, `docs/migration/phase5-clean-npm.txt`, `docs/migration/phase5-installed.txt`, `docs/migration/phase5-mcp-connection.json`, `docs/migration/phase5-native-client-race.txt`, `docs/migration/phase5-network.txt`, `docs/migration/phase5-npm.txt`, `docs/migration/phase5-path-map.json`, `docs/migration/phase5-pixi-test.txt`, `docs/migration/phase5-policy-remainders.json`, `docs/migration/phase5-preserved-evidence.json`, `docs/migration/phase5-research.txt`, `docs/migration/phase5-ros.txt`, `docs/migration/phase5-verification.json`. Results citing them below are reported history only.
+
+## Historical record
+
 # Phase 5 — RRsZ70_ROS2 cutover and offline qualification
 
 Task: `t_220f88b3`. Checkout: `/Users/mpentax/Code/RRsZ70_ROS2`.

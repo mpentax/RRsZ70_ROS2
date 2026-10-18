@@ -7,12 +7,34 @@ def api():
     from z70_manipulation import planner
     return planner
 
+def test_firmware_endpoint_is_separate_from_cad_hand_and_camera():
+    import numpy as np
+    from z70_description import pincher_geometry as hand
+    p = api()
+    a1, a2 = map(math.radians, (120, -15))
+    endpoint = (.0475 + .1775*math.cos(a1) + .205*math.cos(a2),
+                .14 + .1775*math.sin(a1) + .205*math.sin(a2))
+    assert p.vendor_endpoint((150, 45)) == pytest.approx(endpoint)
+    assert p.wrist((150, 45)) == pytest.approx(endpoint)  # compatibility name
+    T = hand.hand_pose((150, 45))
+    assert not np.allclose(T[[0, 2], 3], endpoint)
+    C, R = p.camera_pose((150, 45))
+    optical = np.array([[0., 0., 1.], [-1., 0., 0.], [0., -1., 0.]])
+    assert C == pytest.approx(T[:3, 3] + T[:3, :3] @ p.CAD_MOUNT[0])
+    assert R == pytest.approx(T[:3, :3] @ hand.rpy(p.CAD_MOUNT[1]) @ optical)
+    # The old hybrid checker admitted this beyond the recovered app endpoint.
+    assert p.vendor_check(240, 130, 0) == 'FAULT_PROJECTION'
+    assert not p.safe((240, 130, 0, 90))
+
+
 def test_default_grid_grasp_targets_front_measured_region():
     p=api()
     # Keep the historical preset; new physical preview is not a new pickup trial.
     assert p.GRASP==(250,95)
     assert p.tip_height(p.GRASP) == pytest.approx(.04158389094665366,abs=1e-10)
     assert p.grasp_point()[:2] == pytest.approx(p.operational_point((240,95))[:2])
+    assert p.vendor_check(*p.GRASP, 0) == 'SUCCESS'
+    assert p.body_floor_bound(p.GRASP) < p.MIN_TIP
     assert not p.safe(p.GRASP), 'lateral finger bodies now disprove TCP-only safety'
 
 

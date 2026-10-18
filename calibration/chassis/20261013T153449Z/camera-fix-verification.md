@@ -1,3 +1,5 @@
+> **Historical / superseded guidance — 2026-10-18 curation.** Original body below is preserved verbatim. Measurements, failed fits, cleanup uncertainty, test counts and commands describe only the dated experiment/source revision, not current runtime state or reusable authorization. Current guidance: [odometry guide](../../../src/z70_odometry/README.md), [camera guidance](../../../research/cameras/FINDINGS.md).
+
 # Camera recovery — parent verification
 
 Verified at 2026-10-13T16:30:07Z. Production app/go2rtc containers remain intentionally stopped. No chassis or arm motion was issued in this session, and no camera request or service start was issued during offline debugging.

@@ -1,3 +1,10 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../../ros2.md), [command/API contract](../../thin-api.md), [arm model](../../z70-arm-model.md), [calibration entrypoint](../../../calibration/front-camera/README.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+The DimOS supervisor/job API and routine data-gap abort rules are retired. Identifiability, marker-not-TCP, independent holdouts and restart-estimate caveats remain useful methods. Current CAD supplies represented structure; this optical plan does not establish permanent mechanical unknowns.
+
+## Historical record
+
 # Z70 autonomous arm and gripper calibration plan
 
 Status: research and implementation specification only. No robot connection, camera activation, motion, service modification or deployment is authorized by this document.

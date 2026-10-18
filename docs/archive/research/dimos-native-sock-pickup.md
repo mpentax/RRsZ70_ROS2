@@ -1,3 +1,14 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../../ros2.md), [command/API contract](../../thin-api.md), [mapping/depth guide](../../../src/z70_mapping/README.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+The independent-DimOS roadmap is superseded by ROS vendor-map interpretation plus optional learned depth. Exposed-sensor limitations and pinned framework comparisons remain dated provenance, not a claim that current ROS depth is absent.
+
+External HASM/editor inputs below are private-owner provenance, unavailable from the public checkout; full original replay needs the authentic matching inputs. No private files were opened or copied during this curation.
+
+Temporary/scratch paths below are historical ephemeral references, not retained portable outputs; their original contents are unavailable from this checkout and were not reconstructed.
+
+## Historical record
+
 # Native dimOS first: living-room mapping → Z70 sock pickup
 
 Research date: 2026-10-06. **No robot motion, map creation, camera session, arm, dock or stop RPC was issued. No deployment or implementation was changed. No claim is made that the living room is mapped.** The separate saved-map retrieval track must supply its own artifact and evidence.

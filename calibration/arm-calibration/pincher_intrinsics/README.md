@@ -1,10 +1,37 @@
 # Pincher intrinsics and conditional arm geometry
 
-Offline tools only. The code does not contact the robot. Actual acquisition used the existing `../live.mjs` **MCP SDK** helper, bounded one-jog/capture/state blocks, and direct RoboClaw MCP tools. No robot HTTP/SDK/go2rtc fallback, ROS poller, Docker restart, grip/pick/clean/dock/navigation program or commit was used.
+Offline analysis only; no robot IO. The [original lens/arm experiment](../20261015T080103Z-pincher-intrinsics-arm/RESULTS.md) remains unchanged as dated evidence. Its asymmetric pincher lens was **adopted later** in the installed [gripper CameraInfo](../../../src/z70_description/config/z70_gripper_camera_info.yaml); its non-adopted anatomical fits did not become validated by that lens adoption. [Current arm geometry](../../../docs/z70-arm-model.md) uses CAD structural anatomy and separate optical/contact registrations.
 
-## Reproduce from the repository root
+## Safe reproduction from repository root
+
+The old calibration `.venv` is removed; use the installed Pixi environment (Python, NumPy, SciPy and OpenCV, `~/.pixi/bin` on PATH). Private retained images are required. These CLIs write observations, `lens/`, `arm/` and overlays **in the positional session directory**. Its `-pincher-intrinsics-arm` suffix check does not protect existing archives.
+
+Copy the **complete calibration tree** into fresh scratch, retaining the directory layout and sibling baseline sessions. Run copied code from the copied root: `prepare.py` computes image paths relative to `D.parents[2]`, `lens_report.py` reads those relative paths and sibling old lens data, and arm reconstruction resolves older sessions relative to its own code. A lone session copy or output symlink is insufficient.
 
 ```sh
+SCRATCH_ROOT="${TMPDIR:-$HOME/.cache}/rrsz70-replays"
+export TMPDIR="$SCRATCH_ROOT"
+mkdir -p "$SCRATCH_ROOT"
+S=$(mktemp -d "$SCRATCH_ROOT/z70-pincher-replay.XXXXXX")
+cp -R calibration "$S/calibration"
+pixi run bash -c '
+  set -eu
+  cd "$1"
+  CODE=calibration/arm-calibration/pincher_intrinsics
+  D=calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm
+  python -B "$CODE/prepare.py" "$D"
+  python -B "$CODE/lens_report.py" "$D" --bootstrap 200
+  python -B "$CODE/arm_report.py" "$D" --bootstrap 200
+' -- "$S"
+```
+
+All regenerated files remain in the disposable copy. Hash the original tree before/after, keep rejects, and retain desired new outputs only in a separately named durable evidence directory. No command above updates installed calibration.
+
+`validation_report.py` is a **historical full-report helper**: its absolute `baseline-before-sha256.json` keys bind to the old checkout/content, so relocation or documentation curation can invalidate its assertion. It also writes `validation/` and `counts.json` in place. Do not present it or unrestricted legacy tests as a portable successful replay; preserve original manifests and stdout rather than rewriting hashes to make them pass. A full historical replay requires deliberate path/provenance adaptation solely in a complete disposable copy.
+
+### Historical command receipt — removed environment / original archive target
+
+```text
 PY=calibration/arm-validation/.venv/bin/python
 CODE=calibration/arm-calibration/pincher_intrinsics
 D=calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm
@@ -15,7 +42,7 @@ $PY $CODE/validation_report.py "$D"
 (cd "$CODE" && ../../arm-validation/.venv/bin/python -m unittest -v)
 ```
 
-Run from the repo root: retained image/log paths and baseline hash manifests are repo-relative. These CLIs write only the **new owned session's** `lens/`, `arm/`, `validation/` and observation files. Do not point them at an original baseline session. They do not call the old archive-writing `physical_base` command-line entry points or legacy integration tests. Original historical observations are read for identical-corner comparisons and independent longer-arc reconstructions.
+## Method and original acquisition interpretation
 
 `prepare.py` recomputes raw ChArUco corners without a lens/FK assumption. It records image SHA-256, detector code, log, board geometry and a cache key. For this actual session, regeneration produced the identical observation-file SHA-256 before and after (`1cd1b54a6a4d068d4d5dcb9c48b55aa94366a618fa981ee9c69d1f8a23e14499`).
 
@@ -35,6 +62,6 @@ Run from the repo root: retained image/log paths and baseline hash manifests are
 - `002-deployed-gripper.jpg` is an unsuccessful selection/setup filename: the actual MCP camera and1200-pixel height are **front**. It is excluded from pincher fitting. Subsequent gripper selection was confirmed and delivered896-pixel frames.
 - The first attempted mode-entry/arm-out sequence did not extend the arm despite ACK. Later observed mode/action and a bounded arm-out recovered actual gripper video; no uncertain jog was replayed blindly.
 - Print tolerance, rigid planarity and mechanical landmark stations are not precisely surveyed. The visible printed areas looked approximately planar; white margin curl is not automatically marker deformation. Rough tape values remain independent checks, including the rough60mm camera height.
-- No production intrinsics, URDF, planner, firmware or shared mount changed. L2/mount and M4-zero/mount gauges remain exact null directions. See the session's gauge examples instead of interpreting an effective optical lever as physical L2.
+- At acquisition/report time no production intrinsics, URDF, planner, firmware or shared mount changed. The L2/mount and M4-zero/mount null directions describe that optical objective, not absence of a CAD structural model. See the session's gauge examples instead of interpreting an effective optical lever as physical L2.
 
 Evidence is local/private and git-ignored, **not a remote backup**.

@@ -1,3 +1,10 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../../ros2.md), [command/API contract](../../thin-api.md), [mapping/depth guide](../../../src/z70_mapping/README.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+The independent-DimOS experiment restrictions are retired. Preserve bounded negative sensor findings and binary/pose provenance: an app request timestamp is not sensor capture time, and a saved pose is not live localisation.
+
+## Historical record
+
 # Z70 stock API inventory for independent native DimOS mapping
 
 Static research: 2026-10-06. **No robot reads, camera activation/capture, motion, mapping run, mode changes, deployment, or commits.** Only this document was written. The saved-map private files were not opened; their research summary was sufficient. No private URLs, credentials, identifiers or home geometry are reproduced.

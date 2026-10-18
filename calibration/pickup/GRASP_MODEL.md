@@ -1,3 +1,5 @@
+> **Historical / superseded guidance — 2026-10-18 curation.** Original body below is preserved verbatim. Measurements, failed fits, cleanup uncertainty, test counts and commands describe only the dated experiment/source revision, not current runtime state or reusable authorization. Current guidance: [manipulation guide](../../src/z70_manipulation/README.md), [latest trial outcome](20261018T141117Z-gpt-stack/ANALYSIS.md).
+
 # Equator grasp model — offline correction, 2026-10-14
 
 ## What the images establish (and what they do not)

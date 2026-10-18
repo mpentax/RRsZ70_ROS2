@@ -1,4 +1,4 @@
-"""Actual robot_state_publisher TF; wrist is a nominal-L2 gauge, not measured anatomy."""
+"""Actual robot_state_publisher TF of the CAD wrist; not physical metrology."""
 import os
 from pathlib import Path
 import signal
@@ -15,7 +15,6 @@ import xacro
 import yaml
 
 from z70_driver.driver import app_to_urdf
-from z70_description.arm_model import forward
 
 
 @pytest.fixture(scope="module")

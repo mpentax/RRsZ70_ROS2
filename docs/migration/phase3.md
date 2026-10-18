@@ -1,3 +1,12 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../ros2.md), [command/API contract](../thin-api.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+Ownership/unknown-delivery/priority-stop results are historical software evidence. The old display/planning split, prior checkout paths and worker collision notes are not living policy; missing output is unavailable.
+
+**Historical outputs unavailable in this checkout:** `docs/migration/phase3-clean-build-final.txt`, `docs/migration/phase3-generator.txt`, `docs/migration/phase3-installed-verification.txt`, `docs/migration/phase3-npm-build.txt`, `docs/migration/phase3-npm-concurrent-flake.txt`, `docs/migration/phase3-npm-test.txt`, `docs/migration/phase3-ros-final.txt`, `docs/migration/phase3-verification.json`. Results citing them below are reported history only.
+
+## Historical record
+
 # Phase 3 — ROS execution, estimation and calibration ownership
 
 Task `t_16c0ca97`, checkout `/Users/mpentax/Code/RoboRockZ70-Connector`, branch

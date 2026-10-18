@@ -1,3 +1,5 @@
+> **Historical / superseded guidance — 2026-10-18 curation.** Original body below is preserved verbatim. Measurements, failed fits, cleanup uncertainty, test counts and commands describe only the dated experiment/source revision, not current runtime state or reusable authorization. Current guidance: [odometry guide](../README.md), [camera guidance](../../../research/cameras/FINDINGS.md).
+
 # Offline odometry / floor mosaic results
 
 All measurements below are **offline**, not hardware chassis calibration. No robot MCP/HTTP calls, bridge launch, `.local/` access or git commit. JSONs retain full numeric output.

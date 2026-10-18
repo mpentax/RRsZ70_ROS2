@@ -1,3 +1,12 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../../ros2.md), [command/API contract](../../thin-api.md), [arm model](../../z70-arm-model.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+Later [editor recovery](android-ui-program-recovery.md) and [live trial](z70-programming-live-trial-2026-10-06.md) partly resolve the missing editor/firmware-acceptance discussion. AppStop maps to app_stop; full Blockly save, physical step size and stop/drain scope remain distinct. This is not an active DimOS integration plan.
+
+External HASM/editor inputs below are private-owner provenance, unavailable from the public checkout; full original replay needs the authentic matching inputs. No private files were opened or copied during this curation.
+
+## Historical record
+
 # Z70 programming mode: candidate native discrete-arm interface
 
 Research date: 2026-10-06. **Offline only.** Read primary Hermes instructions and local archive directories; did not execute the plugin, contact robot/camera/cloud, change modes, deploy software, or commit/push. Only this document is owned/edited by this workstream. Existing Oct 3 research was read first and its relevant primary windows re-read.

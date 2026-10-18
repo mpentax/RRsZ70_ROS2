@@ -1,3 +1,10 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../ros2.md), [command/API contract](../thin-api.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+Synthetic-only conclusions and residual storage caveats below remain historical. Recovery/docking acceptance and per-data-gap stop rules are retired, not current operating doctrine.
+
+## Historical record
+
 # Final targeted independent recheck
 
 2026-09-30. Scope: review-2 findings only, final inspected source and targeted offline tests. No live robot calls, restarts, builds, commits or code changes. This report is the sole owned file.

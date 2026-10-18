@@ -1,3 +1,12 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../../ros2.md), [command/API contract](../../thin-api.md), [mapping/depth guide](../../../src/z70_mapping/README.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+Private home-map artifacts remain external/private, not public repository dependencies; their availability was not checked. Retain bottom-first raster, 50-mm grid/mm positions and room-ID joins. Cache receipt and saved pose do not prove source freshness or localisation.
+
+External HASM/editor inputs below are private-owner provenance, unavailable from the public checkout; full original replay needs the authentic matching inputs. No private files were opened or copied during this curation.
+
+## Historical record
+
 # Private Roborock saved-map reference for native DimOS research
 
 Retrieved 2026-10-06 against deployed connector source `efc8cf5` (including prior TCP correction). This is a **saved vendor map retrieval**, not a new scan, mapping run, cleaning run, drive, or native DimOS map. No motion, docking, arm, account/configuration or deployment commands were issued.

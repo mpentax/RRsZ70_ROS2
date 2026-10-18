@@ -1,3 +1,10 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../ros2.md), [command/API contract](../thin-api.md), [mapping/depth guide](../../src/z70_mapping/README.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+The observation-only/no-ROS recommendation and tf2-value verdict were superseded by implemented ROS execution, estimation and acquisition. Keep dated source comparisons/pins, not a mandate to remove current capabilities.
+
+## Historical record
+
 # Feasibility review: replace DimOS with ROS 2, move control into Hermes Agent
 
 Historical source audit, not current architecture policy. The observation-only

@@ -1,3 +1,10 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../ros2.md), [command/API contract](../thin-api.md), [mapping/depth guide](../../src/z70_mapping/README.md).
+> This is the exact pre-cutover index snapshot, not a current inventory or install guide. Counts, old `ros2` paths, `depth=false` and tracked-venv state are dated observations. Plans and commands below are not present-day instructions.
+
+JSON inventories and source assets are preserved unchanged. Model identifiers do not prove cached or tracked weights exist; old snapshot evidence must not be regenerated from HEAD.
+
+## Historical record
+
 # Offline tracked-asset inventory
 
 ## Scope and reproducible boundary

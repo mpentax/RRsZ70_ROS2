@@ -1,87 +1,100 @@
-RRsZ70_ROS2 / RoboClaw operations
-================================
+RRsZ70_ROS2 operations
+=====================
+Run commands from the repository root. Supported native target: macOS ARM64
+(Pixi/RoboStack Jazzy), with Docker Desktop for private vendor transport/media.
 
-Directory cutover is offline source work, not production deployment or permission
-for robot/camera access. Commands marked live below require that separate scope.
-Do not start a second writer against existing private state.
-
-Layout and ports
-----------------
-From /Users/mpentax/Code/RRsZ70_ROS2:
+Build and start
+---------------
   npm ci
   npm run build
-  docker compose -f deploy/compose.yaml config --quiet
+  pixi install
+  pixi run build
   docker compose -f deploy/compose.yaml build app go2rtc
-
-Compose project remains roboclaw, not a new deployment/volume namespace.
-Build context is the root with deny-by-default Docker ignores. The Node 24 image
-contains adapters/vendor, apps/mcp, shared HTTP contracts and dist/web; not ROS,
-calibration evidence, environments, private .local, tests or local node_modules.
-The patched go2rtc image retains its pinned upstream revision and camera lifecycle
-regressions. Upstream go2rtc logs are not persisted (may contain credential URLs).
-
-Host HTTP: 127.0.0.1:57010 -> container app 57000.
-Host media TCP/UDP: 127.0.0.1:57012 -> go2rtc 57002.
-Private go2rtc admin: 57001, never published or proxied wholesale.
-Native ROS web gateway: 127.0.0.1:57020, never LAN-bound.
-Foxglove: ws://127.0.0.1:8765, native localhost.
-
-Native/container networking
---------------------------
-Native ROS/Pixi remains outside Docker for macOS ROS and optional Metal/MPS.
-Compose sets Z70_ROS_GATEWAY_ORIGIN=http://host.docker.internal:57020. Docker
-Desktop host alias reachability to a native loopback fake gateway was exercised;
-no gateway LAN bind or direct-vendor client fallback is introduced. This is a
-macOS Docker Desktop result, not a Linux host networking guarantee.
-
-State and web input
--------------------
-The Compose bind is ../.local relative to deploy/compose.yaml: the SAME relocated
-private directory, not deploy/.local or a fresh named volume. Preserve all its
-files, modes and contents. Do not chown/clear it to satisfy a startup preflight.
-No ownership-delay gate is part of startup. Back up state privately before any
-separately authorized deployment. Credentials/PIN/token must not enter source,
-build arguments, Compose environment values, DDS, MCP arguments, logs or chat.
-
-The existing authenticated web UI provides account email/code, region, device,
-IP/local protocol and camera-pattern input. Retired standalone auth/probe/relogin
-CLIs are not the setup path. The operator handles the existing private bootstrap
-login token locally; never paste it into an agent conversation. Browser sessions
-cannot access private driver/acquisition routes. UI/MCP use /api/ros/* and the
-same task UUID registry. Stop is independent of stalled ordinary requests.
-
-Live startup and shutdown (NOT performed by the cutover)
--------------------------------------------------------
   docker compose -f deploy/compose.yaml up -d
-  ~/.pixi/bin/pixi run bringup web_gateway:=true
 
-Start manipulation:=true only when an idle pickup action server is wanted; a
-live pick goal has separate motion effects. Ordinary bringup accesses live camera,
-state and maps and may persist chassis calibration. Ctrl-C stops owned ROS nodes.
+Open http://127.0.0.1:57010 and choose Start local setup when no PIN is saved.
+Account email code, region, device, LAN IP/protocol and camera PIN belong in that
+browser flow. Saving the PIN ends setup; sign in with that PIN. Setup authority
+is localhost-only, lasts up to 20 minutes and cannot access ROS/control/images.
+Configured users sign in with the saved camera PIN. Never paste a service token,
+PIN, account code or device key into chat, logs or command-line arguments.
+Roborock cloud authentication/signaling is used; only secret storage is local.
+
+  pixi run bringup web_gateway:=true
+  # Optional idle manipulation servers:
+  pixi run bringup web_gateway:=true manipulation:=true
+
+Bringup reads live status/images/maps and may save estimates/calibration. It does
+not dispatch motion merely on launch. A live manipulation goal does. In a shared
+session, use only the authorized observation/motion scope and do not start a
+second controller or restart services underneath another operator.
+
+Ctrl-C ends owned ROS launch processes. The web/MCP Stop control & streams action
+requests stop, exits viewing and suspends acquisition until explicit resume.
+Inspect streams_released and stop outcomes: an ACK is not observed cessation.
   docker compose -f deploy/compose.yaml stop
 
-Use standard ros2 topic/action/service/param tools for bounded diagnosis. Do not
-invent a RoboClaw doctor, launcher, diagnostic agent, leases or recovery bypass.
-A service response is not observed motion completion. Hardware checks for shared
-camera switching, uncertain dispatch, priority stop/cancel and pickup regression
-remain separately authorized; fake/DDS tests cannot establish them.
+Ports and network boundary
+--------------------------
+127.0.0.1:57010 -> app:57000 (web/API)
+127.0.0.1:57012 TCP/UDP -> go2rtc:57002 (media, not HTTP)
+57001: private go2rtc admin, never publish/proxy wholesale
+127.0.0.1:57020: native ROS web gateway
+127.0.0.1:8765: Foxglove WebSocket
 
-Rollback
---------
-Before a live cutover, retain the previous image IDs and matching source/client
-revision plus a private state backup. Stop native ROS clients before switching
-backend versions, then stop the app and restore the matching backend/client pair
-using the SAME compatible private state. Do not restore only an old MCP client
-against a new gateway contract. Source rollback must preserve calibration originals
-and unrelated dirty work; do not git reset/clean/stash this working tree as a shortcut.
-Never docker compose down -v, prune volumes, delete credentials, reset estimates or
-start simultaneous native/container state writers to make rollback appear healthy.
+Compose project/image names retain roboclaw for compatibility. Compose sets
+Z70_ROS_GATEWAY_ORIGIN=http://host.docker.internal:57020 for Docker Desktop.
+The native gateway remains loopback-bound; this arrangement is not a Linux
+networking guarantee. Default binds are local, not an authenticated LAN service.
+Changing publish host/origin/cookie settings requires an explicit network review.
 
-Offline evidence
-----------------
-docs/migration/phase5.md and phase5-* outputs record the exact exercised scope.
-The production image may be built under a qualification-only tag; that does not
-replace or restart roboclaw-app:local. Isolated container checks use synthetic
-state, no published ports and --network none. The loopback networking test uses
-an isolated fake server, not a robot or production camera. No live deployment,
-model download or hardware acceptance is implied by passing these checks.
+State and rollback
+------------------
+Compose defaults to ../.local relative to deploy/compose.yaml (repository .local),
+mounted at /data; ROBOCLAW_DATA_PATH can override it. Preserve this private state,
+including service-token and pairing.json. Pairing updates are atomic; legacy
+split documents can be loaded, with pairing.json preferred. Secret files are
+plaintext mode 0600, not encrypted at rest. No startup owner-delay gate requires
+chowning/clearing this bind. Never put secrets into build arguments or DDS.
+
+ROS mutable state is separate: $XDG_DATA_HOME/RRsZ70_ROS2, falling back to
+~/.local/share/RRsZ70_ROS2. Installed shares contain immutable calibration/model
+resources. Retained calibration originals are evidence, not runtime output files.
+
+Before an authorized deployment, privately back up state and retain prior image
+IDs plus matching source/MCP/web/gateway versions. Stop native clients before
+switching contracts. Roll back matching backend/client versions together, using
+compatible state. Do not reset/clean/stash unrelated work, delete calibration
+originals, clear estimates or use docker compose down -v/prune as recovery.
+
+Diagnostics and bounded operation
+---------------------------------
+Use standard ros2 topic/action/service/param tools. ROS owns execution, estimation
+and shared acquisition; the sidecar owns transport/authentication. No direct
+vendor fallback from UI/MCP is supported. See docs/thin-api.md for scheduler
+BUSY/SESSION_STOPPED/STOP_UNVERIFIED and dispatch uncertainty.
+
+Nominal app_arm_move m=[a,b,c] selects M3/M4/M5: 0 none, 1 positive 10-degree
+step, 2 negative step (not -1). app_arm_direction_move direction 1..4 selects
+up/down/forward/back, nominal 40 mm; these are command units, not proof of travel.
+Resolve an uncertain motion by observation before any intentional retry, never
+blind replay or compensating motion. Missing images/VO/markers are data gaps;
+stop for actual hazards, unexpected motion/cleaning/docking, robot error or the
+operator's stop instruction. If stop and observation both fail, suspend motion
+and tell the operator to physically stop the robot.
+
+Record source/session/frame/command/attempt identities, receipt versus exposure
+time, requested motion, dispatch/reply and observed result separately. Use a new
+session evidence directory; retain originals and stationary noise/coverage data.
+Only an observation-backed known pose justifies an estimator anchor. End only
+processes you own and report observed final physical/session state, not just ACKs.
+
+Logging
+-------
+The app rotates bounded local JSON logs. go2rtc uses logging driver none because
+upstream errors can contain credential URLs. Never attach/copy arbitrary upstream
+logs into docs/chat. Prefer closed numeric/enum diagnostic categories and sanitized
+state. See deploy/go2rtc-login-fix.md and docs/validation/camera-preview-start-rejection.md.
+Config-only go2rtc YAML changes require recreation/restart to take effect; building
+an image alone does not update a running service. Deployment is distinct from
+software-test success and must stay within the operator's live authorization.

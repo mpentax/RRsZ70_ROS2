@@ -1,3 +1,10 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../ros2.md), [command/API contract](../thin-api.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+Cutover has happened; old independent-manifest/RViz/relocation deferrals and phase checklists are historical, not current instructions. Preserve the original path map and extraction rationale without regenerating the old index.
+
+## Historical record
+
 # Repository layout, exact path map and cutover decisions
 
 Phase-5 implementation supersession: the approved cutover has moved the checkout

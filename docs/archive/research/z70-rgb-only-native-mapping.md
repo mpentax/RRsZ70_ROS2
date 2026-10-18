@@ -1,3 +1,14 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../../ros2.md), [command/API contract](../../thin-api.md), [mapping/depth guide](../../../src/z70_mapping/README.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+The DimSlam runtime and vendor-map-forbidden experiment policy are superseded. Current mapping keeps vendor occupancy and optional learned depth separate; mono scale ambiguity and floor intersection versus genuine off-floor depth remain valid methodological distinctions.
+
+External HASM/editor inputs below are private-owner provenance, unavailable from the public checkout; full original replay needs the authentic matching inputs. No private files were opened or copied during this curation.
+
+Temporary/scratch paths below are historical ephemeral references, not retained portable outputs; their original contents are unavailable from this checkout and were not reconstructed.
+
+## Historical record
+
 # Stock Z70 RGB-only independent native DimOS mapping
 
 Research: 2026-10-07. **No camera/robot RPC, live capture, movement, program, deployment, configuration change, model download or installation was performed.** Only local source inspection and public-source HTTP reads. This document supersedes the implication in `dimos-native-sock-pickup.md` that camera mapping first requires exposing depth or buying a sensor; it does not modify that separately owned document.

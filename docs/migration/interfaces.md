@@ -1,126 +1,43 @@
-# Binding ROS interface contract (phase 1)
+# ROS interface contract — current owner reference
 
-Status: approved migration contract for RRsZ70_ROS2, implemented offline through phase 4. `z70_interfaces` includes observations, command actions, Stop/SetArmAnchor/RawRpc/TaskSession and typed CalibrationState. The ROS driver owns command scheduling and arm estimation; manipulation uses ROS, not HTTP. MCP/web share z70_web_gateway through authenticated /api/ros routes, real goal UUIDs and generated feedback/results; see phase4-api.md and phase4.md. Legacy direct writes still fail rather than bypass ROS. SI units, REP-103 axes, Jazzy, rosidl and standard action cancellation apply. No continuous trajectory controller, navigation action or measured joint feedback is advertised. Phase-1 citations below refer to its historical pre-cutover snapshot, not current line numbers.
+The phase-1 draft has been superseded. The living guide is [ROS 2](../ros2.md);
+[the command/API contract](../thin-api.md) owns shared web/MCP behavior.
+Exact fields, enums and goal/result definitions are authoritative in the
+[installed-interface source](../../src/z70_interfaces/CMakeLists.txt),
+[messages](../../src/z70_interfaces/msg), [services](../../src/z70_interfaces/srv)
+and [actions](../../src/z70_interfaces/action). Do not regenerate IDL from this
+historical Markdown entrypoint.
 
-## Ownership and current evidence
+## Preserved contract distinctions
 
-`z70_driver` is the only ROS process permitted to access private vendor HTTP/transport. Initially the existing TypeScript service remains the private transport backend. Driver owns state acquisition, shared lens selection, bounded wire commands, typed command events and command-derived estimate updates. `z70_description` owns model/calibration, `z70_odometry` owns floor VO and calibration, `z70_mapping` owns map interpretation, `z70_manipulation` owns grasp planning/execution/verification. `z70_web_gateway` is the ament Python client for both surfaces, never an alternative vendor client. Phase 4 retains the existing TypeScript MCP stdio protocol shim instead of a duplicate Python z70_mcp process: it only calls the shared authenticated web API and owns no state/tasks/calibration. Web input flows forward private account/device/PIN input to backend auth; these values never enter DDS, logs, action goals or MCP configuration.
+- `z70_driver` owns acquisition, command scheduling and command/status-derived
+  estimates. Manipulation, mapping, odometry, web and MCP consume ROS interfaces;
+  the private vendor transport is not a second estimator or task executor.
+- `EvidenceStamp` distinguishes receipt/source time, clock, stream session,
+  sequence, validity and staleness. Unknown exposure time stays unknown. Repeated
+  publication of a cached sample is not a fresh observation; a saved map pose is
+  not live localisation.
+- `CommandOutcome` distinguishes logical command UUID, per-attempt UUID/index,
+  dispatch, response and physical completion. SENT is not an observed movement;
+  an ACK is not completion or cessation. Call-start time is not confirmed wire
+  write time. Unknown motion is not automatically replayed.
+- One canonical `/joint_states` drives one `robot_state_publisher`, including
+  display poses when planning state is unknown. Usable planning state comes from
+  typed `ArmEstimate` validity/joints, not TF availability or fresh display stamps.
+  There is no separate display TF tree requirement.
+- Driver compressed images, CameraInfo and metadata use reliable transient-local
+  publication; raw images use reliable volatile depth 2. Match acquisition stamps,
+  frame IDs and lens calibration; do not relabel stale pixels after selection.
+- Current actions include BasePulse, ArmStep, HandStep, ArmOperation, Pick, Stack,
+  DeployArm, AlignToTarget, MoveArm, GraspAndLift and ReleaseAndStow. Exact goals
+  and result meaning belong to IDL and the [manipulation guide](../../src/z70_manipulation/README.md).
+- Stop, task exclusion/takeover and control-session enablement are implemented
+  scheduler behavior, not retired approval/lease policy. Ordinary writes have no
+  pending FIFO. Stops do not wait behind an ordinary RPC or camera wait.
+- Calibration is ESTIMATED with explicit known/value fields, not OBSERVED or a
+  certified covariance. See [resource and durable-state reference](phase3-resources.md).
 
-Historical starting point: TS dispatch updated its own estimator, the bridge polled history and manipulation commanded through HTTP. Phase 2 removed independent ROS observation HTTP clients and added dispatch-time backend events. Phase 3 removed the TS estimator and manipulation HTTP commands. Driver alone calls private bearer-authenticated `/api/driver/rpc` and `/api/driver/camera/select`; result and event UUIDs refer to the same backend attempt. Public legacy RPC/anchor/selector writes return an explicit 503 until phase-4 adapters exist. No runtime switch enables a competing estimator or legacy command path.
-
-## Type notation and common fields
-
-Below, each `Name { type field; ... }` defines a `.msg` in `z70_interfaces`, using standard ROS field syntax/types. Arrays `[]`, fixed arrays `[N]` and bounded strings/arrays use rosidl syntax. `std_msgs/Header`, `builtin_interfaces/Time`, `builtin_interfaces/Duration`, `unique_identifier_msgs/UUID`, `sensor_msgs/JointState`, `geometry_msgs/Point`, `geometry_msgs/Twist`, `geometry_msgs/Vector3` and `nav_msgs/Odometry` are standard types, not replacements. UUIDs are generated by the accepting ROS server. All strings are UTF-8. `code`/`reason` strings below are closed codes (max 64 chars), not arbitrary vendor errors. Opaque private payloads never flow into public status.
-
-`EvidenceStamp { builtin_interfaces/Time received_at; builtin_interfaces/Time source_at; bool source_time_known; uint8 source_clock; uint8 timestamp_kind; unique_identifier_msgs/UUID session_id; uint64 sequence; bool stale; bool valid; string<=64 reason; }`
-
-- `received_at`: host receipt of the observation/result, not publication time or exposure. Source UTC is copied only if independently available. Unknown `source_at` is zero and `source_time_known=false`; never substitute receipt.
-- `source_clock`: UNKNOWN=0, HOST_SYSTEM=1, DEVICE=2, ROS_SIM=3. `timestamp_kind`: RECEIPT=0, EXPOSURE=1, VENDOR_SNAPSHOT=2, ESTIMATE_UPDATE=3. Device source time requires an explicit clock mapping before subtraction from host time.
-- Header stamps on images/odom use mapped source time when known, otherwise receipt in the active ROS clock. `EvidenceStamp` preserves which; zero or simulated clocks must not be compared with Unix backend milliseconds. Backend `Date.now()` milliseconds are host-system time (`src/service.ts:211–244`), not device time. Timeout/duration accounting uses a monotonic clock locally and is never inferred by subtracting unrelated clocks.
-- A driver/backend acquisition restart changes `session_id`; `sequence` increases per observation stream within a session. Re-emitting a latched sample retains its original stamp/id. Invalid/missing samples retain last-good timestamps and explicit stale/valid flags, not fabricated new samples.
-- Driver `state_stale_after_s=5`, `camera_stale_after_s=5`, command observation timeout and map refresh interval are visible ROS parameters. These are defaults/design decisions, not measured hardware limits. Map cache age alone never proves source freshness. Stale data is a data gap, not an automatic motion-stop command.
-
-`Validity { uint8 value; string<=64 reason; }`: UNKNOWN=0 (no usable estimate), ESTIMATED=1, OBSERVED=2, DISPLAY_ONLY=3, STALE=4. OBSERVED requires independent sensing/evidence; an ACK cannot produce it. A usable planner checks the named estimate validity/source/age/uncertainty, never TF presence alone. Uncertainty unavailable is represented by `*_known=false`, not zero confidence error.
-
-## Observations and estimate types
-
-`RobotState { std_msgs/Header header; EvidenceStamp evidence; bool connected; uint8 transport_state; bool robot_state_known; uint32 robot_state; bool error_code_known; uint32 error_code; bool battery_known; float32 battery_fraction; bool common_status_known; uint32 common_status; bool grab_status_known; uint32 grab_status; bool cleaning_known; bool in_cleaning; bool returning_known; bool in_returning; }`
-
-`transport_state`: DISCONNECTED=0, CONNECTING=1, CONNECTED=2, DEGRADED=3. This is transport evidence, separate from non-null cached telemetry. Battery is [0,1] when known; native integer robot states/bitfields stay numeric vendor values, never aliases for measured pose. Do not invent grab-status by decoding an unrelated field. Phase 2 adds explicit known/value pairs for vendor in_cleaning/in_returning flags, preserving existing hazard evidence without guessing state-code aliases.
-
-`CameraState { std_msgs/Header header; EvidenceStamp evidence; uint8 selected_camera; bool selection_confirmed; bool preview_active_known; bool preview_active; }`
-
-`selected_camera`: UNKNOWN=0, FRONT=1, GRIPPER=2; these ROS enums are NOT vendor flags. Only driver maps FRONT→0 / GRIPPER→1. No side/back/depth selector is inferred.
-
-`FrameMetadata { std_msgs/Header header; EvidenceStamp evidence; uint8 camera; uint32 width; uint32 height; string<=128 calibration_id; bool exposure_time_known; uint8 session_scope; }`
-
-Publish corresponding Image, CompressedImage, CameraInfo and FrameMetadata with identical Header stamps/frame_id; one sequence identifies the acquisition and its decoded copies. Frames retain observed lens identity, not requested lens identity. Reject mismatched calibration dimensions; publish no calibrated metric result for an unknown lens/calibration. Ordinary reads follow selected camera without selecting/restoring. Selection flushes stale buffers and updates shared session state. One acquisition worker, latest-only consumers; depth/VO/UI must not open separate camera sessions. Current bridge receipt stamps are assigned after HTTP response (`bridge.py:150–174`), so mark exposure unknown. Neither dimensions nor bit15 alone proves a physical camera pose.
-
-Phase-2 session_scope is UNKNOWN=0, DRIVER_BACKEND_PROCESS=1, VENDOR_PREVIEW=2. The existing TS camera-session header identifies its service process, not a vendor preview lifecycle. Phase 2 namespaces that backend epoch by a fresh driver epoch so observer restarts cannot reuse sequence identities, and publishes scope=1. Cold-preview reopen/vendor preview identity remains unknown; do not call this a device-stream session or an exposure sequence.
-
-`ArmEstimate { std_msgs/Header header; EvidenceStamp evidence; Validity validity; uint8 source; string<=64 model_id; string<=128 calibration_id; sensor_msgs/JointState joints; bool joint_uncertainty_known; float64[] joint_sigma_rad; bool wrist_known; geometry_msgs/Point wrist; string<=64 wrist_frame; bool wrist_uncertainty_known; float64[9] wrist_covariance; uint32 steps_since_anchor; bool anchor_time_known; builtin_interfaces/Time anchored_at; bool restored; string<=64 unknown_reason; }`
-
-`source`: UNKNOWN=0, COMMAND_DEAD_RECKONING=1, VISUAL_MEASUREMENT=2, OPERATOR_ANCHOR=3, DISPLAY_PLACEHOLDER=4. Use joint names/order matching the URDF, radians, equal-length sigma/name/position arrays when known; absent velocity/effort arrays are empty. Do not turn legacy app M6 opening degrees into independently measured finger joints. Current M3/M4/M5 conversion is at `bridge.py:39–47`; legacy degree sigma must be converted to radians, and finger sigma remains unknown unless independently supplied. Legacy `sigmaDeg` is heuristic, not calibrated covariance (`src/arm-estimator.ts:13–29,165–174`). Do not manufacture wrist covariance from it.
-
-UNKNOWN, restored-but-unreconciled, timeout-affected or folded placeholders are not planning state. A stow command ACK may anchor a *command-derived* display/model estimate but never OBSERVED physical stow. Pickup/grip/put-down and external mode changes invalidate unsupported joints; gripper close is not a lift or completion observation. Use explicit lift/held evidence for pickup. Current estimator contains an auto-lift interpretation (`arm-estimator.ts:76–78`) that must not be promoted into the new contract. No separate absolute-joint command is warranted by `[0,0,0]` feedback.
-
-`OdometryStatus { std_msgs/Header header; EvidenceStamp evidence; Validity validity; bool pair_accepted; string<=64 rejection; bool covariance_calibrated; string<=128 calibration_id; bool active_camera_x_known; float64 active_camera_x_m; }`
-
-Phase-5 launch qualification completed the legacy JSON publisher/consumer cutover. The two explicit active-offset fields preserve the actual camera offset applied to each frame pair for online calibration; it must not be reconstructed from a later calibration estimate or encoded into an ID. UNKNOWN initial reference and STALE held/rejected pairs are not new measured motion. Source evidence/calibration identity is copied from the matched frame, not refreshed to callback time.
-
-Keep standard `/odom` (`nav_msgs/Odometry`, `odom`→`base_footprint`) and `/tf`. Rejected VO does not produce new measured motion; held pose carries invalid/stale diagnostics. Do not publish all-zero covariance as certainty for unobserved dimensions. Existing covariance is explicitly uncalibrated (`ros2/src/z70_odometry/z70_odometry/node.py:82–86`).
-
-`MapSnapshot { std_msgs/Header header; EvidenceStamp evidence; uint32 map_index; uint32 map_sequence; uint8[] raw; RoomLabel[] rooms; bool active_floor_verified; bool current_pose_verified; }`
-
-`RoomLabel { int32 segment_id; string<=128 name; }`. Raw vendor bytes are driver output; interpretation belongs to mapping. Standard `/map` is OccupancyGrid, robot/dock snapshot pose is PoseStamped, visual objects are MarkerArray. Preserve bottom-first row-major vendor grid and documented map units. Room joins are by ID, not list order. Map receipt/cache-save time is not capture time; frozen startup map→odom is display alignment, not fusion/localisation (`ros2/src/z70_mapping/z70_mapping/node.py:73–80,115–127`).
-
-`ObjectObservation { std_msgs/Header header; EvidenceStamp evidence; unique_identifier_msgs/UUID track_id; string<=32 label; geometry_msgs/Point floor_contact; bool contact_valid; bool covariance_known; float64[9] contact_covariance; float32 width_m; bool width_valid; string<=128 calibration_id; }`. Array publication `ObjectObservations { std_msgs/Header header; ObjectObservation[] objects; }` may be empty; do not manufacture eligible objects from partial HSV blobs. Held-object verification is a distinct observation, not projection of held pixels onto the floor.
-
-## Command evidence (driver-owned, not approvals)
-
-`CommandOutcome { unique_identifier_msgs/UUID command_id; unique_identifier_msgs/UUID attempt_id; uint32 attempt_index; builtin_interfaces/Time requested_at; bool write_time_known; builtin_interfaces/Time write_at; builtin_interfaces/Time finished_at; uint8 dispatch; uint8 response; bool vendor_code_known; int32 vendor_code; string<=64 error_code; uint8 physical_completion; EvidenceStamp verification; }`
-
-- `dispatch`: NOT_SENT=0, SENT=1, UNKNOWN=2. SENT means transport dispatch evidence; it does not mean received by the robot or moved. `response`: NONE=0, RECEIVED=1, VENDOR_ERROR=2, TRANSPORT_ERROR=3. Timeout after possible write is UNKNOWN. Vendor rejection is not a transport failure.
-- `physical_completion`: UNVERIFIED=0, OBSERVED_COMPLETE=1, OBSERVED_INCOMPLETE=2. A raw vendor reply starts UNVERIFIED; verification must name independent evidence in `verification`. `write_at` records a confirmed write boundary only. Current `sentAt` precedes calling transport (`src/service.ts:225–232`); it must not be relabelled as confirmed write time.
-- Logical command_id is stable across allowed retries; every attempt gets distinct attempt_id/index. Driver never interprets backend request IDs as ROS UUIDs without an explicit mapping. Carry all attempts/events; do not double-count one pulse from final result plus its attempt.
-- Closed error codes: NONE, INVALID_INPUT, BUSY, UNAVAILABLE, TIMEOUT, CAPACITY, VENDOR_REJECTED, TRANSPORT, OBSERVATION_GAP, CANCELLED, DEADLINE, STOP_UNVERIFIED. No arbitrary upstream exception text/URL. Backend auth errors become bounded web input/status, not credentials in diagnostics.
-
-`CommandEvent { EvidenceStamp evidence; uint8 phase; string<=128 operation; CommandOutcome outcome; geometry_msgs/Twist requested_twist; builtin_interfaces/Duration requested_duration; }`: phases ACCEPTED=0, DISPATCHED=1, REPLIED=2, VERIFIED=3, FINISHED=4. Event evidence sequence detects gaps; consumers do not synthesize missing history after disconnect. Odom calibration consumes events keyed by command/attempt/session, never repeated history lists. Result and event refer to the same identity/outcome. Phase 2 widens operation to 128 to preserve accepted vendor method identifiers exactly. For dispatch/reply events, source_at is the host dispatch-call start, not a confirmed wire write; write_time_known remains false.
-
-## ROS endpoints, QoS and bounds
-
-| Endpoint | Type | Owner; QoS / behavior |
-|---|---|---|
-| `/z70/state`, `/z70/camera/state`, `/z70/arm_estimate` | RobotState, CameraState, ArmEstimate | driver; RELIABLE TRANSIENT_LOCAL depth 1 |
-| `/z70/driver/map_snapshot` | MapSnapshot | driver; RELIABLE TRANSIENT_LOCAL depth 1; no credentials/raw control keys |
-| `/z70/commands` | CommandEvent | driver; RELIABLE VOLATILE depth 256, bounded history; event loss explicitly detected |
-| `/z70/chassis_calibration` | CalibrationState | odometry; RELIABLE TRANSIENT_LOCAL depth 1; full known/value gain/offset/uncertainty schema in phase3-resources.md and generated CalibrationState.msg |
-| `/camera/{front,gripper}/image_raw`, `.../compressed` | Image / CompressedImage | driver; RELIABLE VOLATILE depth 2 by default (configurable compatible sensor QoS); latest-only processing |
-| `/camera/{front,gripper}/camera_info`, `.../metadata` | CameraInfo / FrameMetadata | driver; same acquisition stamps; RELIABLE VOLATILE depth 2 |
-| `/map`, `/z70/map/{robot_pose,dock_pose,markers}` | OccupancyGrid / PoseStamped / MarkerArray | mapping; RELIABLE TRANSIENT_LOCAL depth 1 |
-| `/z70/odom_status` | OdometryStatus | odometry; RELIABLE depth 10 |
-| `/z70/objects/observations` | ObjectObservations | manipulation; RELIABLE VOLATILE depth 2; old JSON only during consumer cutover |
-| `/diagnostics` | diagnostic_msgs/DiagnosticArray | fixed categories, no credentials; diagnostic bytes verified by real serialization |
-| `/joint_states` | JointState | valid estimates only; visual-only folded state goes to `/z70/display/joint_states` and a separately namespaced display TF tree when invalid; planning never subscribes to display placeholders |
-
-Existing topic names with changed types require coordinated all-consumer cutover (no mixed publishers), not a silent in-place rolling change. `/tf_static` and `/robot_description` retain standard RELIABLE TRANSIENT_LOCAL semantics. Default bringup is observation-only regarding motion, not offline or side-effect-free: acquisition, map refresh and calibration writes can occur. `view_model.launch.py` is the offline display path.
-
-Services, using standard ROS request/response boundaries (`---`):
-
-- `/z70/driver/raw_rpc`, `RawRpc`: `string<=128 method; string<=16384 params_json; uint32 timeout_ms; uint8 transport; bool takeover; unique_identifier_msgs/UUID task_id` → `CommandOutcome outcome; string<=16384 result_json`. LOCAL=0/CLOUD=1; no credentials. This is Advanced RPC through the same scheduler/estimator/events, not a task bypass. Ordinary actions use local; priority stop follows the latest actuator transport. Unknown/unmodeled actuator effects conservatively invalidate the nominal arm estimate without blocking or replaying that RPC.
-- `/z70/tasks/session`, `TaskSession`: `bool begin; unique_identifier_msgs/UUID task_id; bool takeover` → `bool accepted; unique_identifier_msgs/UUID task_id; string<=64 reason`. Internal task exclusion, not a permission/lease system. Zero-ID begin allocates an execution ID; a matching end revokes future commands. Revocation is published on `/z70/tasks/cancel` (UUID). Explicit takeover revokes/cancels first, then stops before new dispatch. Old-task cleanup cannot stop the new controller.
-
-- `/z70/camera/select`, `SelectCamera`: request `uint8 camera`; response `CommandOutcome outcome; CameraState state`. Serializes with acquisition, never silently deploys arm or enters pickup just to obtain pixels. Status-confirmed selection and delivered-lens frames are reported separately. Bounded 20 s call; timeout reports evidence, no blind selection replay.
-- `/z70/map/refresh`, `RefreshMap`: empty request; response `CommandOutcome outcome; EvidenceStamp snapshot`. Bounded 40 s; cached map remains marked with its original stamp when refresh fails.
-- `/z70/arm/anchor`, `SetArmAnchor`: request `uint8 anchor; string<=64 observation_reason` with UNKNOWN=0, STOWED=1, DEPLOYED=2; response `ArmEstimate estimate`. No motion; operator/visual source, not measured joints merely because a caller submitted a value.
-- `/z70/stop`, `Stop`: request `uint8 scope` BASE=1, ARM=2, ALL=3; response `CommandOutcome[] outcomes; bool cessation_observed`. Outcomes correspond to actual stop attempts. A stop ACK alone leaves cessation_observed=false. Service callback must not queue behind a running action, camera wait or inference. For BASE dispatch `app_rc_stop` then `app_rc_end`; for ARM dispatch `app_stop_grasp`; for ALL dispatch all three without waiting for another operation's reply. Stop reply deadlines are at most 5 s per attempt and the total service deadline is 15 s including any backend safe retry; return UNKNOWN/STOP_UNVERIFIED when the budget expires. Override the legacy 30 s arm reply timeout for this priority path. These are response budgets, not a guarantee of motor cessation.
-
-Actions in `z70_interfaces`, each result includes `CommandOutcome outcome`, feedback includes `uint8 phase; string<=64 reason; CommandOutcome latest_outcome; EvidenceStamp latest_observation`. Phases VALIDATING=0, PREPARING=1, DISPATCHING=2, OBSERVING=3, STOPPING=4, FINISHED=5. Goal acceptance is input/scheduling acceptance, never physical acceptance/completion.
-
-| Action / endpoint | Exact goal additions | Exact result additions; bound |
-|---|---|---|
-| BasePulse `/z70/base/pulse` | `float64 linear_mps; float64 angular_radps; builtin_interfaces/Duration duration` | `nav_msgs/Odometry before; nav_msgs/Odometry after; bool odom_delta_valid`; duration >0 and ≤0.8 s, abs(linear)≤0.1 m/s, abs(angular)≤0.5 rad/s; no simultaneous nonzero axes initially; max execution 15 s incl RC startup |
-| ArmStep `/z70/arm/step` | `uint8 joint; int8 direction` | `ArmEstimate estimate`; joint M3=3/M4=4/M5=5, direction ±1, exactly one nominal 10-degree vendor jog, not an absolute/guaranteed angle; max 35 s |
-| HandStep `/z70/arm/hand_step` | `uint8 direction` | `ArmEstimate estimate`; UP=1/DOWN=2/FORWARD=3/BACK=4, one vendor step, displacement remains unvalidated; max 35 s |
-| ArmOperation `/z70/arm/operation` | `uint8 operation` | `ArmEstimate estimate`; DEPLOY=1/STOW=2/OPEN=3/CLOSE=4/PUT_DOWN=5; explicit operations, no hidden lift or closure in camera reads; max 60 s |
-| Pick `/z70/pick` | `string<=32 color; bool dry_run` | `bool verified_hold; bool dry_run_valid; string<=256 evidence_uri`; max 300 s, live success requires explicit lift + elevated target/floor-negative + hold evidence; dry-run validates observations only, never selects camera or dispatches motion |
-
-All action feedback/result fields above are normative definitions, not a JSON extension slot. Optional observations use explicit validity booleans. Evidence URI is an opaque local evidence handle, never an interior photo or private absolute path shipped by default. These conservative command bounds are migration decisions based on existing short-pulse use (`executor.py:154–182`), not firmware capabilities or measured safety certification. Node parameters may reduce them; increasing them requires explicit later hardware qualification. No FollowJointTrajectory or NavigateToPose endpoint until sensing/control actually supports them. Advanced raw vendor RPC REMAINS available through the SAME ROS dispatcher, command-event stream and estimator updates after phase-3 cutover; it cannot bypass an active task. Its typed ROS envelope is a phase-3 deliverable, not a second direct-device client. Offline protocol research remains separate from that supported advanced capability.
-
-Low-level actions SUCCEED only when their bounded dispatch/observation phase finishes with a received non-rejected response; physical_completion may still be UNVERIFIED and is always separate. Unknown transport outcome/deadline/vendor error yields ABORTED with the factual outcome, not a false physical failure or a retry. A live Pick SUCCEEDS only with verified_hold=true; observation gaps may be resolved within its bound before an inconclusive ABORTED result. A dry-run Pick SUCCEEDS with dry_run_valid=true and verified_hold=false, makes no motion/selection writes, and leaves physical completion UNVERIFIED. Cancellation uses the standard CANCELLED terminal status with the stop outcome. A missing observation can make a task inconclusive without turning every individual data gap into a hazard/abort.
-
-## Cancellation, concurrency, priority stop and recovery boundary
-
-One driver scheduler serializes ordinary conflicting base/arm commands; no unbounded FIFO, one active ordinary command and at most one pending command, extras return BUSY. Task actions sequence these commands without holding a lease, approval object or lock across stop. A live pick and manual motion conflict; manual commands return BUSY while the task owns its current execution sequence (camera/state reads remain available). Stop/cancel never waits on that scheduler. Use separate ROS callback groups/executor capacity and a transport path capable of writing stop while a previous reply is pending; test this with a hanging fake command. Do not assume a separate callback is sufficient if HTTP/transport locks still block the write.
-
-On cancel: cease future ordinary dispatches immediately, attempt bounded base stop/end and applicable arm stop once through driver (safe-stop backend retry may be retained and recorded), then observe. Never auto-stow/open/put-down as cancellation cleanup: these can create new motion. Publish CANCELLED action result with physical_completion UNVERIFIED unless cessation was observed, even if ROS cancellation succeeded. Deadline similarly stops dispatch and attempts stop; no claim of physical cessation from an elapsed timer. Robot errors, uncommanded/oversized motion, obstruction/person/pet, unexpected clean/dock and external stop are hazards. Missing VO/frame/one transport error are data gaps, not ritual aborts. If observation and stopping both fail, suspend motion and surface an immediate operator warning (physical stop required); do not continue blind.
-
-Unknown motion is never automatically replayed. Current backend retries reads/RC stop/end/start or NOT_SENT once (`src/service.ts:239–244`); retain this bounded behavior with separate attempt evidence, not an additional driver retry layer. On ambiguous motion, observe and count/skip/reconcile before the task chooses any next command. No automatic restart, reauthentication loop or diagnostic agent. Required account/PIN/device input belongs in the web flow; standard ROS launch/parameters, deterministic status and existing stop controls cover operations.
-
-## Implementation acceptance (offline first)
-
-1. Generate/compile all interfaces via colcon; serialize/deserialize actual generated messages/actions (including DiagnosticStatus byte constants), not only Python dictionaries.
-2. Hanging fake backend proves stop/cancel priority, bounded deadlines and no subsequent normal writes; timeout-after-write never replays motion. Retry identity and duplicate-event filtering preserve one physical attempt count.
-3. Restart/gap/stale tests preserve source time, sample identity, unknown exposure and map receipt caveats; late subscribers receive the last typed state/map with original stamp. No fake fresh joints from periodic display publication.
-4. Shared fake frame source proves one acquisition, selector flush/tagging, matching K/D/size/stamps, and no consumer HTTP observation clients. Driver shutdown reaps owned workers only.
-5. TypeScript tests/typecheck/build plus ROS suite stay green; installed-resource tests run without source-tree-relative calibration imports. Hardware throughput/physical completion remain separately authorized and are never inferred from fake results.
+The former draft's separate display tree, volatile compressed-camera QoS,
+incomplete action list and pending-command wording are obsolete. Its pre-cutover
+TypeScript/bridge paths were source citations, not present commands. No measured
+joint feedback, continuous trajectory controller or navigation action is implied.

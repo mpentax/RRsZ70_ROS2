@@ -1,3 +1,10 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../ros2.md), [command/API contract](../thin-api.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+This is the export-level pre-cutover dependency snapshot, not HEAD architecture. The old ros2 paths, HTTP executor and current-versus-target table are historical; imports prove consumers, not current runtime health.
+
+## Historical record
+
 # Runtime ownership, imports and entrypoints — phase 1 inventory
 
 ## Scope and reading rules

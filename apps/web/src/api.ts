@@ -64,7 +64,9 @@ async function request<T>(path: string, options: RequestOptions,
         } catch { /* An unreadable rejection body cannot establish execution evidence. */ }
       }
       // Authentication errors must never echo submitted credentials.
-      if (path === "/api/session") message = `Service access failed (HTTP ${response.status}). Check your camera PIN.`;
+      if (path === "/api/session") message = record(options.body).setup === true
+        ? `Local setup unavailable (HTTP ${response.status}). Open the configured localhost URL; if setup is complete, sign in with your camera PIN.`
+        : `Service access failed (HTTP ${response.status}). Check your camera PIN.`;
       const error = new ApiError(isAction ? `${message} ${outcomeMessage(outcome)}` : message, response.status, outcome);
       error.evidence = evidence;
       throw error;
@@ -127,9 +129,15 @@ export function snapshot(signal: AbortSignal): Promise<Blob> {
   });
 }
 
-export async function initialSession(pin?: string | null): Promise<{ authenticated: boolean }> {
+export interface SessionStatus {
+  authenticated: boolean;
+  scope?: "setup" | "control" | null;
+  setupAvailable?: boolean;
+}
+
+export async function initialSession(pin?: string | null): Promise<SessionStatus> {
   try {
-    return await json<{ authenticated: boolean }>("/api/session", pin ? { body: { pin } } : {});
+    return await json<SessionStatus>("/api/session", pin ? { body: { pin } } : {});
   } finally {
     pin = null;
   }

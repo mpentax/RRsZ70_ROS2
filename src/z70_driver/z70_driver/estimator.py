@@ -12,7 +12,9 @@ from pathlib import Path
 import tempfile
 import time
 from typing import Any
-from z70_description.arm_model import POSES, LIMITS, JOINT_STEP_DEG, HAND_STEP_M, forward, inverse, check
+from z70_description.arm_model import (
+    POSES, LIMITS, JOINT_STEP_DEG, HAND_STEP_M, vendor_forward, vendor_inverse, vendor_check,
+)
 
 ARM_METHODS = {'app_arm_out_compartment', 'app_arm_in_compartment', 'app_open_gripper',
     'app_grip', 'app_arm_move', 'app_arm_direction_move', 'app_start_program',
@@ -55,11 +57,12 @@ class ArmEstimator:
         return deepcopy(self.data)
 
     def _wrist(self):
+        # Legacy wire key "wrist": app end_pos, NOT the CAD arm_wrist_link TF.
         d = self.data
         if d['state'] in ('UNKNOWN', 'IN_ROBOT') or d['restored']:
             d['wrist'] = None
         else:
-            x, y = forward(d['joints']['m3'], d['joints']['m4'])[1]
+            x, y = vendor_forward(d['joints']['m3'], d['joints']['m4'])[1]
             d['wrist'] = dict(x=x, y=y)
 
     def _commit(self, method, effect):
@@ -111,11 +114,11 @@ class ArmEstimator:
 
     def _apply(self, joints, n, method):
         current = self.data['joints']
-        new_x = forward(joints['m3'], joints['m4'])[1][0]
+        new_x = vendor_forward(joints['m3'], joints['m4'])[1][0]
         # Predictive firmware-limit model, not evidence that a particular jog ran.
-        if new_x > .367 and new_x > forward(current['m3'], current['m4'])[1][0]: return False
+        if new_x > .367 and new_x > vendor_forward(current['m3'], current['m4'])[1][0]: return False
         self.data.update(joints=joints, state='IN_PROCESS_POS', stepsSinceAnchor=self.data['stepsSinceAnchor']+n)
-        fault = check(joints['m3'],joints['m4'],joints['m5'])
+        fault = vendor_check(joints['m3'],joints['m4'],joints['m5'])
         self.data['lastFault'] = None if fault == 'SUCCESS' else fault
         return self._commit(method, 'NOMINAL_STEP')
 
@@ -130,8 +133,8 @@ class ArmEstimator:
         if not self._movable():
             if self.data['state'] != 'IN_ROBOT' and float(self.data['joints'].get('m3', 0)) >= LIMITS['m3'][0]:
                 current = self.data['joints']
-                new_x = forward(joints['m3'], joints['m4'])[1][0]
-                if not (new_x > .367 and new_x > forward(current['m3'], current['m4'])[1][0]):
+                new_x = vendor_forward(joints['m3'], joints['m4'])[1][0]
+                if not (new_x > .367 and new_x > vendor_forward(current['m3'], current['m4'])[1][0]):
                     self.data['joints'] = joints
             return False
         if not self._apply(joints,n,method): return False
@@ -146,16 +149,16 @@ class ArmEstimator:
             return self.invalidate('INVALID_COMMAND') if self._movable() else False
         joints = dict(self.data['joints'])
         for _ in range(n):
-            x,y = forward(joints['m3'],joints['m4'])[1]
-            solution = inverse(x+delta[0]*HAND_STEP_M,y+delta[1]*HAND_STEP_M,(joints['m3'],joints['m4']))
+            x,y = vendor_forward(joints['m3'],joints['m4'])[1]
+            solution = vendor_inverse(x+delta[0]*HAND_STEP_M,y+delta[1]*HAND_STEP_M,(joints['m3'],joints['m4']))
             if solution is None:
                 if not self._movable(): return False
                 self.data['lastFault']='FAULT_IK'; return self._commit(method,'UNREACHABLE_NOMINAL')
             joints['m3'],joints['m4'] = solution
         if not self._movable():
             current = self.data['joints']
-            new_x = forward(joints['m3'], joints['m4'])[1][0]
-            if not (new_x > .367 and new_x > forward(current['m3'], current['m4'])[1][0]):
+            new_x = vendor_forward(joints['m3'], joints['m4'])[1][0]
+            if not (new_x > .367 and new_x > vendor_forward(current['m3'], current['m4'])[1][0]):
                 self.data['joints'] = joints
             return False
         if not self._apply(joints,n,method): return False

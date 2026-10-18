@@ -1,3 +1,10 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../ros2.md), [command/API contract](../thin-api.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+Source pins and reported tests below are historical. Four-tool/DimOS/uncalibrated-only claims, proposed test/auth deletion and the proposed Hermes loop are not current architecture or validated performance; speculative failure causes remain hypotheses.
+
+## Historical record
+
 # RoboClaw control-stack audit: what to replace, simplify or keep
 
 Date: 2026-10-13. Reviewer: Claude (Hermes subagent). This review was **read-only**. I made no robot, go2rtc, service or cloud calls, and I did not read `.env` or `.local/`.
@@ -152,7 +159,7 @@ Six process and transport hops, plus a second LLM, sit in front of the same `rob
 
 These either lived only in the uncommitted working tree or were removed in `e4bb653`. **They are not in `src/` now**, but 25 docs still describe them as policy:
 
-- `command-authority` / `command-arbiter` and durable uncertainty journals (`docs/command-arbiter.md`, `docs/shared-command-authority.md`)
+- `command-authority` / `command-arbiter` and durable uncertainty journals (`docs/command-arbiter.md`, `docs/shared-command-authority.md`; historical paths, removed retired designs)
 - motion holds (`control-hold.ts`)
 - chassis leases (`chassis-session.ts`)
 - arm busy gate (`arm-controller.ts`)
@@ -160,8 +167,8 @@ These either lived only in the uncommitted working tree or were removed in `e4bb
 - the pin-go gate
 - the navigation controller
 - supervised docking with recovery challenge tokens and an operator "physically docked, stationary and stowed" checkbox (`docs/supervised-docking.md`, `docs/robotics-review-final.md`)
-- the measured-completion observer that required three independent sensor channels plus a "controller terminal certificate" (`docs/measured-completion.md`)
-- supervised risk acceptance (`docs/supervised-risk-acceptance.md`)
+- the measured-completion observer that required three independent sensor channels plus a "controller terminal certificate" (`docs/measured-completion.md`; historical path, removed retired design)
+- supervised risk acceptance (`docs/supervised-risk-acceptance.md`; historical path, removed retired design)
 - the ROS leased action bridge
 - the NVIDIA licence acknowledgement gate
 

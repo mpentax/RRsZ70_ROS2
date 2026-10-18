@@ -1,3 +1,14 @@
+> **Historical session record — not current operating instructions.**
+> The original body below is preserved verbatim, including dated commands,
+> evidence and session-specific authorization. Old paths, numerical models and
+> data-gap stop rules are not current guidance or standing hardware permission.
+> Current: [ROS guide](../ros2.md), [API contract](../thin-api.md),
+> [arm model](../z70-arm-model.md), [shared cameras](shared-camera-mode.md),
+> [passive chassis calibration](chassis-odometry-trial.md),
+> [manipulation/measurement practice](../../src/z70_manipulation/README.md).
+
+---
+
 # Brief: M4 then M3 calibration + supervised estimator check (GPT session)
 
 You are running a supervised robot session with Michael present. Your own plan, approved with additions:

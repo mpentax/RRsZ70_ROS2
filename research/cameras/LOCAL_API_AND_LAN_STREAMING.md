@@ -1,177 +1,74 @@
-# Z70 Local API, LAN Transport & Camera Streaming Research
+# Z70 L01 and camera LAN transport
 
-## Executive Summary
+This is a source-bounded explainer for Saros Z70 (`roborock.vacuum.a179`, R50) and the inspected clients. It is **not** an exhaustive robot firmware, sensor, port or encoder inventory. No robot/network probe was performed for this documentation update.
 
-This document records the offline reverse-engineering and repository evidence audit for the Roborock Saros Z70 (`roborock.vacuum.a179`, product family `R50`) local network protocol (`L01`), LAN ports, RPC transport routing, and WebRTC/ICE camera media path.
+## Control framing: TCP 58867
 
-### Key Conclusions
+The current implementations are [local.ts](../../adapters/vendor/src/local.ts) (`header`, `prefix`, frame parser) and [robot.ts](../../adapters/vendor/src/robot.ts) (persistent session). Offsets below are **zero-based, end-exclusive within the frame body**, excluding the four-byte TCP length prefix. Multi-byte fields are big-endian.
 
-1. **Two Distinct Layers: Signaling vs. Media Transport**
-   - **Media Transport IS Already 100% Direct Local LAN (`host -> host` UDP):**
-     Verified live acquisition diagnostics in this repository (`calibration/arm-calibration/20261015T121045Z-m3-rotation-retry/final-state-before-idle.json` and `final-state.json`) prove that once WebRTC SDP/ICE signaling completes, the selected ICE candidate pair is:
-     - `localCandidateType: "host"`
-     - `remoteCandidateType: "host"`
-     - `candidateProtocol: "udp"`
-     The H.264 video RTP packets (`videoTracks: 1`, `1600×1200` for `front` and `1600×896` for `gripper`) travel directly over the local Wi-Fi LAN between the Z70's ephemeral WebRTC UDP port and `go2rtc` on the Mac—**not** through a cloud TURN relay.
-   - **Signaling & Camera Selection Transport (`MQTT` vs. Local TCP `58867`):**
-     The Z70's local LAN socket (`TCP 58867`, protocol `L01`) uses AES-256-GCM encryption (`deriveL01Key(localKey)` + MD5/connectNonce/ackNonce salt) and supports an 8-type wire framing (`SocketFrameType`: `CONNECT=0`, `CONNACK=1`, `PINGREQ=2`, `PINGRESP=3`, `PUBLISH=4`, `PUBACK=5`, `BLOB=6`, `MAP=7`).
-     - **`app_change_camera({ flag: 0 | 1 })` and `get_camera_status`:** Already work over the local `L01` TCP `58867` socket (`PUBLISH=4`, inner DPS `101` -> `102`) in `RoboClaw` (`adapters/vendor/src/camera-selection.ts` via `robot.ts`).
-     - **WebRTC Signaling (`start_camera_preview`, `send_sdp_to_robot`, `get_device_sdp`, `send_ice_to_robot`, `get_device_ice`):** In both the official Android plugin (`index.android.hasm`) and `go2rtc` (`pkg/roborock/client.go`), these RPCs are sent over `DPS 101` with `callMethod` (`fromLocal = null`), which routes to the local `L01` socket when locally connected (`sendDpsBySocket`), **except** that the robot's asynchronous `dev_sdp` (`{"type":"answer","sdp":"..."}`) and `dev_ice` notifications are delivered as encrypted binary blobs on MQTT protocol `301` (`rr/m/o/<user>/<duid>`), or via `get_device_sdp` / `get_device_ice` RPC polling.
+| Body bytes | Width / type | Field |
+|---|---|---|
+| `[0:3]` | 3 ASCII bytes | version (`L01`) |
+| `[3:7]` | uint32 BE | sequence |
+| `[7:11]` | uint32 BE | random / session nonce material |
+| `[11:15]` | uint32 BE | timestamp |
+| `[15:17]` | uint16 BE | frame type |
 
-2. **Why There Are No Hidden RTSP/HTTP Ports or Additional Camera Streams on the LAN**
-   - **Local Port Inventory:** Across the entire Android APK (`classes.dex`–`classes5.dex`), native libraries (`librrcodec.so`, `libjingle_peerconnection_so.so`, `libffavc.so`, `libreact_codegen_RTNNativeDeviceSpec.so`), and the Z70 React Native plugin (`index.android.hasm`), the **only** local LAN ports used by the robot are:
-     - **UDP `58866`:** Local device broadcast discovery (`Lo0O000/OooOOOO;`, `SocketWireFrame$FrameType.SOCK_DISCOVERY`, `L01` SHA-256 / AES-GCM broadcast).
-     - **TCP `58867`:** Local `L01` encrypted control/RPC/blob socket (`LocalClientService`, `SocketFrameType` `0..7`).
-     - **Ephemeral UDP port (ICE `typ host`):** Negotiated dynamically per WebRTC session via SDP/ICE (`libjingle_peerconnection_so.so`).
-   - No RTSP (`554`/`8554`), HTTP/MJPEG, ONVIF, or secondary raw video sockets exist anywhere in the client SDK or native libraries.
-   - **Single Hardware Encoder / Single WebRTC Peer / Two Physical RGB Cameras:**
-     - Product model config (`#8012`, `H:317516–317534`, `R50` / `a179`) registers `RGBCameraFeatures` + `MechanicalArmFeatures` (front RGB + gripper RGB), **not** `DoubleRGBCameraFeatures` (which is for dual-lens stereo front cameras on `T20`/`Coral`).
-     - The robot's `homesec` daemon enforces a single active preview session (`get_homesec_connect_status` -> single `client_id`) and a single WebRTC video track (`videoTracks: 1`).
-     - Switching `app_change_camera({ flag: 0 | 1 })` switches the active physical sensor feeding that single H.264 encoder/track in-place (`1600×1200` <-> `1600×896`) without renegotiating WebRTC.
+The prefix is uint32 BE **body length**. For encrypted PUBLISH, `[17:19]` is uint16 BE encrypted payload length, followed by that payload and a final four-byte CRC32 IEEE over the body excluding the CRC. Header size is 17 bytes; **not every frame includes payload length or CRC**. Current CONNECT uses the header plus a four-byte value (`10`); acknowledgments/control frames have their own forms. Follow executable parsers rather than imposing the PUBLISH shape on every type.
 
----
+Sequence is a **32-bit wire field**. The persistent sender's 16-bit outgoing wrap policy does not make replies or the wire field 16-bit; `local.ts` also contains a narrower one-shot-probe acceptance check, not a wire-layout definition. The previous table's field4/protocol/seq16 interpretation and timestamp offset 13 were incorrect.
 
-## 1. Complete Z70 Local LAN Protocol (`L01`) Architecture
+The inspected `SocketFrameType` enum has these eight entries; that is an enum finding, not proof of every possible future firmware type:
 
-### 1.1 Discovery: UDP Port `58866`
-Decompiled from `classes4.dex` (`Lo0O000/OooOOOO.run` at `0x524db8`):
-- The robot broadcasts discovery packets on **UDP port `58866`** (`0xe5f2`).
-- Frame header starts with the 3-byte ASCII protocol version `"L01"` (`ProtocolVersion.L01`).
-- Discovery payload is decrypted using the SHA-256 digest of a fixed salt (`LOooOoO0/o00O0O;`) and parsed as `SocketWireFrame$FrameType.SOCK_DISCOVERY`, yielding the robot's LAN IP (`localAddress`), `duid`, and `localPv = "L01"`.
+| Value | Name | Inspected purpose |
+|---:|---|---|
+| 0 | CONNECT | local session initiation / connect nonce |
+| 1 | CONNACK | session response / acknowledgment nonce |
+| 2 | PINGREQ | keepalive request |
+| 3 | PINGRESP | keepalive response |
+| 4 | PUBLISH | encrypted DPS JSON, request DPS 101 / reply DPS 102 |
+| 5 | PUBACK | transport acknowledgment, not physical completion |
+| 6 | BLOB | inspected binary-transfer path |
+| 7 | MAP | inspected local-map-transfer path |
 
-### 1.2 Control & Binary Transport: TCP Port `58867`
-Decompiled from `classes4.dex` (`Lcom/roborock/internal/common/socket/internal/wire/SocketFrameType;` at `0x1bbcc4` and `Lo0O00O/OooOo.OooO00o` at `0x52efc4`) and verified against `adapters/vendor/src/local.ts`:
+L01 uses AES-GCM session encryption with local-key derivation and connect/ack nonce context; legacy `1.0` transport is a separate codec. Inspect the implementation for exact encryption/CRC/type handling; do not infer a public unencrypted HTTP/RTSP endpoint from local control support.
 
-Every frame on TCP `58867` has a 17-byte outer header followed by an optional encrypted payload and a 4-byte CRC32 (`IEEE`):
-- `0..3`: `"L01"` (3 bytes ASCII)
-- `3..5`: `field4` (`uint16 BE`, typically `0x0000`)
-- `5..7`: `protocol` (`uint16 BE` — `SocketFrameType`)
-- `7..9`: `seq` (`uint16 BE`)
-- `9..13`: `random` (`uint32 BE`随机数 / salt component)
-- `13..17`: `timestamp` (`uint32 BE`, unix seconds)
+## Discovery and bounded client findings
 
-#### Exhaustive `SocketFrameType` Enum (`classes4.dex` @ `0x1bbcc4`)
-There are **only 8 frame types** (`0..7`) in the `L01` wire protocol:
+The original APK investigation identified UDP **58866** discovery and TCP **58867** local control (`classes4.dex`: discovery `Lo0O000/OooOOOO.run` at `0x524db8`; frame enum at `0x1bbcc4`; socket handler at `0x52efc4`). WebRTC media uses negotiated UDP candidates, not a universal fixed media port.
 
-| Value | Enum Name | Wire Handler (`Lo0O00O/OooOo`) | Purpose |
-|---:|---|---|---|
-| `0` | `CONNECT` | `SocketConnect` (`Lo0O00O/OooO0o`) | 21-byte frame (`connectNonce` in `random` field) initiating the `L01` session. |
-| `1` | `CONNACK` | `SocketConnack` | 21-byte response from robot providing `ackNonce` (`connectAckNonce`) required to derive the session AES-256-GCM key. |
-| `2` | `PINGREQ` | `SocketPingReq` (`Lo0O00O/OooOOO0`) | 17-byte keepalive request (sent every 10s). |
-| `3` | `PINGRESP` | `SocketPingResp` | 17-byte keepalive response. |
-| `4` | `PUBLISH` | `SocketPublish` (`Lo0O00O/OooOo00`) | Encrypted DPS JSON envelope (`{"dps":{"101":"{\"id\":...,\"method\":...,\"params\":...}"}}` for requests, `{"dps":{"102":"..."}}` for RPC replies). |
-| `5` | `PUBACK` | `SocketPubAck` | 17-byte transport acknowledgment for `PUBLISH`, `BLOB`, or `MAP` frames. |
-| `6` | `BLOB` | `SocketBlob` (`Lo0O00O/OooO0O0`) | Encrypted Protobuf (`MessageProto$AppToRobotMsg` / `RobotToAppMsg`) and chunked binary transfer (`BlobTransferAssembler`). |
-| `7` | `MAP` | `SocketMap` | Encrypted local map binary transfer (`DpsMapReceivedEventModel`, `source=lan`). |
+The searches did not establish an additional usable RTSP/HTTP/ONVIF live-camera route. They do **not** prove that no such service exists anywhere in firmware. Host-side go2rtc ports/configuration are not robot port inventory. The native machine-code bodies and nested bundles were not exhaustively analyzed; see the full [native audit and exclusions](../gripper-camera/native-apk-audit.md).
 
-### 1.3 How `RRPluginSDK` Routes RPC Calls (`callMethod` vs `callMethodFromLocal` vs `callMethodFromCloud`)
-Decompiled from `classes4.dex`:
-- `PluginSDKModule.callMethod` (`0x20ef40`) passes `locally = null` to `o00OO00O.OooOo` / `OooOoO0` (`0x21f964` / `0x21fa84`).
-- `PluginSDKModule.callMethodFromLocal` (`0x20f118`) passes `locally = Boolean.TRUE`.
-- `PluginSDKModule.callMethodFromCloud` (`0x20f0dc`) passes `locally = Boolean.FALSE`.
-- Inside `oo00o.OooOoo` (`0x21c6cc`):
-  - When `locally == null`, it calls `IDevice.publishDps` -> `o000O0O0.sendDps` (`0x321668`).
-  - `o000O0O0.sendDps` checks `DeviceBean.isLocalOnline()`:
-    - If **`true`**, it logs `"sendDps by sendDpsBySocket"` and sends the RPC over **local TCP `58867`** (`SocketFrameType.PUBLISH = 4`).
-    - If **`false`**, it logs `"sendDps by publishDpsByMqtt"` and sends the RPC over **cloud MQTT**.
-  - When `locally == Boolean.TRUE` (`callMethodFromLocal`), it calls `IDevice.sendDpsLocal` -> `o000O0O0.sendDpsBySocket` (`0x321870`), which **fails closed** with `"socket.err.device.offline"` if the local TCP `58867` connection is not active.
-  - When `locally == Boolean.FALSE` (`callMethodFromCloud`), it calls `IDevice.publishDpsMqtt` -> `o000O0O0.sendDpsByMqtt` (`0x321788`), forcing cloud MQTT.
+## RPC routing is not media routing
 
-In the Z70 React Native plugin (`index.android.hasm`):
-- `callMethodFromLocal` (`#4923`, `H:215847`) is only called by **4 methods**, all in `R50` (`a179`) photo/obstacle image helpers (`H:218762–218995`):
-  1. `getR50ImageDes` (`#5031`) -> `get_image_des`
-  2. `getR50ImageTranslation` (`#5035`) -> `get_image_translation`
-  3. `getR50UploadFileSignUrl` (`#5039`) -> `get_upload_file_sign_url`
-  4. `getR50UploadFileSignUrlV2` (`#5043`) -> `get_upload_file_sign_url_v2`
-- All other RPCs—including `app_change_camera`, `get_camera_status`, `start_camera_preview`, `stop_camera_preview`, `send_sdp_to_robot`, `get_device_sdp`, `send_ice_to_robot`, `get_device_ice`, and `get_photo`—use the default `callMethod` (`locally = null`), which automatically uses local TCP `58867` whenever the phone is on the same LAN.
+The SDK entrypoints encode different preferences (`classes4.dex`):
 
----
+- `callMethod` (`0x20ef40`): `locally=null`, SDK chooses local socket when locally online, otherwise MQTT.
+- `callMethodFromLocal` (`0x20f118`): forces local and fails when the socket is unavailable.
+- `callMethodFromCloud` (`0x20f0dc`): forces cloud MQTT.
 
-## 2. How Camera Streaming & Signaling Actually Work on the LAN
+The inspected native routing chain (`0x21c6cc`, `0x321668`, `0x321870`, `0x321788`) establishes those choices, **not** that every camera wrapper uses the default. In particular the [plugin stream audit](../gripper-camera/plugin-stream-audit.md) identifies an explicit `callMethodFromCloud` wrapper for `send_sdp_to_robot`. The previous claim that all camera signaling becomes local automatically was overbroad.
 
-### 2.1 Live Evidence: Media Is Already Direct LAN UDP (`host -> host`)
-In `deploy/patch-go2rtc-diagnostics.go`, `go2rtc` was instrumented to record the selected Pion WebRTC `ICECandidatePair` (`LocalCandidateType`, `RemoteCandidateType`, `CandidateProtocol`) without logging IP addresses or secrets.
+Local camera-selection/status RPC support in [camera-selection.ts](../../adapters/vendor/src/camera-selection.ts) does not establish cloud-free preview startup. The [pinned go2rtc build and patches](../../deploy/go2rtc.Dockerfile) use cloud MQTT signaling/admission for camera setup. Asynchronous SDP/ICE delivery and media transport must be analyzed separately; neither an L01 acknowledgment nor static local-capable SDK routing proves a fully local live-signaling path.
 
-Inspection of the saved live hardware state snapshots in `calibration/arm-calibration/20261015T121045Z-m3-rotation-retry/final-state-before-idle.json` (and `20261015T104441Z-marker68-rotation/final-state.json`, `20261015T120106Z-m3-rotation-coverage/deployed-state.json`) shows:
-```json
-"acquisition": {
-  "available": true,
-  "vendorCode": 0,
-  "attempt": 224,
-  "elapsedMs": 6708,
-  "videoTracks": 1,
-  "videoPackets": 386,
-  "videoBytes": 443366,
-  "stage": "connected",
-  "failure": "none",
-  "vendorReason": "none",
-  "mqtt": "ok",
-  "pin": "ok",
-  "turn": "ok",
-  "pcState": "connected",
-  "iceState": "connected",
-  "dtlsState": "connected",
-  "localCandidateType": "host",
-  "remoteCandidateType": "host",
-  "candidateProtocol": "udp",
-  "readerExit": "none"
-}
-```
-**What this proves:**
-1. When `go2rtc` sends its SDP offer (`send_sdp_to_robot`) and ICE candidates (`send_ice_to_robot`), it includes its local LAN `typ host` UDP candidate, and the Z70 replies in `dev_sdp` / `dev_ice` with its own LAN `typ host` UDP candidate.
-2. Pion WebRTC and the robot's `libjingle` peer connection establish DTLS/SRTP **directly over local LAN UDP** (`localCandidateType: "host"`, `remoteCandidateType: "host"`, `candidateProtocol: "udp"`).
-3. Even though `get_turn_server` is queried during setup (`turn: "ok"`), **no video traffic is relayed through the cloud TURN server** when the Mac and robot are on the same LAN.
+The inspected photo paths are separate from live video: [photo-protocol.ts](../../adapters/vendor/src/photo-protocol.ts) distinguishes local thumbnail handling from full-photo MQTT binary handling, and [split-map-reader.ts](../../adapters/vendor/src/split-map-reader.ts) distinguishes local request replies from map transfer. Photo `type` values are not live camera indices. Preserve their actual protocol handling rather than equating every binary path to the L01 frame-type enum above.
 
-### 2.2 Why Cold Start Takes ~5–7 Seconds (`go2rtc` Signaling Path)
-In `go2rtc` (`pkg/roborock/client.go` + `pkg/roborock/iot/client.go`), opening the `z70` producer (`roborock://...`) performs the following sequence on every cold start:
-1. Opens a fresh TCP+TLS connection to the cloud MQTT broker and authenticates (`mqtt.Connect` + `mqtt.Subscribe("rr/m/o/...")`).
-2. Sends `check_homesec_password` (PIN check).
-3. Sends `get_homesec_connect_status` and, if `status != 0`, `stop_camera_preview`.
-4. Sends `start_camera_preview`.
-5. Queries `get_turn_server`.
-6. Creates a Pion `PeerConnection`, gathers local ICE candidates (`GatheringCompletePromise`), and sends `send_sdp_to_robot` (with `{"type":"offer","sdp":"..."}`).
-7. Polls `get_device_sdp` in a loop (100 ms interval, up to 5 s) waiting for the robot's `dev_sdp` answer blob on MQTT protocol `301`, then exchanges ICE candidates (`send_ice_to_robot` / `get_device_ice`) and waits on a 2-second ticker (`wait_connected`) until `pc.ConnectionState() == Connected`.
+## Retained session evidence: a host–host media path
 
-### 2.3 Split-Transport Behavior on `L01` (Why Signaling Uses MQTT `301`)
-Just as documented in `adapters/vendor/src/photo-protocol.ts` and `split-map-reader.ts` for `get_map_v1` and `get_photo`:
-- The Z70 accepts RPC requests (`101`) over local TCP `58867` (`L01`) and returns the JSON RPC acknowledgment (`102`, e.g. `["ok"]`) locally.
-- However, asynchronous binary protocol `301` payloads pushed by the robot (`dev_sdp`, `dev_ice`, `get_map_v1` blobs, and `get_photo` `type: 0` full-image blobs) are published by the robot to its MQTT output topic (`rr/m/o/<user>/<duid>`) encrypted with `devKey` (protocol `1.0` AES-128-ECB) rather than sent back as `L01` `PUBLISH` frames on TCP `58867` (whereas `get_photo` `type: 1` thumbnails return on local `L01` protocol `300`, as implemented in `adapters/vendor/src/photo-protocol.ts`).
-- Therefore, keeping the `go2rtc` WebRTC producer warm (or sharing a single warm `z70` WebRTC producer across multiple downstream consumers, as planned in Kanban task `t_7b37b8e7`) avoids repeating the 5–7 second MQTT signaling handshake while keeping all video media on direct local LAN UDP.
+The original audit cited retained state snapshots:
 
----
+- [M3 retry before idle](../../calibration/arm-calibration/20261015T121045Z-m3-rotation-retry/final-state-before-idle.json) and [final state](../../calibration/arm-calibration/20261015T121045Z-m3-rotation-retry/final-state.json)
+- [Marker rotation final state](../../calibration/arm-calibration/20261015T104441Z-marker68-rotation/final-state.json)
+- [Blocked coverage deployed state](../../calibration/arm-calibration/20261015T120106Z-m3-rotation-coverage/deployed-state.json)
 
-## 3. Exhaustive Audit for Additional Cameras (Reverse/Rear, Side, Depth/TOF)
+Reported acquisition diagnostics included `localCandidateType:"host"`, `remoteCandidateType:"host"`, `candidateProtocol:"udp"`, `videoTracks:1`, connected ICE/DTLS, and nonzero video packets/bytes. These support a **selected host–host UDP media route in those retained sessions**, not an always-direct or cloud-free guarantee. A successful TURN-server query does not mean that TURN carried media. The historical ~5–7 s cold-start observations are not current latency promises; see [camera throughput scope](../../docs/validation/camera-throughput.md).
 
-### 3.1 Product Feature Configuration (`R50` / `a179`)
-In `index.android.hasm` (`#8012`, `H:317516–317534`), the Saros Z70 (`shortModels: ['a157', 'a179']`, model code `R50`) inherits from `CoralProSAw` (`#8011`, `H:317494–317513`):
-- **Enabled camera/sensor features:**
-  - `RGBCameraFeatures` -> `[Camera_RGB, Obstacle_Picture, Preview_Pin, Video_Call, Cruise]` (single front RGB camera pipeline, not `DoubleRGBCameraFeatures`).
-  - `MechanicalArmFeatures` -> `[Mechanical_Arm, Mechanical_Arm_Guide]` (adds the gripper/pincher RGB camera and pickup controls).
-- **What `Remote_Back` (`mf.remote_back`, `H:316856`) Actually Is:**
-  - String literal at `H:316856`: `"遥控--后退能力"` ("Remote control — reverse driving capability").
-  - Used by the manual remote-control joystick UI to allow driving the chassis backward; it is **not** a rear/reverse camera feature flag.
-  - The Z70's rear sensor is a navigation/docking sensor, not a video-streaming camera connected to the `homesec` H.264 encoder.
+The pinned producer startup includes MQTT connection/admission, PIN/preview checks, TURN lookup, SDP/ICE exchange and connection wait. That explains possible setup overhead but does not prove a universal causal timing breakdown. Current [go2rtc configuration](../../deploy/go2rtc.yaml) shares the configured `z70` producer with dimension-gated front/gripper MJPEG receivers. This describes **software topology**, not the number of hardware encoders, sensor pipelines, or peer connections firmware could support.
 
-### 3.2 Native & Plugin Camera RPC Inventory
-Across the entire plugin bundle (`index.android.hasm` `H:224500–232700`), `RRVideoModule` (`classes4.dex` `0x2486b0`), `librrhomesec/RtcClient v2.21` (`classes4.dex` `0x1a3db4`), and `librrcodec.so`:
-1. **Live Video Camera Selection (`app_change_camera`):**
-   - Takes `{ flag: 0 | 1 }` (`0` = `front` `1600×1200`, `1` = `gripper` `1600×896`).
-   - Confirmed via `get_camera_status` bit 15 (`0x8000`, `mechanicalCameraEnabled`).
-   - There are no other camera selector RPCs, channel indices, or WebRTC video tracks (`videoTracks` is always `1`).
-2. **Obstacle / AI Snapshot Photos (`get_photo` + `get_image_des`):**
-   - `get_photo` (`data_filter: { img_id, type }`) fetches stored obstacle/pet snapshots by `img_id`.
-   - As verified in `adapters/vendor/src/photo-protocol.ts`, `type: 1` (thumbnail) is delivered locally over TCP `58867` on `L01` protocol `300`, while `type: 0` (full image) is delivered on MQTT protocol `301`. Neither accepts a live camera index.
-3. **Debug Point-Cloud / TOF (`get_debug_voxel_map` / `set_debug_voxel_map`):**
-   - Bound to `getTofStatus` / `setTofStatus` (`H:231503–231514`, `H:232360–232373`), used only for the internal debug voxel/TOF toggle and WebView point-cloud viewer, not an RGB/video stream.
+## Supported views versus physical cameras
 
----
+The owner reports **three physical cameras (two chassis, one gripper)**. Only front/gripper selectable streams are evidenced in the inspected implementation; `app_change_camera {flag:0|1}` and `camera_status` bit 15 select/describe that shared view. Dimensions are front 1600×1200 and gripper 1600×896. No inspected flag-2 caller or independent rear/side/depth/IR selector was established; that negative finding does not reduce the physical inventory to two.
 
-## 4. Architectural Implications for Task 2 (`t_7b37b8e7`)
+The R50/a179 feature registration (`#8012`, H:317516–317534; parent #8011) distinguishes `RGBCameraFeatures` / `MechanicalArmFeatures` from another product's `DoubleRGBCameraFeatures`. Feature names are not a physical-camera census. `Remote_Back` (H:316856) names backward driving, not a rear video feed; the audit did not establish the rear sensor's complete electrical/encoder topology. `getTofStatus` / `setTofStatus` map to the debug voxel toggle, not a depth-video selector.
 
-Because:
-1. The Z70 hardware/firmware only exposes **one active WebRTC preview producer** (`z70`) at a time (over direct LAN UDP `host -> host`),
-2. Switching `app_change_camera({ flag: 0 | 1 })` over local TCP `58867` switches the resolution of that single H.264 RTP stream in-place between `1600×1200` (`front`) and `1600×896` (`gripper`),
-
-The optimal local streaming architecture (tracked in Kanban task **`t_7b37b8e7`**) is:
-- Keep the single `z70` WebRTC producer (`roborock://...`) connected over direct LAN UDP without resetting it on camera switch.
-- Run two dedicated downstream stream/transcoder consumers in `go2rtc` / the vendor adapter (or resolution-aware dual streams for `front` `1600×1200` and `gripper` `1600×896`) so switching cameras via local `L01` `app_change_camera` does not tear down or reset the producer/transcoder pipeline.
+See [current camera summary](FINDINGS.md), [ROS handoff](ROS_HANDOFF.md), and [preserved gripper audits](../gripper-camera/README.md) for supported interfaces, adopted intrinsics and exact source hashes. Shared selection/no implicit restoration is current software behavior; frame-cache filtering never switches lenses. No task-specific future streaming plan or obsolete per-request selector recipe is needed to use the implemented stack.

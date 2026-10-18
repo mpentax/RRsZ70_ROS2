@@ -1,3 +1,14 @@
+> **Historical session record — not current operating instructions.**
+> The original body below is preserved verbatim, including dated commands,
+> evidence and session-specific authorization. Old paths, numerical models and
+> data-gap stop rules are not current guidance or standing hardware permission.
+> Current: [ROS guide](../ros2.md), [API contract](../thin-api.md),
+> [arm model](../z70-arm-model.md), [shared cameras](shared-camera-mode.md),
+> [passive chassis calibration](chassis-odometry-trial.md),
+> [manipulation/measurement practice](../../src/z70_manipulation/README.md).
+
+---
+
 # Native ROS 2 read-only validation
 
 Validated on macOS arm64 with the running Docker RoboClaw service; no robot MCP calls, robot

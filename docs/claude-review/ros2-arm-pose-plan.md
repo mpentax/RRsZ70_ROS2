@@ -1,3 +1,10 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../ros2.md), [command/API contract](../thin-api.md), [arm model](../z70-arm-model.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+The TypeScript-estimator/separate-display-TF/RViz ownership plan is superseded by ROS command/status estimation, one canonical joint/TF stream and current CAD-backed model. The old no-full-measurement premise is not a claim that structural CAD is unavailable.
+
+## Historical record
+
 # ROS 2 + arm pose estimation plan
 
 Historical 2026-10-13 plan, superseded as current policy by

@@ -4,7 +4,8 @@ Source: Roborock 4.74.08 plugin `index.android.hasm` (Hermes bytecode disassembl
 Function #32735 (exports ForwardKinematics/InverseKinematics/checkArmInvalidAction), lines ~1428440-1429890.
 These are the VENDOR APP'S PREDICTIVE CONSTANTS, not measured on this robot. See docs/z70-arm-model.md.
 
-Frame (app 2-D, sagittal plane): x forward (sign to be confirmed), y up, metres.
+Frame (app 2-D, sagittal plane): x forward, y up, metres.
+The app end_pos is not the CAD M5 wrist; physical FK is pincher_geometry.hand_pose.
 y ~ 0 is the floor (ground-collision check y < 0.01); the robot body occupies |x| < 0.24, y < 0.14.
 """
 import math
@@ -14,7 +15,7 @@ import yaml
 from .resources import config_path
 
 SHOULDER = (0.0475, 0.14)       # m2_pos: shoulder pivot (M3)           #32735 / W #32741
-# Firmware still carries 0.1775 / 0.205. The copied model is the length we use.
+# Independent app endpoint geometry; never substitute the CAD wrist station.
 VENDOR_L1, VENDOR_L2 = 0.1775, 0.205
 _CAD = yaml.safe_load(config_path("cad_arm.yaml").read_text())
 L1 = float(_CAD["L1_m"])        # shoulder (M3) -> elbow (M4), copied model
@@ -39,17 +40,18 @@ POSES = {
 # ARM_JOINTS / ARM_MOVE -> IN_PROCESS_POS.
 
 
-def forward(m3, m4):
-    """App FK. Returns (elbow_xy, end_xy) in metres."""
+def vendor_forward(m3, m4):
+    """Recovered app FK: (elbow_xy, end_pos_xy), not physical wrist TF."""
     a1 = math.radians(270 - m3)
-    elbow = (SHOULDER[0] + L1 * math.cos(a1), SHOULDER[1] + L1 * math.sin(a1))
+    elbow = (SHOULDER[0] + VENDOR_L1 * math.cos(a1), SHOULDER[1] + VENDOR_L1 * math.sin(a1))
     a2 = math.radians(m4 - m3 + 90)
-    end = (elbow[0] + L2 * math.cos(a2), elbow[1] + L2 * math.sin(a2))
+    end = (elbow[0] + VENDOR_L2 * math.cos(a2), elbow[1] + VENDOR_L2 * math.sin(a2))
     return elbow, end
 
 
-def inverse(x, y, prefer_current=None):
-    """2-link IK for the end point; returns (m3, m4) in degrees or None if unreachable."""
+def vendor_inverse(x, y, prefer_current=None):
+    """IK of app end_pos; nearest requested branch, or None if unreachable."""
+    L1, L2 = VENDOR_L1, VENDOR_L2
     dx, dy = x - SHOULDER[0], y - SHOULDER[1]
     d2 = dx * dx + dy * dy
     d = math.sqrt(d2)
@@ -69,13 +71,19 @@ def inverse(x, y, prefer_current=None):
     return sols[0]
 
 
-def check(m3, m4, m5):
+# Compatibility API: these functions have always promised the recovered app model.
+# L1/L2 remain CAD constants for existing physical consumers, not FK inputs.
+forward = vendor_forward
+inverse = vendor_inverse
+
+
+def vendor_check(m3, m4, m5):
     """Replicates checkArmInvalidAction's geometric checks (j #32744). Returns fault name or 'SUCCESS'."""
     for k, v in (("m3", m3), ("m4", m4), ("m5", m5)):
         lo, hi = LIMITS[k]
         if v < lo or v > hi:
             return "FAULT_JOINT_LIMIT"
-    _, (x, y) = forward(m3, m4)
+    _, (x, y) = vendor_forward(m3, m4)
     if y > HEIGHT_MAX:
         return "FAULT_ARM_HEIGHT"
     if abs(x) < BODY_HALF_X:
@@ -91,9 +99,12 @@ def check(m3, m4, m5):
     return "SUCCESS"
 
 
+check = vendor_check  # Compatibility for executor/node firmware-admission callers.
+
+
 @dataclass
 class ArmState:
-    """Dead-reckoned joint state following the app's step model."""
+    """Historical app-preview simulation, not the ROS runtime estimator."""
     state: str = "IN_ROBOT"
     m3: float = 0
     m4: float = 0

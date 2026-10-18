@@ -1,3 +1,12 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../ros2.md), [command/API contract](../thin-api.md), [arm model](../z70-arm-model.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+The exact three-input directional vectors and program predictive RealPos derivation remain useful protocol provenance. Local controller guards and the proposed camera trial are historical policy, not current firmware requirements or operating instructions.
+
+External HASM/editor inputs below are private-owner provenance, unavailable from the public checkout; full original replay needs the authentic matching inputs. No private files were opened or copied during this curation.
+
+## Historical record
+
 # Z70 alternate arm modes and joint-control API research
 
 Research date: 2026-10-03. **Primary Android follow-up performed entirely offline.** No robot tools, RPC, HTTP, camera request, mode change, or motion was performed. Only this document was edited by this workstream; no commit. The earlier adapter research below used public GitHub source retrieved using webfetch; no network retrieval was used for this follow-up.

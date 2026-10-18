@@ -79,6 +79,18 @@ test("session errors cannot echo a camera PIN from a server response", async (co
   });
 });
 
+test("setup session errors point to localhost or configured PIN without echoing server data", async context => {
+  context.mock.method(globalThis, "fetch", async () =>
+    Response.json({ error: "upstream-private-token 123456" }, { status: 403 }));
+  await assert.rejects(json('/api/session', {body:{setup:true}}), (error:unknown) => {
+    assert.ok(error instanceof ApiError);
+    assert.match(error.message, /localhost/);
+    assert.doesNotMatch(error.message, /upstream-private-token|123456/);
+    assert.equal(error.evidence, undefined);
+    return true;
+  });
+});
+
 test("logout accepts an empty successful response", async (context) => {
   context.mock.method(globalThis, "fetch", async (path: string, options: RequestInit) => {
     assert.equal(path, "/api/session");

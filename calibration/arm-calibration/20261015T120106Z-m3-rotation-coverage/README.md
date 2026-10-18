@@ -1,3 +1,5 @@
+> **Historical / superseded guidance — 2026-10-18 curation.** Original body below is preserved verbatim. Measurements, failed fits, cleanup uncertainty, test counts and commands describe only the dated experiment/source revision, not current runtime state or reusable authorization. Current guidance: [current arm model](../../../docs/z70-arm-model.md), [camera/calibration guide](../../../research/cameras/FINDINGS.md). Optical identifiability limits below apply to this experiment; copied CAD now supplies structural anatomy, not independent physical registration or contact validation.
+
 # M3 rotation coverage — BLOCKED
 
 No new M3 angle or axis measurement was acquired. No shoulder, elbow, wrist or chassis jogs were attempted. The authorized forward/return sweeps, multiple fixed-elbow configurations, stationary pilots, pincher crosschecks and prospective holdout evaluation remain unavailable, not zero-error results.

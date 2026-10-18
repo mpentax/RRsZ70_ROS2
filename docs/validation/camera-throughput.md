@@ -1,20 +1,48 @@
-# Front-camera throughput: live read-only validation
+# Camera acquisition throughput
 
-## Result and design
+## Current implementation
 
-The default ROS bridge now delivers **3 Hz** at the original **1600 × 1200** resolution.
-RoboClaw retains ordinary HTTP MJPEG consumers on `z70_front_jpeg` (1600×1200) and
-`z70_gripper_jpeg` (1600×896) for 10 seconds after the final frame request. Concurrent frame
-requests and camera switches share the pre-warmed receivers without restarting FFmpeg or
-`go2rtc`; service shutdown aborts them. `/api/camera/frame` reads the next
-JPEG from the active camera stream (`z70_front_jpeg` or `z70_gripper_jpeg`), not a cached image. Authentication and the external API are unchanged.
-There is no permanent preload, exposed sidecar API, new product switch, or robot command.
+The driver requests images at `camera_hz=3.0` by default; blocking acquisition can
+lower delivered cadence. UI/MCP read matched shared ROS frames via
+`/api/ros/frame`, not a new backend preview per request. Explicit camera filters
+do not select; use [shared selection](shared-camera-mode.md).
 
-Keeping only an encoded MP4 consumer warm was insufficient: the original go2rtc JPEG
-handler waits for keyframes, yielding 1.27 seconds per warm frame. Continuous decoding
-is necessary to reach the requested 2–5 Hz range.
+The private acquisition sidecar retains continuous MJPEG consumers for
+`z70_front_jpeg` (1600×1200) and `z70_gripper_jpeg` (1600×896) for ten seconds after
+the last frame request. Both derive from the shared `z70` video source. Concurrent
+requests share receivers; switching does not require restarting FFmpeg/go2rtc.
+Source-dimension `select` filters must precede each scale filter, or stale
+pre-switch pixels can be resized into the requested lens's dimensions and
+misidentified. Service shutdown aborts owned receivers. Other viewers can keep the
+original stream active independently of this idle timeout.
 
-## Measurements
+The FFmpeg HTTP input template belongs in top-level `ffmpeg.http`, not a stream
+source containing `{input}` (which go2rtc treats as an uninitialized template).
+A bind-mounted YAML edit needs authorized recreation/restart; an image build
+alone or cached ordinary `compose up` does not reload the process configuration.
+Use the root `deploy/compose.yaml` commands in [operations](../../deploy/OPERATIONS.txt).
+Upstream go2rtc logs are not persisted (`logging.driver: none`), because error
+messages can include source credentials. Do not use arbitrary log copying as a
+throughput probe.
+
+## Measuring delivery
+
+Within authorized live observation, use an isolated ROS domain/port and test-owned
+XDG state. Warm once, then count raw/compressed deliveries over a timed interval
+(at least 60 seconds), including duplicates, unique stamps, interarrival gaps and
+first-frame delay. Native Jazzy best-effort subscriptions can undercount large raw
+images: use reliable depth 10 and disclose the QoS. Verify pixel dimensions and
+lens identity as well as rate. Source stamps are host receipt, not exposure.
+
+After stopping owned consumers, check owned preview release separately from
+throughput. A successful build or cleanup is not video recovery; cold startup and
+steady-state delivery are different measurements. Keep private frames local and
+save new reports outside retained original sessions.
+
+## Historical acquisition measurements (2026-10-13 implementation)
+
+The following retained measurements predate the ROS ownership/API cutover; their
+HTTP path and Bridge labels describe that run, not today's public facade latency.
 
 All measurements were performed against the actual configured Z70 using read-only frame
 requests. HTTP runs issued sequential POSTs for at least 60 seconds, consuming and validating
@@ -39,6 +67,13 @@ Local, git-ignored JPEGs are alongside those records (`throughput-before.jpg`,
 showed the actual hallway, door and two physical calibration boards; it was not a synthetic
 fixture. Images were saved directly from the live HTTP response. Pixels alone do not
 establish an exposure timestamp.
+
+
+The original lifecycle/test receipt is retained below as dated history. Its old
+`z70_jpeg`, logging and suite-count statements are not current configuration.
+
+<details>
+<summary>Historical lifecycle and operational receipt</summary>
 
 ## Lifecycle, logs and tests
 
@@ -73,3 +108,5 @@ The `ffmpeg.http` input template belongs in the top-level FFmpeg configuration, 
 `streams.z70_jpeg`: go2rtc treats any source string containing `{input}` as an uninitialized
 source template. Config-only bind-mount edits also require go2rtc recreation/restart; a cached
 image build plus ordinary `compose up -d` does not reload them.
+
+</details>

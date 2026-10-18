@@ -1,71 +1,106 @@
 # z70_odometry
 
-Offline-tested metric floor VO and appearance mapping for the calibrated 1600×1200 front camera. Flat-floor rays set metric scale; x forward, y left, yaw CCW. `camera_x_m=0.16` is still a **guess**: use `calibration/chassis/analyze.py` and `docs/validation/chassis-odometry-trial.md` to measure it before treating base displacement as physically calibrated.
+Metric flat-floor visual odometry, calibrated command-model fallback, passive
+chassis calibration and appearance-only floor mosaic. Coordinates are x-forward,
+y-left, yaw-CCW. These nodes consume shared ROS evidence, not a new camera/vendor
+connection.
 
-## Build / run
+## Build/run
 
 From the repository root:
 
-```bash
-~/.pixi/bin/pixi run bash -c 'colcon build --symlink-install --base-paths src'
-# Terminal 1 (requires image publisher; these nodes do not contact the robot)
-~/.pixi/bin/pixi run bash -c 'source install/setup.bash; ros2 run z70_odometry floor_odometry'
-# Terminal 2
-~/.pixi/bin/pixi run bash -c 'source install/setup.bash; ros2 run z70_odometry floor_mosaic'
+```sh
+pixi run build
+# Normal live observation, within its authorized scope:
+pixi run bringup
+# Or individual consumers in a sourced Pixi shell (need input publishers):
+pixi run bash
+source install/setup.bash
+ros2 run z70_odometry floor_odometry
 ```
 
-### `floor_odometry`
+`floor_mosaic` and `chassis_calibrator` are separate executables also launched by
+bringup. Installed ament resources supply default front calibration; no checkout
+ancestor search or empty required calibration argument.
 
-Input `/camera/front/image_raw` paired with valid metadata: calibrated dimensions,
-`bgr8`, supports padded rows. Outputs `/odom` (`nav_msgs/Odometry`), TF
-`odom → base_footprint` and typed `/z70/odom_status` (`z70_interfaces/OdometryStatus`).
-Calibration defaults resolve through installed ament resources, not cwd.
+## floor_odometry
 
-| Parameter | Default | Meaning |
-|---|---:|---|
-| `calibration` | empty | Required calibration JSON path |
-| `camera_x_m` | 0.16 | Camera forward offset from base origin, metres |
-| `max_range` | 1.5 | Geometric floor feature range, metres (near cutoff 0.06) |
-| `n_features` | 3000 | ORB budget, FAST threshold 10 |
-| `ransac_thresh_m` | 0.008 | Initial rigid-fit consensus radius |
-| `min_inliers` | 80 | Accepted refined consensus minimum |
-| `max_rms_m` | 0.003 | Refined inlier radius and final RMS ceiling |
+Input `/camera/front/image_raw` must match valid, nonstale FrameMetadata and
+calibration identity/session through `z70_driver.frame_subscription.MatchedFrames`.
+Dimensions/encoding must match calibrated `bgr8`; padded rows are supported.
+Outputs are `/odom`, `/z70/odom_status` and `odom → base_footprint` TF.
 
-Fit: ratio-matched ORB → metric floor points → 2-point RANSAC → three tighter consensus refinements → camera-offset conjugation. Rejected views hold pose and retain the **last accepted image**; an overlapping later view can recover the entire displacement. Rejections publish planar pose covariance diagonal `1e6` so the mosaic skips that view. Accepted covariance is zero/unmodelled, **not zero uncertainty**. TF also holds during rejection; consumers must read status. No twist/velocity estimate, loop closure, object segmentation or command integration. Keep relative views around ≤15° / ≤6 cm at the ~1 Hz snapshot rate; this is a synthetic overlap envelope, not a hardware motion guarantee.
+| Parameter | Standalone default |
+|---|---|
+| `calibration` | Installed description `front_camera.json` |
+| `camera_x_m` | Installed odometry.yaml initialization, 0.16 m |
+| `max_range` | 1.5 m (near cutoff 0.06 m) |
+| `n_features` | 3000, FAST threshold 10 |
+| `ransac_thresh_m` | 0.008 m |
+| `min_inliers` | 80 |
+| `max_rms_m` | 0.003 m |
 
-### `floor_mosaic`
+Normal bringup overrides camera_x with description mount calibration (0.275 m);
+a ready typed passive fit can replace it in VO and mosaic. Keep initialization,
+model mount and fitted offset distinct. See [calibration](../../docs/validation/chassis-odometry-trial.md).
 
-Exact image-stamp `/camera/front/image_raw` + `/odom` join, bounded 20-message caches. Odometry must share the image stamp and use `odom`; rejected held poses are not fused.
+Fit: ratio-matched ORB → calibrated floor points → two-point RANSAC → three tight
+consensus refinements → camera-offset conjugation. Accepted pairs update pose;
+zero covariance is unmodeled, not perfect accuracy. Rejected frames normally hold
+pose and the last accepted image, allowing later overlap to recover displacement,
+with planar covariance `1e6` so the mosaic excludes them.
 
-| Parameter | Default | Meaning |
-|---|---:|---|
-| `calibration` | empty | Same calibrated camera JSON |
-| `camera_x_m` | 0.16 | Must equal VO offset |
-| `resolution` | 0.005 | Metres per mosaic cell |
-| `size_m` | 4.0 | Fixed square centred on initial odom origin |
-| `max_range` | 1.2 | Floor-ray radial range per view, metres |
+Successful correlated RC pulses can propagate only intervals not covered by
+accepted VO using a calibrated unicycle model. Pending intervals wait for motion/
+reply completion; coverage is trimmed against pulse time, not just reply time.
+Reference rebasing avoids double counting. Status `COMMAND_DEAD_RECKONED`,
+`pair_accepted=false`, covariance `1e6` marks prediction, not measured travel.
+A first returning image reference retains uncertainty until an accepted VO pair.
+Unknown/rejected command delivery is not proof of displacement. Passive calibration
+and mosaic exclude these model steps. TF broadcasts at 5 Hz, starting at zero even
+without images; a fresh TF timestamp alone is not a new motion observation.
 
-Outputs (mosaic/mask transient-local, depth 1):
-- `/z70/floor_mosaic`: `sensor_msgs/Image`, `bgr8`, `frame_id=odom`; per-cell running mean appearance.
-- `/z70/floor_mosaic_mask`: `mono8`, 255 seen / 0 unknown, same stamp/geometry.
-- `/z70/floor_mosaic_status`: JSON with resolution, origin xy, dimensions, observed/overlap/total cells and overlap NCC before fusion.
+No loop closure, semantic floor segmentation or velocity estimate. Floor features
+need overlap and a flat visible surface; synthetic rotation/translation limits
+are test envelopes, not hardware motion guarantees.
 
-Default is 800×800 cells. Columns increase odom x, rows increase odom y; cell centre is `origin + (index+0.5)*resolution`, origin `(-2,-2)` m. An ordinary image viewer therefore does not automatically display robot-forward as image-up; transform the raster using metadata. Out-of-map points are dropped. Restart clears the mosaic. Exact-black samples remain unknown (warp borders **and** truly all-black surfaces); the mask distinguishes unknown from dark observed floor. This is **appearance**, not occupancy or evidence of traversability. Furniture projected onto the floor, non-flat floors, drift and changing lighting can smear it; no Nav2/free-space map is claimed.
+## floor_mosaic
 
-## Offline verification (no bridge / network / robot)
+Matched front images join `/odom` at the exact image stamp using bounded
+20-message caches. Frame must be odom; rejected/model-fallback covariance is
+excluded. Per-cell running means map floor appearance, not occupancy/free space.
 
-```bash
-~/.pixi/bin/pixi run bash -c 'set -e; source install/setup.bash; python -m unittest discover -s src/z70_odometry/test -p "test_*.py"; python src/z70_odometry/test/synthetic_check.py; python src/z70_odometry/test/real_floor_check.py src/z70_odometry/test/real-floor-results.json; python src/z70_odometry/test/ros_mosaic_check.py; python ../calibration/chassis/test_synthetic.py'
+| Parameter | Default |
+|---|---|
+| `calibration`, `camera_x_m` | Same installed defaults/bringup override as VO |
+| `resolution` | 0.005 m/cell |
+| `size_m` | 4.0 m square, centred on initial odom origin |
+| `max_range` | 1.2 m |
+
+Outputs: `/z70/floor_mosaic` bgr8, `/z70/floor_mosaic_mask` mono8 (255 seen/0 unknown),
+matching `/z70/camera_info`, and JSON `/z70/floor_mosaic_status`. Images/mask/info
+are transient-local. Default 800×800 grid has origin (-2,-2) m; columns increase
+odom x, rows increase odom y; cell centres are origin+(index+0.5)*resolution.
+A normal image viewer does not automatically put robot-forward at image-up.
+Out-of-bounds points drop; restart clears the mosaic. Exact-black warp samples
+stay unknown, including genuinely black surfaces. Nonflat surfaces, projected
+furniture, changing light and accumulated drift can smear appearance. No Nav2
+map or traversability/collision guarantee is implied.
+
+## Offline verification
+
+```sh
+pixi run test
+pixi run bash -c 'source install/setup.bash && python -m unittest discover -s calibration/chassis -p "test_live_analysis.py"'
+# Focused tests with installed ROS types:
+pixi run bash -c 'source install/setup.bash && pytest src/z70_odometry/test -q'
 ```
 
-ROS check uses isolated domain 87, starts installed **only these two executables**, sends rendered translation/rotation views and checks odometry, image/mask geometry, overlap NCC, rejection skip and accepted-reference recovery; kills its child nodes on exit. Result JSONs live beside the tests. Real-floor audit uses visually confirmed board-free kitchen frames (`camera-fixed-frame-{1,2}`, `deploy-frame-2`), plus a conservative floor-only pixel ROI to avoid counting shoes/furniture. Feature-rich full mask does not prove every feature is floor; the small ROI still rejects 6 cm/15° warps due to overlap. See `test/RESULTS.md` for measured limits and numbers. Photos must remain local/git-ignored.
-
-## Bringup integration (not edited here)
-
-Alongside the existing odometry node, use the same resolved calibration path and forward offset:
-
-```python
-Node(package='z70_odometry', executable='floor_mosaic',
-     parameters=[{'calibration': calibration, 'camera_x_m': 0.16,
-                  'resolution': 0.005, 'size_m': 4.0, 'max_range': 1.2}]),
-```
+Tests exercise synthetic translation/rotation, quality rejection, accepted-reference
+recovery, command-pulse coverage and mosaic geometry/skip rules. Retained
+[test results](test/RESULTS.md) distinguish synthetic from historical real floor
+images. Private image audits may be unavailable in a clean checkout. Reproduction
+scripts that emit reports need fresh output directories/test-owned XDG state;
+never run them in place over retained evidence. See the
+[passive calibration guide](../../docs/validation/chassis-odometry-trial.md) for
+safe root-relative analyzer arguments and durable-state semantics.

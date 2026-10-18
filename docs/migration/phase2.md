@@ -1,3 +1,12 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../ros2.md), [command/API contract](../thin-api.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+Observation/acquisition identity and shared-driver test scope are retained. TypeScript estimator ownership, separate display tree, ros2 workspace and phase-3 TODOs are superseded. Reported test counts are historical; named missing output is unavailable, not a current independently verified pass.
+
+**Historical outputs unavailable in this checkout:** `docs/migration/generate_observation_interfaces.py`, `docs/migration/phase2-clean-build.txt`, `docs/migration/phase2-clean-test.txt`, `docs/migration/phase2-installed-driver-test.txt`, `docs/migration/phase2-npm-build.txt`, `docs/migration/phase2-npm-test.txt`, `docs/migration/phase2-ros-test.txt`. Results citing them below are reported history only.
+
+## Historical record
+
 # Phase 2 — one ROS observation driver
 
 Task `t_f0121e04`, existing checkout and branch. Offline implementation only: no

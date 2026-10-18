@@ -1,3 +1,5 @@
+> **Dated evidence: 2026-10-13; curation 2026-10-18.** The measurements and original report below are unchanged; this is local jog evidence, not current geometry certification. Use [current arm model](../../docs/z70-arm-model.md) for CAD anatomy and current estimate semantics. The retained reproduction/venv command below is historical, not a current executable recipe.
+
 # M4 then M3: supervised estimator check
 
 Outcome: direction and coarse nominal 10-degree increments supported in the tested poses. No vendor constants changed; full arm calibration remains unvalidated.

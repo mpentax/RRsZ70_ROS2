@@ -1,3 +1,10 @@
+> **Historical / superseded — retained in place.** Current owners: [ROS guide](../ros2.md), [command/API contract](../thin-api.md).
+> The record below preserves its original observations, source pins and reported results. Its plans, commands, permissions and deployment statements are not present-day instructions or reusable live authorization.
+
+The runner/image recipe below is retired: deploy/test-robotics-service.ts is unavailable at that historical path. Retain the actual real-DDS/fake-robot scope as reported history, not a present reproduction command or hardware qualification.
+
+## Historical record
+
 # Docker ROS → TypeScript service end-to-end smoke
 
 Run with Node 24+ and Docker Desktop, using the existing

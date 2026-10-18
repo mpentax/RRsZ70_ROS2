@@ -1,64 +1,73 @@
 # RRsZ70_ROS2
 
-A **ROS 2 Jazzy** robotics stack, 3D visualization suite, web console, and **MCP** control plane for the stock **Roborock Saros Z70** (`roborock.vacuum.a179`).
+ROS 2 Jazzy for the stock Roborock Saros Z70: command/status-derived arm estimation,
+CAD-backed arm geometry and TF, shared cameras, floor odometry, vendor LiDAR maps,
+optional monocular depth, and manipulation actions.
 
-`RRsZ70_ROS2` turns an unmodified Z70 with its 5-DOF deployable arm and dual cameras into a native ROS 2 platform—complete with a 3D digital twin, hybrid arm state estimation, visual odometry, LiDAR map decoding, monocular depth clouds, closed-loop manipulation actions, and agent-ready MCP tools.
+**Independent community project; not affiliated with, endorsed by, or supported by Roborock.**
 
-> **Disclaimer:** This is an independent community project and is not affiliated with, endorsed by, or supported by Roborock.
+## Getting started
 
----
+Supported manifest target: **macOS Apple Silicon (`osx-arm64`)**. Install
+[Pixi](https://pixi.sh) on `PATH`, Node.js **24 or newer**, and Docker Desktop.
+Run commands from the repository root.
 
-## Getting Started
-
-### Prerequisites
-- **macOS (Apple Silicon)** or Linux with [Pixi](https://pixi.sh) in your `PATH` (manages ROS 2 Jazzy, Python 3.12, OpenCV, and `colcon`)
-- **Node.js `>= 24.0.0`**
-- **Docker** (runs the local protocol sidecar and `go2rtc` camera streamer)
-
-### 1. Install & Build
 ```sh
-npm ci && npm run build
+npm ci
+npm run build
 pixi install
 pixi run build
-```
-
-### 2. Pair Your Robot (Local-Only Auth)
-Start the local sidecar and media containers:
-```sh
 docker compose -f deploy/compose.yaml build app go2rtc
 docker compose -f deploy/compose.yaml up -d
 ```
-Open **`http://127.0.0.1:57010`** and complete the setup form (Roborock account login, device selection, robot LAN IP — found in the Roborock app under **Settings > Product Info > Wi-Fi Name** — local protocol `L01`/`1.0`, and camera PIN).
 
-**Authorization never leaves your machine:** credentials, device keys, PINs, and tokens are stored strictly on your host inside `.local/`. They never cross ROS topics or enter MCP/LLM context.
+Open **http://127.0.0.1:57010** and choose **Start local setup** when no camera
+PIN is saved. Request the Roborock email code, choose the region and device, supply
+its LAN IP and local protocol (`L01` or `1.0`), and save the camera PIN. Saving a
+PIN ends setup; sign in with that PIN. Configured installations use the same PIN login. Handle all setup
+inputs in the browser, not an agent conversation.
 
-### 3. Launch ROS 2 Bringup
+Secrets are stored locally in private `.local/` files (plaintext, mode 0600),
+excluded from ROS messages and MCP results. **Account authentication and camera
+signaling communicate with Roborock services**; local storage does not mean
+network-free authentication. See [operations](deploy/OPERATIONS.txt).
+
+Once paired, start live observation and the web/agent ROS facade:
+
 ```sh
-pixi run bringup web_gateway:=true manipulation:=true
+pixi run bringup web_gateway:=true
 ```
-This launches the ROS 2 driver, arm state estimator, floor visual odometry, LiDAR map decoder, monocular depth worker, manipulation action servers, Foxglove bridge (`ws://127.0.0.1:8765`), and web gateway (`127.0.0.1:57020`).
 
-### 4. View the 3D Digital Twin
-Connect **Foxglove Studio** to `ws://127.0.0.1:8765` and import `src/z70_bringup/foxglove/z70-dashboard.json`.
+Depth is enabled by default; [optional depth setup](docs/ros2.md#optional-depth)
+provides the external environment and cached weights. `depth:=false` disables it.
+Bringup acquires live images/status/maps; it does not command motion just by
+starting. Add `manipulation:=true` for idle manipulation servers; a live action
+goal can move the robot.
 
----
+Connect Foxglove to **ws://127.0.0.1:8765** and import
+[`z70-dashboard.json`](src/z70_bringup/foxglove/z70-dashboard.json).
+Ctrl-C stops the ROS launch; `docker compose -f deploy/compose.yaml stop` stops
+the sidecars. Use the console's **Stop control & streams** to suspend robot
+control and viewing explicitly.
 
-## Highlights
+## ROS capabilities
 
-- **ROS 2–First Architecture:** Standard ROS 2 nodes, topics, services, and actions (`src/z70_*`) own command scheduling, kinematics, TF trees, camera pipelines, odometry, mapping, and manipulation.
-- **Hybrid Arm State Estimator:** Because stock Z70 hardware does not stream joint encoder telemetry, `z70_driver` includes a custom ROS 2 estimator that fuses recovered vendor forward/inverse kinematics and command tracking with live ArUco fiducial registration on the pincher housing to publish real-time `/z70/arm_estimate` and `/joint_states`.
-- **Closed-Loop Manipulation:** Composable ROS 2 actions (`Pick`, `Stack`, `DeployArm`, `AlignToTarget`, `MoveArm`, `GraspAndLift`, `ReleaseAndStow`) combine perception, visual chassis servoing, and collision-checked 10° joint planning:
-  ```sh
-  pixi run pick yellow
-  pixi run stack yellow blue purple
-  ```
-- **SLAM Map, Depth & Visual Odometry:** Decodes the robot's native `v1` LiDAR map into `/map` with room contours and 8-sector clearance raycasts (`/z70/map/spatial_context`), paired with homography floor visual odometry (`/odom`), an online chassis gain calibrator, a live floor mosaic, and Apple Silicon MPS monocular depth clouds (`/camera/front/depth/points`).
+- `z70_driver` owns scheduling, acquisition and `/z70/arm_estimate`. The estimator
+  tracks commands/status and observation-backed anchors, not encoder telemetry or
+  continuous ArUco fusion. Task-local visual recovery is separate from that estimate.
+- `z70_description` supplies copied CAD geometry, meshes, camera calibration and
+  the canonical TF tree. See the [arm model](docs/z70-arm-model.md) for consumer boundaries.
+- `z70_odometry` supplies floor VO, command-model fallback and a floor appearance mosaic;
+  `z70_mapping` decodes vendor SLAM into `/map` and supplies optional depth clouds.
+- Shared camera selection exposes **front and gripper streams**, not an exhaustive
+  physical camera inventory. Both lenses have installed calibration.
+- [Manipulation actions](src/z70_manipulation/README.md) implement pickup and stacking.
+  One supervised pickup/hold is retained evidence, not repeatable pickup or stack qualification.
 
----
+## Any MCP-compatible agent
 
-## Connect Any AI Agent via MCP
-
-`apps/mcp/` provides a standard stdio **Model Context Protocol (MCP)** server that connects **any MCP-compatible AI agent** (Claude Desktop, Cursor, OpenCode, Hermes, or custom agents) to your ROS 2 stack over loopback HTTP:
+`apps/mcp/` is a thin stdio MCP client of the same ROS gateway used by the web UI.
+Configure your MCP host with absolute paths (replace the example checkout path):
 
 ```json
 {
@@ -75,30 +84,9 @@ Connect **Foxglove Studio** to `ws://127.0.0.1:8765` and import `src/z70_bringup
 }
 ```
 
-**Exposed MCP Tools:**
-- **State & Vision:** `get_state`, `refresh_status`, `get_camera_frame`, `get_camera_diagnostics`, `select_camera`, `get_arm_estimate`, `set_arm_anchor`, `get_map`
-- **Manipulation & Motion:** `start_task` (`pick`, `stack`, `deploy_arm`, `align_target`, `move_arm`, `grasp_and_lift`, `release_and_stow`, `base_pulse`, `arm_step`, `hand_step`, `arm_operation`), `list_tasks`, `get_task`, `cancel_task`, `robot_rpc`
-- **Safety:** `stop` (priority preemptive stop), `control_session` (pause/resume control and streams)
+State, images, map, task handles, raw RPC, anchors, stop and session control all
+use shared ROS interfaces; MCP does not launch ROS or bypass its scheduler.
 
----
-
-## Repository Structure
-
-- `src/z70_interfaces` — Custom ROS 2 `.msg`, `.srv`, and `.action` definitions
-- `src/z70_driver` — Telemetry, command scheduler, hybrid arm estimator, and camera publisher
-- `src/z70_description` — URDF/Xacro, CAD STL meshes, camera intrinsics, and 5-DOF kinematic model
-- `src/z70_odometry` — Homography floor visual odometry, online chassis calibrator, and floor mosaic
-- `src/z70_mapping` — Roborock `v1` LiDAR map decoder, spatial context, and MPS depth node
-- `src/z70_manipulation` — HSV perception, trajectory planner, and `pick` / `stack` action servers
-- `src/z70_web_gateway` — Loopback `rclpy` HTTP bridge (`:57020`) for Web UI and MCP
-- `src/z70_bringup` — Launch files and Foxglove Studio dashboard layout
-- `apps/web` & `apps/mcp` — React operator console and stdio MCP server
-- `adapters/vendor` & `deploy` — Local Roborock LAN/MQTT transport sidecar and Docker Compose setup
-
-## Further Docs & License
-
-- [`docs/ros2.md`](docs/ros2.md) — Launch arguments, ROS 2 topics, and MPS depth environment setup
-- [`src/z70_manipulation/README.md`](src/z70_manipulation/README.md) — Manipulation actions and CLI guide
-- [`src/z70_mapping/README.md`](src/z70_mapping/README.md) — LiDAR SLAM map decoder and spatial context
-- [`docs/z70-arm-model.md`](docs/z70-arm-model.md) — Recovered 5-DOF arm kinematics
-- Licensed under **Apache 2.0** ([`LICENSE`](LICENSE), [`THIRD_PARTY_NOTICES`](THIRD_PARTY_NOTICES)).
+[Documentation index](docs/README.md) · [ROS guide](docs/ros2.md) ·
+[API contract](docs/thin-api.md) · [Apache 2.0](LICENSE) ·
+[Third-party notices](THIRD_PARTY_NOTICES)

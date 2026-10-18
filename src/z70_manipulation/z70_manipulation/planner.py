@@ -5,7 +5,8 @@ import cv2
 import numpy as np
 from functools import lru_cache
 from z70_description import pincher_geometry as hand
-from z70_description.arm_model import forward,check,L1 as CAD_L1,L2 as CAD_L2,_CAD
+from z70_description.arm_model import vendor_forward, vendor_check
+CAD_L1, CAD_L2, _CAD = hand.L1, hand.L2, hand.CAD
 CAD_MOUNT=(np.array(_CAD['camera_from_wrist_m'],float), np.array(_CAD['camera_rpy'],float))
 from .perception import calibration, gripper_camera_info
 
@@ -18,15 +19,22 @@ _CALIBRATION=calibration()
 MOUNT=tuple(_CALIBRATION['arm_origin_'+axis+'_m'] for axis in ('x','y','z'))
 YAW=math.radians(_CALIBRATION['arm_yaw_deg'])
 
-def wrist(state):
-    """Vendor endpoint, used only for firmware/body checks; not measured wrist anatomy."""
-    return forward(*state[:2])[1]
+def vendor_endpoint(state):
+    """App planar end_pos for firmware checks, not the CAD wrist in base TF."""
+    return vendor_forward(*state[:2])[1]
+
+
+wrist = vendor_endpoint  # Historical public name; never use for physical hand TF.
 
 def base_point(x,z):
     return [MOUNT[0]+x*math.cos(YAW),MOUNT[1]+x*math.sin(YAW),MOUNT[2]+z]
 
 def measured_point(state,endpoint):
-    """Effective link2 endpoint; does not assert a measured physical wrist/L2."""
+    """Link2-zero point in the CAD chain with retained yaw/M3 registration.
+
+    Historical name: endpoint may be a legacy optical/contact surrogate, not
+    necessarily a CAD landmark or an independently measured physical point.
+    """
     a1=math.radians(270-state[0]+_CALIBRATION['measured_M3_offset_deg'])
     a2=math.radians(state[1]-state[0]+90)
     shoulder=tuple(_CAD['shoulder_in_base_m']); length=CAD_L1
@@ -71,8 +79,8 @@ def safe(state,obstacles=()):
     """
     try: st=hand.validate_state(state)
     except ValueError:return False
-    x,_=wrist(st)
-    if not (check(*st[:3])=='SUCCESS' and x<=REACH_LIMIT-.003
+    x,_=vendor_endpoint(st)
+    if not (vendor_check(*st[:3])=='SUCCESS' and x<=REACH_LIMIT-.003
             and tip_floor_bound(st)>=MIN_TIP and body_floor_bound(st)>=MIN_TIP):return False
     for body in hand.world_bodies(st) if obstacles else ():
         corners=body.corners();lo=corners.min(axis=0);hi=corners.max(axis=0)
@@ -140,7 +148,7 @@ def pincher_camera_height_and_direction(state):
     return dict(position_m=C.tolist(),height_m=float(C[2]),direction=R[:,2].tolist())
 
 def gripper_pixel(state,point):
-    """Project using measured effective camera mount and retained lens distortion."""
+    """Project using the CAD camera mount and retained calibrated lens distortion."""
     C,R=camera_pose(state); optical=R.T@(np.array(point)-C)
     if optical[2]<.01: return None
     uv=cv2.projectPoints(optical[None,:],np.zeros(3),np.zeros(3),GRIPPER_MATRIX,GRIPPER_D)[0].reshape(2)

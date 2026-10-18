@@ -1,107 +1,162 @@
-# Thin authenticated API (current service contract)
+# Shared API and private transport contract
 
-RoboClaw authenticates private service callers and Roborock account/device access,
-encodes vendor RPCs, correlates responses and publishes facts. Phase-3 source makes
-`z70_driver` the sole ROS backend client and command/estimate owner; manipulation
-uses ROS interfaces. Phase-4 MCP/web clients now use the shared authenticated
-`/api/ros/*` adapter; [phase4-api.md](migration/phase4-api.md) defines its routes,
-goal IDs, JSON fields, errors and web input flows. This cutover is offline-qualified,
-not deployed; do not apply it over an active controller.
+## Ownership and authentication
 
-## RPC
+`z70_driver` owns ROS execution, command/status-derived arm estimation and shared
+acquisition. The private TypeScript vendor sidecar owns Roborock authentication,
+protocol framing and response correlation. `z70_web_gateway` is a loopback ROS
+client; web and stdio MCP are thin clients of that same task/evidence registry.
+There is no client-to-vendor actuation fallback.
 
-Private bearer-only `POST /api/driver/rpc`, used by `z70_driver` only.
-Legacy `/api/v1/rpc`, device RPC paths, named actuator aliases, arm estimator/
-anchor routes and `/api/camera/select` return explicit 503 migration errors;
-they do not bypass ROS. Advanced vendor RPC remains available via ROS RawRpc.
+The browser uses same-origin protected session cookies; configured-user login is
+`POST /api/session {pin}` with the saved camera PIN. With no saved PIN,
+`GET /api/session` reports `setupAvailable`; **Start local setup** posts
+`{setup:true}` to obtain a same-origin, localhost-only setup cookie (20 minutes).
+It can access only setup status and account/code/login/select/camera-PIN routes,
+not ROS/control/acquisition. Saving a PIN revokes setup sessions; normal PIN login
+is then required. Account/device/PIN input stays in the backend, never DDS. Service-to-service calls use `Bearer <service-token>` read
+from a private file, not MCP tool arguments. Secrets are plaintext mode-0600 local
+files, not encrypted at rest. Account login/camera signaling uses vendor cloud
+services. Responses redact credential keys/known secret values; errors never
+forward arbitrary upstream text or credential URLs.
 
-```json
-{"method":"app_rc_move","params":[{"velocity":0.07,"omega":0,"duration":400,"seqnum":1}],"transport":"local","timeoutMs":5000}
-```
+Pairing updates publish one validated atomic `pairing.json`, preferred over
+legacy split documents. Camera PIN/room updates use that document. Old
+hold/authority/docking journals are ignored, not prerequisites to clear.
 
-`transport` defaults to `local`; `cloud` uses the service's saved authenticated
-account directly, not a credential-bearing go2rtc URL. The selected device's
-stored address/key cannot be overridden by requests. This is vendor RPC, not an
-arbitrary HTTP proxy. JSON payload and transport capacity bounds apply.
-Methods are not restricted to a control allowlist. Finite timeout 1–120000 ms,
-method identifiers and protocol framing limits are structural validation, not
-supervision policy. Values are vendor wire values, not calibrated SI units.
+## Shared HTTP facade
 
-A response contains `requestId`, `commandId`, `attemptId`, `attemptIndex`,
-`dispatch` (`not_sent`, `sent`, `unknown`),
-`response` (`received`, `vendor_error`, `transport_error`), timestamps,
-`physicalCompletion: "unverified"`, and `result` or data-free `error` plus the
-vendor error code where available. Transport errors include a data-free `transportReason`
-(timeout/capacity/invalid-input/unavailable/transport/cancelled), not upstream exception text. HTTP 200 means a correlated vendor response
-was received; HTTP 502 includes the outcome envelope for vendor/transport errors.
-It does not mean physical task success. On TCP/socket/MQTT handoff followed by
-timeout, delivery is unknown. Vendor errors prove a correlated response, not
-that every possible side effect was absent. Invalid API envelopes receive 400.
+The sidecar proxies `/api/ros/*` to the bearer-authenticated native gateway
+(default `127.0.0.1:57020`; Docker Desktop origin `host.docker.internal:57020`).
+JSON uses generated ROS snake_case fields; UUIDs inside messages retain their
+ROS message shape. Task IDs are lowercase hyphenated UUID strings equal to the
+actual ROS action goal UUID.
 
-No prior request state, ACK, uncertain outcome, missing measurement, old journal,
-operator lease, motion hold, battery level or arm mode blocks a later request.
-The service retries reads, RC start/stop/end or NOT_SENT once, except intent
-explicitly cancelled by a priority stop. Potentially written
-motion is not automatically replayed. Controllers may explicitly
-submit the next request, including an intentional retry, without clearance.
-Reconnect occurs before a new request; no silent local/cloud failover is used.
+| Method/path | Request and response |
+|---|---|
+| `GET /api/ros/state` | `{available,session_enabled,state,camera,arm,calibration}`; messages may be null; availability is driver Stop service readiness, not cached telemetry presence |
+| `GET /api/ros/map` | `{map: OccupancyGrid\|null}` |
+| `POST /api/ros/frame` | `{}` follows shared selected lens; `{camera:"front"\|"gripper"}` filters shared cache **without selecting**; JPEG response |
+| `POST /api/ros/camera/select` | `{camera:"front"\|"gripper"}` → generated SelectCamera response; no implicit deployment/mode entry |
+| `POST /api/ros/arm/anchor` | `{anchor:"unknown"\|"stowed"\|"deployed",reason?:string}` → SetArmAnchor; reason ≤64 enum-like characters; changes estimate, not hardware |
+| `POST /api/ros/stop` | `{scope?:1\|2\|3}` (BASE/ARM/ALL; default ALL) → Stop |
+| `POST /api/ros/control/session` | `{enabled:bool}` → SetControlSession; false requests stop, viewing exit and acquisition suspension; inspect outcomes and `streams_released` |
+| `POST /api/ros/rpc` | `{method,params,timeoutMs?:1..30000,transport?:"local"\|"cloud",takeover?:bool}` → RawRpc; default timeout 12000 ms/local/no takeover; params JSON ≤16384 UTF-8 bytes |
+| `POST /api/ros/tasks` | `{kind,goal}` → 202 Task after bounded action acceptance, not task completion |
+| `GET /api/ros/tasks` | `{tasks:[Task]}` |
+| `GET /api/ros/tasks/<id>` | Task |
+| `POST /api/ros/tasks/<id>/cancel` | `{}` → `{id,cancel_requested:true}` if accepted; read task result afterward |
 
-## Adapters and retired routes
+JPEG headers `X-Roboclaw-Camera`, `X-Roboclaw-Frame-Id`,
+`X-Roboclaw-Camera-Session`, `X-Roboclaw-Received-At` preserve the matched image/
+metadata identity. Evidence must be valid/nonstale, matching stamp/frame/lens,
+and received within five seconds. Missing data is 503 `OBSERVATION_GAP`;
+suspended session is 409 `SESSION_STOPPED`. No hidden acquisition or lens restore.
+Uncalibrated images remain viewable without inventing metric validity.
 
-MCP `robot_rpc` and browser controls use `/api/ros/*`, proxied to the loopback
-`z70_web_gateway` ament node. Existing TS stdio MCP is a protocol-only client,
-not another estimator, calibration reader, task owner or ROS launcher. Web and
-MCP share the real ROS action goal UUID, feedback and terminal results. Long tasks
-return handles, not a synchronous wait for execution. No direct actuation fallback
-exists. Browser cookies cannot access private acquisition/offer/telemetry routes;
-their camera snapshots come from matching shared ROS images/metadata. Account,
-device and camera-pattern input remains authenticated and server-side. ROS bounded actions and
-RawRpc share one scheduler, estimator and backend event stream. Stop has reserved
-local/cloud transport capacity, cancels queued actuator intent and never replays
-cancelled motion as an unsent retry. Private `/api/driver/camera/select` returns
-underlying outcome UUIDs; a normal selector timeout remains UNKNOWN even when
-status confirms the lens. Frame reads with `{}` follow the shared camera; a
-camera selector in the old frame route returns 503 rather than changing mode.
+### Goals
 
-`GET /api/commands/events` is an authenticated live NDJSON dispatch stream used
-by `z70_driver`. Logical command/attempt/session UUIDs, sequence, dispatch-call
-timestamps and uncertainty are preserved; no replay, arbitrary result or private
-parameter payload is included. Blank heartbeat lines carry no command evidence.
-Slow readers are disconnected rather than delaying dispatch. A reconnect exposes
-sequence gaps; the driver never reconstructs missing commands by polling history.
-`/api/commands/recent` remains bounded compatibility history, with no ROS consumer.
-Other retired command-workflow routes,
-`/api/docking*`, `/api/agent/docking/start`, and
-`/api/robotics/*` return 410. No bypass flags or compatibility clearance gates
-remain. The old leased ROS fixtures and DimOS integration are retired; the
-current native Jazzy workspace has ROS-commanded pickup and the
-single shared `z70_driver` command/estimate/observation owner (offline-qualified through phase 4).
-Hermes currently calls the MCP server directly. This is a deliberate API migration, not schema-compatible
-ROS support. The legacy unauthenticated cockpit entry point is removed.
+Fields are required as listed; extra fields are rejected. Driver primitive units
+are SI unless explicitly nominal arm selections.
 
-Bearer-private acquisition state, camera frame/offer, room list and map-cache APIs
-remain for the ROS driver; browser camera PIN and account/device onboarding use
-web setup, never DDS. Service-owned local VLM description/navigation
-endpoints are no longer part of this service. Generic vendor RPC remains available
-regardless of camera configuration. Camera capture receipt time/dimensions are
-reported without fabricating lens, capture time or physical pose.
+| kind | ROS action endpoint | goal |
+|---|---|---|
+| `base_pulse` | `/z70/base/pulse` | `{linear_mps,angular_radps,duration:{sec:0,nanosec}}`; ≤0.1 m/s, ≤0.5 rad/s, not both axes nonzero, duration >0..800000000 ns |
+| `arm_step` | `/z70/arm/step` | `{joint:3\|4\|5,direction:-1\|1}` |
+| `hand_step` | `/z70/arm/hand_step` | `{direction:1..4}` |
+| `arm_operation` | `/z70/arm/operation` | `{operation:1..5}`: out, in, recovery-open, grip, put-down (`commands.py` mapping) |
+| `pick` | `/z70/pick` | `{color,dry_run:bool}` |
+| `stack` | `/z70/stack` | `{base_color,middle_color,top_color,dry_run:bool}`; distinct colors |
+| `deploy_arm` | `/z70/arm/deploy` | `{settle:bool}` |
+| `align_target` | `/z70/align_target` | `{color}` |
+| `move_arm` | `/z70/arm/move` | `{m3_deg:90..270,m4_deg:35..170,m5_deg:0..155}` |
+| `grasp_and_lift` | `/z70/arm/grasp_and_lift` | `{lift_steps:0..10,verify_color}`; empty color disables optional verification |
+| `release_and_stow` | `/z70/arm/release_and_stow` | `{put_down:bool}` |
 
-## Authentication and migration
+Color tokens are 1–32 ASCII letters/digits/underscore/hyphen (verify_color may be
+empty). HTTP range validity is not proof of model reachability or hardware motion.
+See [manipulation](../src/z70_manipulation/README.md) for behavior and evidence.
 
-Bearer authentication and same-origin protected browser cookies remain. Stored
-credentials are private plaintext mode-0600 files, not encrypted at rest. Browser
-and MCP responses redact credential keys/known secret values. Operator helper
-entry points must not expose tokens to robot controllers.
+### Tasks and errors
 
-Old hold/authority/docking journals are left untouched and ignored. They do not
-need clearing, recovery evidence or a successful filesystem checkpoint before a
-command. Existing credential documents remain compatible for initial loading. New account selections
-publish a single validated, atomic mode-0600 `pairing.json`; startup prefers it
-over legacy split documents, preventing mixed-account persistence. Camera PIN and
-room updates use that same pairing document after migration. An empty saved camera
-PIN is allowed for account/control setup without enabling camera preview.
+Task: `{id,kind,status,phase,feedback,result}`. Status can be `pending`, `accepted`,
+`executing`, `succeeded`, `failed`, `cancelled`, `rejected`, `unknown`. Initial phase
+is 0; generated feedback/result structures remain intact. One gateway retains at
+most 256 terminal tasks, never evicts active/unknown tasks, and allows at most 32
+nonterminal records. Restart loses the registry: missing IDs are `TASK_NOT_FOUND`,
+not fabricated completion. A lost server/response yields unknown; no write replay.
 
-`research/` retains offline reverse-engineering tests outside `npm test`; historic
-policy documents do not describe current command admission. Focused regressions
-prove arbitrary vendor RPC, exact aliases, auth/redaction, codec correlation,
-no automatic replay of potentially written motion, and a subsequent command after an unknown result.
+Fixed errors are `{error:CODE,dispatch:"not_sent"|"unknown",physicalCompletion:"unverified"}`,
+optionally `id` after goal allocation. Principal statuses: 400 `INVALID_INPUT`,
+404 `TASK_NOT_FOUND`, 409 `REJECTED`/`CAPACITY`/`TASK_FINISHED`/`CANCEL_REJECTED`,
+503 `ROS_UNAVAILABLE`, 504 `RESPONSE_TIMEOUT`. An accepted cancel is not cessation.
+A timed-out task-start response may include an allocated UUID: inspect it before
+considering another goal. HTTP/service success does not prove physical success.
+
+## ROS scheduling and stop
+
+One driver dispatcher serializes ordinary writes, with no pending FIFO. Manual
+writes conflict with an active task token; task RawRpc must hold the current token.
+TaskSession `/z70/tasks/session` begins/ends ownership; matching begin is idempotent,
+end revokes future writes and publishes `/z70/tasks/cancel`. Explicit takeover
+revokes the old task, completes priority ALL stop, then allows the replacement.
+Failed stop latches ordinary dispatch disabled until explicit successful stop/
+takeover. Current reasons include `BUSY`, `SESSION_STOPPED`, `STOP_UNVERIFIED`.
+These are scheduler state, not legacy operator leases or backend admission policy.
+
+Stop runs independently of stalled ordinary reply/camera waits with reserved
+transport capacity. BASE sends `app_rc_stop` then `app_rc_end`; ARM sends
+`app_stop_grasp`; ALL sends all three, total budget ≤15 s including backend safe
+retry. Cancellation revokes future writes and attempts ALL stop. It does not
+implicitly stow/open/put down, replay unknown motion or certify cessation.
+Session disable also exits viewing and suspends acquisition until explicit resume.
+
+## Private driver transport
+
+Bearer-only `POST /api/driver/rpc` is for the driver, not browser cookies. Body:
+`{method,params,timeoutMs,transport,commandId}`. Default transport is local;
+cloud uses the saved account, never a credential-bearing media URL. Requests
+cannot override the selected device's address/key. The private envelope timeout
+range is 1–120000 ms (distinct from the gateway's 30000 ms maximum).
+Method identifiers/payload/capacity bounds are structural, not a control allowlist.
+
+Outcome includes request/logical command/attempt identities, attempt index,
+`dispatch` (`not_sent`, `sent`, `unknown`), `response` (`received`, `vendor_error`,
+`transport_error`), timestamps and `physicalCompletion:"unverified"`, plus result
+or data-free error/vendor code. Transport reasons are closed categories, not raw
+exceptions. HTTP 200 is correlated non-rejected response; 502 carries the vendor/
+transport outcome; malformed input is 400. A correlated rejection does not prove
+absence of all side effects. Response loss after possible write means UNKNOWN.
+The driver allocates logical identity before HTTP; no received attempt evidence
+means zero attempt UUID, not an invented backend event.
+
+The private transport does not consult prior holds, missing measurements, old
+journals, battery or arm mode before a new valid RPC. Safe reads/RC lifecycle or
+`not_sent` may be retried once unless explicitly cancelled. Potentially written
+motion is not automatically replayed; there is no silent local/cloud failover.
+This permissive transport statement does **not** override ROS scheduler state.
+
+Authenticated `GET /api/commands/events` is live NDJSON dispatch evidence with
+logical/attempt/session IDs, sequence and source timestamps, no private params or
+arbitrary results. Dispatch-call time does not prove the precise socket write
+time, physical onset or image exposure. Blank heartbeats are not evidence. Slow readers disconnect;
+sequence/session gaps stay explicit, with no history-based reconstruction.
+`/api/commands/recent` is bounded compatibility history, not a ROS consumer.
+Private camera selection `/api/driver/camera/select` retains underlying outcome
+UUIDs; status-confirmed selection can still have UNKNOWN RPC delivery.
+
+Private frame/offer/telemetry/room/map-cache APIs remain acquisition boundaries;
+map cache receipt is not source capture or localization. Public clients only read
+shared ROS frames. Legacy `/api/v1/rpc`, device actuator aliases, HTTP arm estimate/
+anchor and `/api/camera/select` return 503 rather than bypass ROS; retired docking/
+robotics workflow routes return 410. Old frame-route camera selectors are rejected.
+
+## Browser setup payloads
+
+`GET /api/setup` exposes selected-device metadata, accountConfigured/pinConfigured,
+supported regions/protocols, not credentials. Setup uses `POST /api/account/code`
+`{email,region}`, `/api/account/login` `{code}`, `/api/account/select`
+`{id,host,localProtocol:"1.0"|"L01",pin?}`, `/api/camera/pin` `{pin}`. The browser
+clears secret inputs after submission/session expiry; device selection remains a
+web task, never an RPC device override. First-run admission is local browser setup;
+configured login remains PIN-based. See [operations](../deploy/OPERATIONS.txt).
