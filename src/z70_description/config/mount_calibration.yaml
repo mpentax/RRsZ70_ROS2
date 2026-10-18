@@ -1,0 +1,153 @@
+# PROVISIONAL shared physical/optical preview; firmware FK and unidentifiable anatomy unchanged.
+{
+  "front_camera_x_m": 0.275,
+  "front_camera_z_m": 0.058233433935542395,
+  "front_camera_pitch_deg": -1.3587659848455562,
+  "arm_origin_x_m": 0.10101740063232861,
+  "arm_origin_y_m": 0.0006254253508872214,
+  "arm_origin_z_m": -0.013569708475697051,
+  "arm_yaw_deg": -0.1313390547992483,
+  "gripper_pitch_down_deg": -2.2117050131153113,
+  "gripper_yaw_deg": 0.10568023951716858,
+  "gripper_roll_deg": 0.12461120150865672,
+  "measured_shoulder_base_m": [
+    0.14851727583481525,
+    0.0005165412464665272,
+    0.12643029152430296
+  ],
+  "measured_L1_m": 0.1799248893656069,
+  "measured_M3_offset_deg": -2.270649543834407,
+  "effective_camera_from_elbow_m": [
+    0.1566114304378828,
+    -0.0011258744987861164,
+    0.00659228305051777
+  ],
+  "effective_camera_optical_rotation": [
+    [
+      0.0019283952103268942,
+      0.03858778032226473,
+      0.9992533535103664
+    ],
+    [
+      -0.9999957791208538,
+      0.002246051748043043,
+      0.0018430930583199778
+    ],
+    [
+      -0.00217325387134204,
+      -0.9992526899945506,
+      0.038591948723340486
+    ]
+  ],
+  "effective_jaw_from_elbow_m": [
+    0.162497717832082,
+    -0.0011288909068253214,
+    0.019629324213822588
+  ],
+  "jaw_nominal_wrist_offset_m": [
+    -0.04250228216791799,
+    -0.0011288909068253214,
+    0.019629324213822588
+  ],
+  "marker_effective_from_elbow_m": [
+    0.12875700645393678,
+    -0.0016392305376903915,
+    -2.4713510930205254e-06
+  ],
+  "marker_rotation_link2": [
+    [
+      0.006591495111123533,
+      0.9988873502013085,
+      0.04669704273300323
+    ],
+    [
+      0.9996669559415332,
+      -0.0077474212588072,
+      0.024616146376449433
+    ],
+    [
+      0.02495053888773237,
+      0.04651923335187787,
+      -0.9986057437935977
+    ]
+  ],
+  "jaw_z_correction_m": 0.0,
+  "jaw_region_in_marker_m": [
+    0.0012223952780565188,
+    0.034612472045317935,
+    -0.01801626977598417
+  ],
+  "jaw_front_measurement_evidence": "calibration/arm-calibration/20261014T154207Z-jaw/jaw-fit.json",
+  "jaw_front_measurement_status": "terminal-pad-region surrogate from five front views; true contact seam unresolved; conditional sigma 1.8/8.1/9.2mm plus systematic ambiguity",
+  "jaw_uncertainty_bound_m": 0.015,
+  "calibration_evidence": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/arm/axis-fits.json",
+  "rotation_calibration_evidence": "calibration/arm-calibration/20261014T144906Z/fit.json",
+  "camera_rolls_with_M5": true,
+  "M5_physical_positive_roll": true,
+  "M5_observed_outward_40_deg": 38.93330666410871,
+  "M5_observed_outward_lens_translation_m": 0.004883469241030133,
+  "M5_nominal_roll_uncertainty_deg": 3.0,
+  "wrist_marker_expected_id": 69,
+  "wrist_marker_observed_id": 68,
+  "physical_L2_m": null,
+  "physical_M4_zero_deg": null,
+  "jaw_exact_pad_center_m": null,
+  "geometry_status": "PROVISIONAL shared optical/physical preview, not precision manipulation validation. New G lens and observable elbow-relative vector/ID68 transform; old nominal-angle optical orientation/M3 offset/yaw gauge retained, not re-estimated from drifting route labels. Physical L2/M4 zero/M5 station/pads remain unknown.",
+  "jaw_geometry_note": "Preserve measured marker-to-terminal-region surrogate; re-express it together with new G-to-ID68 registration and effective optical vector. Closing region now162.498mm along link2; prior165mm was provisional, not measured pad centre.",
+  "physical_measurement_evidence": "calibration/physical-measurements/20261014-owner-tape/README.md",
+  "physical_measurement_images": [
+    "IMG_0638_746ea6.png",
+    "IMG_0641_ef94b3.png"
+  ],
+  "owner_rough_first_assembly_length_m": 0.1778,
+  "visual_open_assembly_length_m": 0.1778,
+  "visual_terminal_span_m": 0.0635,
+  "visual_wrist_housing_length_m": 0.02,
+  "visual_geometry_status": "PROVISIONAL: rough355.6mm body diameter, visual nose at front lens (bumper/lens offset unknown); body80mm height, housing32mm height/16mm centre, finger plane28mm and widths are illustrative unmeasured placeholders. Raised pedestal connects body top to shoulder. Open assembly177.8mm; nominal M5 station205mm is a coordinate gauge, not anatomy. ID68 plane uses full measured registration on underside, not wrist proxy.",
+  "physical_M5_axis_station_m": null,
+  "marker_rpy_link2_rad": [
+    3.0950421233739274,
+    -0.024953128353835362,
+    1.564202731249083
+  ],
+  "marker_optical_transform": [
+    [
+      -0.9997042493157544,
+      0.009572540035688946,
+      -0.022355768322484093,
+      0.0004739716098272676
+    ],
+    [
+      -0.02243223822118341,
+      -0.007957024536152197,
+      0.9997167000950412,
+      0.005513832657738707
+    ],
+    [
+      0.009391942738940083,
+      0.9999225231175642,
+      0.008169404739163515,
+      -0.02808907716271939
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "marker_black_side_m": 0.015,
+  "marker_paper_side_m": 0.02,
+  "visual_body_radius_m": 0.1778,
+  "visual_body_center_x_m": 0.09720000000000001,
+  "visual_body_height_m": 0.08,
+  "visual_housing_height_m": 0.032,
+  "visual_housing_center_z_m": 0.016,
+  "visual_finger_plane_z_m": 0.028,
+  "provisional_model_evidence": "calibration/arm-calibration/20261015-provisional-model/README.md",
+  "front_camera_height_status": "PROVISIONAL shared new-run floor:58.2334339355424mm, pitch -1.3587659848455562deg, roll -0.4157964320542162deg. Same best T_F_W height/normal in active floor projector and ROS TF; measured rise68.19685758876055mm gives shoulder126.43029152430296mm. Rough owner lens60mm/shoulder127mm are crosschecks, not hard constraints. Print scale/flatness, pose/glare and lens systematics unresolved.",
+  "optical_mount_status": "156.754mm perpendicular elbow-to-lens vector expressed using actual N_M4_230_reverse observed pose[1] and retained optical rotation as link2 zero gauge; no nominal jog label used to derive vector. Axial station chosen at lens perpendicular projection, not identified physical elbow lateral centre. Generalization of rigid T_G_M remains uncertain (prospective front validation failed).",
+  "front_camera_roll_deg": -0.4157964320542162,
+  "front_camera_floor_source": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/arm/front-registration.json",
+  "shoulder_station_status": "Optical x=0 intersection of measured N_M3_55 shoulder axis projected through measured floor basis; y=0.516541mm is this named station, NOT an identified anatomical lateral shoulder centre; prior arbitrary lateral mount gauge replaced consistently."
+}

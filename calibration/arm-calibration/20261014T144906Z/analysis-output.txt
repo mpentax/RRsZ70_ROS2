@@ -1,0 +1,156 @@
+CAMERA FIT [-1.28613321e-01  2.54773277e-02  1.26547235e-01 -7.71733147e-03
+  1.80294741e-01 -2.03061115e-02  1.64449583e-01  8.99598753e-11
+  7.95656754e-03 -1.18695037e+00  1.18428391e+00 -1.21650625e+00
+  9.82819819e-01  9.58177696e-01] RMS 4.2849666702542
+{
+ "counts": {
+  "retained_raw_frames": 59,
+  "gripper_board": 27,
+  "front_board": 18,
+  "wrist_marker": 11,
+  "frame_bootstraps": 60,
+  "all_gripper_board": 34
+ },
+ "params": {
+  "shoulder_CF_x": -0.12861332094477346,
+  "shoulder_CF_y": 0.025477327735361453,
+  "shoulder_CF_z": 0.12654723514017296,
+  "arm_yaw_rad": -0.007717331469137635,
+  "L1_m": 0.1802947410972575,
+  "M3_offset_rad": -0.020306111514171454,
+  "camera_effective_x": 0.16444958305146637,
+  "camera_effective_y": 8.995987525245084e-11,
+  "camera_effective_z": 0.007956567544465111,
+  "camera_mount_r0": -1.1869503701095077,
+  "camera_mount_r1": 1.184283906465374,
+  "camera_mount_r2": -1.2165062505989248,
+  "M3_gain": 0.9828198191144422,
+  "M4_gain": 0.9581776962372958
+ },
+ "frame_bootstrap_sigma": {
+  "shoulder_CF_x": 0.004971164623913845,
+  "shoulder_CF_y": 0.0004981550542788326,
+  "shoulder_CF_z": 0.0015926252288920337,
+  "arm_yaw_rad": 0.0012227541810294212,
+  "L1_m": 0.002124085216759161,
+  "M3_offset_rad": 0.015052946757598173,
+  "camera_effective_x": 0.005074439613388429,
+  "camera_effective_y": 2.1120084207724995e-11,
+  "camera_effective_z": 0.00205381029448589,
+  "camera_mount_r0": 0.004615353557127813,
+  "camera_mount_r1": 0.004143663284156581,
+  "camera_mount_r2": 0.003202214822125514,
+  "M3_gain": 0.011939271612683643,
+  "M4_gain": 0.011356154466540284
+ },
+ "gripper_point_rms_px": 4.2849666702542,
+ "front_board_point_rms_px": 15.723144531283962,
+ "previous_chain_same_data_point_rms_px": 6.946397944229327,
+ "marker_observed68_mount": {
+  "effective_vector_from_elbow_m": [
+   0.1427379055427088,
+   0.00025756245497636417,
+   0.00482570623494073
+  ],
+  "rotation_link2_to_marker": [
+   [
+    -0.0014867413663071343,
+    0.9998807930904352,
+    0.01536844848876141
+   ],
+   [
+    0.9998864423464102,
+    0.001716870521097122,
+    -0.014971799071998648
+   ],
+   [
+    -0.014996399966266009,
+    0.015344444090803332,
+    -0.9997698015161268
+   ]
+  ],
+  "position_point_rms_m": 0.0027994431192470783,
+  "frames": [
+   "f240-105-0.jpg",
+   "f240-105-0-closed.jpg",
+   "f250-115-0-closed-actual.jpg",
+   "f240-95-0.jpg"
+  ],
+  "frame_bootstrap_sigma_m": [
+   0.004965694848867028,
+   0.0002680546382449844,
+   0.0021344725693828227
+  ]
+ },
+ "rotation_statistics": {
+  "3": {
+   "n": 13,
+   "step_mean_deg": 9.71745432567619,
+   "step_std_deg": 0.21753293171493557,
+   "step_mean_sigma_deg": 0.06033277995386207,
+   "gain": 0.971745432567619,
+   "axis_perpendicular_distance_mean_m": 0.18956307390645938,
+   "axis_perpendicular_distance_std_m": 0.05215396282372333
+  },
+  "4": {
+   "n": 8,
+   "step_mean_deg": 9.652499067271194,
+   "step_std_deg": 0.26545127123220985,
+   "step_mean_sigma_deg": 0.09385119698144254,
+   "gain": 0.9652499067271194,
+   "axis_perpendicular_distance_mean_m": 0.16183883126021897,
+   "axis_perpendicular_distance_std_m": 0.00603799196302723
+  }
+ },
+ "M5_camera_axis": {
+  "direction_CF": [
+   0.738904044306399,
+   0.00020508402980830436,
+   -0.6738106345615124
+  ],
+  "direction_component_std": [
+   0.0017438701586170503,
+   0.002619260279644639,
+   0.0019169610579610709
+  ],
+  "nearest_point_to_zero_lens_CF_m": [
+   0.15024274954170025,
+   0.0222547079722452,
+   0.10711912627901754
+  ],
+  "perpendicular_lens_offset_m": 0.007487484385092204,
+  "axis_line_fit_point_rms_m": 0.0003032721344077836,
+  "axial_station_unobservable": true
+ },
+ "conditional_M4_zero": {
+  "offset_deg": 4.764719314530506,
+  "frame_bootstrap_sigma_deg": 0.3889365842252036,
+  "link2_gauge_rotation_deg": 3.601264826446476,
+  "definition": "physical elbow bend M4cal + offset, with link2 direction DEFINED by measured M5 roll axis; excludes axis/intrinsics systematics",
+  "adopted": false
+ },
+ "object_final": {
+  "contact_pixel": [
+   784.0,
+   744.0
+  ],
+  "CF_m": [
+   0.3034420490782447,
+   -0.0027836117908856144,
+   0.0
+  ],
+  "rotation_center_m": [
+   0.5784420490782447,
+   -0.0027836117908856144,
+   0.0
+  ],
+  "pixel_bootstrap_sigma_m": [
+   0.008469278896375613,
+   0.0029413379924016054,
+   1.6434516777192905e-18
+  ],
+  "size_m": 0.066,
+  "equator_height_m": 0.033,
+  "method": "reviewed target-only visible bottom edge, not merged wood/shadow HSV contour; floor projection is visible-contact estimate, not exact object centre"
+ }
+}

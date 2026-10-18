@@ -1,0 +1,34 @@
+test_alternate_planar_seed_is_checked_without_using_holdout (test_survey_refit.SurveyRefitTests) ... ok
+test_height_constraint_refits_pixels_not_posthoc_translation (test_survey_refit.SurveyRefitTests) ... ok
+test_provenance_key_changes_for_pixels_intrinsics_log_and_height (test_survey_refit.SurveyRefitTests) ... ok
+test_real_scenarios_preserve_archive_and_identical_holdouts (test_survey_refit.SurveyRefitTests) ... free D height/rms/setback/axisheight 0.05855005737187074 3.4153706649493607 0.12854794619540685 0.12399812506199598
+h60 D height/rms/setback/axisheight 0.06 3.6408332859762806 0.12890952925323226 0.12400036937563014
+ok
+test_pixel_axis_fit_uses_real_projective_geometry_and_latent_angles (test_geometry.AxisTests) ... ok
+test_rigid_sweep_finds_axis_line_not_mount_station (test_geometry.AxisTests) ... ok
+test_translation_circle_reconstructs_same_line_without_pose_orientation (test_geometry.AxisTests) ... ok
+test_clipped_front_board_and_elevated_repeated_id_are_separated (test_observations.ObservationTests) ... ok
+test_existing_real_front_board_has_consistent_positive_depth_pose (test_observations.ObservationTests) ... ok
+test_noisy_real_board_retains_pose_and_quality_instead_of_disappearing (test_observations.ObservationTests) ... ok
+test_actual_capture_inventory_and_physical_unknowns_are_not_fabricated (test_analysis.AnalysisTests) ... ok
+test_cross_view_holdout_is_genuinely_different_pixels_not_refitted_marker (test_validation.ValidationTests) ... ok
+
+----------------------------------------------------------------------
+Ran 12 tests in 2.988s
+
+OK
+{
+  "tests_run": 12,
+  "failures": 0,
+  "errors": 0,
+  "archive_files_preserved": 408,
+  "raw_manifest_verified": 195,
+  "scenario_count": 11,
+  "archive_matches_pre_refit_snapshot": true,
+  "unsafe_legacy_integration_tests_redirected_to_disposable_copy": true,
+  "source_code_sha256": {
+    "/Users/mpentax/Code/RoboRockZ70-Connector/calibration/arm-calibration/physical_base/survey_refit.py": "3dd0c956d2df67ab25e2ff6c14f186bf679b009ab9766ad7442228c3f167a419",
+    "/Users/mpentax/Code/RoboRockZ70-Connector/calibration/arm-calibration/physical_base/test_survey_refit.py": "f59578de614b60ff5037d3631f0ee805ec9e1421be6c12ae7a1fe8f4b9b56b05"
+  },
+  "no_production_edits_or_live_access": true
+}

@@ -1,0 +1,23 @@
+{
+  "observedAt": 1792043259739,
+  "battery": 48,
+  "state": 3,
+  "error_code": 0,
+  "in_cleaning": 0,
+  "in_returning": 0,
+  "common_status": 49154,
+  "grab_status": 0,
+  "grab_mode": 0,
+  "arm_estimate_state": "IN_ROBOT",
+  "arm_estimate_source": "dead-reckoning",
+  "arm_status_corroboration": "grab_status 0 after stow and front image without deployed gripper",
+  "object_release_evidence": "6-final-front.jpg: yellow target upright on floor, unsupported by arm",
+  "pickup_mode_exit": {
+    "method": "app_pick_up_enter_exit",
+    "params": {
+      "flag": 0
+    },
+    "reply": "received"
+  },
+  "photos": "retained local, git-ignored"
+}

@@ -1,0 +1,15 @@
+{
+  "tests_run": 12,
+  "failures": 0,
+  "errors": 0,
+  "archive_files_preserved": 408,
+  "raw_manifest_verified": 195,
+  "scenario_count": 11,
+  "archive_matches_pre_refit_snapshot": true,
+  "unsafe_legacy_integration_tests_redirected_to_disposable_copy": true,
+  "source_code_sha256": {
+    "/Users/mpentax/Code/RoboRockZ70-Connector/calibration/arm-calibration/physical_base/survey_refit.py": "3dd0c956d2df67ab25e2ff6c14f186bf679b009ab9766ad7442228c3f167a419",
+    "/Users/mpentax/Code/RoboRockZ70-Connector/calibration/arm-calibration/physical_base/test_survey_refit.py": "f59578de614b60ff5037d3631f0ee805ec9e1421be6c12ae7a1fe8f4b9b56b05"
+  },
+  "no_production_edits_or_live_access": true
+}

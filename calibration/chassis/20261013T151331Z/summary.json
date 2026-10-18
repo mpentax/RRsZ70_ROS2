@@ -1,0 +1,21 @@
+{
+  "state": "aborted_unclear_chassis_response",
+  "motion_attempts": 1,
+  "scheduled_motion_pulses": 18,
+  "complete_pairs": 1,
+  "accepted_pairs": 1,
+  "rejected_pairs": 0,
+  "incomplete_attempts": 0,
+  "live_status_events": {
+    "init": 1,
+    "ok": 482
+  },
+  "live_rejection_rate_excluding_init": 0.0,
+  "delivered_status_hz": 2.938792834871877,
+  "ros_domain_id": 93,
+  "foxglove_port": 55008,
+  "camera_x_identifiable": false,
+  "adopt": false,
+  "release_status": "UNVERIFIED",
+  "release_checked_at_ms": 1791904631920
+}

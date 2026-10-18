@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "policy": "Byte-identical historical measured fits, used only to seed the existing windowed estimator. No images, full acquisition corpus or mutable online.json is installed.",
+  "assets": [
+    {"source": "calibration/chassis/20261013T144619Z/fit.json", "resource": "config/chassis/20261013T144619Z/fit.json", "sha256": "f9cc4acd12e53a7e1d1d99b11b6c1a128f12224669446fbc1c1bd71f522ff7b9"},
+    {"source": "calibration/chassis/20261013T151331Z/fit.json", "resource": "config/chassis/20261013T151331Z/fit.json", "sha256": "b260c6c78d4048046c5f58248e720a30b152a1795ed7385d4f1f300fbd859c46"},
+    {"source": "calibration/chassis/20261014T054025Z/fit.json", "resource": "config/chassis/20261014T054025Z/fit.json", "sha256": "726c03302970e059cfec34502778acaf6029f2981e8689d544d59786d995d202"}
+  ]
+}

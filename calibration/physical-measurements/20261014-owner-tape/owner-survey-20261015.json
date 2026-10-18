@@ -1,0 +1,33 @@
+{
+  "source": "Michael, direct chat confirmations after physical arm-base calibration review",
+  "front_camera_height_above_ground_m": 0.06,
+  "front_camera_height_reference": "User clarified that 60mm was a rough tape measurement with the same imprecision as other dimensions, NOT an exact height. Interpreted provisionally as centre of visible front lens; optical-origin offset remains unmeasured.",
+  "front_camera_height_measurement_method": "Rough tape reading, independent crosscheck only; do not hard-fix in adopted calibration",
+  "front_camera_height_uncertainty_m": null,
+  "dense_board": {
+    "paper": "A4",
+    "square_side_m": 0.02,
+    "black_marker_side_m": 0.015,
+    "print_scale": "100%, confirmed by owner",
+    "grid": [10, 14],
+    "black_marker_side_source": "Original dense A4 board specification",
+    "measured_print_tolerance_m": null
+  },
+  "rough_tape_survey": {
+    "camera_to_shoulder_horizontal_setback": {"source_value": "~5.5 inches", "metres": 0.1397},
+    "nose_to_shoulder_horizontal_setback": {"source_value": "very similar to camera setback; nose is bumper over front camera assembly", "metres": null},
+    "deployed_shoulder_axis_height": {"source_value": "~5 inches", "metres": 0.127},
+    "body_front_to_back": {"source_value": "14 inches", "metres": 0.3556},
+    "body_width": {"source_value": "14 inches", "metres": 0.3556},
+    "method": "Rough tape readings from owner; exact landmarks and statistical tolerances not independently documented",
+    "uncertainty_m": null,
+    "intended_use": "Independent rough crosschecks and initialization, not hard exact constraints or claimed camera-derived dimensions"
+  },
+  "adoption": "Production geometry unchanged pending consistent refit and holdout verification. User expects camera-derived refinement, not replacement of rough readings by asserted precise anatomy. Full-scale printing supports scale assumption but does not quantify printer tolerance.",
+  "remaining_unknowns": [
+    "Chassis rotation-origin location relative to geometric body centre and front camera",
+    "Optical centre versus exterior camera housing offset",
+    "Along-axis physical shoulder centre and pedestal anatomy",
+    "Physical L2/M4 zero/M5 station and exact jaw pad seam"
+  ]
+}

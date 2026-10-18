@@ -1,0 +1,7 @@
+# Generated from docs/migration/interfaces.md; SI units.
+z70_interfaces/EvidenceStamp evidence
+uint8 phase
+string<=128 operation
+z70_interfaces/CommandOutcome outcome
+geometry_msgs/Twist requested_twist
+builtin_interfaces/Duration requested_duration

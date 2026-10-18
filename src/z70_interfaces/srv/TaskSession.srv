@@ -1,0 +1,7 @@
+bool begin
+unique_identifier_msgs/UUID task_id
+bool takeover
+---
+bool accepted
+unique_identifier_msgs/UUID task_id
+string<=64 reason

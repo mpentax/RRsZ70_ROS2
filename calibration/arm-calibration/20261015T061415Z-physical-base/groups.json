@@ -1,0 +1,73 @@
+{
+  "D_M3_45": [
+    "raw/D-g160-45.jpg",
+    "raw/058-D-M3-45-g170-45-0.jpg",
+    "raw/059-D-M3-45-g180-45-0.jpg",
+    "raw/060-D-M3-45-g190-45-0.jpg"
+  ],
+  "D_M3_85": [
+    "raw/064-D-M4-190-forward-g190-85-0.jpg",
+    "raw/065-D-M3-85-forward-g200-85-0.jpg",
+    "raw/066-D-M3-85-forward-g210-85-0.jpg",
+    "raw/067-D-M3-85-forward-g220-85-0.jpg",
+    "raw/068-D-M3-85-forward-g230-85-0.jpg"
+  ],
+  "D_M3_95": [
+    "raw/071-D-reverse-validation-g240-95-0.jpg",
+    "raw/072-D-reverse-validation-g230-95-0.jpg",
+    "raw/073-D-reverse-validation-g220-95-0.jpg",
+    "raw/074-D-reverse-validation-g210-95-0.jpg"
+  ],
+  "D_M4_190": [
+    "raw/060-D-M3-45-g190-45-0.jpg",
+    "raw/061-D-M4-190-forward-g190-55-0.jpg",
+    "raw/062-D-M4-190-forward-g190-65-0.jpg",
+    "raw/063-D-M4-190-forward-g190-75-0.jpg",
+    "raw/064-D-M4-190-forward-g190-85-0.jpg"
+  ],
+  "D_M4_210": [
+    "raw/074-D-reverse-validation-g210-95-0.jpg",
+    "raw/075-D-offdiagonal-validation-g210-85-0.jpg",
+    "raw/076-D-offdiagonal-validation-g210-75-0.jpg",
+    "raw/077-D-offdiagonal-validation-g210-65-0.jpg"
+  ],
+  "D_M5_20065": [
+    "raw/078-D-offdiagonal-validation-g200-65-0.jpg",
+    "raw/079-D-M5-third-forward-g200-65-10.jpg",
+    "raw/080-D-M5-third-forward-g200-65-20.jpg",
+    "raw/081-D-M5-third-forward-g200-65-30.jpg",
+    "raw/082-D-M5-third-forward-g200-65-40.jpg"
+  ],
+  "B_M5_19055": [
+    "raw/047-B-return-reference-g190-55-0.jpg",
+    "raw/048-B-M5-second-forward-g190-55-10.jpg",
+    "raw/049-B-M5-second-forward-g190-55-20.jpg",
+    "raw/050-B-M5-second-forward-g190-55-30.jpg",
+    "raw/051-B-M5-second-forward-g190-55-40.jpg"
+  ],
+  "B_M3_45": [
+    "raw/B-setup-g160-45.jpg",
+    "raw/016-B-M3-45-forward-g170-45-0.jpg",
+    "raw/017-B-M3-45-forward-g180-45-0.jpg",
+    "raw/018-B-M3-45-forward-g190-45-0.jpg"
+  ],
+  "B_M3_75": [
+    "raw/039-B-reverse-lattice-g210-75-0.jpg",
+    "raw/040-B-M3-75-reverse-g200-75-0.jpg",
+    "raw/041-B-M3-75-reverse-g190-75-0.jpg",
+    "raw/042-B-M3-75-reverse-g180-75-0.jpg"
+  ],
+  "A_M3_45": [
+    "raw/005-setup-g160-45.jpg",
+    "raw/setup-g170-45.jpg",
+    "raw/pilot-g180-45.jpg",
+    "raw/pilot-g190-45.jpg"
+  ],
+  "A_M4_200": [
+    "raw/pilot-g200-45-repeat.jpg",
+    "raw/pilot-g200-55.jpg",
+    "raw/011-A-M4-forward-g200-65-0.jpg",
+    "raw/012-A-M4-forward-g200-75-0.jpg",
+    "raw/013-A-M4-forward-g200-85-0.jpg"
+  ]
+}

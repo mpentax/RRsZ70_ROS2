@@ -1,0 +1,17 @@
+{
+  "receivedAt": 1792066738889,
+  "capturedAt": null,
+  "camera": "gripper",
+  "sizeCamera": "gripper",
+  "captureProvenance": null,
+  "lensVerification": "unknown",
+  "mimeType": "image/jpeg",
+  "feedLensVerified": false,
+  "frameId": "7aaa4c22-2324-46d1-aa47-a2ae1e8c6881",
+  "cameraSessionId": "fb080254-7a03-4e1f-88d0-e77e9702e7b4",
+  "dimensions": {
+    "width": 1600,
+    "height": 896
+  },
+  "note": "Receipt time is not camera exposure time; lens identity and arm pose are unverified."
+}

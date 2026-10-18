@@ -1,0 +1,31 @@
+api:
+  listen: ":57001"
+  allow_paths:
+    - /api
+    - /api/streams
+    - /api/roborock/diagnostic
+    - /api/webrtc
+    - /api/frame.jpeg
+    - /api/stream.mp4
+    - /api/stream.mjpeg
+    - /api/preload
+rtsp:
+  listen: ""
+webrtc:
+  listen: ":57002"
+  candidates:
+    - "${ROBOCLAW_WEBRTC_HOST}:57012"
+  ice_servers: []
+streams:
+  z70: "{input}"
+  # Pre-warmed source-dimension-filtered MJPEG transcoders sharing the z70 WebRTC producer:
+  # `select=eq(iw,1600)*eq(ih,1200|896)` drops any frame whose decoded H264 source dimensions
+  # do not match the target camera BEFORE `scale` (which only pins the mjpeg encoder's initial
+  # output link dimensions and never receives or resizes frames from the other camera).
+  z70_front_jpeg: "ffmpeg:http://127.0.0.1:57001/api/stream.mp4?src=z70&video#video=mjpeg#raw=-vf select=eq(iw\\,1600)*eq(ih\\,1200),scale=1600:1200 -fps_mode vfr"
+  z70_gripper_jpeg: "ffmpeg:http://127.0.0.1:57001/api/stream.mp4?src=z70&video#video=mjpeg#raw=-vf select=eq(iw\\,1600)*eq(ih\\,896),scale=1600:896 -fps_mode vfr"
+ffmpeg:
+  http: "-analyzeduration 0 -probesize 32 -fflags nobuffer -flags low_delay -i {input}"
+# Sources start on demand; RoboClaw disconnects its consumer after 10 s idle.
+log:
+  level: error

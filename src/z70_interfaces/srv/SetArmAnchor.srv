@@ -1,0 +1,4 @@
+uint8 anchor
+string<=64 observation_reason
+---
+z70_interfaces/ArmEstimate estimate

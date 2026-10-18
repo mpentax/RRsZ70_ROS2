@@ -1,0 +1,17 @@
+{
+  "receivedAt": 1792066270871,
+  "capturedAt": null,
+  "camera": "front",
+  "sizeCamera": "front",
+  "captureProvenance": null,
+  "lensVerification": "unknown",
+  "mimeType": "image/jpeg",
+  "feedLensVerified": false,
+  "frameId": "df69d3cc-eecb-405b-9f33-0f891f815b87",
+  "cameraSessionId": "fb080254-7a03-4e1f-88d0-e77e9702e7b4",
+  "dimensions": {
+    "width": 1600,
+    "height": 1200
+  },
+  "note": "Receipt time is not camera exposure time; lens identity and arm pose are unverified."
+}

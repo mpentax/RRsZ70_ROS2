@@ -1,0 +1,82 @@
+{
+  "fixed": {
+    "T_F_W": [
+      [
+        0.9998410733291436,
+        -0.016517608772410253,
+        -0.00670795680273189,
+        -0.07875718226806547
+      ],
+      [
+        0.00616037533767631,
+        -0.03298199366377558,
+        0.999436960428051,
+        0.07231652098550993
+      ],
+      [
+        -0.016729550493802,
+        -0.9993194467708532,
+        -0.032874997275605444,
+        0.4676414564551178
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "success": true,
+    "training_files": [
+      "/Users/mpentax/Code/RoboRockZ70-Connector/calibration/arm-calibration/20261015T094801Z-prospective-pitch-roll-resume/raw/002-deployed-front.jpg",
+      "/Users/mpentax/Code/RoboRockZ70-Connector/calibration/arm-calibration/20261015T094801Z-prospective-pitch-roll-resume/raw/018-route-front.jpg"
+    ],
+    "scope": "floor-only postdeployment premeasurement training, no marker input",
+    "floor_metrics": {
+      "n": 32,
+      "rms_px": 2.0478861528445362,
+      "p95_px": 4.078480083794957,
+      "max_px": 4.620801450923518
+    }
+  },
+  "fcyk1": {
+    "T_F_W": [
+      [
+        0.9998451708733556,
+        -0.01623062315463674,
+        -0.006797143020620202,
+        -0.0788463270861452
+      ],
+      [
+        0.0059828436890122325,
+        -0.04970252943573117,
+        0.9987461459996146,
+        0.08043974873366187
+      ],
+      [
+        -0.0165481075239268,
+        -0.9986321772503141,
+        -0.04959772875519719,
+        0.468065051586146
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "success": true,
+    "training_files": [
+      "/Users/mpentax/Code/RoboRockZ70-Connector/calibration/arm-calibration/20261015T094801Z-prospective-pitch-roll-resume/raw/002-deployed-front.jpg",
+      "/Users/mpentax/Code/RoboRockZ70-Connector/calibration/arm-calibration/20261015T094801Z-prospective-pitch-roll-resume/raw/018-route-front.jpg"
+    ],
+    "scope": "floor-only postdeployment premeasurement training, no marker input",
+    "floor_metrics": {
+      "n": 32,
+      "rms_px": 2.0642511107210226,
+      "p95_px": 4.0898981074532665,
+      "max_px": 4.635405756501429
+    }
+  }
+}

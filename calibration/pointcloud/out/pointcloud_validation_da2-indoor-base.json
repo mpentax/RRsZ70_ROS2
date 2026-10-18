@@ -1,0 +1,36 @@
+{
+ "model": "da2-indoor-base",
+ "inference_s": 0.11449813842773438,
+ "scale": 0.25249885687577206,
+ "net_scale_error_pct": 296.0413969287766,
+ "boards": {
+  "coarse_40mm": {
+   "n": 17,
+   "median_height_mm": -1.3713183448021553,
+   "median_pos_err_mm": 3.7030851038442902,
+   "median_pairwise_rel_err_pct": 4.195112943884119,
+   "pairwise_scale_bias_pct": 1.8770282758802188,
+   "range_m": [
+    0.11551743811861005,
+    0.31594022969260205
+   ]
+  },
+  "dense_20mm": {
+   "n": 75,
+   "median_height_mm": -8.848706419602198,
+   "median_pos_err_mm": 27.672195629146117,
+   "median_pairwise_rel_err_pct": 17.188501809946608,
+   "pairwise_scale_bias_pct": 16.91954931570229,
+   "range_m": [
+    0.08473691493814112,
+    0.32136568367942225
+   ]
+  }
+ },
+ "floor": {
+  "n": 97378,
+  "rms_height_mm": 2.8090421866678184,
+  "p95_abs_height_mm": 5.23377786424264
+ },
+ "far_floor_consistency": 0.2525653304145574
+}

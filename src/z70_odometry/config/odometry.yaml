@@ -1,0 +1,4 @@
+# Retained historical VO initialization, NOT a new physical calibration.
+# The passive fit may replace this only through its existing ready/sigma gate.
+# Model preview mount_calibration.yaml has its separate provisional provenance.
+camera_x_m: 0.16

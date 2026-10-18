@@ -1,0 +1,16 @@
+string<=32 base_color
+string<=32 middle_color
+string<=32 top_color
+bool dry_run
+---
+z70_interfaces/CommandOutcome outcome
+uint8 tiers_completed
+bool stack_verified
+bool dry_run_valid
+string<=256 evidence_uri
+---
+uint8 phase
+uint8 current_tier
+string<=64 reason
+z70_interfaces/CommandOutcome latest_outcome
+z70_interfaces/EvidenceStamp latest_observation

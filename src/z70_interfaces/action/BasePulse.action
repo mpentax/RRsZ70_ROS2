@@ -1,0 +1,13 @@
+float64 linear_mps
+float64 angular_radps
+builtin_interfaces/Duration duration
+---
+z70_interfaces/CommandOutcome outcome
+nav_msgs/Odometry before
+nav_msgs/Odometry after
+bool odom_delta_valid
+---
+uint8 phase
+string<=64 reason
+z70_interfaces/CommandOutcome latest_outcome
+z70_interfaces/EvidenceStamp latest_observation

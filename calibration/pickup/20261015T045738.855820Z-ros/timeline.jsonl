@@ -1,0 +1,9 @@
+{"t": "2026-10-15T04:57:38.856024+00:00", "event": "start", "color": "yellow", "dry_run": false}
+{"t": "2026-10-15T04:57:38.857961+00:00", "event": "data_gap", "kind": "state"}
+{"t": "2026-10-15T04:57:38.858472+00:00", "event": "data_gap", "kind": "state"}
+{"t": "2026-10-15T04:57:38.858930+00:00", "event": "data_gap", "kind": "camera", "camera": "front"}
+{"t": "2026-10-15T04:57:43.864868+00:00", "event": "data_gap", "kind": "state"}
+{"t": "2026-10-15T04:57:43.865727+00:00", "event": "data_gap", "kind": "camera", "camera": "front"}
+{"t": "2026-10-15T04:57:48.871834+00:00", "event": "data_gap", "kind": "state"}
+{"t": "2026-10-15T04:57:48.874114+00:00", "event": "data_gap", "kind": "camera", "camera": "front"}
+{"t": "2026-10-15T04:57:53.903573+00:00", "event": "failure", "error": "LookupError", "reason": "no fresh camera observation after retries", "log_dir": "/Users/mpentax/Code/RoboRockZ70-Connector/calibration/pickup/20261015T045738.855820Z-ros"}

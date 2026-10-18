@@ -1,0 +1,208 @@
+{"t": "2026-10-18T11:02:44.613829+00:00", "event": "start", "color": "yellow", "dry_run": false}
+{"t": "2026-10-18T11:02:44.719380+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": [{"color": "yellow", "pixel": [640.6842895764494, 760.4027781570587], "contact_px": [587.5, 967.0], "bbox": [448, 580, 391, 388], "size_px": 391.0, "area_px": 109857.0, "image_size": [1600, 1200], "trimmed": "sat_core", "position": [0.41029827020971515, 0.031030191398310664, 0.0], "camera": "front", "size_m": 0.06461728620531172}]}
+{"t": "2026-10-18T11:02:48.421712+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": [{"color": "yellow", "pixel": [641.4278434739261, 759.6733224403888], "contact_px": [613.5, 960.0], "bbox": [448, 581, 390, 380], "size_px": 390.0, "area_px": 108327.0, "image_size": [1600, 1200], "trimmed": "sat_core", "position": [0.4133625257215352, 0.027283521634543572, 0.0], "camera": "front", "size_m": 0.06584664622933095}]}
+{"t": "2026-10-18T11:02:48.424770+00:00", "event": "approach", "yaw": 0.10541750005751817, "forward": 0.0002630001586037545, "bearing_error_deg": 6.039977840115904, "range_error_m": 0.0002630001586037545, "grasp_point": [0.41102265907332036, -0.012314618364440783, 0.0]}
+{"t": "2026-10-18T11:02:48.425074+00:00", "event": "command", "method": "app_rc_start", "params": []}
+{"t": "2026-10-18T11:02:48.457981+00:00", "event": "reply", "method": "app_rc_start", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:02:53.461304+00:00", "event": "command", "method": "app_rc_move", "params": [{"velocity": 0.0, "omega": 0.22, "duration": 666, "seqnum": 1}]}
+{"t": "2026-10-18T11:02:53.483851+00:00", "event": "reply", "method": "app_rc_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:02:54.852053+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-18T11:02:54.872844+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:02:54.873177+00:00", "event": "data_gap", "kind": "odom"}
+{"t": "2026-10-18T11:02:54.889210+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": [{"color": "yellow", "pixel": [832.8589428448875, 774.9758067836088], "contact_px": [827.5, 999.0], "bbox": [625, 578, 416, 422], "size_px": 422.0, "area_px": 125503.5, "image_size": [1600, 1200], "position": [0.39981054509612624, -0.008153598958229941, 0.0], "camera": "front", "size_m": 0.06363450649081981}]}
+{"t": "2026-10-18T11:02:54.889577+00:00", "event": "approach", "yaw": 0.01040877057580606, "forward": -0.0113186394280691, "bearing_error_deg": 0.5963786239136429, "range_error_m": -0.0113186394280691, "grasp_point": [0.41102265907332036, -0.012314618364440783, 0.0]}
+{"t": "2026-10-18T11:02:54.889697+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-18T11:02:54.908515+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:02:54.908847+00:00", "event": "command", "method": "app_rc_end", "params": []}
+{"t": "2026-10-18T11:02:54.927621+00:00", "event": "reply", "method": "app_rc_end", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:02:54.928617+00:00", "event": "command", "method": "app_pick_up_enter_exit", "params": {"flag": 2}}
+{"t": "2026-10-18T11:02:54.949845+00:00", "event": "reply", "method": "app_pick_up_enter_exit", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:02:54.950116+00:00", "event": "command", "method": "app_arm_out_compartment", "params": []}
+{"t": "2026-10-18T11:02:54.973366+00:00", "event": "reply", "method": "app_arm_out_compartment", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:03:23.286185+00:00", "event": "camera_select", "camera": "front"}
+{"t": "2026-10-18T11:03:23.598935+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": [{"color": "yellow", "pixel": [838.4929106254413, 771.9290309956596], "contact_px": [737.0, 991.0], "bbox": [640, 580, 404, 412], "size_px": 412.0, "area_px": 121802.0, "image_size": [1600, 1200], "position": [0.4023578312641728, 0.005801058771804543, 0.0], "camera": "front", "size_m": 0.06290866054496186}]}
+{"t": "2026-10-18T11:03:24.612257+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": [{"color": "yellow", "pixel": [838.8755623692383, 770.3971374289612], "contact_px": [810.0, 976.0], "bbox": [640, 579, 401, 398], "size_px": 401.0, "area_px": 121324.5, "image_size": [1600, 1200], "position": [0.4080296353077442, -0.005802021343026358, 0.0], "camera": "front", "size_m": 0.06524828353492107}]}
+{"t": "2026-10-18T11:03:24.612702+00:00", "event": "post_deploy_alignment", "yaw_offset_rad": null, "visual_yaw_offset_rad": -0.0348074920779171, "target": [0.4023578312641728, 0.005801058771804543, 0.0], "bearing_error_deg": 2.5797078647729506, "range_error_m": -0.008811487128755069, "prior_reset": true}
+{"t": "2026-10-18T11:03:25.545606+00:00", "event": "snapshot", "name": "0-post-deploy", "camera": "front"}
+{"t": "2026-10-18T11:03:28.061652+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": [{"color": "yellow", "pixel": [838.2570497724639, 772.678219126196], "contact_px": [799.0, 983.0], "bbox": [641, 580, 400, 404], "size_px": 404.0, "area_px": 121446.0, "image_size": [1600, 1200], "position": [0.40539740696499205, -0.003943159698149201, 0.0], "camera": "front", "size_m": 0.06380807346884661}]}
+{"t": "2026-10-18T11:03:28.062042+00:00", "event": "approach", "yaw": 0.020653548257705226, "forward": -0.005793148478543175, "bearing_error_deg": 1.1833611471362842, "range_error_m": -0.005793148478543175, "grasp_point": [0.41102265907332036, -0.012314618364440783, 0.0]}
+{"t": "2026-10-18T11:03:28.062226+00:00", "event": "command", "method": "app_open_gripper", "params": []}
+{"t": "2026-10-18T11:03:28.398203+00:00", "event": "reply", "method": "app_open_gripper", "dispatch": "unknown", "response": "transport_error", "transportReason": "timeout"}
+{"t": "2026-10-18T11:03:28.440034+00:00", "event": "model_descent", "state": [250, 105], "error_m": 0.02253451103324351, "steps": [{"m": [1, 0, 0], "state": [200, 65]}, {"m": [1, 0, 0], "state": [210, 65]}, {"m": [0, 1, 0], "state": [210, 75]}, {"m": [1, 0, 0], "state": [220, 75]}, {"m": [0, 1, 0], "state": [220, 85]}, {"m": [1, 0, 0], "state": [230, 85]}, {"m": [0, 1, 0], "state": [230, 95]}, {"m": [1, 0, 0], "state": [240, 95]}, {"m": [0, 1, 0], "state": [240, 105]}, {"m": [1, 0, 0], "state": [250, 105]}]}
+{"t": "2026-10-18T11:03:28.447172+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [1, 0, 0]}}
+{"t": "2026-10-18T11:03:28.476787+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:03:29.980310+00:00", "event": "arm_jog", "state": [160, 45, 0], "m": [1, 0, 0]}
+{"t": "2026-10-18T11:03:29.980749+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [1, 0, 0]}}
+{"t": "2026-10-18T11:03:30.023439+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:03:31.530880+00:00", "event": "arm_jog", "state": [170, 45, 0], "m": [1, 0, 0]}
+{"t": "2026-10-18T11:03:31.531323+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [1, 0, 0]}}
+{"t": "2026-10-18T11:03:31.556062+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:03:33.061421+00:00", "event": "arm_jog", "state": [180, 45, 0], "m": [1, 0, 0]}
+{"t": "2026-10-18T11:03:33.061878+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [1, 0, 0]}}
+{"t": "2026-10-18T11:03:33.088039+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:03:34.588952+00:00", "event": "arm_jog", "state": [190, 45, 0], "m": [1, 0, 0]}
+{"t": "2026-10-18T11:03:34.589610+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [0, 1, 0]}}
+{"t": "2026-10-18T11:03:37.437838+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:03:38.945000+00:00", "event": "arm_jog", "state": [190, 55, 0], "m": [0, 1, 0]}
+{"t": "2026-10-18T11:03:38.945590+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [0, 1, 0]}}
+{"t": "2026-10-18T11:03:38.973550+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:03:40.477866+00:00", "event": "arm_jog", "state": [190, 65, 0], "m": [0, 1, 0]}
+{"t": "2026-10-18T11:03:40.494229+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [1, 0, 0]}}
+{"t": "2026-10-18T11:03:40.523580+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:03:42.025029+00:00", "event": "arm_jog", "state": [200, 65, 0], "m": [1, 0, 0]}
+{"t": "2026-10-18T11:03:42.025486+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [1, 0, 0]}}
+{"t": "2026-10-18T11:03:42.061839+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:03:43.567601+00:00", "event": "arm_jog", "state": [210, 65, 0], "m": [1, 0, 0]}
+{"t": "2026-10-18T11:03:43.568023+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [1, 0, 0]}}
+{"t": "2026-10-18T11:03:43.590658+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:03:45.092560+00:00", "event": "arm_jog", "state": [220, 65, 0], "m": [1, 0, 0]}
+{"t": "2026-10-18T11:03:45.093157+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [1, 0, 0]}}
+{"t": "2026-10-18T11:03:45.120584+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:03:46.624168+00:00", "event": "arm_jog", "state": [230, 65, 0], "m": [1, 0, 0]}
+{"t": "2026-10-18T11:03:46.624579+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [0, 1, 0]}}
+{"t": "2026-10-18T11:03:46.656265+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:03:48.156820+00:00", "event": "arm_jog", "state": [230, 75, 0], "m": [0, 1, 0]}
+{"t": "2026-10-18T11:03:48.157240+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [0, 1, 0]}}
+{"t": "2026-10-18T11:03:48.178654+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:03:49.684032+00:00", "event": "arm_jog", "state": [230, 85, 0], "m": [0, 1, 0]}
+{"t": "2026-10-18T11:03:49.684570+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [1, 0, 0]}}
+{"t": "2026-10-18T11:03:55.433877+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:03:56.939191+00:00", "event": "arm_jog", "state": [240, 85, 0], "m": [1, 0, 0]}
+{"t": "2026-10-18T11:03:56.939615+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [0, 1, 0]}}
+{"t": "2026-10-18T11:03:56.960066+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:03:58.460506+00:00", "event": "arm_jog", "state": [240, 95, 0], "m": [0, 1, 0]}
+{"t": "2026-10-18T11:03:58.461020+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [0, 1, 0]}}
+{"t": "2026-10-18T11:04:04.448723+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:05.949847+00:00", "event": "arm_jog", "state": [240, 105, 0], "m": [0, 1, 0]}
+{"t": "2026-10-18T11:04:05.950224+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [1, 0, 0]}}
+{"t": "2026-10-18T11:04:07.427046+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:08.938227+00:00", "event": "arm_jog", "state": [250, 105, 0], "m": [1, 0, 0]}
+{"t": "2026-10-18T11:04:08.961531+00:00", "event": "front_jaw_check", "state": [250, 105], "jaw": [0.4330269156549723, 0.024178105714142997, 0.0247528566458467], "object_equator": [0.40267340057685463, 0.007223082229537395, 0.033], "error_m": [-0.030353515078117677, -0.016955023484605602, 0.008247143354153302], "distance_m": 0.03573267513726057, "clearance_bound_m": 0.023139508785543703}
+{"t": "2026-10-18T11:04:08.961965+00:00", "event": "command", "method": "app_rc_start", "params": []}
+{"t": "2026-10-18T11:04:09.026561+00:00", "event": "reply", "method": "app_rc_start", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:14.028142+00:00", "event": "command", "method": "app_rc_move", "params": [{"velocity": 0.0, "omega": -0.16, "duration": 350, "seqnum": 2}]}
+{"t": "2026-10-18T11:04:14.062934+00:00", "event": "reply", "method": "app_rc_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:15.115571+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-18T11:04:15.137286+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:15.137587+00:00", "event": "odom_delta", "distance_m": 0.001326306408674522, "yaw_rad": 0.021927226317017573}
+{"t": "2026-10-18T11:04:15.159858+00:00", "event": "front_jaw_check", "state": [250, 105], "jaw": [0.43302122441966806, 0.024432780796968864, 0.023715328719828344], "object_equator": [0.3920446616844283, 0.0040180102626686115, 0.033], "error_m": [-0.04097656273523975, -0.020414770534300252, 0.009284671280171658], "distance_m": 0.046712382409207276, "clearance_bound_m": 0.022091588936754725}
+{"t": "2026-10-18T11:04:15.160187+00:00", "event": "command", "method": "app_rc_move", "params": [{"velocity": 0.0, "omega": -0.16, "duration": 350, "seqnum": 3}]}
+{"t": "2026-10-18T11:04:17.085070+00:00", "event": "reply", "method": "app_rc_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:18.140373+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-18T11:04:18.164481+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:18.164810+00:00", "event": "odom_delta", "distance_m": 0.0022335020642475162, "yaw_rad": 0.018882146858034243}
+{"t": "2026-10-18T11:04:18.188872+00:00", "event": "front_jaw_check", "state": [250, 105], "jaw": [0.43307296203230955, 0.027794470595181267, 0.023821918305487855], "object_equator": [0.4143789978826835, -0.004265402437924459, 0.033], "error_m": [-0.01869396414962604, -0.03205987303310573, 0.009178081694512147], "distance_m": 0.03823005281342811, "clearance_bound_m": 0.022399689558135552}
+{"t": "2026-10-18T11:04:18.189237+00:00", "event": "command", "method": "app_rc_move", "params": [{"velocity": 0.0, "omega": -0.16, "duration": 350, "seqnum": 4}]}
+{"t": "2026-10-18T11:04:18.209117+00:00", "event": "reply", "method": "app_rc_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:19.262167+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-18T11:04:19.295117+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:19.295438+00:00", "event": "odom_delta", "distance_m": 7.278395468587443e-05, "yaw_rad": 9.904166422065874e-05}
+{"t": "2026-10-18T11:04:19.317034+00:00", "event": "front_jaw_check", "state": [250, 105], "jaw": [0.4321641113163958, 0.02751359678606407, 0.023361688171051206], "object_equator": [0.4147272105784311, 0.00024733933976101767, 0.033], "error_m": [-0.017436900737964722, -0.027266257446303052, 0.009638311828948795], "distance_m": 0.03376968103766699, "clearance_bound_m": 0.022018773848388955}
+{"t": "2026-10-18T11:04:19.317397+00:00", "event": "command", "method": "app_rc_move", "params": [{"velocity": 0.0, "omega": -0.16, "duration": 350, "seqnum": 5}]}
+{"t": "2026-10-18T11:04:19.362092+00:00", "event": "reply", "method": "app_rc_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:20.413158+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-18T11:04:20.430663+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:20.430903+00:00", "event": "odom_delta", "distance_m": 0.0019101866193308955, "yaw_rad": 0.026010758085763072}
+{"t": "2026-10-18T11:04:20.453180+00:00", "event": "front_jaw_check", "state": [250, 105], "jaw": [0.4340396704537032, 0.029483785557361468, 0.0248010331507605], "object_equator": [0.39737487491450774, 0.002189927331843161, 0.033], "error_m": [-0.03666479553919544, -0.027293858225518306, 0.0081989668492395], "distance_m": 0.046437969229506874, "clearance_bound_m": 0.023197487918585134}
+{"t": "2026-10-18T11:04:20.453474+00:00", "event": "command", "method": "app_rc_move", "params": [{"velocity": 0.0, "omega": -0.16, "duration": 350, "seqnum": 6}]}
+{"t": "2026-10-18T11:04:20.523934+00:00", "event": "reply", "method": "app_rc_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:21.579541+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-18T11:04:21.615748+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:21.616035+00:00", "event": "odom_delta", "distance_m": 0.0019080863103046492, "yaw_rad": 0.020420050829749348}
+{"t": "2026-10-18T11:04:21.637856+00:00", "event": "front_jaw_check", "state": [250, 105], "jaw": [0.4333049712589299, 0.02862727632040049, 0.024615299387461556], "object_equator": [0.39733860733336795, 0.003987912346394791, 0.033], "error_m": [-0.03596636392556196, -0.0246393639740057, 0.008384700612538445], "distance_m": 0.04439572947290536, "clearance_bound_m": 0.023174333177040297}
+{"t": "2026-10-18T11:04:21.638168+00:00", "event": "command", "method": "app_rc_move", "params": [{"velocity": 0.0, "omega": -0.16, "duration": 350, "seqnum": 7}]}
+{"t": "2026-10-18T11:04:23.084273+00:00", "event": "reply", "method": "app_rc_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:24.134722+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-18T11:04:24.169251+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:24.169684+00:00", "event": "odom_delta", "distance_m": 0.002028207484494299, "yaw_rad": 0.018426340544890434}
+{"t": "2026-10-18T11:04:24.191475+00:00", "event": "front_jaw_check", "state": [250, 105], "jaw": [0.43317277122076614, 0.027592984244536083, 0.02445138745703619], "object_equator": [0.3980000308134671, 0.014876247101967409, 0.033], "error_m": [-0.035172740407299063, -0.012716737142568674, 0.00854861254296381], "distance_m": 0.03836555548564562, "clearance_bound_m": 0.023354699510398036}
+{"t": "2026-10-18T11:04:24.191765+00:00", "event": "command", "method": "app_rc_move", "params": [{"velocity": 0.0, "omega": -0.16, "duration": 293, "seqnum": 8}]}
+{"t": "2026-10-18T11:04:24.212415+00:00", "event": "reply", "method": "app_rc_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:25.210754+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-18T11:04:25.235956+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:25.236577+00:00", "event": "odom_delta", "distance_m": 0.0008376836363390699, "yaw_rad": 0.010254228248163105}
+{"t": "2026-10-18T11:04:25.258958+00:00", "event": "front_jaw_check", "state": [250, 105], "jaw": [0.43251831638561256, 0.02797752748019437, 0.023563440326626342], "object_equator": [0.40226194222518086, 0.009381727757657535, 0.033], "error_m": [-0.030256374160431698, -0.018595799722536832, 0.00943655967337366], "distance_m": 0.03674643660446387, "clearance_bound_m": 0.0224574517598021}
+{"t": "2026-10-18T11:04:25.259297+00:00", "event": "command", "method": "app_rc_move", "params": [{"velocity": 0.0, "omega": -0.16, "duration": 350, "seqnum": 9}]}
+{"t": "2026-10-18T11:04:25.280163+00:00", "event": "reply", "method": "app_rc_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:26.333219+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-18T11:04:26.347921+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:26.348148+00:00", "event": "odom_delta", "distance_m": 0.0011316506095384435, "yaw_rad": 0.016144553077353723}
+{"t": "2026-10-18T11:04:26.371990+00:00", "event": "front_jaw_check", "state": [250, 105], "jaw": [0.4333540277783794, 0.028644574984376146, 0.024854247332692717], "object_equator": [0.4021101972233309, 0.014047052809029294, 0.033], "error_m": [-0.03124383055504848, -0.014597522175346852, 0.008145752667307285], "distance_m": 0.03543469892533684, "clearance_bound_m": 0.02384830193229797}
+{"t": "2026-10-18T11:04:26.372344+00:00", "event": "command", "method": "app_rc_move", "params": [{"velocity": 0.0, "omega": -0.16, "duration": 333, "seqnum": 10}]}
+{"t": "2026-10-18T11:04:26.397822+00:00", "event": "reply", "method": "app_rc_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:27.436636+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-18T11:04:27.482455+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:27.482778+00:00", "event": "odom_delta", "distance_m": 0.0007836567252766886, "yaw_rad": 0.011198611768822902}
+{"t": "2026-10-18T11:04:27.509999+00:00", "event": "front_jaw_check", "state": [250, 105], "jaw": [0.4328805694531629, 0.028653528814647788, 0.02412743414323955], "object_equator": [0.4025223500533316, 0.012293431812557225, 0.033], "error_m": [-0.0303582193998313, -0.01636009700209056, 0.008872565856760453], "distance_m": 0.035608941067218736, "clearance_bound_m": 0.023462238021660517}
+{"t": "2026-10-18T11:04:27.510385+00:00", "event": "command", "method": "app_rc_move", "params": [{"velocity": 0.0, "omega": -0.16, "duration": 350, "seqnum": 11}]}
+{"t": "2026-10-18T11:04:27.581851+00:00", "event": "reply", "method": "app_rc_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:28.637203+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-18T11:04:28.679265+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:28.679641+00:00", "event": "odom_delta", "distance_m": 0.001616803390526424, "yaw_rad": 0.02651643268527162}
+{"t": "2026-10-18T11:04:28.702108+00:00", "event": "front_jaw_check", "state": [250, 105], "jaw": [0.43338162280827963, 0.026033169299791218, 0.02490617872144328], "object_equator": [0.40774288651660695, 0.019724329688040044, 0.033], "error_m": [-0.02563873629167268, -0.006308839611751174, 0.00809382127855672], "distance_m": 0.027616230712571042, "clearance_bound_m": 0.022545788818513504}
+{"t": "2026-10-18T11:04:28.702422+00:00", "event": "command", "method": "app_rc_move", "params": [{"velocity": 0.0, "omega": -0.16, "duration": 142, "seqnum": 12}]}
+{"t": "2026-10-18T11:04:28.724128+00:00", "event": "reply", "method": "app_rc_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:29.570235+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-18T11:04:29.589733+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:29.590009+00:00", "event": "odom_delta", "distance_m": 0.0001804334426942003, "yaw_rad": 0.000288791699819102}
+{"t": "2026-10-18T11:04:30.399343+00:00", "event": "front_jaw_check", "state": [250, 105], "jaw": [0.43231742320501426, 0.02351631017290811, 0.023447241153891726], "object_equator": [0.4045220891473732, 0.024592410822554304, 0.033], "error_m": [-0.027795334057641063, 0.0010761006496461945, 0.009552758846108275], "distance_m": 0.029410776758799318, "clearance_bound_m": 0.022777480534924816}
+{"t": "2026-10-18T11:04:30.399780+00:00", "event": "command", "method": "app_rc_move", "params": [{"velocity": -0.03, "omega": 0.0, "duration": 400, "seqnum": 13}]}
+{"t": "2026-10-18T11:04:30.429319+00:00", "event": "reply", "method": "app_rc_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:31.538367+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-18T11:04:31.567552+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:31.567863+00:00", "event": "odom_delta", "distance_m": 0.0059844315577894875, "yaw_rad": 0.003203046260555134}
+{"t": "2026-10-18T11:04:31.592368+00:00", "event": "front_jaw_check", "state": [250, 105], "jaw": [0.43402826492959556, 0.0252684705678936, 0.024725618708559965], "object_equator": [0.40764889173541663, 0.021831398898444217, 0.033], "error_m": [-0.026379373194178934, -0.0034370716694493847, 0.008274381291440036], "distance_m": 0.027859471953625224, "clearance_bound_m": 0.023562577517211677}
+{"t": "2026-10-18T11:04:31.592754+00:00", "event": "command", "method": "app_rc_move", "params": [{"velocity": -0.03, "omega": 0.0, "duration": 400, "seqnum": 14}]}
+{"t": "2026-10-18T11:04:31.606594+00:00", "event": "reply", "method": "app_rc_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:32.708832+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-18T11:04:32.737693+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:32.738231+00:00", "event": "odom_delta", "distance_m": 0.000535449400276075, "yaw_rad": 0.001756285450997725}
+{"t": "2026-10-18T11:04:32.760403+00:00", "event": "front_jaw_check", "state": [250, 105], "jaw": [0.4314587562004468, 0.025941062217070588, 0.02041801204915851], "object_equator": [0.41422558402473453, 0.01761178800209994, 0.033], "error_m": [-0.017233172175712297, -0.008329274214970647, 0.012581987950841492], "distance_m": 0.022905576896927085, "clearance_bound_m": 0.01898035873965171}
+{"t": "2026-10-18T11:04:32.760876+00:00", "event": "command", "method": "app_rc_move", "params": [{"velocity": 0.0, "omega": -0.16, "duration": 184, "seqnum": 15}]}
+{"t": "2026-10-18T11:04:32.787819+00:00", "event": "reply", "method": "app_rc_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:33.677713+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-18T11:04:33.700739+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:33.701043+00:00", "event": "odom_delta", "distance_m": 1.035028953353144e-05, "yaw_rad": 0.018885974614829208}
+{"t": "2026-10-18T11:04:34.052167+00:00", "event": "front_jaw_check", "state": [250, 105], "jaw": [0.4323607202386087, 0.025977988932877668, 0.021487938585410357], "object_equator": [0.4209884336187537, 0.023394402406052776, 0.033], "error_m": [-0.01137228661985501, -0.0025835865268248916, 0.011512061414589644], "distance_m": 0.016386927116424487, "clearance_bound_m": 0.019504607122960607}
+{"t": "2026-10-18T11:04:34.802690+00:00", "event": "front_jaw_check", "state": [250, 105], "jaw": [0.4311669410093023, 0.025645586020935637, 0.020367921760238647], "object_equator": [0.4138498845332369, 0.02592452890646769, 0.033], "error_m": [-0.017317056476065407, 0.0002789428855320547, 0.012632078239761355], "distance_m": 0.02143659615666816, "clearance_bound_m": 0.01918673049256457}
+{"t": "2026-10-18T11:04:34.803044+00:00", "event": "command", "method": "app_rc_move", "params": [{"velocity": -0.03, "omega": 0.0, "duration": 400, "seqnum": 16}]}
+{"t": "2026-10-18T11:04:34.824385+00:00", "event": "reply", "method": "app_rc_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:35.926899+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-18T11:04:35.976015+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:35.976327+00:00", "event": "odom_delta", "distance_m": 0.0028178063586508035, "yaw_rad": 0.0035074040095823336}
+{"t": "2026-10-18T11:04:35.976447+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-18T11:04:35.998198+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:35.998490+00:00", "event": "command", "method": "app_rc_end", "params": []}
+{"t": "2026-10-18T11:04:36.019109+00:00", "event": "reply", "method": "app_rc_end", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:37.034734+00:00", "event": "snapshot", "name": "1-pregrip", "camera": "front"}
+{"t": "2026-10-18T11:04:37.034985+00:00", "event": "command", "method": "app_grip", "params": []}
+{"t": "2026-10-18T11:04:37.052470+00:00", "event": "reply", "method": "app_grip", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:39.056947+00:00", "event": "command", "method": "app_arm_direction_move", "params": {"direction": 1}}
+{"t": "2026-10-18T11:04:39.078671+00:00", "event": "reply", "method": "app_arm_direction_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:41.592500+00:00", "event": "snapshot", "name": "2-lift-step-1", "camera": "front"}
+{"t": "2026-10-18T11:04:41.592791+00:00", "event": "command", "method": "app_arm_direction_move", "params": {"direction": 1}}
+{"t": "2026-10-18T11:04:41.629439+00:00", "event": "reply", "method": "app_arm_direction_move", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:04:44.137193+00:00", "event": "snapshot", "name": "2-lift-step-2", "camera": "front"}
+{"t": "2026-10-18T11:04:45.879526+00:00", "event": "snapshot", "name": "2-lifted", "camera": "front"}
+{"t": "2026-10-18T11:04:49.245426+00:00", "event": "front_held_check", "jaw": [0.4311669410093023, 0.025645586020935637, 0.020367921760238647], "jaw_observed": false, "depth_source": "pregrip_lift_column", "held": true, "candidates": [{"pixel": [676.2991983257332, 445.3631041383056], "object_at_jaw_depth": [0.4311669410093023, 0.019498381488199535, 0.09109886641532729], "distance_to_jaw_m": 0.07099756795389899}, {"pixel": [454.6167703473302, 144.8896880940038], "object_at_jaw_depth": [0.4311669410093023, 0.06520198676045902, 0.15227506758630327], "distance_to_jaw_m": 0.13771058041938694}, {"pixel": [489.5289855072463, 307.19588592800375], "object_at_jaw_depth": [0.4311669410093023, 0.056563437183790574, 0.1184161650311073], "distance_to_jaw_m": 0.10280744880129986}, {"pixel": [852.9366823652538, 252.4453165881737], "object_at_jaw_depth": [0.4311669410093023, -0.014274217342597501, 0.12938258993658783], "distance_to_jaw_m": 0.11609387829762029}], "floor_gone": true}
+{"t": "2026-10-18T11:04:50.658085+00:00", "event": "snapshot", "name": "3-front-verify", "camera": "front"}
+{"t": "2026-10-18T11:04:50.658385+00:00", "event": "hold_start", "initial_held": true, "odom": {"x": -0.04036367480299483, "y": -0.013145518945072569, "yaw": -0.047149860270778055}}
+{"t": "2026-10-18T11:05:01.425186+00:00", "event": "front_held_check", "jaw": [0.4311669410093023, 0.025645586020935637, 0.020367921760238647], "jaw_observed": false, "depth_source": "pregrip_lift_column", "held": true, "candidates": [{"pixel": [676.6386288171914, 440.97467138662495], "object_at_jaw_depth": [0.4311669410093023, 0.019444829690227962, 0.0919476799375186], "distance_to_jaw_m": 0.07184783336879887}, {"pixel": [451.313373253493, 281.2674650698603], "object_at_jaw_depth": [0.4311669410093023, 0.06444324762018955, 0.12379174192525773], "distance_to_jaw_m": 0.11046150969046381}], "floor_gone": true}
+{"t": "2026-10-18T11:05:01.787332+00:00", "event": "snapshot", "name": "4-held-10s", "camera": "front"}
+{"t": "2026-10-18T11:05:01.787571+00:00", "event": "hold_10s", "held": true, "final_held": true, "odom": {"x": -0.04029599705923233, "y": -0.012587078022739773, "yaw": -0.047841314407716454}}
+{"t": "2026-10-18T11:05:01.787666+00:00", "event": "verification", "held": true, "floor_gone": true, "verified": true, "floor_spot": [0.4165246733385004, 0.023354561460532487, 0.0]}
+{"t": "2026-10-18T11:05:01.787748+00:00", "event": "release_start", "odom": {"x": -0.04029599705923233, "y": -0.012587078022739773, "yaw": -0.047841314407716454}}
+{"t": "2026-10-18T11:05:01.787822+00:00", "event": "command", "method": "app_put_down", "params": {"flag": 0}}
+{"t": "2026-10-18T11:05:01.813348+00:00", "event": "reply", "method": "app_put_down", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:05:06.818617+00:00", "event": "release_progress", "settle_seconds": 5, "odom": null}
+{"t": "2026-10-18T11:05:11.824038+00:00", "event": "release_progress", "settle_seconds": 10, "odom": null}
+{"t": "2026-10-18T11:05:16.829545+00:00", "event": "release_progress", "settle_seconds": 15, "odom": null}
+{"t": "2026-10-18T11:05:21.832712+00:00", "event": "release_progress", "settle_seconds": 20, "odom": null}
+{"t": "2026-10-18T11:05:21.837583+00:00", "event": "snapshot", "name": "5-put-down", "camera": "front"}
+{"t": "2026-10-18T11:05:21.837775+00:00", "event": "release_settled", "settle_seconds": 20, "odom": null}
+{"t": "2026-10-18T11:05:21.837868+00:00", "event": "command", "method": "app_arm_in_compartment", "params": []}
+{"t": "2026-10-18T11:05:21.858858+00:00", "event": "reply", "method": "app_arm_in_compartment", "dispatch": "sent", "response": "received", "transportReason": "NONE"}
+{"t": "2026-10-18T11:05:21.859201+00:00", "event": "stow_estimate", "state": "IN_ROBOT", "physical_completion": "unverified"}
+{"t": "2026-10-18T11:05:31.867234+00:00", "event": "snapshot", "name": "6-stowed", "camera": "front"}
+{"t": "2026-10-18T11:05:31.867520+00:00", "event": "stow_observation", "odom": null}
+{"t": "2026-10-18T11:05:31.867647+00:00", "event": "complete", "verified": true, "odom": null}

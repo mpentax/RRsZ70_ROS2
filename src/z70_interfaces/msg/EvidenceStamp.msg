@@ -1,0 +1,11 @@
+# Generated from docs/migration/interfaces.md; SI units.
+builtin_interfaces/Time received_at
+builtin_interfaces/Time source_at
+bool source_time_known
+uint8 source_clock
+uint8 timestamp_kind
+unique_identifier_msgs/UUID session_id
+uint64 sequence
+bool stale
+bool valid
+string<=64 reason

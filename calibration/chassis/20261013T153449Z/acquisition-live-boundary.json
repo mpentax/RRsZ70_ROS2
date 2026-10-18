@@ -1,0 +1,8 @@
+{
+  "capture": {"status":502,"cameraFailure":"no_camera_image","upstreamStatus":200,"physicalCompletion":"unverified"},
+  "postCaptureObservedAt":1791916810709,
+  "acquisition": {"available":true,"attempt":2,"elapsedMs":1019,"videoTracks":0,"videoPackets":0,"videoBytes":0,"stage":"start_preview","failure":"rpc_error","mqtt":"ok","pin":"ok","turn":"unknown","pcState":"unknown","iceState":"unknown","dtlsState":"unknown","localCandidateType":"unknown","remoteCandidateType":"unknown","candidateProtocol":"unknown","readerExit":"none"},
+  "previewRelease": {"startedAt":1791916837943,"finishedAt":1791916837952,"dispatch":"sent","response":"received","result":{"status":0,"client_id":"none"}},
+  "robotStatus": {"state":8,"battery":100,"error_code":0,"camera_status":11685,"common_status":16386,"home_sec_status":0,"monitor_status":0,"lock_status":0,"dnd_enabled":0},
+  "scope": "One MCP capture, no chassis or arm movement; driver internally made two acquisition attempts."
+}

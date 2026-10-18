@@ -1,0 +1,29 @@
+{
+  "objective": "Orientation-first pure M3 forward and return; two fixed M4 configurations; M5 held at deployment 0 command gauge",
+  "target": {
+    "id": 68,
+    "dictionary": "DICT_4X4_1000",
+    "black_side_m": 0.015,
+    "paper_side_m": 0.02,
+    "mount": "after M5 underside; physical station unknown"
+  },
+  "detector": "Read-only prior observe.py SUBPIX and both positive-depth IPPE branches; minimum reprojection; within 0.25px tie temporal continuity without FK",
+  "coverage": "Aim four actually visible M3 settings and 20-30deg span per M4 setting, three forward and three reverse steps. Endpoints may be adjusted with measured visibility and conservative clearance.",
+  "holdouts": {
+    "training": "Configuration A forward first two M3 increments only",
+    "prospective": "Configuration A third forward increment and ALL A return increments excluded from axis and command-gain fits; entire configuration B excluded from A axis fit",
+    "conditional_prediction": "Use trained axis and heldout observed scalar rotation, label conditional geometry",
+    "command_only_prediction": "Use training-only mean signed increment; heldout observed angle never used"
+  },
+  "noise": "2-3 stationary F exposures at two visible tilts; 2-3 G board exposures at key F/G/F poses",
+  "crosschecks": "Sequential F/G/F brackets at start/mid/end key poses; no simultaneous claim; G world rotation = inverse R_G_board; F world per its own valid board",
+  "limits": {
+    "jog_attempts": 35,
+    "minutes": 20,
+    "battery_floor_pct": 15,
+    "base": "No pulses with low or unknown jaw clearance; freeze during pure sweeps"
+  },
+  "cleanup": "stow; app_program_enter_exit flag0; pickup exit; front selected; status and image verify; clear owned consumers without service restarts",
+  "adoption": "No production edits or commits; rotation cannot identify lengths, axis stations or unique mechanical zeros",
+  "safety_retry": "Single fresh deployed frame only; if failure inspect first failure and cleanup without preview reopen; any robot error ends trial."
+}

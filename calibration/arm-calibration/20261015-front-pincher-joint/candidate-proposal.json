@@ -1,0 +1,150 @@
+{
+  "status": "DO_NOT_ADOPT_PRODUCTION: retained pitch holdout and front/G reconstructed axis disagreement fail",
+  "front_camera": {
+    "K": [
+      [
+        824.9667019069567,
+        0.0,
+        777.0663859307596
+      ],
+      [
+        0.0,
+        824.9667019069567,
+        583.778554034949
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "dist": [
+      -0.07008452673276264,
+      -0.008759625204340288,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "size": [
+      1600,
+      1200
+    ]
+  },
+  "pincher_camera": {
+    "K": [
+      [
+        830.8441157256567,
+        0.0,
+        800.4384886796951
+      ],
+      [
+        0.0,
+        830.2235617780392,
+        305.9484763166739
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "dist": [
+      -0.08997298474623529,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "size": [
+      1600,
+      896
+    ]
+  },
+  "paired_registration": {
+    "T_F_W": [
+      [
+        0.9980657689791146,
+        0.06175104073203633,
+        -0.007178423269714941,
+        -0.12393088788863929
+      ],
+      [
+        0.009636207622933077,
+        -0.03959623707469295,
+        0.9991692957212869,
+        0.07358708189772654
+      ],
+      [
+        0.0614155053286751,
+        -0.9973058442514188,
+        -0.040114694654058924,
+        0.3968861864109765
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "T_G_M": [
+      [
+        -0.9999531060848014,
+        0.009436986693353402,
+        -0.00217460651783667,
+        0.000500508144771712
+      ],
+      [
+        -0.00215197132255138,
+        0.002408053556217812,
+        0.9999947851351512,
+        0.00546042374892862
+      ],
+      [
+        0.009442174049701869,
+        0.9999525711553623,
+        -0.0023876325084231684,
+        -0.02922052357596506
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "session": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm"
+  },
+  "effective_geometry": {
+    "elbow_to_G_perpendicular_W_m": [
+      0.008239247607759764,
+      -0.0969502791980092,
+      0.12299956173541461
+    ],
+    "elbow_to_M_perpendicular_W_m": [
+      0.0064520638018749354,
+      -0.07468655822961245,
+      0.10338871739922233
+    ],
+    "G_radius_m": 0.1568315466505957,
+    "M_radius_m": 0.1277064524326982,
+    "physical_L2_m": null,
+    "physical_M4_zero_deg": null,
+    "physical_M5_station_m": null,
+    "pad_vector_m": null,
+    "gauge": "L2 + mount_along_link is invariant; \u03b4L2=-\u03b4mount preserves optical/marker chain; M4 zero absorbed in free mount rotation; M5 translation along axis commutes with roll",
+    "gauge_jacobian": [
+      [
+        1,
+        1
+      ]
+    ],
+    "null_direction": [
+      0.7071067811865475,
+      -0.7071067811865475
+    ]
+  },
+  "L1_common_station_m": 0.17992488955390554,
+  "production_patch": null,
+  "reason": "Do not change K without jointly refitting optical mounts and effective geometry; no anatomical L2/wrist/TCP proposal"
+}

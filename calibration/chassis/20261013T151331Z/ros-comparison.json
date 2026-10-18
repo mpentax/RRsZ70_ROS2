@@ -1,0 +1,31 @@
+[
+  {
+    "id": "turn-plus-01",
+    "rpc_started_at_ms": 1791904539597,
+    "after_frame_received_at_ms": 1791904566717,
+    "ros_pre_received_at_ns": 1791904539218167000,
+    "ros_post_received_at_ns": 1791904566546622000,
+    "ros_pre_stamp": {
+      "sec": 1791904538,
+      "nanosec": 919351000
+    },
+    "ros_post_stamp": {
+      "sec": 1791904566,
+      "nanosec": 122025000
+    },
+    "ros_dx_m": 9.037260519240608e-05,
+    "ros_dy_m": -0.00017636137341750039,
+    "ros_yaw_deg": 0.033989393334569476,
+    "ros_camera_x_m": 0.16,
+    "ros_n_features": 3000,
+    "offline_n_features": 6000,
+    "window_basis": "Receipt timestamps, not verified exposure times",
+    "offline_camera_motion": {
+      "camera_dx_m": -7.614029708225001e-06,
+      "camera_dy_m": -2.3634620807296003e-06,
+      "dtheta_deg": -0.0005031313670190482,
+      "inliers": 3170,
+      "rms_m": 0.00037575730997804025
+    }
+  }
+]

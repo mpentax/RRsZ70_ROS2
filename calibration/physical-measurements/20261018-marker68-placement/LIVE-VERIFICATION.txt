@@ -1,0 +1,6 @@
+Latched robot_description and exact parameter readback verified.
+Static TF xyz: [0.024, 0.0, -0.0141]
+Static TF quaternion xyzw: [0.7065695544936188, 0.7065695544936187, -0.027558386431159543, -0.02755838643115955]
+Before SHA256: c869e79f51e3edd3512cd3c827e6180fa8e95b5ecb82cc1ace48b27930aa76b2
+After SHA256: 63bf8b36297a0a5e745590dc661baed7c5a99ac5ec960c66d11cc079089f7285
+Other joints/links/materials unchanged. No restart, robot command or camera capture.

@@ -1,0 +1,684 @@
+{
+  "best_two": [
+    {
+      "center_px": [
+        481.7809451132187,
+        113.28158419630084
+      ],
+      "depth_m": 0.0870785593277828,
+      "tilt_x_deg": 0,
+      "tilt_y_deg": 0,
+      "G_floor_corners": 34,
+      "front_marker_fully_visible": true,
+      "information": [
+        [
+          338163.38786566653,
+          -89717.60589659921,
+          40623.276536956575,
+          -7436.885468348243,
+          135357.09106947327,
+          67275.35022713587,
+          -1430.2803341807921,
+          -1025.8699794647885,
+          -313.3493231471717,
+          -6475.691974220348,
+          4330.1720794587145,
+          151136.1543089652,
+          370.70555762989426,
+          -8105.76052827266,
+          -547.0846090348193,
+          15935.771480956479,
+          -2958.867353741718,
+          -1398.0100238342366
+        ],
+        [
+          -89717.60589659921,
+          119971.18603083321,
+          44037.786778658614,
+          -33822.02057904425,
+          -39641.98249260133,
+          -28843.44402045075,
+          6388.305572502937,
+          -6627.053689749583,
+          690.1311294543893,
+          -21323.379196342055,
+          27427.840080371356,
+          -48377.548543362595,
+          948.7049891108828,
+          2551.7705512163084,
+          -3940.665489903594,
+          -5042.3595054648185,
+          870.7767115618369,
+          159.04911191041725
+        ],
+        [
+          40623.276536956575,
+          44037.786778658614,
+          43774.03165733175,
+          -24106.450450323293,
+          15333.213695267203,
+          4761.093138830678,
+          7503.6094699607165,
+          -7131.428311276289,
+          1558.3651711677785,
+          -17431.153405425066,
+          16887.4036013156,
+          15807.178562365692,
+          322.0285002623552,
+          -708.2968896552808,
+          -2571.7261384677104,
+          1452.8334425112776,
+          -734.2852455203371,
+          -662.2711467655593
+        ],
+        [
+          -7436.885468348243,
+          -33822.02057904425,
+          -24106.450450323293,
+          16270.808140905761,
+          -3690.033360859858,
+          -2665.653802901456,
+          -3721.5618873601575,
+          5076.888510644869,
+          36.978176075976315,
+          13268.3211087633,
+          -9465.201830463464,
+          -4452.287418934711,
+          -452.5915407441159,
+          523.1400091223028,
+          1885.7211292208892,
+          -122.56249480256307,
+          693.2566256955546,
+          681.0623099140306
+        ],
+        [
+          135357.09106947327,
+          -39641.98249260133,
+          15333.213695267203,
+          -3690.033360859858,
+          58419.92864232736,
+          35798.33161415086,
+          -994.1329336990176,
+          1609.4538776745426,
+          2469.495787322265,
+          -6928.46865545426,
+          -2599.4109889705064,
+          68214.83958525733,
+          -46.09422929528217,
+          -4120.367813739012,
+          -86.69744172403506,
+          6971.171214509447,
+          -2201.284903821365,
+          -1360.4470619617475
+        ],
+        [
+          67275.35022713587,
+          -28843.44402045075,
+          4761.093138830678,
+          -2665.653802901456,
+          35798.33161415086,
+          34560.04393034199,
+          254.64006170308068,
+          3590.054176849527,
+          3295.323945165259,
+          -11575.153610495305,
+          -10238.270672389435,
+          47373.16250215524,
+          -400.2518645218394,
+          -3514.84821820972,
+          330.0036820827291,
+          4095.1024375155525,
+          -2722.119829921067,
+          -1928.4162901978118
+        ],
+        [
+          -1430.2803341807921,
+          6388.305572502937,
+          7503.6094699607165,
+          -3721.5618873601575,
+          -994.1329336990176,
+          254.64006170308068,
+          3665.1642987769437,
+          -2510.2408425735557,
+          -715.0335003577687,
+          -3336.483125209355,
+          1774.9937119784006,
+          -787.6816694690509,
+          -133.39058652604905,
+          230.01137895265055,
+          -288.5360503337241,
+          -399.4892582718024,
+          -13.110782281491819,
+          -32.692909953704394
+        ],
+        [
+          -1025.8699794647885,
+          -6627.053689749583,
+          -7131.428311276289,
+          5076.888510644869,
+          1609.4538776745426,
+          3590.054176849527,
+          -2510.2408425735557,
+          9149.10454581508,
+          4194.740773628536,
+          2433.3317520981755,
+          -5107.777699667413,
+          3040.2518450237,
+          -622.9906757416794,
+          -202.16921653107124,
+          1197.0515891494501,
+          550.4310737045267,
+          -105.85438912657585,
+          62.5790356090106
+        ],
+        [
+          -313.3493231471717,
+          690.1311294543893,
+          1558.3651711677785,
+          36.978176075976315,
+          2469.495787322265,
+          3295.323945165259,
+          -715.0335003577687,
+          4194.740773628536,
+          4858.484741987948,
+          -1131.0290821793133,
+          -1484.9347323580437,
+          3670.787216674677,
+          -405.3147137789261,
+          -289.91350073191205,
+          336.6555195938331,
+          668.6999492348589,
+          -503.868579450568,
+          -366.33465970176275
+        ],
+        [
+          -6475.691974220348,
+          -21323.379196342055,
+          -17431.153405425066,
+          13268.3211087633,
+          -6928.46865545426,
+          -11575.153610495305,
+          -3336.483125209355,
+          2433.3317520981755,
+          -1131.0290821793133,
+          14977.997420495574,
+          -2458.6864817230676,
+          -11298.259075687629,
+          -145.9443771349865,
+          1245.1679055953084,
+          1275.3947215240971,
+          -478.86969353046953,
+          1459.4279660164327,
+          1237.2026883749184
+        ],
+        [
+          4330.1720794587145,
+          27427.840080371356,
+          16887.4036013156,
+          -9465.201830463464,
+          -2599.4109889705064,
+          -10238.270672389435,
+          1774.9937119784006,
+          -5107.777699667413,
+          -1484.9347323580437,
+          -2458.6864817230676,
+          12160.607493748252,
+          -6873.402047234641,
+          545.7798332477581,
+          718.4334728873396,
+          -1428.4756476506818,
+          -382.13494706797064,
+          722.9983781054756,
+          464.07110379943947
+        ],
+        [
+          151136.1543089652,
+          -48377.548543362595,
+          15807.178562365692,
+          -4452.287418934711,
+          68214.83958525733,
+          47373.16250215524,
+          -787.6816694690509,
+          3040.2518450237,
+          3670.787216674677,
+          -11298.259075687629,
+          -6873.402047234641,
+          82112.17579838054,
+          -219.0660817143808,
+          -5247.730425392804,
+          72.03250917560926,
+          8062.677615932494,
+          -3175.458975048376,
+          -2070.608361091903
+        ],
+        [
+          370.70555762989426,
+          948.7049891108828,
+          322.0285002623552,
+          -452.5915407441159,
+          -46.09422929528217,
+          -400.2518645218394,
+          -133.39058652604905,
+          -622.9906757416794,
+          -405.3147137789261,
+          -145.9443771349865,
+          545.7798332477581,
+          -219.0660817143808,
+          91.38882624647827,
+          -12.939113128916606,
+          -123.37005121858571,
+          -21.929041104728267,
+          14.059727262746112,
+          -2.156985209212664
+        ],
+        [
+          -8105.76052827266,
+          2551.7705512163084,
+          -708.2968896552808,
+          523.1400091223028,
+          -4120.367813739012,
+          -3514.84821820972,
+          230.01137895265055,
+          -202.16921653107124,
+          -289.91350073191205,
+          1245.1679055953084,
+          718.4334728873396,
+          -5247.730425392804,
+          -12.939113128916606,
+          407.4271315342848,
+          34.56509329852013,
+          -487.93131931291936,
+          293.39092565113435,
+          213.91716589392988
+        ],
+        [
+          -547.0846090348193,
+          -3940.665489903594,
+          -2571.7261384677104,
+          1885.7211292208892,
+          -86.69744172403506,
+          330.0036820827291,
+          -288.5360503337241,
+          1197.0515891494501,
+          336.6555195938331,
+          1275.3947215240971,
+          -1428.4756476506818,
+          72.03250917560926,
+          -123.37005121858571,
+          34.56509329852013,
+          294.2458275427828,
+          28.410704358612648,
+          46.12503701594378,
+          64.74147227161754
+        ],
+        [
+          15935.771480956479,
+          -5042.3595054648185,
+          1452.8334425112776,
+          -122.56249480256307,
+          6971.171214509447,
+          4095.1024375155525,
+          -399.4892582718024,
+          550.4310737045267,
+          668.6999492348589,
+          -478.86969353046953,
+          -382.13494706797064,
+          8062.677615932494,
+          -21.929041104728267,
+          -487.93131931291936,
+          28.410704358612648,
+          883.323685819271,
+          -264.89604151116976,
+          -162.00387940823174
+        ],
+        [
+          -2958.867353741718,
+          870.7767115618369,
+          -734.2852455203371,
+          693.2566256955546,
+          -2201.284903821365,
+          -2722.119829921067,
+          -13.110782281491819,
+          -105.85438912657585,
+          -503.868579450568,
+          1459.4279660164327,
+          722.9983781054756,
+          -3175.458975048376,
+          14.059727262746112,
+          293.39092565113435,
+          46.12503701594378,
+          -264.89604151116976,
+          291.5897856497516,
+          230.29545385668027
+        ],
+        [
+          -1398.0100238342366,
+          159.04911191041725,
+          -662.2711467655593,
+          681.0623099140306,
+          -1360.4470619617475,
+          -1928.4162901978118,
+          -32.692909953704394,
+          62.5790356090106,
+          -366.33465970176275,
+          1237.2026883749184,
+          464.07110379943947,
+          -2070.608361091903,
+          -2.156985209212664,
+          213.91716589392988,
+          64.74147227161754,
+          -162.00387940823174,
+          230.29545385668027,
+          188.73452899440625
+        ]
+      ],
+      "T_W_G": [
+        [
+          0.7500483617008542,
+          -0.6600822877150974,
+          0.04145875727356107,
+          0.07557466625865983
+        ],
+        [
+          0.5969532367125197,
+          0.6486629220204935,
+          -0.4721051225884776,
+          0.3016854632235488
+        ],
+        [
+          0.28473547072381217,
+          0.37885061309259954,
+          0.8805668201056923,
+          -0.08997543589735228
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "pose_source": "retained observed G board pose; F counterpart design prediction only",
+      "scope": "design-only geometric prediction; reach/occlusion/rigidity unverified",
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/065-g250-45-40-nominal.jpg",
+      "cumulative_min_eigenvalue": 13.566020221400736,
+      "cumulative_condition": 1255.957894584565
+    }
+  ],
+  "rejected": [
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/006-g180-45-0.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        -16070.995111297232,
+        -143180.58783366086
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/010-g190-45-0-G1.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        -291.2725961379612,
+        -7367.762185175369
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/011-g190-45-0-G2.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        -306.7039449213024,
+        -7439.220982639441
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/012-g200-45-0.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        482.3215929250007,
+        -1251.0092487939569
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/013-g200-55-0.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        535.7146437551278,
+        -1130.3020160915084
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/014-g200-65-0.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        552.390615376948,
+        -1193.513842690088
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/017-g200-65-0-repeat.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        550.3923532950666,
+        -1193.344305235819
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/018-g200-65-10.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        540.4512350691373,
+        -1199.1574372956236
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/019-g200-65-20.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        529.4674902762392,
+        -1177.2496882708374
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/020-g200-65-30.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        494.3716284766424,
+        -1201.7199976176496
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/021-g200-65-40.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        475.5887743845173,
+        -1224.3665457912502
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/022-g200-65-30-return.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        489.97236510778464,
+        -1198.851257919268
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/023-g200-65-20-return.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        518.5474145023207,
+        -1157.9146186006703
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/024-g200-65-10-return.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        527.6092058156934,
+        -1198.8531943377561
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/025-g200-65-0-return.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        553.2868765665996,
+        -1195.1085777659569
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/026-g210-65-0.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        615.723260108566,
+        -439.1510831024072
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/027-g210-75-0.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        627.7079865436144,
+        -503.18356380878686
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/029-g220-85-0.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        654.0727470117191,
+        -292.77464602413835
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/030-g230-85-0.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        646.4011642209788,
+        -267.01706256923234
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/034-g240-85-0-G1.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        648.2850844737823,
+        -267.5348673685831
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/035-g240-85-0-G2.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        647.5320124959406,
+        -266.1048618066981
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/036-g240-75-0-nominal.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        637.2945829539022,
+        -206.54437260989138
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/037-g240-65-0-nominal.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        621.9124229136124,
+        -162.35918349700535
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/053-pair24045-G1.jpg",
+      "reason": "paired front ID68 absent; preserve rejection"
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/054-pair24045-G2.jpg",
+      "reason": "paired front ID68 absent; preserve rejection"
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/057-pair23045-G1.jpg",
+      "reason": "paired front ID68 absent; preserve rejection"
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/058-pair23045-G2.jpg",
+      "reason": "paired front ID68 absent; preserve rejection"
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/060-g230-45-10-nominal.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        539.3362312651471,
+        -545.562855009666
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/061-g230-45-20-nominal.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        523.0587600120556,
+        -545.1511907801192
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/062-g230-45-30-nominal.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        508.8874625739171,
+        -543.1544297423854
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/063-g230-45-40-nominal.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        495.2600555116509,
+        -535.7111728112791
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/064-g240-45-40-nominal.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        512.5614625700945,
+        -171.665264815898
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/087-g240-55-0-reverse-nominal.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        598.2927628017557,
+        -156.88806639487427
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/088-g230-55-0-reverse-nominal.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        581.9475937210269,
+        -502.31932989591866
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/089-g220-55-0-reverse-nominal.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        499.34571509850457,
+        -1441.2348242662724
+      ]
+    },
+    {
+      "file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/090-g210-55-0-reverse-nominal.jpg",
+      "reason": "predicted F marker visibility or G floor coverage inadequate",
+      "predicted_center_px": [
+        -428.903008411117,
+        -9561.306482924416
+      ]
+    }
+  ],
+  "remaining_candidates": [],
+  "scope": "Planning only: G pose actually achieved, front ID68 visibility/information only predicted. Excludes previously paired equivalent poses and explicitly rejected missing-ID68 brackets. Chassis/marker remount changes the nuisance model. No nominal angles used to rank poses."
+}

@@ -1,0 +1,90 @@
+name: roboclaw
+
+services:
+  app:
+    image: roboclaw-app:local
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    init: true
+    # For a native macOS state bind, export these from id -u / id -g.
+    # Leave both unset for the default UID-1000 named volume.
+    user: "${ROBOCLAW_UID:-1000}:${ROBOCLAW_GID:-1000}"
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,mode=1777
+    environment:
+      NODE_ENV: production
+      ROBOCLAW_HOST: 0.0.0.0
+      ROBOCLAW_PORT: "57000"
+      ROBOCLAW_STATE_DIR: /data
+      ROBOCLAW_PUBLIC_ORIGIN: ${ROBOCLAW_PUBLIC_ORIGIN:-http://127.0.0.1:57010}
+      ROBOCLAW_SECURE_COOKIE: ${ROBOCLAW_SECURE_COOKIE:-false}
+      ROBOCLAW_ALLOWED_HOSTS: ${ROBOCLAW_ALLOWED_HOSTS:-}
+      GO2RTC_ORIGIN: http://go2rtc:57001
+      Z70_ROS_GATEWAY_ORIGIN: http://host.docker.internal:57020
+      OLLAMA_ORIGIN: ${OLLAMA_ORIGIN:-http://host.docker.internal:57003}
+    ports:
+      # Keep loopback for a local reverse proxy. A LAN bind is an explicit opt-in.
+      - "${ROBOCLAW_PUBLISH_HOST:-127.0.0.1}:57010:57000"
+    volumes:
+      # Local private state is never shipped in the repository. Inspect and
+      # preserve this directory before changing storage backends.
+      - "${ROBOCLAW_DATA_PATH:-../.local}:/data"
+    depends_on:
+      go2rtc:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "const req=require('node:http').get('http://127.0.0.1:57000/healthz',{headers:{host:new URL(process.env.ROBOCLAW_PUBLIC_ORIGIN||'http://127.0.0.1:57000').host}},r=>{r.resume();process.exitCode=r.statusCode===200?0:1});req.setTimeout(4000,()=>req.destroy());req.on('error',()=>{process.exitCode=1})"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  go2rtc:
+    # Same pinned upstream runtime, with a unique camera MQTT client ID.
+    image: roboclaw-go2rtc:local
+    build:
+      context: ..
+      dockerfile: deploy/go2rtc.Dockerfile
+    user: "1000:1000"
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    command: ["go2rtc", "-config", "/etc/go2rtc.yaml"]
+    environment:
+      # go2rtc expands this variable inside the mounted YAML at startup.
+      ROBOCLAW_WEBRTC_HOST: ${ROBOCLAW_WEBRTC_HOST:-127.0.0.1}
+    volumes:
+      - ./go2rtc.yaml:/etc/go2rtc.yaml:ro
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,mode=1777
+      - /config:rw,noexec,nosuid,size=1m,uid=1000,gid=1000,mode=0700
+    expose:
+      - "57001"
+    ports:
+      # Only media is published. Never publish the unauthenticated admin API.
+      - "${ROBOCLAW_WEBRTC_PUBLISH_HOST:-127.0.0.1}:57012:57002/tcp"
+      - "${ROBOCLAW_WEBRTC_PUBLISH_HOST:-127.0.0.1}:57012:57002/udp"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-T", "4", "-O", "/dev/null", "http://127.0.0.1:57001/api"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    # Upstream errors can contain source URLs even at warn/error level.
+    # Health is observable via the API; do not persist credential-bearing logs.
+    logging:
+      driver: none
+
+volumes:
+  roboclaw-data:

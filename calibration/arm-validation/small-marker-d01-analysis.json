@@ -1,0 +1,20 @@
+{
+  "frame1": "/Users/mpentax/Code/RoboRockZ70-Connector/calibration/arm-validation/small-marker-d01-frame-1.jpg",
+  "roi": [
+    0,
+    0,
+    1600,
+    520
+  ],
+  "marker_side_m": 0.015,
+  "markers_first": [],
+  "marker_to_wrist_offset_assumed": false,
+  "intrinsics_caveat": "Fitted from ONE image (frame-3, Telegram re-encode), two coplanar A4 ChArUco boards on the floor. Floor-plane use only. See README.md for accuracy.",
+  "metric_pose_computed": true,
+  "frame2": "/Users/mpentax/Code/RoboRockZ70-Connector/calibration/arm-validation/small-marker-d01-frame-2.jpg",
+  "markers_second": [],
+  "status": "marker_not_detected",
+  "accepted": false,
+  "marker": null,
+  "overlay": "/Users/mpentax/Code/RoboRockZ70-Connector/calibration/arm-validation/small-marker-d01-overlay.jpg"
+}

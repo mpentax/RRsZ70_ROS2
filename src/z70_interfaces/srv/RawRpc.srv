@@ -1,0 +1,9 @@
+string<=128 method
+string<=16384 params_json
+uint32 timeout_ms
+uint8 transport
+bool takeover
+unique_identifier_msgs/UUID task_id
+---
+z70_interfaces/CommandOutcome outcome
+string<=16384 result_json

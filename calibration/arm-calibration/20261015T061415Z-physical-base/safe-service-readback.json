@@ -1,0 +1,35 @@
+{
+  "source": "RoboClaw MCP get_state",
+  "status_observedAt": 1792048827952,
+  "status": {
+    "battery": 31,
+    "state": 3,
+    "error_code": 0,
+    "in_cleaning": 0,
+    "in_returning": 0
+  },
+  "arm_feedback": {
+    "data": [
+      0,
+      0,
+      0
+    ],
+    "not_joint_encoders": true
+  },
+  "camera_status_observedAt": 1792048827994,
+  "camera_status": [
+    11685
+  ],
+  "streamDiagnostics": {
+    "z70": {
+      "available": true,
+      "consumers": []
+    },
+    "z70_jpeg": {
+      "available": true,
+      "consumers": []
+    }
+  },
+  "preview_consumer_release_verified": true,
+  "camera_service_off": false
+}

@@ -1,0 +1,12 @@
+string<=32 color
+---
+z70_interfaces/CommandOutcome outcome
+bool aligned
+float64[3] target_position
+float64 bearing_error_deg
+float64 range_error_m
+---
+uint8 phase
+string<=64 reason
+z70_interfaces/CommandOutcome latest_outcome
+z70_interfaces/EvidenceStamp latest_observation

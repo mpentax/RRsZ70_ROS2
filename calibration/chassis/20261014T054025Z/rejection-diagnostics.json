@@ -1,0 +1,29 @@
+[
+  {
+    "accepted": true,
+    "return_line": 154,
+    "matches": 1091,
+    "inliers": 281,
+    "rms_m": 0.001678928563077472,
+    "min_inliers": 80,
+    "max_rms_m": 0.003
+  },
+  {
+    "accepted": true,
+    "return_line": 154,
+    "matches": 1145,
+    "inliers": 325,
+    "rms_m": 0.0017609772870831517,
+    "min_inliers": 80,
+    "max_rms_m": 0.003
+  },
+  {
+    "accepted": false,
+    "return_line": 149,
+    "matches": 691,
+    "inliers": 114,
+    "rms_m": 0.004118878270575157,
+    "min_inliers": 80,
+    "max_rms_m": 0.003
+  }
+]

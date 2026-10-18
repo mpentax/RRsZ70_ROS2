@@ -1,0 +1,40 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { Go2Rtc } from "./go2rtc.ts";
+import { createService, type ServiceStore } from "./service.ts";
+import { loadServiceConfig } from "./service-config.ts";
+
+
+test("private acquisition reports an empty go2rtc startup response without private text", async t => {
+  const realFetch = globalThis.fetch;
+  let captures = 0;
+  t.mock.method(globalThis, "fetch", async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+    const url = String(input);
+    if (!url.startsWith("http://127.0.0.1:57001/")) return realFetch(input, init);
+    if (url.includes("/api/streams")) return new Response(null);
+    captures++;
+    return new Response(null, { status: 200 });
+  });
+  const token = "t".repeat(43);
+  const store: ServiceStore = { async initialize() {}, async serviceToken() { return token; },
+    async loadDevice() { return { duid: "test-device", host: "127.0.0.1", localKey: "1234567890abcdef", name: "test", model: "a179", protocolVersion: "L01" }; },
+    async saveDevice() {}, async saveCamera() {}, async loadCamera() { return {
+      account: { user: "synthetic-user", secret: "synthetic-secret", key: "synthetic-account-key", mqttUrl: "ssl://mqtt-eu.roborock.com:8883" }, pin: "1234",
+    }; } };
+  const config = { ...loadServiceConfig(), port: 0 };
+  const service = await createService({ config, store, driver: new Go2Rtc(), robotFactory: () => ({
+    connection: { state: "connected", connectedAt: 1 }, close() {}, async request(method) {
+      assert.equal(method, "get_camera_status"); return [11685];
+    },
+  }) });
+  await service.start(); t.after(() => service.stop());
+  const address = service.server.address(); assert.ok(address && typeof address === "object");
+  config.allowedHosts.push(`127.0.0.1:${address.port}`);
+  config.publicOrigin = `http://127.0.0.1:${address.port}`;
+  const response = await realFetch(config.publicOrigin+'/api/camera/frame',{method:'POST',headers:{Host:'127.0.0.1:57000',Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:'{}'});
+  assert.equal(response.status,502);
+  const error=await response.json() as Record<string,unknown>;
+  assert.equal(error.cameraFailure,'no_camera_image');assert.equal(error.upstreamStatus,200);
+  assert.equal(JSON.stringify(error).includes('synthetic-secret'),false);
+  assert.equal(captures, 1);
+});

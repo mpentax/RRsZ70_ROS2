@@ -1,0 +1,17 @@
+{
+  "frame1": "/Users/mpentax/Code/RoboRockZ70-Connector/calibration/arm-validation/marker-attached-inspection-01.jpg",
+  "roi": [
+    0,
+    0,
+    1600,
+    520
+  ],
+  "marker_side_m": 0.03,
+  "markers_first": [],
+  "marker_to_wrist_offset_assumed": false,
+  "intrinsics_caveat": "Fitted from ONE image (frame-3, Telegram re-encode), two coplanar A4 ChArUco boards on the floor. Floor-plane use only. See README.md for accuracy.",
+  "status": "single_frame_only",
+  "accepted": false,
+  "marker": null,
+  "overlay": "/Users/mpentax/Code/RoboRockZ70-Connector/calibration/arm-validation/marker-inspection-01-overlay.jpg"
+}

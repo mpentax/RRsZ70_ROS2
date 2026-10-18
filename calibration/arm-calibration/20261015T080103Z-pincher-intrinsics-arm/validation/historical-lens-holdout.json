@@ -1,0 +1,1521 @@
+{
+  "views": 150,
+  "new_lens": {
+    "rms_px": 2.2925456758336558,
+    "p95_px": 4.1056443454979545,
+    "max_px": 13.071377013685295,
+    "views": [
+      {
+        "file": "raw/004-deployed-gripper.jpg",
+        "rms_px": 2.778648472428004,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/005-setup-g160-45.jpg",
+        "rms_px": 2.9667538024494475,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/011-A-M4-forward-g200-65-0.jpg",
+        "rms_px": 2.3819282597677263,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/012-A-M4-forward-g200-75-0.jpg",
+        "rms_px": 2.963680793343176,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/012-settled-g200-65.jpg",
+        "rms_px": 2.4340502895844986,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/013-A-M4-forward-g200-85-0.jpg",
+        "rms_px": 2.7153927702839105,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/015-A-M3-forward-g210-95-0.jpg",
+        "rms_px": 2.9467499426506962,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/016-B-M3-45-forward-g170-45-0.jpg",
+        "rms_px": 2.00444408205357,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/017-B-M3-45-forward-g180-45-0.jpg",
+        "rms_px": 2.335619401833027,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/018-B-M3-45-forward-g190-45-0.jpg",
+        "rms_px": 2.6107251675679324,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/019-B-M4-lattice-g190-55-0-settled.jpg",
+        "rms_px": 2.340044461316511,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/019-B-M4-lattice-g190-55-0.jpg",
+        "rms_px": 2.3120672608852426,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/020-B-M4-lattice-g190-65-0-settled.jpg",
+        "rms_px": 2.4968245596640806,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/020-B-M4-lattice-g190-65-0.jpg",
+        "rms_px": 2.5528275653409462,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/021-B-M3-lattice-g200-65-0-settled.jpg",
+        "rms_px": 2.7573071709214996,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/021-B-M3-lattice-g200-65-0.jpg",
+        "rms_px": 2.1367687502381782,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/022-B-M3-lattice-g210-65-0-settled.jpg",
+        "rms_px": 2.6441856596548377,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/022-B-M3-lattice-g210-65-0.jpg",
+        "rms_px": 2.6462931283097495,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/023-B-M4-lattice-g210-75-0-settled.jpg",
+        "rms_px": 2.8061117954359123,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/023-B-M4-lattice-g210-75-0.jpg",
+        "rms_px": 2.7626199917351375,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/024-B-M4-lattice-g210-85-0-settled.jpg",
+        "rms_px": 2.911179852395835,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/024-B-M4-lattice-g210-85-0.jpg",
+        "rms_px": 2.8855005713787545,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/025-B-M3-lattice-g220-85-0-settled.jpg",
+        "rms_px": 3.1074218709023853,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/025-B-M3-lattice-g220-85-0.jpg",
+        "rms_px": 3.191018662463742,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/026-B-M3-lattice-g230-85-0-settled.jpg",
+        "rms_px": 2.8675182293542973,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/026-B-M3-lattice-g230-85-0.jpg",
+        "rms_px": 2.7591770433894443,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/027-B-M4-lattice-g230-95-0.jpg",
+        "rms_px": 3.3679873284437103,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/028-B-high-reference-g230-105-0-settled.jpg",
+        "rms_px": 3.35016141174261,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/028-B-high-reference-g230-105-0.jpg",
+        "rms_px": 3.269579392137805,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/029-B-high-reference-g240-105-0-settled.jpg",
+        "rms_px": 3.6108264276298385,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/029-B-high-reference-g240-105-0.jpg",
+        "rms_px": 3.8252554037790962,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/032-B-M5-return-g240-105-10-settled.jpg",
+        "rms_px": 3.8341945182670116,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/032-B-M5-return-g240-105-10.jpg",
+        "rms_px": 4.044557419334948,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/033-B-M5-return-g240-105-0-settled.jpg",
+        "rms_px": 3.9933930670486975,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/033-B-M5-return-g240-105-0.jpg",
+        "rms_px": 3.36601891857261,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/034-B-reverse-lattice-g230-105-0-settled.jpg",
+        "rms_px": 3.4328302334957344,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/034-B-reverse-lattice-g230-105-0.jpg",
+        "rms_px": 3.37760487506982,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/035-B-reverse-lattice-g220-105-0-settled.jpg",
+        "rms_px": 2.671313067788943,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/035-B-reverse-lattice-g220-105-0.jpg",
+        "rms_px": 2.6083193630652985,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/036-B-reverse-lattice-g220-95-0-settled.jpg",
+        "rms_px": 2.7573465151962573,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/036-B-reverse-lattice-g220-95-0.jpg",
+        "rms_px": 2.739359016917887,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/037-B-reverse-lattice-g220-85-0-settled.jpg",
+        "rms_px": 2.919714796479999,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/037-B-reverse-lattice-g220-85-0.jpg",
+        "rms_px": 2.9864875667256365,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/038-B-reverse-lattice-g210-85-0-settled.jpg",
+        "rms_px": 2.6914954822503803,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/038-B-reverse-lattice-g210-85-0.jpg",
+        "rms_px": 2.8481487643209085,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/039-B-reverse-lattice-g210-75-0-settled.jpg",
+        "rms_px": 2.7397865408958135,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/039-B-reverse-lattice-g210-75-0.jpg",
+        "rms_px": 2.700672234694575,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/040-B-M3-75-reverse-g200-75-0-settled.jpg",
+        "rms_px": 2.635332227993378,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/040-B-M3-75-reverse-g200-75-0.jpg",
+        "rms_px": 2.47936886454552,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/041-B-M3-75-reverse-g190-75-0-settled.jpg",
+        "rms_px": 2.992812611670055,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/041-B-M3-75-reverse-g190-75-0.jpg",
+        "rms_px": 2.902999854922049,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/042-B-M3-75-reverse-g180-75-0-settled.jpg",
+        "rms_px": 3.1357470098947147,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/042-B-M3-75-reverse-g180-75-0.jpg",
+        "rms_px": 2.602518926563484,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/044-B-return-reference-g180-75-0-settled.jpg",
+        "rms_px": 2.9959217643569116,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/044-B-return-reference-g180-75-0.jpg",
+        "rms_px": 2.9991348709550167,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/045-B-return-reference-g190-75-0-settled.jpg",
+        "rms_px": 2.878116074620378,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/045-B-return-reference-g190-75-0.jpg",
+        "rms_px": 3.056435420859862,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/046-B-return-reference-g190-65-0-settled.jpg",
+        "rms_px": 2.5974503080278404,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/046-B-return-reference-g190-65-0.jpg",
+        "rms_px": 2.6348256773423655,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/047-B-return-reference-g190-55-0-settled.jpg",
+        "rms_px": 2.4638255793763983,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/047-B-return-reference-g190-55-0.jpg",
+        "rms_px": 2.6338428389102506,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/048-B-M5-second-forward-g190-55-10-settled.jpg",
+        "rms_px": 2.2636497799731736,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/048-B-M5-second-forward-g190-55-10.jpg",
+        "rms_px": 2.1916009463951363,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/049-B-M5-second-forward-g190-55-20-settled.jpg",
+        "rms_px": 2.203045234791867,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/049-B-M5-second-forward-g190-55-20.jpg",
+        "rms_px": 2.209823640432242,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/050-B-M5-second-forward-g190-55-30-settled.jpg",
+        "rms_px": 2.241686485554675,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/050-B-M5-second-forward-g190-55-30.jpg",
+        "rms_px": 2.2035343124743902,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/051-B-M5-second-forward-g190-55-40-settled.jpg",
+        "rms_px": 2.3869417193425493,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/051-B-M5-second-forward-g190-55-40.jpg",
+        "rms_px": 2.248921952098145,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/052-B-M5-second-return-g190-55-30-settled.jpg",
+        "rms_px": 2.249900733180773,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/052-B-M5-second-return-g190-55-30.jpg",
+        "rms_px": 2.0469732613630924,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/053-B-M5-second-return-g190-55-20-settled.jpg",
+        "rms_px": 2.3142211852595445,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/053-B-M5-second-return-g190-55-20.jpg",
+        "rms_px": 2.2787382468588744,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/054-B-M5-second-return-g190-55-10-settled.jpg",
+        "rms_px": 2.285561383594178,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/054-B-M5-second-return-g190-55-10.jpg",
+        "rms_px": 2.300490831782521,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/055-B-M5-second-return-g190-55-0-settled.jpg",
+        "rms_px": 2.525700468185107,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/055-B-M5-second-return-g190-55-0.jpg",
+        "rms_px": 2.702201476676056,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/056-B-M3-55-reverse-g180-55-0-settled.jpg",
+        "rms_px": 2.4777372535509663,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/056-B-M3-55-reverse-g180-55-0.jpg",
+        "rms_px": 2.530321101114881,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/057-B-M3-55-reverse-g170-55-0-settled.jpg",
+        "rms_px": 2.796265705975724,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/057-B-M3-55-reverse-g170-55-0.jpg",
+        "rms_px": 2.796999379992608,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/058-D-M3-45-g170-45-0-settled.jpg",
+        "rms_px": 1.750562574767752,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/058-D-M3-45-g170-45-0.jpg",
+        "rms_px": 1.7234725247154952,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/059-D-M3-45-g180-45-0-settled.jpg",
+        "rms_px": 1.7470996457969454,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/059-D-M3-45-g180-45-0.jpg",
+        "rms_px": 1.7768250332861755,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/060-D-M3-45-g190-45-0-settled.jpg",
+        "rms_px": 1.8095487060412612,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/060-D-M3-45-g190-45-0.jpg",
+        "rms_px": 1.7999652083884783,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/061-D-M4-190-forward-g190-55-0.jpg",
+        "rms_px": 1.7846134006860384,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/062-D-M4-190-forward-g190-65-0-settled.jpg",
+        "rms_px": 1.6921254718565941,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/062-D-M4-190-forward-g190-65-0.jpg",
+        "rms_px": 1.615378713084461,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/063-D-M4-190-forward-g190-75-0-settled.jpg",
+        "rms_px": 1.6478545460094696,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/063-D-M4-190-forward-g190-75-0.jpg",
+        "rms_px": 1.7765043949112043,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/064-D-M4-190-forward-g190-85-0-settled.jpg",
+        "rms_px": 1.7208535954459614,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/064-D-M4-190-forward-g190-85-0.jpg",
+        "rms_px": 1.5954687974208897,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/065-D-M3-85-forward-g200-85-0-settled.jpg",
+        "rms_px": 1.6751978906272282,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/065-D-M3-85-forward-g200-85-0.jpg",
+        "rms_px": 1.6384686645207287,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/066-D-M3-85-forward-g210-85-0-settled.jpg",
+        "rms_px": 1.8657638059820787,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/066-D-M3-85-forward-g210-85-0.jpg",
+        "rms_px": 1.8009271192071055,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/067-D-M3-85-forward-g220-85-0-settled.jpg",
+        "rms_px": 1.8805584968107432,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/067-D-M3-85-forward-g220-85-0.jpg",
+        "rms_px": 1.9612950070443866,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/068-D-M3-85-forward-g230-85-0-settled.jpg",
+        "rms_px": 2.699789565896642,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/068-D-M3-85-forward-g230-85-0.jpg",
+        "rms_px": 2.710625503996143,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/069-D-reference-approach-g230-95-0-settled.jpg",
+        "rms_px": 2.285702894123958,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/069-D-reference-approach-g230-95-0.jpg",
+        "rms_px": 2.112069505809528,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/070-D-reference-approach-g240-95-0-settled.jpg",
+        "rms_px": 3.538106748515703,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/070-D-reference-approach-g240-95-0.jpg",
+        "rms_px": 3.05857823227582,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/071-D-reverse-validation-g240-95-0-settled.jpg",
+        "rms_px": 3.01496738603585,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/071-D-reverse-validation-g240-95-0.jpg",
+        "rms_px": 3.0647354004971485,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/072-D-reverse-validation-g230-95-0-settled.jpg",
+        "rms_px": 2.257377281762117,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/072-D-reverse-validation-g230-95-0.jpg",
+        "rms_px": 2.241490702330044,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/073-D-reverse-validation-g220-95-0-settled.jpg",
+        "rms_px": 1.7372488348918589,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/073-D-reverse-validation-g220-95-0.jpg",
+        "rms_px": 1.7351644890933628,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/074-D-reverse-validation-g210-95-0-settled.jpg",
+        "rms_px": 1.7436294127797147,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/074-D-reverse-validation-g210-95-0.jpg",
+        "rms_px": 1.691866412987514,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/075-D-offdiagonal-validation-g210-85-0-settled.jpg",
+        "rms_px": 1.8679945717819602,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/075-D-offdiagonal-validation-g210-85-0.jpg",
+        "rms_px": 1.596462467500633,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/076-D-offdiagonal-validation-g210-75-0-settled.jpg",
+        "rms_px": 1.8019572608769714,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/076-D-offdiagonal-validation-g210-75-0.jpg",
+        "rms_px": 1.8619923809268408,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/077-D-offdiagonal-validation-g210-65-0-settled.jpg",
+        "rms_px": 1.9804151681345086,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/077-D-offdiagonal-validation-g210-65-0.jpg",
+        "rms_px": 1.9415028365697082,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/078-D-offdiagonal-validation-g200-65-0-settled.jpg",
+        "rms_px": 1.7437411800376457,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/078-D-offdiagonal-validation-g200-65-0.jpg",
+        "rms_px": 1.83094459285197,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/079-D-M5-third-forward-g200-65-10-settled.jpg",
+        "rms_px": 1.8121165672421284,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/079-D-M5-third-forward-g200-65-10.jpg",
+        "rms_px": 1.6787611721060909,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/080-D-M5-third-forward-g200-65-20-settled.jpg",
+        "rms_px": 1.8827815383700344,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/080-D-M5-third-forward-g200-65-20.jpg",
+        "rms_px": 1.8366767159551503,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/081-D-M5-third-forward-g200-65-30-settled.jpg",
+        "rms_px": 1.9930630260598905,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/081-D-M5-third-forward-g200-65-30.jpg",
+        "rms_px": 2.0237274592560217,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/082-D-M5-third-forward-g200-65-40-settled.jpg",
+        "rms_px": 1.9276750650353724,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/082-D-M5-third-forward-g200-65-40.jpg",
+        "rms_px": 1.9551465072749283,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/083-D-M5-third-return-g200-65-30-settled.jpg",
+        "rms_px": 1.9725543830374066,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/083-D-M5-third-return-g200-65-30.jpg",
+        "rms_px": 1.7317906260821272,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/084-D-M5-third-return-g200-65-20-settled.jpg",
+        "rms_px": 1.9610000667928158,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/084-D-M5-third-return-g200-65-20.jpg",
+        "rms_px": 2.049028399962158,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/085-D-M5-third-return-g200-65-10-settled.jpg",
+        "rms_px": 1.8216249082564517,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/085-D-M5-third-return-g200-65-10.jpg",
+        "rms_px": 1.7796218218753677,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/086-D-M5-third-return-g200-65-0-settled.jpg",
+        "rms_px": 2.1006168986369222,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/086-D-M5-third-return-g200-65-0.jpg",
+        "rms_px": 1.8313569495797064,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/B-reference-G1.jpg",
+        "rms_px": 3.2713070994238107,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/B-reference-G2.jpg",
+        "rms_px": 4.052188735743796,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/B-setup-g160-45.jpg",
+        "rms_px": 2.834432951977896,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/D-g160-45.jpg",
+        "rms_px": 1.7160640763521766,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/D-reference240-105-G.jpg",
+        "rms_px": 2.6926896160130385,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/D-reference240-95-G.jpg",
+        "rms_px": 3.0008806977198996,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/pilot-g180-45.jpg",
+        "rms_px": 2.2204490245546626,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/pilot-g190-45.jpg",
+        "rms_px": 2.5028025751292975,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/pilot-g200-45-repeat.jpg",
+        "rms_px": 2.4150391977935945,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/pilot-g200-45.jpg",
+        "rms_px": 2.444543691088714,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/pilot-g200-55.jpg",
+        "rms_px": 2.211886071323638,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/setup-g170-45.jpg",
+        "rms_px": 1.9943686112875922,
+        "positive_depth": true
+      }
+    ],
+    "conditional": "held-out camera-board pose estimated from its corners; lens fixed"
+  },
+  "old_lens_same_corners": {
+    "rms_px": 4.309718991220353,
+    "p95_px": 7.910689274091406,
+    "max_px": 53.69073110727742,
+    "views": [
+      {
+        "file": "raw/004-deployed-gripper.jpg",
+        "rms_px": 8.394945613036704,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/005-setup-g160-45.jpg",
+        "rms_px": 9.476435495637524,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/011-A-M4-forward-g200-65-0.jpg",
+        "rms_px": 5.368767450828131,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/012-A-M4-forward-g200-75-0.jpg",
+        "rms_px": 8.045325663249745,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/012-settled-g200-65.jpg",
+        "rms_px": 5.398964302266943,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/013-A-M4-forward-g200-85-0.jpg",
+        "rms_px": 8.355147203085856,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/015-A-M3-forward-g210-95-0.jpg",
+        "rms_px": 11.360802972789813,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/016-B-M3-45-forward-g170-45-0.jpg",
+        "rms_px": 5.252295273676612,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/017-B-M3-45-forward-g180-45-0.jpg",
+        "rms_px": 3.5270220587896426,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/018-B-M3-45-forward-g190-45-0.jpg",
+        "rms_px": 3.4593144682487402,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/019-B-M4-lattice-g190-55-0-settled.jpg",
+        "rms_px": 3.7359592345697723,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/019-B-M4-lattice-g190-55-0.jpg",
+        "rms_px": 3.7489933464034317,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/020-B-M4-lattice-g190-65-0-settled.jpg",
+        "rms_px": 5.777442081941044,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/020-B-M4-lattice-g190-65-0.jpg",
+        "rms_px": 5.838158689699156,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/021-B-M3-lattice-g200-65-0-settled.jpg",
+        "rms_px": 5.972419750512573,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/021-B-M3-lattice-g200-65-0.jpg",
+        "rms_px": 4.794629178384873,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/022-B-M3-lattice-g210-65-0-settled.jpg",
+        "rms_px": 3.968210256385478,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/022-B-M3-lattice-g210-65-0.jpg",
+        "rms_px": 3.9796405108154493,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/023-B-M4-lattice-g210-75-0-settled.jpg",
+        "rms_px": 6.470988077208868,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/023-B-M4-lattice-g210-75-0.jpg",
+        "rms_px": 6.4828243351381705,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/024-B-M4-lattice-g210-85-0-settled.jpg",
+        "rms_px": 5.42897035468767,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/024-B-M4-lattice-g210-85-0.jpg",
+        "rms_px": 5.303712137130913,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/025-B-M3-lattice-g220-85-0-settled.jpg",
+        "rms_px": 6.7451261579046005,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/025-B-M3-lattice-g220-85-0.jpg",
+        "rms_px": 7.009465109162277,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/026-B-M3-lattice-g230-85-0-settled.jpg",
+        "rms_px": 4.949666666676039,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/026-B-M3-lattice-g230-85-0.jpg",
+        "rms_px": 4.86886643705844,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/027-B-M4-lattice-g230-95-0.jpg",
+        "rms_px": 6.814541447114102,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/028-B-high-reference-g230-105-0-settled.jpg",
+        "rms_px": 5.883442349526995,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/028-B-high-reference-g230-105-0.jpg",
+        "rms_px": 5.989708003722129,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/029-B-high-reference-g240-105-0-settled.jpg",
+        "rms_px": 5.376032935696841,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/029-B-high-reference-g240-105-0.jpg",
+        "rms_px": 5.664180701714223,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/032-B-M5-return-g240-105-10-settled.jpg",
+        "rms_px": 5.901930859778032,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/032-B-M5-return-g240-105-10.jpg",
+        "rms_px": 6.34989034761875,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/033-B-M5-return-g240-105-0-settled.jpg",
+        "rms_px": 5.870626266135657,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/033-B-M5-return-g240-105-0.jpg",
+        "rms_px": 5.41242467717835,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/034-B-reverse-lattice-g230-105-0-settled.jpg",
+        "rms_px": 6.187834978986583,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/034-B-reverse-lattice-g230-105-0.jpg",
+        "rms_px": 6.091553531391554,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/035-B-reverse-lattice-g220-105-0-settled.jpg",
+        "rms_px": 5.781878672662687,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/035-B-reverse-lattice-g220-105-0.jpg",
+        "rms_px": 5.9072825980744765,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/036-B-reverse-lattice-g220-95-0-settled.jpg",
+        "rms_px": 4.320832500695342,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/036-B-reverse-lattice-g220-95-0.jpg",
+        "rms_px": 4.279324252607916,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/037-B-reverse-lattice-g220-85-0-settled.jpg",
+        "rms_px": 6.266095321804676,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/037-B-reverse-lattice-g220-85-0.jpg",
+        "rms_px": 6.533989607313385,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/038-B-reverse-lattice-g210-85-0-settled.jpg",
+        "rms_px": 5.17742793256305,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/038-B-reverse-lattice-g210-85-0.jpg",
+        "rms_px": 5.130072721746349,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/039-B-reverse-lattice-g210-75-0-settled.jpg",
+        "rms_px": 6.220583090001857,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/039-B-reverse-lattice-g210-75-0.jpg",
+        "rms_px": 6.211165804674672,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/040-B-M3-75-reverse-g200-75-0-settled.jpg",
+        "rms_px": 5.301538488429434,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/040-B-M3-75-reverse-g200-75-0.jpg",
+        "rms_px": 5.398322705010347,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/041-B-M3-75-reverse-g190-75-0-settled.jpg",
+        "rms_px": 8.343738305469536,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/041-B-M3-75-reverse-g190-75-0.jpg",
+        "rms_px": 8.184259141732825,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/042-B-M3-75-reverse-g180-75-0-settled.jpg",
+        "rms_px": 8.956965000040105,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/042-B-M3-75-reverse-g180-75-0.jpg",
+        "rms_px": 5.874300534401678,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/044-B-return-reference-g180-75-0-settled.jpg",
+        "rms_px": 8.285750914005243,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/044-B-return-reference-g180-75-0.jpg",
+        "rms_px": 9.765060483767936,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/045-B-return-reference-g190-75-0-settled.jpg",
+        "rms_px": 8.352732199219433,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/045-B-return-reference-g190-75-0.jpg",
+        "rms_px": 8.36748777650986,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/046-B-return-reference-g190-65-0-settled.jpg",
+        "rms_px": 5.843234379359987,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/046-B-return-reference-g190-65-0.jpg",
+        "rms_px": 6.0695989891982,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/047-B-return-reference-g190-55-0-settled.jpg",
+        "rms_px": 4.243979593354681,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/047-B-return-reference-g190-55-0.jpg",
+        "rms_px": 4.268546173725032,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/048-B-M5-second-forward-g190-55-10-settled.jpg",
+        "rms_px": 3.8592363952942095,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/048-B-M5-second-forward-g190-55-10.jpg",
+        "rms_px": 3.4482289592486417,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/049-B-M5-second-forward-g190-55-20-settled.jpg",
+        "rms_px": 3.4611899837491387,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/049-B-M5-second-forward-g190-55-20.jpg",
+        "rms_px": 3.550032978687687,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/050-B-M5-second-forward-g190-55-30-settled.jpg",
+        "rms_px": 2.733718176249713,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/050-B-M5-second-forward-g190-55-30.jpg",
+        "rms_px": 2.6778168665511863,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/051-B-M5-second-forward-g190-55-40-settled.jpg",
+        "rms_px": 2.846464654644901,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/051-B-M5-second-forward-g190-55-40.jpg",
+        "rms_px": 2.567002902363934,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/052-B-M5-second-return-g190-55-30-settled.jpg",
+        "rms_px": 3.1807994999912346,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/052-B-M5-second-return-g190-55-30.jpg",
+        "rms_px": 3.055767696147388,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/053-B-M5-second-return-g190-55-20-settled.jpg",
+        "rms_px": 3.2433342046870712,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/053-B-M5-second-return-g190-55-20.jpg",
+        "rms_px": 3.0658607788624246,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/054-B-M5-second-return-g190-55-10-settled.jpg",
+        "rms_px": 3.556315385494707,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/054-B-M5-second-return-g190-55-10.jpg",
+        "rms_px": 3.567282891188062,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/055-B-M5-second-return-g190-55-0-settled.jpg",
+        "rms_px": 4.247418950710685,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/055-B-M5-second-return-g190-55-0.jpg",
+        "rms_px": 4.544007782265653,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/056-B-M3-55-reverse-g180-55-0-settled.jpg",
+        "rms_px": 5.370108121454991,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/056-B-M3-55-reverse-g180-55-0.jpg",
+        "rms_px": 5.369220220820041,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/057-B-M3-55-reverse-g170-55-0-settled.jpg",
+        "rms_px": 8.286175250771876,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/057-B-M3-55-reverse-g170-55-0.jpg",
+        "rms_px": 8.545612353912945,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/058-D-M3-45-g170-45-0-settled.jpg",
+        "rms_px": 1.8364396549848223,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/058-D-M3-45-g170-45-0.jpg",
+        "rms_px": 1.7610594095369732,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/059-D-M3-45-g180-45-0-settled.jpg",
+        "rms_px": 1.816309690254167,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/059-D-M3-45-g180-45-0.jpg",
+        "rms_px": 1.8514888713286966,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/060-D-M3-45-g190-45-0-settled.jpg",
+        "rms_px": 1.8527544033437944,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/060-D-M3-45-g190-45-0.jpg",
+        "rms_px": 1.8554183228740349,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/061-D-M4-190-forward-g190-55-0.jpg",
+        "rms_px": 1.8773914836949803,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/062-D-M4-190-forward-g190-65-0-settled.jpg",
+        "rms_px": 2.019620629394486,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/062-D-M4-190-forward-g190-65-0.jpg",
+        "rms_px": 2.0238688206257844,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/063-D-M4-190-forward-g190-75-0-settled.jpg",
+        "rms_px": 1.6516395068246226,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/063-D-M4-190-forward-g190-75-0.jpg",
+        "rms_px": 1.7863249972672866,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/064-D-M4-190-forward-g190-85-0-settled.jpg",
+        "rms_px": 1.5817222704490115,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/064-D-M4-190-forward-g190-85-0.jpg",
+        "rms_px": 1.4257889571175102,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/065-D-M3-85-forward-g200-85-0-settled.jpg",
+        "rms_px": 1.7295213856284657,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/065-D-M3-85-forward-g200-85-0.jpg",
+        "rms_px": 1.691671596609276,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/066-D-M3-85-forward-g210-85-0-settled.jpg",
+        "rms_px": 1.989319612963929,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/066-D-M3-85-forward-g210-85-0.jpg",
+        "rms_px": 1.9146764570196073,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/067-D-M3-85-forward-g220-85-0-settled.jpg",
+        "rms_px": 2.9043380793178857,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/067-D-M3-85-forward-g220-85-0.jpg",
+        "rms_px": 2.902837220205472,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/068-D-M3-85-forward-g230-85-0-settled.jpg",
+        "rms_px": 4.095459361813259,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/068-D-M3-85-forward-g230-85-0.jpg",
+        "rms_px": 4.140302296931935,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/069-D-reference-approach-g230-95-0-settled.jpg",
+        "rms_px": 2.9176311687416887,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/069-D-reference-approach-g230-95-0.jpg",
+        "rms_px": 2.749447138014406,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/070-D-reference-approach-g240-95-0-settled.jpg",
+        "rms_px": 4.885613422978337,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/070-D-reference-approach-g240-95-0.jpg",
+        "rms_px": 4.692607560482502,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/071-D-reverse-validation-g240-95-0-settled.jpg",
+        "rms_px": 4.659931354537764,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/071-D-reverse-validation-g240-95-0.jpg",
+        "rms_px": 4.738436224376918,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/072-D-reverse-validation-g230-95-0-settled.jpg",
+        "rms_px": 2.8518573035472774,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/072-D-reverse-validation-g230-95-0.jpg",
+        "rms_px": 2.864924367494905,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/073-D-reverse-validation-g220-95-0-settled.jpg",
+        "rms_px": 2.1169479757638503,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/073-D-reverse-validation-g220-95-0.jpg",
+        "rms_px": 2.1524481616303563,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/074-D-reverse-validation-g210-95-0-settled.jpg",
+        "rms_px": 1.8198505419510074,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/074-D-reverse-validation-g210-95-0.jpg",
+        "rms_px": 1.713087110802034,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/075-D-offdiagonal-validation-g210-85-0-settled.jpg",
+        "rms_px": 1.966026000283475,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/075-D-offdiagonal-validation-g210-85-0.jpg",
+        "rms_px": 1.7272833449950507,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/076-D-offdiagonal-validation-g210-75-0-settled.jpg",
+        "rms_px": 2.9539754953845105,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/076-D-offdiagonal-validation-g210-75-0.jpg",
+        "rms_px": 2.9861014034068125,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/077-D-offdiagonal-validation-g210-65-0-settled.jpg",
+        "rms_px": 2.1724841111451227,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/077-D-offdiagonal-validation-g210-65-0.jpg",
+        "rms_px": 2.1453594226471706,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/078-D-offdiagonal-validation-g200-65-0-settled.jpg",
+        "rms_px": 1.9429107043644696,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/078-D-offdiagonal-validation-g200-65-0.jpg",
+        "rms_px": 2.0476887039110507,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/079-D-M5-third-forward-g200-65-10-settled.jpg",
+        "rms_px": 1.9919053553545563,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/079-D-M5-third-forward-g200-65-10.jpg",
+        "rms_px": 1.8724344688919636,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/080-D-M5-third-forward-g200-65-20-settled.jpg",
+        "rms_px": 2.0959784195095565,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/080-D-M5-third-forward-g200-65-20.jpg",
+        "rms_px": 1.9856914022568701,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/081-D-M5-third-forward-g200-65-30-settled.jpg",
+        "rms_px": 2.2098080170489607,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/081-D-M5-third-forward-g200-65-30.jpg",
+        "rms_px": 2.2172537944467923,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/082-D-M5-third-forward-g200-65-40-settled.jpg",
+        "rms_px": 2.230474508989695,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/082-D-M5-third-forward-g200-65-40.jpg",
+        "rms_px": 2.160330685736504,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/083-D-M5-third-return-g200-65-30-settled.jpg",
+        "rms_px": 2.103816971092693,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/083-D-M5-third-return-g200-65-30.jpg",
+        "rms_px": 2.0055593310211117,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/084-D-M5-third-return-g200-65-20-settled.jpg",
+        "rms_px": 2.1472609804021596,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/084-D-M5-third-return-g200-65-20.jpg",
+        "rms_px": 2.2393515788209792,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/085-D-M5-third-return-g200-65-10-settled.jpg",
+        "rms_px": 2.0124676705362865,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/085-D-M5-third-return-g200-65-10.jpg",
+        "rms_px": 1.977689741634266,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/086-D-M5-third-return-g200-65-0-settled.jpg",
+        "rms_px": 2.2546827946109675,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/086-D-M5-third-return-g200-65-0.jpg",
+        "rms_px": 2.0066112760105,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/B-reference-G1.jpg",
+        "rms_px": 5.412668132953699,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/B-reference-G2.jpg",
+        "rms_px": 5.869566475264772,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/B-setup-g160-45.jpg",
+        "rms_px": 9.686966344116113,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/D-g160-45.jpg",
+        "rms_px": 1.7595545717990089,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/D-reference240-105-G.jpg",
+        "rms_px": 5.920990540653816,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/D-reference240-95-G.jpg",
+        "rms_px": 4.694659476182311,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/pilot-g180-45.jpg",
+        "rms_px": 3.492876141619516,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/pilot-g190-45.jpg",
+        "rms_px": 3.663072069958671,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/pilot-g200-45-repeat.jpg",
+        "rms_px": 3.478205747953195,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/pilot-g200-45.jpg",
+        "rms_px": 3.66489239724893,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/pilot-g200-55.jpg",
+        "rms_px": 3.341320991730255,
+        "positive_depth": true
+      },
+      {
+        "file": "raw/setup-g170-45.jpg",
+        "rms_px": 5.461426637400361,
+        "positive_depth": true
+      }
+    ],
+    "conditional": "held-out camera-board pose estimated from its corners; lens fixed"
+  },
+  "not_used_for_new_lens_selection": true,
+  "correspondence_caveat": "original observations detector selected candidates using old lens; both models evaluated on identical full retained corners"
+}

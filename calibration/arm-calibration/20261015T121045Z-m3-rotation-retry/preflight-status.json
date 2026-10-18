@@ -1,0 +1,11 @@
+{
+  "value": {
+    "battery": 54,
+    "state": 3,
+    "error_code": 0,
+    "in_cleaning": 0,
+    "in_returning": 0
+  },
+  "observedAt": 1792066263333,
+  "error": null
+}

@@ -1,0 +1,2 @@
+# Generated image plots stay local, like repository-wide JPEG/PNG evidence.
+*.svg

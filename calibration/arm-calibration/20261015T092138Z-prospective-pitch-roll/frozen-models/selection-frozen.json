@@ -1,0 +1,12 @@
+{
+  "selected": "fcyk1",
+  "eligible": [
+    "fixed",
+    "f",
+    "fcy",
+    "fcyk1",
+    "full"
+  ],
+  "best_score": 2.8907577214835043,
+  "rule": "training-only leave-whole-nominal-pose-group-out; score sqrt(mean(marker_RMS^2+floor_RMS^2)/2); simplest within10% best; no floor RMS >110% baseline"
+}

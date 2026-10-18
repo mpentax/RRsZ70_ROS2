@@ -1,0 +1,202 @@
+{
+  "attempted": 3,
+  "complete_pairs": 3,
+  "accepted": 2,
+  "rejected": 1,
+  "incomplete": 0,
+  "fit": {
+    "camera_x_m": 0.2812294570002345,
+    "camera_x_source": "pure_rotation_fit",
+    "rotation_fitted_camera_x_m": 0.2812294570002345,
+    "camera_x_fit_sigma_m": 0.0026649344712354438,
+    "camera_rotation_residual_rms_m": 0.0005952465160068417,
+    "rotation_pairs": 2,
+    "yaw": {
+      "gain": 0.6448572544126076,
+      "n": 2,
+      "residual_rms": 0.004455027829197239,
+      "per_pulse_gain_std": 0.03150180388400156
+    },
+    "yaw_positive": {
+      "gain": 0.6671323935585937,
+      "n": 1,
+      "residual_rms": 2.7755575615628914e-17,
+      "per_pulse_gain_std": null
+    },
+    "yaw_negative": {
+      "gain": 0.6225821152666213,
+      "n": 1,
+      "residual_rms": 0.0,
+      "per_pulse_gain_std": null
+    },
+    "forward": null,
+    "forward_lateral_rms_m": null,
+    "forward_yaw_rms_deg": null
+  },
+  "ros_status_messages": 755,
+  "ros_state_counts": {
+    "ok": 755
+  },
+  "ros_accepted": 763,
+  "ros_rejected": 0,
+  "ros_rejection_rate": 0.0,
+  "ros_delivered_hz": 2.871117748072532,
+  "ros_first_stamp_ns": 1791956474259692000,
+  "ros_last_stamp_ns": 1791956736875184000,
+  "after_pair_receipt_intervals_s": {
+    "turn-plus-01": 10.627,
+    "turn-minus-01": 7.788,
+    "turn-plus-02": 7.846
+  },
+  "baseline_receipt_interval_s": 11.821,
+  "pulse_start_intervals_s": [
+    50.504,
+    41.436
+  ],
+  "rejection_diagnostics": [
+    {
+      "accepted": true,
+      "return_line": 154,
+      "matches": 1091,
+      "inliers": 281,
+      "rms_m": 0.001678928563077472,
+      "min_inliers": 80,
+      "max_rms_m": 0.003
+    },
+    {
+      "accepted": true,
+      "return_line": 154,
+      "matches": 1145,
+      "inliers": 325,
+      "rms_m": 0.0017609772870831517,
+      "min_inliers": 80,
+      "max_rms_m": 0.003
+    },
+    {
+      "accepted": false,
+      "return_line": 149,
+      "matches": 691,
+      "inliers": 114,
+      "rms_m": 0.004118878270575157,
+      "min_inliers": 80,
+      "max_rms_m": 0.003
+    }
+  ],
+  "ros_comparison": [
+    {
+      "id": "turn-plus-01",
+      "pre_receipt_ns": 1791956545735039000,
+      "post_receipt_ns": 1791956574677501000,
+      "dx_m": -0.0025147433156644185,
+      "dy_m": 0.017947159582642883,
+      "yaw_deg": 7.423969897353618,
+      "live_status": {
+        "state": "ok",
+        "step": {
+          "dx": -6.992317049842045e-06,
+          "dy": -2.772544664028854e-05,
+          "dtheta_deg": 0.004293774500623378
+        },
+        "inliers": 2577,
+        "rms_mm": 0.31814283334121196,
+        "ok": 303,
+        "rejected": 0,
+        "stamp_ns": 1791956574470118000
+      },
+      "camera_x_m": 0.16,
+      "window": "last ROS receipt before move request to last receipt before second after-frame receipt"
+    },
+    {
+      "id": "turn-minus-01",
+      "pre_receipt_ns": 1791956596139594000,
+      "post_receipt_ns": 1791956620159074000,
+      "dx_m": -0.00045159557351500713,
+      "dy_m": -0.013634092206389772,
+      "yaw_deg": -7.357104887957902,
+      "live_status": {
+        "state": "ok",
+        "step": {
+          "dx": 5.560399899628976e-06,
+          "dy": 4.221878194823113e-06,
+          "dtheta_deg": -0.00018503300988348065
+        },
+        "inliers": 1633,
+        "rms_mm": 0.6926656779139923,
+        "ok": 426,
+        "rejected": 0,
+        "stamp_ns": 1791956619902064000
+      },
+      "camera_x_m": 0.16,
+      "window": "last ROS receipt before move request to last receipt before second after-frame receipt"
+    },
+    {
+      "id": "turn-plus-02",
+      "pre_receipt_ns": 1791956637711803000,
+      "post_receipt_ns": 1791956662893045000,
+      "dx_m": -0.0035460997395040947,
+      "dy_m": 0.02509205800241914,
+      "yaw_deg": 12.891422949528172,
+      "live_status": {
+        "state": "ok",
+        "step": {
+          "dx": 6.313750265579676e-06,
+          "dy": 4.07984187257186e-05,
+          "dtheta_deg": -0.004628556356201315
+        },
+        "inliers": 2452,
+        "rms_mm": 0.3802229619049372,
+        "ok": 552,
+        "rejected": 0,
+        "stamp_ns": 1791956662493158000
+      },
+      "camera_x_m": 0.16,
+      "window": "last ROS receipt before move request to last receipt before second after-frame receipt"
+    }
+  ],
+  "settling": [
+    {
+      "before": "baseline-1.jpg",
+      "after": "baseline-2.jpg",
+      "accepted": true,
+      "dx_m": -5.358962779866694e-06,
+      "dy_m": -2.6426926317824062e-05,
+      "yaw_deg": 0.0012504976801245857,
+      "inliers": 2636,
+      "rms_m": 0.0007220142234471911,
+      "settled": true
+    },
+    {
+      "before": "turn-plus-01-after-1.jpg",
+      "after": "turn-plus-01-after-2.jpg",
+      "accepted": true,
+      "dx_m": 1.7723723407636616e-05,
+      "dy_m": 2.3737287120961792e-05,
+      "yaw_deg": -0.0034873465320539015,
+      "inliers": 2610,
+      "rms_m": 0.0007095207862797945,
+      "settled": true
+    },
+    {
+      "before": "turn-minus-01-after-1.jpg",
+      "after": "turn-minus-01-after-2.jpg",
+      "accepted": true,
+      "dx_m": 1.9603830017644874e-05,
+      "dy_m": -2.099111611333221e-06,
+      "yaw_deg": -0.0004308074596733541,
+      "inliers": 2672,
+      "rms_m": 0.0006967820870223875,
+      "settled": true
+    },
+    {
+      "before": "turn-plus-02-after-1.jpg",
+      "after": "turn-plus-02-after-2.jpg",
+      "accepted": true,
+      "dx_m": -9.693699293988889e-06,
+      "dy_m": 1.9123388735567404e-05,
+      "yaw_deg": 0.0008728151276392176,
+      "inliers": 2418,
+      "rms_m": 0.0007229337020424847,
+      "settled": true
+    }
+  ]
+}

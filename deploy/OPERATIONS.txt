@@ -1,0 +1,87 @@
+RRsZ70_ROS2 / RoboClaw operations
+================================
+
+Directory cutover is offline source work, not production deployment or permission
+for robot/camera access. Commands marked live below require that separate scope.
+Do not start a second writer against existing private state.
+
+Layout and ports
+----------------
+From /Users/mpentax/Code/RRsZ70_ROS2:
+  npm ci
+  npm run build
+  docker compose -f deploy/compose.yaml config --quiet
+  docker compose -f deploy/compose.yaml build app go2rtc
+
+Compose project remains roboclaw, not a new deployment/volume namespace.
+Build context is the root with deny-by-default Docker ignores. The Node 24 image
+contains adapters/vendor, apps/mcp, shared HTTP contracts and dist/web; not ROS,
+calibration evidence, environments, private .local, tests or local node_modules.
+The patched go2rtc image retains its pinned upstream revision and camera lifecycle
+regressions. Upstream go2rtc logs are not persisted (may contain credential URLs).
+
+Host HTTP: 127.0.0.1:57010 -> container app 57000.
+Host media TCP/UDP: 127.0.0.1:57012 -> go2rtc 57002.
+Private go2rtc admin: 57001, never published or proxied wholesale.
+Native ROS web gateway: 127.0.0.1:57020, never LAN-bound.
+Foxglove: ws://127.0.0.1:8765, native localhost.
+
+Native/container networking
+--------------------------
+Native ROS/Pixi remains outside Docker for macOS ROS and optional Metal/MPS.
+Compose sets Z70_ROS_GATEWAY_ORIGIN=http://host.docker.internal:57020. Docker
+Desktop host alias reachability to a native loopback fake gateway was exercised;
+no gateway LAN bind or direct-vendor client fallback is introduced. This is a
+macOS Docker Desktop result, not a Linux host networking guarantee.
+
+State and web input
+-------------------
+The Compose bind is ../.local relative to deploy/compose.yaml: the SAME relocated
+private directory, not deploy/.local or a fresh named volume. Preserve all its
+files, modes and contents. Do not chown/clear it to satisfy a startup preflight.
+No ownership-delay gate is part of startup. Back up state privately before any
+separately authorized deployment. Credentials/PIN/token must not enter source,
+build arguments, Compose environment values, DDS, MCP arguments, logs or chat.
+
+The existing authenticated web UI provides account email/code, region, device,
+IP/local protocol and camera-pattern input. Retired standalone auth/probe/relogin
+CLIs are not the setup path. The operator handles the existing private bootstrap
+login token locally; never paste it into an agent conversation. Browser sessions
+cannot access private driver/acquisition routes. UI/MCP use /api/ros/* and the
+same task UUID registry. Stop is independent of stalled ordinary requests.
+
+Live startup and shutdown (NOT performed by the cutover)
+-------------------------------------------------------
+  docker compose -f deploy/compose.yaml up -d
+  ~/.pixi/bin/pixi run bringup web_gateway:=true
+
+Start manipulation:=true only when an idle pickup action server is wanted; a
+live pick goal has separate motion effects. Ordinary bringup accesses live camera,
+state and maps and may persist chassis calibration. Ctrl-C stops owned ROS nodes.
+  docker compose -f deploy/compose.yaml stop
+
+Use standard ros2 topic/action/service/param tools for bounded diagnosis. Do not
+invent a RoboClaw doctor, launcher, diagnostic agent, leases or recovery bypass.
+A service response is not observed motion completion. Hardware checks for shared
+camera switching, uncertain dispatch, priority stop/cancel and pickup regression
+remain separately authorized; fake/DDS tests cannot establish them.
+
+Rollback
+--------
+Before a live cutover, retain the previous image IDs and matching source/client
+revision plus a private state backup. Stop native ROS clients before switching
+backend versions, then stop the app and restore the matching backend/client pair
+using the SAME compatible private state. Do not restore only an old MCP client
+against a new gateway contract. Source rollback must preserve calibration originals
+and unrelated dirty work; do not git reset/clean/stash this working tree as a shortcut.
+Never docker compose down -v, prune volumes, delete credentials, reset estimates or
+start simultaneous native/container state writers to make rollback appear healthy.
+
+Offline evidence
+----------------
+docs/migration/phase5.md and phase5-* outputs record the exact exercised scope.
+The production image may be built under a qualification-only tag; that does not
+replace or restart roboclaw-app:local. Isolated container checks use synthetic
+state, no published ports and --network none. The loopback networking test uses
+an isolated fake server, not a robot or production camera. No live deployment,
+model download or hardware acceptance is implied by passing these checks.

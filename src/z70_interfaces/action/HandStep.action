@@ -1,0 +1,9 @@
+uint8 direction
+---
+z70_interfaces/CommandOutcome outcome
+z70_interfaces/ArmEstimate estimate
+---
+uint8 phase
+string<=64 reason
+z70_interfaces/CommandOutcome latest_outcome
+z70_interfaces/EvidenceStamp latest_observation

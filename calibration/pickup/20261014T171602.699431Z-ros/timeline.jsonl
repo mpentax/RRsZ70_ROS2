@@ -1,0 +1,63 @@
+{"t": "2026-10-14T17:16:02.699639+00:00", "event": "start", "color": "yellow", "dry_run": false}
+{"t": "2026-10-14T17:16:03.098826+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": [{"color": "yellow", "pixel": [684.7655689135155, 736.4770414230117], "contact_px": [697.0, 887.0], "bbox": [496, 583, 351, 305], "size_px": 351.0, "area_px": 74986.5, "image_size": [1600, 1200], "position": [0.44277067957133304, 0.016564631680361593, 0.0], "camera": "front", "size_m": 0.07355820191414025}]}
+{"t": "2026-10-14T17:16:03.485073+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": [{"color": "yellow", "pixel": [683.5253689413527, 735.9442284301409], "contact_px": [696.0, 887.0], "bbox": [511, 584, 334, 304], "size_px": 334.0, "area_px": 75226.5, "image_size": [1600, 1200], "position": [0.4427659022183553, 0.016774106236484666, 0.0], "camera": "front", "size_m": 0.06999155717665356}]}
+{"t": "2026-10-14T17:16:03.485362+00:00", "event": "approach", "yaw": -0.0187110449430207, "forward": 0.006303185760166585, "bearing_error_deg": -1.0720639055146879, "range_error_m": 0.006303185760166585, "grasp_point": [0.4360800648730267, 0.024845950776240508, 0.0]}
+{"t": "2026-10-14T17:16:03.485592+00:00", "event": "command", "method": "app_pick_up_enter_exit", "params": {"flag": 2}}
+{"t": "2026-10-14T17:16:03.495035+00:00", "event": "reply", "method": "app_pick_up_enter_exit", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:16:03.495408+00:00", "event": "command", "method": "app_arm_out_compartment", "params": []}
+{"t": "2026-10-14T17:16:03.514729+00:00", "event": "reply", "method": "app_arm_out_compartment", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:16:03.594076+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T17:16:03.611384+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:16:04.131157+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T17:16:04.139669+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:16:04.661542+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T17:16:04.679177+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:16:05.196528+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T17:16:05.208037+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:16:05.725556+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T17:16:05.741584+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:16:06.258008+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T17:16:06.272143+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:16:06.832709+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T17:16:06.844059+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:16:07.381346+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T17:16:07.395207+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:16:07.920888+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T17:16:07.961203+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:16:08.524563+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T17:16:08.536562+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:16:09.114073+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T17:16:09.134877+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:16:09.707754+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T17:16:09.721646+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:16:10.279108+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T17:16:10.295997+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:16:10.877700+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T17:16:10.894512+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:16:11.414957+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T17:16:11.428666+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:16:11.986132+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T17:16:12.013005+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:16:12.554677+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T17:16:12.565419+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:16:13.139526+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T17:16:13.167562+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:16:13.729168+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T17:16:13.745708+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:16:14.273971+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T17:16:14.294940+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:16:14.823954+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T17:16:14.835697+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:16:15.434460+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T17:16:15.443669+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:16:15.993006+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T17:16:16.008637+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:16:16.531401+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T17:16:16.546249+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:16:16.565773+00:00", "event": "camera_select", "camera": "front"}
+{"t": "2026-10-14T17:16:16.566094+00:00", "event": "command", "method": "app_open_gripper", "params": []}
+{"t": "2026-10-14T17:16:17.069506+00:00", "event": "reply", "method": "app_open_gripper", "dispatch": "unknown", "response": "transport_error", "transportReason": "timeout"}
+{"t": "2026-10-14T17:16:17.071216+00:00", "event": "command", "method": "app_arm_in_compartment", "params": []}
+{"t": "2026-10-14T17:16:17.085591+00:00", "event": "reply", "method": "app_arm_in_compartment", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:16:17.087131+00:00", "event": "stow_estimate", "state": "IN_ROBOT", "physical_completion": "unverified"}
+{"t": "2026-10-14T17:16:17.087260+00:00", "event": "failure", "error": "ValueError", "reason": "unsafe joint endpoint", "log_dir": "/Users/mpentax/Code/RoboRockZ70-Connector/calibration/pickup/20261014T171602.699431Z-ros"}

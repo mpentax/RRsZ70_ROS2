@@ -1,0 +1,4 @@
+uint8 scope
+---
+z70_interfaces/CommandOutcome[] outcomes
+bool cessation_observed

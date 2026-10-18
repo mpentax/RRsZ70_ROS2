@@ -1,0 +1,82 @@
+{
+  "fixed": {
+    "T_F_W": [
+      [
+        0.9997010573388174,
+        -0.024177554174513803,
+        -0.003638932506792489,
+        -0.07621845548542835
+      ],
+      [
+        0.0029443729085151474,
+        -0.028701203653282825,
+        0.9995836991353093,
+        0.07160804147881801
+      ],
+      [
+        -0.024271930780762847,
+        -0.9992955952985039,
+        -0.028621435903577963,
+        0.4688738924887792
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "success": true,
+    "positive_depth": true,
+    "floor_errors": {
+      "n": 56,
+      "rms_px": 2.0793708937369457,
+      "p95_px": 4.190837799160356,
+      "max_px": 4.726764434978597
+    },
+    "training_floor_files": [
+      "/Users/mpentax/Code/RoboRockZ70-Connector/calibration/arm-calibration/20261015T094801Z-prospective-pitch-roll-resume/raw/000-preflight-front.jpg",
+      "/Users/mpentax/Code/RoboRockZ70-Connector/calibration/arm-calibration/20261015T094801Z-prospective-pitch-roll-resume/raw/001-preflight-front.jpg"
+    ]
+  },
+  "fcyk1": {
+    "T_F_W": [
+      [
+        0.9997025643398134,
+        -0.024110793114282797,
+        -0.003667766050563036,
+        -0.07625412089367066
+      ],
+      [
+        0.0025670299367829153,
+        -0.0455266865264079,
+        0.9989598246031869,
+        0.07977563660203593
+      ],
+      [
+        -0.02425269489572385,
+        -0.9986721135935089,
+        -0.04545125213862078,
+        0.46929495864951454
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "success": true,
+    "positive_depth": true,
+    "floor_errors": {
+      "n": 56,
+      "rms_px": 2.090229893810475,
+      "p95_px": 4.220023509424635,
+      "max_px": 4.782256631929657
+    },
+    "training_floor_files": [
+      "/Users/mpentax/Code/RoboRockZ70-Connector/calibration/arm-calibration/20261015T094801Z-prospective-pitch-roll-resume/raw/000-preflight-front.jpg",
+      "/Users/mpentax/Code/RoboRockZ70-Connector/calibration/arm-calibration/20261015T094801Z-prospective-pitch-roll-resume/raw/001-preflight-front.jpg"
+    ]
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "cameraSchema": {
+    "type": "string",
+    "enum": [
+      "front",
+      "left",
+      "right",
+      "back",
+      "gripper",
+      "depth",
+      "ir",
+      "structured-light"
+    ]
+  },
+  "unsupportedLeft": {
+    "status": 422,
+    "physicalCompletion": "unverified"
+  },
+  "childClosedInFinally": true
+}

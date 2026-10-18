@@ -1,0 +1,127 @@
+{
+  "device": {
+    "id": "4TbGV7GUIHteqlhnVcKHZ2",
+    "name": "Saros Z70",
+    "model": "roborock.vacuum.a179",
+    "cloudProtocolVersion": "1.0",
+    "localProtocol": "L01"
+  },
+  "connection": {
+    "state": "connected",
+    "stage": "ready",
+    "protocol": "L01",
+    "connectedAt": 1792040319280,
+    "lastReceivedAt": 1792065809302
+  },
+  "telemetry": {
+    "status": {
+      "value": {
+        "battery": 55,
+        "state": 39,
+        "error_code": 0,
+        "in_cleaning": 0,
+        "in_returning": 0
+      },
+      "observedAt": 1792065810914,
+      "error": null
+    },
+    "arm": {
+      "value": {
+        "data": [
+          0,
+          0,
+          0
+        ]
+      },
+      "observedAt": 1792065810914,
+      "error": null
+    },
+    "camera": {
+      "value": [
+        11685
+      ],
+      "observedAt": 1792065810954,
+      "error": null
+    }
+  },
+  "api": {
+    "rpc": "/api/v1/rpc",
+    "genericVendorRpc": true
+  },
+  "camera": {
+    "configured": true,
+    "pinCached": true,
+    "feedLensVerified": false,
+    "acquisition": {
+      "available": true,
+      "vendorCode": -10013,
+      "attempt": 199,
+      "elapsedMs": 971,
+      "videoTracks": 0,
+      "videoPackets": 0,
+      "videoBytes": 0,
+      "stage": "start_preview",
+      "failure": "rpc_error",
+      "vendorReason": "unknown",
+      "mqtt": "ok",
+      "pin": "ok",
+      "turn": "unknown",
+      "pcState": "unknown",
+      "iceState": "unknown",
+      "dtlsState": "unknown",
+      "localCandidateType": "unknown",
+      "remoteCandidateType": "unknown",
+      "candidateProtocol": "unknown",
+      "readerExit": "none"
+    },
+    "streamDiagnostics": {
+      "z70": {
+        "available": true,
+        "producers": [
+          {}
+        ],
+        "consumers": []
+      },
+      "z70_jpeg": {
+        "available": true,
+        "producers": [
+          {}
+        ],
+        "consumers": []
+      }
+    },
+    "sourceAudit": {
+      "available": true,
+      "brokerMatches": true,
+      "accountMatches": true,
+      "deviceMatches": true,
+      "pinMatches": true
+    }
+  },
+  "chassisCalibration": {
+    "n": 15,
+    "updated_at": 1792043379.636437,
+    "yaw_positive": {
+      "gain": 0.69655616543949,
+      "sigma": 0.01935267898042059,
+      "n": 6
+    },
+    "yaw_negative": {
+      "gain": 0.6638473454494005,
+      "sigma": 0.0330444801998636,
+      "n": 4
+    },
+    "forward": {
+      "gain": 0.8242402378637975,
+      "sigma": 0.08520599001471324,
+      "n": 5
+    },
+    "camera_x": {
+      "value_m": 0.27118174294863695,
+      "sigma_m": 0.012472010653075231,
+      "n": 15,
+      "residual_rms_m": 0.005248760049778411,
+      "ready": false
+    }
+  }
+}

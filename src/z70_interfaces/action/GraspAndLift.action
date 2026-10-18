@@ -1,0 +1,11 @@
+uint8 lift_steps
+string<=32 verify_color
+---
+z70_interfaces/CommandOutcome outcome
+z70_interfaces/ArmEstimate estimate
+bool verified_hold
+---
+uint8 phase
+string<=64 reason
+z70_interfaces/CommandOutcome latest_outcome
+z70_interfaces/EvidenceStamp latest_observation

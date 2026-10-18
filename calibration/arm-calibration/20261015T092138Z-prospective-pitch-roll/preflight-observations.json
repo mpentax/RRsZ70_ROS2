@@ -1,0 +1,12 @@
+{
+  "frame": "raw/000-preflight-front.jpg",
+  "dimensions": [
+    1600,
+    1200
+  ],
+  "ids": [],
+  "rawCorners": [],
+  "floorBoardVisible": false,
+  "marker68Visible": false,
+  "visionAssessment": "No ChArUco board visible; no observed route to prior station; no motion authorized by this image"
+}

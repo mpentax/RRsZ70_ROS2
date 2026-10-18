@@ -1,0 +1,7 @@
+# Separate from Stop: suspend acquisition/control until an explicit resume.
+bool enabled
+---
+bool enabled
+bool streams_released
+bool cessation_observed
+z70_interfaces/CommandOutcome[] outcomes

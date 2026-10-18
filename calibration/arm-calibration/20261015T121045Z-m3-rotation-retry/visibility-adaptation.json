@@ -1,0 +1,4 @@
+{
+  "reason": "230 marker cropped at top in configurations75/85/105; model ground/reach bounds preclude260105. Acquire visible240/250 at105 and115 plus wider G-only arc if valid. Do not force forbidden target.",
+  "prospective_remaining_holdouts": "A105 reverse excluded from training; entire C115 forward/return excluded from training. Only A105 forward 240->250 trains axis/gain; single training sample SD unavailable. Existing B75 observational only."
+}

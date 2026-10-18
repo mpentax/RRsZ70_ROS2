@@ -1,0 +1,296 @@
+[
+  {
+    "fixed_L1_m": 0.16,
+    "translation_rms_m": 0.0017200608317439,
+    "constraint_error_m": 2.392641640369675e-11,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.161,
+    "translation_rms_m": 0.0016429910884110765,
+    "constraint_error_m": 2.2727542070555273e-11,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.162,
+    "translation_rms_m": 0.0015663815676795255,
+    "constraint_error_m": 2.1528751004140645e-11,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.163,
+    "translation_rms_m": 0.001490303244914741,
+    "constraint_error_m": 2.0329821159847938e-11,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.164,
+    "translation_rms_m": 0.001414841812822138,
+    "constraint_error_m": 1.9131002337857694e-11,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.165,
+    "translation_rms_m": 0.0013401014872335246,
+    "constraint_error_m": 1.7931961471262525e-11,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.166,
+    "translation_rms_m": 0.001266209968421628,
+    "constraint_error_m": 1.673314264927228e-11,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.167,
+    "translation_rms_m": 0.0011933249429405951,
+    "constraint_error_m": 1.5534740160916272e-11,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.168,
+    "translation_rms_m": 0.001121642635614111,
+    "constraint_error_m": 1.43353384718381e-11,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.169,
+    "translation_rms_m": 0.0010514090697152608,
+    "constraint_error_m": 1.3136824961179627e-11,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.17,
+    "translation_rms_m": 0.0009829348447383598,
+    "constraint_error_m": 1.1937756339008843e-11,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.171,
+    "translation_rms_m": 0.0009166143318709184,
+    "constraint_error_m": 1.0738909761442983e-11,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.17200000000000001,
+    "translation_rms_m": 0.00085295006011522,
+    "constraint_error_m": 9.53995216157466e-12,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.17300000000000001,
+    "translation_rms_m": 0.0007925823767779279,
+    "constraint_error_m": 8.341022317281954e-12,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.17400000000000002,
+    "translation_rms_m": 0.000736322544932812,
+    "constraint_error_m": 7.142147984140479e-12,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.17500000000000002,
+    "translation_rms_m": 0.0006851831898424626,
+    "constraint_error_m": 5.94310711754531e-12,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.17600000000000002,
+    "translation_rms_m": 0.0006403921957503703,
+    "constraint_error_m": 4.7442327844038346e-12,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.17700000000000002,
+    "translation_rms_m": 0.0006033650407358557,
+    "constraint_error_m": 3.545302940111128e-12,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.17800000000000002,
+    "translation_rms_m": 0.000575601969815335,
+    "constraint_error_m": 2.346345340242806e-12,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.17900000000000002,
+    "translation_rms_m": 0.0005584862846993341,
+    "constraint_error_m": 1.1475265182525618e-12,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.18000000000000002,
+    "translation_rms_m": 0.0005530074863942507,
+    "constraint_error_m": -5.132005931329786e-14,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.18100000000000002,
+    "translation_rms_m": 0.0005595075308588209,
+    "constraint_error_m": -1.2502221480303888e-12,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.18200000000000002,
+    "translation_rms_m": 0.0005775821339309095,
+    "constraint_error_m": -2.449179747898711e-12,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.18300000000000002,
+    "translation_rms_m": 0.0006061968434868426,
+    "constraint_error_m": -3.648054081040186e-12,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.18400000000000002,
+    "translation_rms_m": 0.0006439480972402969,
+    "constraint_error_m": -4.8470116809085084e-12,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.18500000000000003,
+    "translation_rms_m": 0.0006893364476756782,
+    "constraint_error_m": -6.0458305028987525e-12,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.18600000000000003,
+    "translation_rms_m": 0.0007409597637642402,
+    "constraint_error_m": -7.244677080464612e-12,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.18700000000000003,
+    "translation_rms_m": 0.0007976083325854096,
+    "constraint_error_m": -8.443579169181703e-12,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.18800000000000003,
+    "translation_rms_m": 0.0008582877024462431,
+    "constraint_error_m": -9.642453502323178e-12,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.18900000000000003,
+    "translation_rms_m": 0.0009222025566001664,
+    "constraint_error_m": -1.0841300079889038e-11,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.19000000000000003,
+    "translation_rms_m": 0.0009887256332764562,
+    "constraint_error_m": -1.204006339072805e-11,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.19100000000000003,
+    "translation_rms_m": 0.0010573647656625259,
+    "constraint_error_m": -1.323890996829391e-11,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.19200000000000003,
+    "translation_rms_m": 0.0011277336408477754,
+    "constraint_error_m": -1.4437728790284154e-11,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.19300000000000003,
+    "translation_rms_m": 0.001199527877543292,
+    "constraint_error_m": -1.5636630879001245e-11,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.19400000000000003,
+    "translation_rms_m": 0.0012725062438258305,
+    "constraint_error_m": -1.683589379020134e-11,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.19500000000000003,
+    "translation_rms_m": 0.0013464762156891205,
+    "constraint_error_m": -1.8034712612191584e-11,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.19600000000000004,
+    "translation_rms_m": 0.00142128297869416,
+    "constraint_error_m": -1.9233559189757443e-11,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.19700000000000004,
+    "translation_rms_m": 0.001496801075261311,
+    "constraint_error_m": -2.043248903405015e-11,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.19800000000000004,
+    "translation_rms_m": 0.0015729280528840235,
+    "constraint_error_m": -2.1631474389494088e-11,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.19900000000000004,
+    "translation_rms_m": 0.0016495796153760183,
+    "constraint_error_m": -2.2830265455908716e-11,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.20000000000000004,
+    "translation_rms_m": 0.001726685901560266,
+    "constraint_error_m": -2.4029195300201422e-11,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  },
+  {
+    "fixed_L1_m": 0.20100000000000004,
+    "translation_rms_m": 0.0018041886112871498,
+    "constraint_error_m": -2.5228069633342898e-11,
+    "success": true,
+    "scope": "conditional SE3 translation profile with observed rotations and axis directions frozen; not full pixel joint-bundle profile or systematic confidence"
+  }
+]

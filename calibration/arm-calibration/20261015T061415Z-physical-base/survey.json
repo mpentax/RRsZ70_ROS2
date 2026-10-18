@@ -1,0 +1,10 @@
+{
+  "black_marker_side_m": 0.015,
+  "side_source": "owner confirms snippet from 20/15 mm dense A4 legacy board",
+  "physical_scale_tolerance": null,
+  "pedestal_landmarks": null,
+  "bumper_landmarks": null,
+  "independent_shoulder_survey": null,
+  "remount_session": null,
+  "multi_tilt_full_intrinsics": null
+}

@@ -1,0 +1,46 @@
+{
+  "verified": true,
+  "source": "Actual Foxglove bridge WebSocket latched robot_description and fetchAsset responses",
+  "websocket": "ws://127.0.0.1:8765",
+  "simulated_pose": true,
+  "robot_access": false,
+  "capabilities": [
+    "clientPublish",
+    "connectionGraph",
+    "parameters",
+    "parametersSubscribe",
+    "services",
+    "assets"
+  ],
+  "description_sha256": "cb7d81d40e19cd8927aef77c094155618afe1a226551c3f1038b6217ed8d8bc4",
+  "assets": [
+    {
+      "uri": "package://z70_description/meshes/pincher_lens.stl",
+      "bytes": 19284,
+      "triangles": 384,
+      "sha256": "39d66825aebea55d294842d73db0b1a5dc1b343be5f8ac88df4f0d504313310b",
+      "matches_source": true
+    },
+    {
+      "uri": "package://z70_description/meshes/pincher_shell.stl",
+      "bytes": 115284,
+      "triangles": 2304,
+      "sha256": "51aa922c22e85d50ebf7f894314f037d09dcf78758f80cff82df03c759c06931",
+      "matches_source": true
+    },
+    {
+      "uri": "package://z70_description/meshes/pincher_finger_left.stl",
+      "bytes": 96084,
+      "triangles": 1920,
+      "sha256": "91d2cd4c4332e76a9ff939004505d5f5a630147fcdedb317223858db616e3ea2",
+      "matches_source": true
+    },
+    {
+      "uri": "package://z70_description/meshes/pincher_finger_right.stl",
+      "bytes": 96084,
+      "triangles": 1920,
+      "sha256": "4af43d3954f42dde1d7eb64066a01ecec934d0df6e4b7df430a71ecfe290c1a6",
+      "matches_source": true
+    }
+  ]
+}

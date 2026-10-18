@@ -1,0 +1,1611 @@
+new N_M3_55 span 39.33 rms 1.862
+new N_M3_45_reverse span 20.12 rms 1.725
+new N_M3_45_forward span 19.44 rms 1.261
+new N_M3_45_roll40 span 19.8 rms 1.873
+new N_M4_200_forward span 19.3 rms 1.281
+new N_M4_220_reverse span 19.2 rms 1.287
+new N_M4_230_reverse span 20.19 rms 2.138
+new N_M5_20065_forward span 37.7 rms 1.796
+new N_M5_20065_reverse span 37.46 rms 1.899
+new N_M5_21045 span 38.16 rms 2.406
+new N_M5_23055_reverse span 38.25 rms 3.322
+new O_D_M3_45 span 29.99 rms 1.758
+new O_D_M3_85 span 39.36 rms 2.012
+new O_D_M3_95 span 30.07 rms 2.106
+new O_D_M4_190 span 39.26 rms 1.73
+new O_D_M4_210 span 29.69 rms 1.791
+new O_D_M5_20065 span 38.63 rms 2.653
+new O_B_M5_19055 span 38.71 rms 2.943
+new O_B_M3_45 span 29.77 rms 2.571
+new O_B_M3_75 span 30.26 rms 2.722
+new O_A_M3_45 span 29.89 rms 2.57
+new O_A_M4_200 span 38.99 rms 2.61
+old N_M3_55 span 38.98 rms 2.412
+old N_M3_45_reverse span 19.98 rms 1.919
+old N_M3_45_forward span 19.38 rms 1.273
+old N_M3_45_roll40 span 19.34 rms 2.045
+old N_M4_200_forward span 19.29 rms 1.29
+old N_M4_220_reverse span 19.28 rms 1.337
+old N_M4_230_reverse span 20.27 rms 3.471
+old N_M5_20065_forward span 38.04 rms 4.239
+old N_M5_20065_reverse span 37.83 rms 4.286
+old N_M5_21045 span 38.14 rms 2.535
+old N_M5_23055_reverse span 38.16 rms 4.041
+old O_D_M3_45 span 29.52 rms 1.818
+old O_D_M3_85 span 39.05 rms 2.708
+old O_D_M3_95 span 29.58 rms 2.706
+old O_D_M4_190 span 38.66 rms 1.872
+old O_D_M4_210 span 29.27 rms 2.317
+old O_D_M5_20065 span 38.6 rms 2.79
+old O_B_M5_19055 span 38.85 rms 4.023
+old O_B_M3_45 span 28.6 rms 7.299
+old O_B_M3_75 span 29.28 rms 7.315
+old O_A_M3_45 span 28.49 rms 7.323
+old O_A_M4_200 span 36.06 rms 6.949
+{
+  "primary_L1_station_m": 0.1799248893656069,
+  "new_link_checks": {
+    "N_M3_55__N_M4_200_forward": {
+      "pixel": {
+        "separation_m": 0.1799248893656069,
+        "shoulder_point_m": [
+          0.07282503377274196,
+          0.5298854772365131,
+          -0.1263169167387941
+        ],
+        "elbow_point_m": [
+          0.07719125226398371,
+          0.44932621141434925,
+          -0.2871401322255719
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          0.997705089461898,
+          0.06738048068395146,
+          -0.006665229525380564
+        ],
+        "axis_nonparallel_deg": 0.1577456562842826,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      },
+      "model_free": {
+        "separation_m": 0.17995714115642275,
+        "shoulder_point_m": [
+          0.07162108165134655,
+          0.5313097079772724,
+          -0.12724979000650308
+        ],
+        "elbow_point_m": [
+          0.07677595296863651,
+          0.4497478541411646,
+          -0.28757964983838913
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          0.9974666738285767,
+          0.07101946762102244,
+          -0.004058302623321399
+        ],
+        "axis_nonparallel_deg": 0.35111172592945245,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      },
+      "position_circle": {
+        "separation_m": 0.18945219773139524,
+        "shoulder_point_m": [
+          0.0422964434607718,
+          0.5438583068558821,
+          -0.12422882769333332
+        ],
+        "elbow_point_m": [
+          0.048984320727917696,
+          0.446225051037095,
+          -0.2864482928667167
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          -0.9908003324938418,
+          -0.13005381680389072,
+          0.037426005194683344
+        ],
+        "axis_nonparallel_deg": 7.455688047345599,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      }
+    },
+    "N_M3_55__N_M4_220_reverse": {
+      "pixel": {
+        "separation_m": 0.17859950421013918,
+        "shoulder_point_m": [
+          0.07414527472669086,
+          0.529972825394325,
+          -0.12632553933660728
+        ],
+        "elbow_point_m": [
+          0.08099244588304631,
+          0.4087667870551575,
+          -0.2573217050109787
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          0.9979316782601485,
+          0.06390482993647036,
+          -0.006966938759185878
+        ],
+        "axis_nonparallel_deg": 0.24773403585664905,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      },
+      "model_free": {
+        "separation_m": 0.1798637153814547,
+        "shoulder_point_m": [
+          0.0721129704257094,
+          0.5313460966880068,
+          -0.12725113855851816
+        ],
+        "elbow_point_m": [
+          0.0796517271125139,
+          0.4119806788864952,
+          -0.26158661522610843
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          0.9975820315499265,
+          0.06927512146300628,
+          -0.005572062006758056
+        ],
+        "axis_nonparallel_deg": 0.6107360612532916,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      },
+      "position_circle": {
+        "separation_m": 0.18085293747317108,
+        "shoulder_point_m": [
+          0.06685130143331716,
+          0.5456314876916166,
+          -0.12444480397882902
+        ],
+        "elbow_point_m": [
+          0.07205001571000118,
+          0.4480215318114104,
+          -0.2766060831388319
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          -0.9969301733164879,
+          -0.07680451763823094,
+          0.015208405620442815
+        ],
+        "axis_nonparallel_deg": 0.9201329914914601,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      }
+    },
+    "N_M3_55__N_M4_230_reverse": {
+      "pixel": {
+        "separation_m": 0.18042402949606154,
+        "shoulder_point_m": [
+          0.07236204171673508,
+          0.5298548453256844,
+          -0.12631389290115472
+        ],
+        "elbow_point_m": [
+          0.08166730861704097,
+          0.37915458478062264,
+          -0.2250847079183462
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          0.9976616397538995,
+          0.06770860819983447,
+          -0.00931648749270228
+        ],
+        "axis_nonparallel_deg": 0.37528421672212686,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      },
+      "model_free": {
+        "separation_m": 0.18149138039875518,
+        "shoulder_point_m": [
+          0.06874116826822184,
+          0.5310966591326945,
+          -0.12724189449597625
+        ],
+        "elbow_point_m": [
+          0.0805338437925133,
+          0.3787670732655786,
+          -0.22519979990731806
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          0.9968842292773099,
+          0.07883625031315639,
+          -0.0025843867251513423
+        ],
+        "axis_nonparallel_deg": 0.5818487908794111,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      },
+      "position_circle": {
+        "separation_m": 0.19521669263917826,
+        "shoulder_point_m": [
+          0.06604926482493133,
+          0.5455735701933709,
+          -0.12443774953413607
+        ],
+        "elbow_point_m": [
+          0.0755398930134391,
+          0.3802820555950133,
+          -0.22786985414072247
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          -0.99680096719883,
+          -0.07481987953363677,
+          0.028103690470273647
+        ],
+        "axis_nonparallel_deg": 2.2392298131789197,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      }
+    },
+    "N_M3_45_forward__N_M4_200_forward": {
+      "pixel": {
+        "separation_m": 0.1815106091230152,
+        "shoulder_point_m": [
+          0.07293168564427055,
+          0.5345801676380761,
+          -0.1269531074278196
+        ],
+        "elbow_point_m": [
+          0.07738254792188552,
+          0.44933939367927705,
+          -0.28714143878843595
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          -0.9977880929556375,
+          -0.06605866196435689,
+          0.007427969805467091
+        ],
+        "axis_nonparallel_deg": 0.31651597934674175,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      },
+      "model_free": {
+        "separation_m": 0.18302309874213346,
+        "shoulder_point_m": [
+          0.07085909043488375,
+          0.5417811553951714,
+          -0.12948943217311187
+        ],
+        "elbow_point_m": [
+          0.07615688884564047,
+          0.4497054957775106,
+          -0.2875763099054031
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          -0.9975210175875069,
+          -0.0699859862924409,
+          0.007333566244257154
+        ],
+        "axis_nonparallel_deg": 0.29868936069525776,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      },
+      "position_circle": {
+        "separation_m": 0.3205278385093886,
+        "shoulder_point_m": [
+          0.01504304742145629,
+          0.6711024474589444,
+          -0.06050545581679275
+        ],
+        "elbow_point_m": [
+          0.044471815610955034,
+          0.44536156820113293,
+          -0.28614476598738253
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          -0.9875681239885369,
+          -0.1549840904139592,
+          0.02625132759156303
+        ],
+        "axis_nonparallel_deg": 5.943814972728705,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      }
+    },
+    "N_M3_45_forward__N_M4_220_reverse": {
+      "pixel": {
+        "separation_m": 0.1813525326883882,
+        "shoulder_point_m": [
+          0.07426820213753904,
+          0.5346650373958919,
+          -0.12696387786399752
+        ],
+        "elbow_point_m": [
+          0.08115270559706711,
+          0.4087767094313697,
+          -0.257322895990499
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          -0.9980098490157644,
+          -0.0625826963182017,
+          0.007729643528305435
+        ],
+        "axis_nonparallel_deg": 0.09735827562178032,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      },
+      "model_free": {
+        "separation_m": 0.18540203661217555,
+        "shoulder_point_m": [
+          0.07136595034458516,
+          0.5418175971371342,
+          -0.12949415052212865
+        ],
+        "elbow_point_m": [
+          0.07907837648289745,
+          0.4119434619839673,
+          -0.26158178310451885
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          -0.9976296246519557,
+          -0.06824117077752316,
+          0.008847294937480743
+        ],
+        "axis_nonparallel_deg": 0.4015175585544026,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      },
+      "position_circle": {
+        "separation_m": 0.3145283533395049,
+        "shoulder_point_m": [
+          0.04500812609948632,
+          0.6747865534663416,
+          -0.06009817308789354
+        ],
+        "elbow_point_m": [
+          0.06737373683370514,
+          0.4476386683797391,
+          -0.27650451036023277
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          -0.9947928619900555,
+          -0.10183578363275382,
+          0.004078591121650699
+        ],
+        "axis_nonparallel_deg": 3.077996115352759,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      }
+    },
+    "N_M3_45_forward__N_M4_230_reverse": {
+      "pixel": {
+        "separation_m": 0.18401910730375448,
+        "shoulder_point_m": [
+          0.0724654039348496,
+          0.5345505584144326,
+          -0.12694934985549067
+        ],
+        "elbow_point_m": [
+          0.08181290489884485,
+          0.3791647145437507,
+          -0.22508647638360388
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          -0.9977430621512471,
+          -0.06638667936760907,
+          0.01007922276740559
+        ],
+        "axis_nonparallel_deg": 0.4177481360719741,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      },
+      "model_free": {
+        "separation_m": 0.1892899748961043,
+        "shoulder_point_m": [
+          0.067899996724246,
+          0.5415684052301194,
+          -0.12946188602745534
+        ],
+        "elbow_point_m": [
+          0.08004578204986622,
+          0.37872598242737576,
+          -0.2251986074603738
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          -0.996951472576159,
+          -0.07780375698216536,
+          0.005859754917070218
+        ],
+        "axis_nonparallel_deg": 0.8026579184746508,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      },
+      "position_circle": {
+        "separation_m": 0.3401788738374175,
+        "shoulder_point_m": [
+          0.04528360132601869,
+          0.6748204222222979,
+          -0.060094428852705245
+        ],
+        "elbow_point_m": [
+          0.07201927600264633,
+          0.3800077598460976,
+          -0.22770219719157336
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          -0.9948552301147893,
+          -0.09987373782124084,
+          0.016979623283917576
+        ],
+        "axis_nonparallel_deg": 4.325244024756856,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      }
+    },
+    "N_M3_45_reverse__N_M4_200_forward": {
+      "pixel": {
+        "separation_m": 0.178730312593166,
+        "shoulder_point_m": [
+          0.07281506279009287,
+          0.5238558274816225,
+          -0.1247491833668187
+        ],
+        "elbow_point_m": [
+          0.07694905710137942,
+          0.4493095216429624,
+          -0.2871384780154932
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          0.9976211727976695,
+          0.06866222428030325,
+          -0.00612327875275821
+        ],
+        "axis_nonparallel_deg": 0.07970857963390912,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      },
+      "model_free": {
+        "separation_m": 0.17896429861986435,
+        "shoulder_point_m": [
+          0.07093341292053627,
+          0.5230764393626869,
+          -0.1244292128478699
+        ],
+        "elbow_point_m": [
+          0.07642930781367849,
+          0.44972413556180074,
+          -0.28757777964183845
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          0.9971427819145707,
+          0.07553895523267022,
+          -0.0003724486911809675
+        ],
+        "axis_nonparallel_deg": 1.014028255453389,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      },
+      "position_circle": {
+        "separation_m": 0.18849986707227015,
+        "shoulder_point_m": [
+          0.04249311694068787,
+          0.5427327100001659,
+          -0.12466242597981457
+        ],
+        "elbow_point_m": [
+          0.04838953843035518,
+          0.44611123746973774,
+          -0.28640828572877824
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          0.9908241013024248,
+          0.12883869177092278,
+          -0.04084350353482804
+        ],
+        "axis_nonparallel_deg": 7.419111716776995,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      }
+    },
+    "N_M3_45_reverse__N_M4_220_reverse": {
+      "pixel": {
+        "separation_m": 0.17574612461153985,
+        "shoulder_point_m": [
+          0.07411465994289793,
+          0.5239451637083249,
+          -0.12475626058641391
+        ],
+        "elbow_point_m": [
+          0.08078621386251539,
+          0.40875401833341596,
+          -0.25732017238555
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          0.9978523887961446,
+          0.06518688006599073,
+          -0.006425016816313387
+        ],
+        "axis_nonparallel_deg": 0.4057490711074066,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      },
+      "model_free": {
+        "separation_m": 0.17672200007686578,
+        "shoulder_point_m": [
+          0.07141500402336048,
+          0.5231164574958798,
+          -0.12442697169876529
+        ],
+        "elbow_point_m": [
+          0.07938065295221988,
+          0.41196308312557617,
+          -0.26158433064973463
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          0.9972716045363045,
+          0.07379558824243092,
+          -0.0018862506562530364
+        ],
+        "axis_nonparallel_deg": 1.2777048651214613,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      },
+      "position_circle": {
+        "separation_m": 0.1797024480210202,
+        "shoulder_point_m": [
+          0.06699816811553554,
+          0.5444426890998586,
+          -0.12504555097324116
+        ],
+        "elbow_point_m": [
+          0.07148239547124473,
+          0.44797505874206506,
+          -0.2765937539415439
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          0.9969648356267214,
+          0.0755938662393682,
+          -0.018619449797689817
+        ],
+        "axis_nonparallel_deg": 0.771079691543459,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      }
+    },
+    "N_M3_45_reverse__N_M4_230_reverse": {
+      "pixel": {
+        "separation_m": 0.17630541970055716,
+        "shoulder_point_m": [
+          0.07235826582385682,
+          0.5238244265838562,
+          -0.12474669578639155
+        ],
+        "elbow_point_m": [
+          0.08148168097502083,
+          0.3791416698626014,
+          -0.22508245321766487
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          0.997578732930267,
+          0.06899042708580341,
+          -0.008774541341941973
+        ],
+        "axis_nonparallel_deg": 0.38587836116869956,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      },
+      "model_free": {
+        "separation_m": 0.17624909294701924,
+        "shoulder_point_m": [
+          0.06811518934091991,
+          0.5228422571987823,
+          -0.12444232783113063
+        ],
+        "elbow_point_m": [
+          0.08027934221527427,
+          0.3787456462980069,
+          -0.22519917810150628
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          0.996519505883273,
+          0.08335263094269582,
+          0.0011015031041247973
+        ],
+        "axis_nonparallel_deg": 0.4099811462457312,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      },
+      "position_circle": {
+        "separation_m": 0.19388623520526935,
+        "shoulder_point_m": [
+          0.06618609809328396,
+          0.544386022302649,
+          -0.1250328546389337
+        ],
+        "elbow_point_m": [
+          0.07505628011462773,
+          0.38024437669899647,
+          -0.22784682378469814
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          0.9967893945172799,
+          0.07360564043012573,
+          -0.0315136902749533
+        ],
+        "axis_nonparallel_deg": 1.8825195492017903,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      }
+    },
+    "O_D_M3_85__O_D_M4_190": {
+      "pixel": {
+        "separation_m": 0.1789170847248108,
+        "shoulder_point_m": [
+          0.0967952995427091,
+          0.5244690030028396,
+          -0.12559108056452778
+        ],
+        "elbow_point_m": [
+          0.09598496542709326,
+          0.4839843793850458,
+          -0.29986575404169075
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          -0.9999611948415785,
+          -0.006335471291059897,
+          0.006121324572568171
+        ],
+        "axis_nonparallel_deg": 0.1967303934289359,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      },
+      "model_free": {
+        "separation_m": 0.17857262613077995,
+        "shoulder_point_m": [
+          0.09600915232222242,
+          0.5253412958305453,
+          -0.12637523078876467
+        ],
+        "elbow_point_m": [
+          0.09507705479989287,
+          0.48409860090735257,
+          -0.3001174366943092
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          -0.9999418536687026,
+          -0.007975809414509908,
+          0.007257805851802878
+        ],
+        "axis_nonparallel_deg": 0.3727960441765492,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      },
+      "position_circle": {
+        "separation_m": 0.17738881794699085,
+        "shoulder_point_m": [
+          0.1040416321028715,
+          0.5224585390038328,
+          -0.1271348210497702
+        ],
+        "elbow_point_m": [
+          0.1011584841607289,
+          0.4839984892872206,
+          -0.3002801495064459
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          0.9997989073185667,
+          -0.014992490132334587,
+          -0.01331803905355453
+        ],
+        "axis_nonparallel_deg": 2.0026323628497265,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      }
+    },
+    "O_D_M3_85__O_D_M4_210": {
+      "pixel": {
+        "separation_m": 0.1787509214728545,
+        "shoulder_point_m": [
+          0.09661164443947272,
+          0.5244681521769967,
+          -0.12558999636039106
+        ],
+        "elbow_point_m": [
+          0.0962914104256189,
+          0.42801050113824746,
+          -0.2760815606876245
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          -0.9999567988509356,
+          -0.006712278100551143,
+          0.006430066445254787
+        ],
+        "axis_nonparallel_deg": 0.24584442158012088,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      },
+      "model_free": {
+        "separation_m": 0.17869077949053297,
+        "shoulder_point_m": [
+          0.09469882691361402,
+          0.5253315614975573,
+          -0.1263615176610342
+        ],
+        "elbow_point_m": [
+          0.09462709253410133,
+          0.42845557565663495,
+          -0.27651288427640164
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          -0.9999072024850744,
+          -0.011224636064294658,
+          0.0077197126693084785
+        ],
+        "axis_nonparallel_deg": 0.5368262620308913,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      },
+      "position_circle": {
+        "separation_m": 0.17680596209062777,
+        "shoulder_point_m": [
+          0.10588350743080024,
+          0.5224020281659646,
+          -0.12717360979724648
+        ],
+        "elbow_point_m": [
+          0.1018081519052981,
+          0.42533611927559534,
+          -0.27489615052620836
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          0.9996941376028903,
+          -0.020149746016775737,
+          -0.014339420416212317
+        ],
+        "axis_nonparallel_deg": 1.4293058575070747,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      }
+    },
+    "O_D_M3_45__O_D_M4_190": {
+      "pixel": {
+        "separation_m": 0.17809721736193646,
+        "shoulder_point_m": [
+          0.0973948075167955,
+          0.5261113166141803,
+          -0.12682709798247024
+        ],
+        "elbow_point_m": [
+          0.09665169385413687,
+          0.4839897390403987,
+          -0.299869980866584
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          -0.9999726817338233,
+          -0.004941424999177978,
+          0.00549709969376046
+        ],
+        "axis_nonparallel_deg": 0.36777838920707434,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      },
+      "model_free": {
+        "separation_m": 0.17837059397639102,
+        "shoulder_point_m": [
+          0.09786071010000165,
+          0.5260364874583767,
+          -0.12675227060651237
+        ],
+        "elbow_point_m": [
+          0.0975065004463857,
+          0.48411930848786183,
+          -0.3001272787194629
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          -0.9999849072617351,
+          -0.004512566208071226,
+          0.003134006215177222
+        ],
+        "axis_nonparallel_deg": 0.47145621678891797,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      },
+      "position_circle": {
+        "separation_m": 0.17921686936950113,
+        "shoulder_point_m": [
+          0.09850553855720928,
+          0.5268927072521049,
+          -0.12625720086050987
+        ],
+        "elbow_point_m": [
+          0.09838659668724865,
+          0.4839966057092666,
+          -0.3002646621714057
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          0.9999931800608108,
+          0.003368637654888813,
+          -0.0015139723302943964
+        ],
+        "axis_nonparallel_deg": 0.559303962812263,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      }
+    },
+    "O_D_M3_45__O_D_M4_210": {
+      "pixel": {
+        "separation_m": 0.1786090009417273,
+        "shoulder_point_m": [
+          0.09721015063304234,
+          0.5261109760136072,
+          -0.12682623842622737
+        ],
+        "elbow_point_m": [
+          0.09686525792484754,
+          0.4280155466757816,
+          -0.27608555307509425
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          -0.9999690037773481,
+          -0.005318235859079332,
+          0.005805846353900628
+        ],
+        "axis_nonparallel_deg": 0.41935143441705464,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      },
+      "model_free": {
+        "separation_m": 0.17873998951389072,
+        "shoulder_point_m": [
+          0.09654787928151323,
+          0.5260358286085508,
+          -0.12674936005375395
+        ],
+        "elbow_point_m": [
+          0.09676642688569422,
+          0.42848771396756485,
+          -0.2765235281147368
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          -0.9999634136148463,
+          -0.007761485610651441,
+          0.003595938383705379
+        ],
+        "axis_nonparallel_deg": 0.8467776760903942,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      },
+      "position_circle": {
+        "separation_m": 0.1800079905632723,
+        "shoulder_point_m": [
+          0.10037212833077039,
+          0.5269040146941941,
+          -0.12625242361001945
+        ],
+        "elbow_point_m": [
+          0.09981343235025279,
+          0.42535534271858133,
+          -0.27488092607646386
+        ],
+        "station_origin_m": [
+          0.1,
+          0.14,
+          0.0
+        ],
+        "station_plane_normal": [
+          0.9999951823334211,
+          -0.0017894587285964155,
+          -0.002536364998682835
+        ],
+        "axis_nonparallel_deg": 1.0721764080143974,
+        "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+      }
+    }
+  },
+  "pair_accepted": 8,
+  "pair_attempted": 10,
+  "marker_registration": {
+    "new": {
+      "fit": {
+        "T_G_M": [
+          [
+            -0.9997042493157544,
+            0.009572540035688946,
+            -0.022355768322484093,
+            0.0004739716098272676
+          ],
+          [
+            -0.02243223822118341,
+            -0.007957024536152197,
+            0.9997167000950412,
+            0.005513832657738707
+          ],
+          [
+            0.009391942738940083,
+            0.9999225231175642,
+            0.008169404739163515,
+            -0.02808907716271939
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "rms_px": 2.2596432075361026,
+        "success": true,
+        "singular_values": [
+          2832.807566738395,
+          2516.8350791632997,
+          657.640646286691,
+          223.49807197030972,
+          67.60071923971321,
+          48.17014742916127
+        ],
+        "rank": 6,
+        "scaling": "rotation radians, translation/0.1m, residual pixels",
+        "nfev": 13
+      },
+      "train_pairs": [
+        [
+          39,
+          41,
+          42,
+          43
+        ],
+        [
+          44,
+          45,
+          46,
+          47
+        ],
+        [
+          71,
+          72,
+          73,
+          74
+        ],
+        [
+          79,
+          80,
+          81,
+          82
+        ],
+        [
+          83,
+          84,
+          85,
+          86
+        ]
+      ],
+      "heldout": [
+        {
+          "nominal": [
+            250,
+            45,
+            0
+          ],
+          "front_file": "raw/048-pair25045-Fbefore.jpg",
+          "G_file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/050-pair25045-G2.jpg",
+          "pixel_errors": {
+            "n": 4,
+            "rms": 7.155552758052301,
+            "median": 7.35790013027446,
+            "p95": 7.743812372666752,
+            "max": 7.791796088977694
+          },
+          "marker_translation_disagreement_m": 0.0009583087446238338,
+          "marker_orientation_disagreement_deg": 3.6846754760890073,
+          "predicted_px": [
+            [
+              632.1661002126154,
+              196.6801218971829
+            ],
+            [
+              494.9662423762492,
+              200.47008359422622
+            ],
+            [
+              477.2635191541956,
+              45.10754442654363
+            ],
+            [
+              622.2994592997509,
+              38.02438617889337
+            ]
+          ],
+          "independent_marker_pixels_heldout": true
+        },
+        {
+          "nominal": [
+            250,
+            55,
+            40
+          ],
+          "front_file": "raw/067-roll40-Fbefore.jpg",
+          "G_file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/069-roll40-G2.jpg",
+          "pixel_errors": {
+            "n": 4,
+            "rms": 2.387008436276437,
+            "median": 2.4452501665684907,
+            "p95": 3.0348166946105084,
+            "max": 3.093246024952966
+          },
+          "marker_translation_disagreement_m": 0.0013181775879110603,
+          "marker_orientation_disagreement_deg": 0.8991832189640241,
+          "predicted_px": [
+            [
+              591.5750947347594,
+              182.36549832334276
+            ],
+            [
+              523.7995574768505,
+              172.377312283836
+            ],
+            [
+              506.74766088304057,
+              53.35725697356767
+            ],
+            [
+              577.7112897664315,
+              53.31157665951465
+            ]
+          ],
+          "independent_marker_pixels_heldout": true
+        },
+        {
+          "nominal": [
+            250,
+            55,
+            20
+          ],
+          "front_file": "raw/075-roll20-Fbefore.jpg",
+          "G_file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/077-roll20-G2.jpg",
+          "pixel_errors": {
+            "n": 4,
+            "rms": 2.505692722460839,
+            "median": 2.3073413789216417,
+            "p95": 3.1513079441049485,
+            "max": 3.25547395155002
+          },
+          "marker_translation_disagreement_m": 0.0019527393843515315,
+          "marker_orientation_disagreement_deg": 0.9767469952421306,
+          "predicted_px": [
+            [
+              625.4948907876677,
+              179.84369324106254
+            ],
+            [
+              528.7861577183885,
+              175.828138755358
+            ],
+            [
+              511.09909070735364,
+              52.249512802074015
+            ],
+            [
+              613.7563613068943,
+              49.79666453446733
+            ]
+          ],
+          "independent_marker_pixels_heldout": true
+        }
+      ],
+      "multistart": [
+        {
+          "T_G_M": [
+            [
+              -0.9997042527731742,
+              0.009572434617028648,
+              -0.022355658852573117,
+              0.0004739714594297786
+            ],
+            [
+              -0.022432134405007804,
+              -0.007957718317714451,
+              0.9997166969022835,
+              0.005513831507471306
+            ],
+            [
+              0.009391822680693255,
+              0.9999225186056564,
+              0.008170094984502458,
+              -0.028089076620335097
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "rms_px": 2.259643329031734,
+          "success": true,
+          "singular_values": [
+            2832.812695820318,
+            2516.830731282106,
+            657.6402021630134,
+            223.49803820806594,
+            67.60059233470471,
+            48.170043621274246
+          ],
+          "rank": 6,
+          "scaling": "rotation radians, translation/0.1m, residual pixels",
+          "nfev": 24
+        },
+        {
+          "T_G_M": [
+            [
+              -0.999704257569015,
+              0.009572299724437152,
+              -0.022355502149813633,
+              0.0004739713022300714
+            ],
+            [
+              -0.02243198456035311,
+              -0.007958566049195292,
+              0.9997166935162806,
+              0.005513830163548686
+            ],
+            [
+              0.009391670089438899,
+              0.9999225131501072,
+              0.008170938043150411,
+              -0.028089075960614825
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "rms_px": 2.259643454003623,
+          "success": true,
+          "singular_values": [
+            2832.8189350719863,
+            2516.8253209632526,
+            657.639743139288,
+            223.49795954365746,
+            67.60044879212357,
+            48.169921470127804
+          ],
+          "rank": 6,
+          "scaling": "rotation radians, translation/0.1m, residual pixels",
+          "nfev": 19
+        }
+      ],
+      "scope": "fixed optical-camera to pincher-ID68 registration; NOT wrist registration, front intrinsic calibration, or independent L1 validation"
+    },
+    "old": {
+      "fit": {
+        "T_G_M": [
+          [
+            -0.9992467058367921,
+            0.00626442598186585,
+            -0.03829853576100875,
+            0.0012881196694060374
+          ],
+          [
+            -0.03838818188792631,
+            -0.014877705012462382,
+            0.9991521412602294,
+            0.006303058470794154
+          ],
+          [
+            0.005689320316085947,
+            0.9998696969408963,
+            0.015106977648129906,
+            -0.026126907550908764
+          ],
+          [
+            0.0,
+            0.0,
+            0.0,
+            1.0
+          ]
+        ],
+        "rms_px": 2.1274550414761664,
+        "success": true,
+        "singular_values": [
+          2601.0571520174854,
+          2339.310788605711,
+          671.3395378799039,
+          210.65037999312722,
+          69.29075606016528,
+          46.038835582900504
+        ],
+        "rank": 6,
+        "scaling": "rotation radians, translation/0.1m, residual pixels",
+        "nfev": 16
+      },
+      "train_pairs": [
+        [
+          39,
+          41,
+          42,
+          43
+        ],
+        [
+          44,
+          45,
+          46,
+          47
+        ],
+        [
+          71,
+          72,
+          73,
+          74
+        ],
+        [
+          79,
+          80,
+          81,
+          82
+        ],
+        [
+          83,
+          84,
+          85,
+          86
+        ]
+      ],
+      "heldout": [
+        {
+          "nominal": [
+            250,
+            45,
+            0
+          ],
+          "front_file": "raw/048-pair25045-Fbefore.jpg",
+          "G_file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/050-pair25045-G2.jpg",
+          "pixel_errors": {
+            "n": 4,
+            "rms": 1.7222785552317672,
+            "median": 1.4510538907568216,
+            "p95": 2.455966032970735,
+            "max": 2.5438656169023037
+          },
+          "marker_translation_disagreement_m": 0.0010705387814105597,
+          "marker_orientation_disagreement_deg": 4.515648146677773,
+          "predicted_px": [
+            [
+              626.2844963607042,
+              196.65498054601716
+            ],
+            [
+              489.15626831441597,
+              201.14312739261564
+            ],
+            [
+              470.40031588733785,
+              45.251694466049265
+            ],
+            [
+              615.3324895465531,
+              36.90206142075339
+            ]
+          ],
+          "independent_marker_pixels_heldout": true
+        },
+        {
+          "nominal": [
+            250,
+            55,
+            40
+          ],
+          "front_file": "raw/067-roll40-Fbefore.jpg",
+          "G_file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/069-roll40-G2.jpg",
+          "pixel_errors": {
+            "n": 4,
+            "rms": 5.733738191262382,
+            "median": 5.921992644900008,
+            "p95": 6.91928155576423,
+            "max": 6.997713972890807
+          },
+          "marker_translation_disagreement_m": 0.002657006627741197,
+          "marker_orientation_disagreement_deg": 1.7458132149273038,
+          "predicted_px": [
+            [
+              585.2394430387877,
+              180.3115928743427
+            ],
+            [
+              518.2455633641857,
+              169.6966617367616
+            ],
+            [
+              500.30848007015857,
+              49.26432319739616
+            ],
+            [
+              570.4124909923262,
+              49.46893881699647
+            ]
+          ],
+          "independent_marker_pixels_heldout": true
+        },
+        {
+          "nominal": [
+            250,
+            55,
+            20
+          ],
+          "front_file": "raw/075-roll20-Fbefore.jpg",
+          "G_file": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/raw/077-roll20-G2.jpg",
+          "pixel_errors": {
+            "n": 4,
+            "rms": 2.6787351006592726,
+            "median": 2.747701182673074,
+            "p95": 3.113472335473938,
+            "max": 3.13910977016227
+          },
+          "marker_translation_disagreement_m": 0.003182915638112926,
+          "marker_orientation_disagreement_deg": 1.9318735933919302,
+          "predicted_px": [
+            [
+              625.4524800691152,
+              181.7659878186681
+            ],
+            [
+              528.7321158249089,
+              176.79928945279877
+            ],
+            [
+              510.9655836271149,
+              52.20783071245885
+            ],
+            [
+              613.7488890564275,
+              50.458715963313196
+            ]
+          ],
+          "independent_marker_pixels_heldout": true
+        }
+      ],
+      "multistart": [
+        {
+          "T_G_M": [
+            [
+              -0.9992467061956276,
+              0.006264536740298549,
+              -0.03829850828189854,
+              0.001288119671187602
+            ],
+            [
+              -0.038388151937938264,
+              -0.014876976255470058,
+              0.9991521532620966,
+              0.006303059154128639
+            ],
+            [
+              0.005689459374929078,
+              0.9998697070903408,
+              0.01510625350963642,
+              -0.02612690776425605
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "rms_px": 2.1274549771659323,
+          "success": true,
+          "singular_values": [
+            2601.059585570046,
+            2339.3054729303294,
+            671.3415430422302,
+            210.65040555354634,
+            69.29084451534644,
+            46.03900929543002
+          ],
+          "rank": 6,
+          "scaling": "rotation radians, translation/0.1m, residual pixels",
+          "nfev": 22
+        },
+        {
+          "T_G_M": [
+            [
+              -0.9992467059568187,
+              0.006264422808244286,
+              -0.03829853314848961,
+              0.00128811967122334
+            ],
+            [
+              -0.038388179335663644,
+              -0.014877723984988288,
+              0.9991521410757818,
+              0.006303058453678543
+            ],
+            [
+              0.005689316456248088,
+              0.999869696678475,
+              0.01510699647033157,
+              -0.02612690754597426
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "rms_px": 2.127455042674391,
+          "success": true,
+          "singular_values": [
+            2601.0570900595626,
+            2339.3109280620047,
+            671.3394949015083,
+            210.65037602640737,
+            69.2907531679766,
+            46.038831400728895
+          ],
+          "rank": 6,
+          "scaling": "rotation radians, translation/0.1m, residual pixels",
+          "nfev": 23
+        }
+      ],
+      "scope": "fixed optical-camera to pincher-ID68 registration; NOT wrist registration, front intrinsic calibration, or independent L1 validation"
+    }
+  },
+  "bootstrap": {
+    "attempted": 1061,
+    "successful": 200,
+    "failed": 861,
+    "L1_station_sigma_m": 0.00042265545057901005,
+    "L1_station_percentile95_m": [
+      0.17946816301670657,
+      0.18108898927401368
+    ]
+  },
+  "effective_radius_m": 0.1567541576258983
+}

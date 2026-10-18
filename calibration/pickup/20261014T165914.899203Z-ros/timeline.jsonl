@@ -1,0 +1,181 @@
+{"t": "2026-10-14T16:59:14.899461+00:00", "event": "start", "color": "yellow", "dry_run": false}
+{"t": "2026-10-14T16:59:15.200342+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": [{"color": "yellow", "pixel": [850.7286325567787, 661.9611356959124], "contact_px": [870.5, 725.0], "bbox": [735, 592, 192, 134], "size_px": 192.0, "area_px": 13671.5, "image_size": [1600, 1200], "position": [0.6144230991263239, -0.03915564751122785, 0.0], "camera": "front", "size_m": 0.08029145135403189}]}
+{"t": "2026-10-14T16:59:15.200572+00:00", "event": "approach", "yaw": -0.10380437929252706, "forward": 0.12434394311242697, "bearing_error_deg": -5.947552828436999, "range_error_m": 0.12434394311242697, "grasp_point": [0.49082904788077447, 0.024720449520556572, 0.0]}
+{"t": "2026-10-14T16:59:15.221034+00:00", "event": "command", "method": "app_rc_start", "params": []}
+{"t": "2026-10-14T16:59:15.236719+00:00", "event": "reply", "method": "app_rc_start", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:20.293289+00:00", "event": "command", "method": "app_rc_move", "params": [{"velocity": 0.0, "omega": -0.22, "duration": 696, "seqnum": 1}]}
+{"t": "2026-10-14T16:59:20.308194+00:00", "event": "reply", "method": "app_rc_move", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:21.709628+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-14T16:59:21.723468+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:21.723607+00:00", "event": "odom_delta", "distance_m": 0.001191072665585854, "yaw_rad": 0.09011756670887339}
+{"t": "2026-10-14T16:59:22.164832+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": [{"color": "yellow", "pixel": [728.3220751559409, 663.7792899326446], "contact_px": [725.0, 724.0], "bbox": [666, 607, 128, 118], "size_px": 128.0, "area_px": 12050.5, "image_size": [1600, 1200], "position": [0.6155966555036289, 0.021582050289645417, 0.0], "camera": "front", "size_m": 0.05347704793400359}, {"color": "yellow", "pixel": [570.6128625472887, 566.0069356872635], "contact_px": [567.5, 596.0], "bbox": [545, 543, 47, 54], "size_px": 54.0, "area_px": 2103.0, "image_size": [1600, 1200], "trimmed_from_h": 97, "trimmed": "top", "position": [1.825488737065501, 0.39722148749188946, 0.0], "camera": "front", "size_m": 0.08814126446015644}]}
+{"t": "2026-10-14T16:59:22.165120+00:00", "event": "approach", "yaw": -0.005098619889785862, "forward": 0.1246495679439022, "bearing_error_deg": -0.29212940102618684, "range_error_m": 0.1246495679439022, "grasp_point": [0.49082904788077447, 0.024720449520556572, 0.0]}
+{"t": "2026-10-14T16:59:22.260878+00:00", "event": "command", "method": "app_rc_move", "params": [{"velocity": 0.07, "omega": 0.0, "duration": 800, "seqnum": 2}]}
+{"t": "2026-10-14T16:59:22.275929+00:00", "event": "reply", "method": "app_rc_move", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:23.778734+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-14T16:59:23.793718+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:23.793956+00:00", "event": "odom_delta", "distance_m": 0.03888858650047365, "yaw_rad": 0.0031192333219631774}
+{"t": "2026-10-14T16:59:23.973336+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": [{"color": "yellow", "pixel": [454.52941176470586, 570.0882352941177], "contact_px": [455.5, 575.0], "bbox": [449, 560, 14, 16], "size_px": 16.0, "area_px": 307.0, "image_size": [1600, 1200], "trimmed_from_h": 33, "trimmed": "top", "position": [3.9253214215432286, 1.4436729782758542, 0.0], "camera": "front", "size_m": 0.06186406599679367}]}
+{"t": "2026-10-14T16:59:23.973574+00:00", "event": "data_gap", "kind": "target_outside_gate", "predicted": [0.5767198775696544, 0.020976161754163943], "seen": [[3.9253214215432286, 1.4436729782758542, 0.0]]}
+{"t": "2026-10-14T16:59:24.641885+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": [{"color": "yellow", "pixel": [725.9408524830942, 662.421498730149], "contact_px": [731.5, 735.0], "bbox": [641, 593, 160, 143], "size_px": 160.0, "area_px": 16340.5, "image_size": [1600, 1200], "position": [0.5939256864162445, 0.017663515151692406, 0.0], "camera": "front", "size_m": 0.06266141451806174}, {"color": "yellow", "pixel": [538.1439240703284, 606.8283802707329], "contact_px": [566.0, 677.0], "bbox": [479, 530, 129, 148], "size_px": 148.0, "area_px": 12966.0, "image_size": [1600, 1200], "trimmed_from_h": 183, "trimmed": "bottom", "position": [0.7505650618530154, 0.12319398194039263, 0.0], "camera": "front", "size_m": 0.07516329682245797}]}
+{"t": "2026-10-14T16:59:24.642176+00:00", "event": "approach", "yaw": -0.011884227292963848, "forward": 0.10284478523638668, "bearing_error_deg": -0.6809160666610119, "range_error_m": 0.10284478523638668, "grasp_point": [0.49082904788077447, 0.024720449520556572, 0.0]}
+{"t": "2026-10-14T16:59:24.666241+00:00", "event": "command", "method": "app_rc_move", "params": [{"velocity": 0.07, "omega": 0.0, "duration": 800, "seqnum": 3}]}
+{"t": "2026-10-14T16:59:24.685687+00:00", "event": "reply", "method": "app_rc_move", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:26.190957+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-14T16:59:26.206527+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:26.206916+00:00", "event": "odom_delta", "distance_m": 0.0366389819826451, "yaw_rad": 0.002372010309711889}
+{"t": "2026-10-14T16:59:26.561099+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": []}
+{"t": "2026-10-14T16:59:26.561363+00:00", "event": "data_gap", "kind": "target_not_visible"}
+{"t": "2026-10-14T16:59:27.152733+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": [{"color": "yellow", "pixel": [722.5485008818342, 667.3956580162928], "contact_px": [676.5, 746.0], "bbox": [640, 592, 168, 155], "size_px": 168.0, "area_px": 19845.0, "image_size": [1600, 1200], "position": [0.5742132816648058, 0.036848842982180545, 0.0], "camera": "front", "size_m": 0.0618044762544942}, {"color": "yellow", "pixel": [547.6877397831527, 602.3663886572143], "contact_px": [529.0, 672.0], "bbox": [495, 543, 113, 130], "size_px": 130.0, "area_px": 13505.5, "image_size": [1600, 1200], "trimmed_from_h": 161, "trimmed": "bottom", "position": [0.7707065846892067, 0.1512045467304036, 0.0], "camera": "front", "size_m": 0.06873873776910278}, {"color": "yellow", "pixel": [759.5, 583.0], "contact_px": [759.5, 590.0], "bbox": [752, 576, 16, 15], "size_px": 16.0, "area_px": 210.0, "image_size": [1600, 1200], "position": [2.176628040630025, 0.04069348823313156, 0.0], "camera": "front", "size_m": 0.036924444420459335}]}
+{"t": "2026-10-14T16:59:27.153051+00:00", "event": "approach", "yaw": 0.021109027865513975, "forward": 0.08403409187067329, "bearing_error_deg": 1.2094582063179995, "range_error_m": 0.08403409187067329, "grasp_point": [0.49082904788077447, 0.024720449520556572, 0.0]}
+{"t": "2026-10-14T16:59:27.288588+00:00", "event": "command", "method": "app_rc_move", "params": [{"velocity": 0.07, "omega": 0.0, "duration": 800, "seqnum": 4}]}
+{"t": "2026-10-14T16:59:27.315095+00:00", "event": "reply", "method": "app_rc_move", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:28.820446+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-14T16:59:28.830952+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:28.831199+00:00", "event": "odom_delta", "distance_m": 0.019725633840999738, "yaw_rad": 0.004892066569221115}
+{"t": "2026-10-14T16:59:28.965133+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": [{"color": "yellow", "pixel": [713.545249123056, 682.887366683821], "contact_px": [708.0, 777.0], "bbox": [616, 591, 200, 187], "size_px": 200.0, "area_px": 28175.5, "image_size": [1600, 1200], "position": [0.5309923212399321, 0.021612608043958374, 0.0], "camera": "front", "size_m": 0.0631290967807044}, {"color": "yellow", "pixel": [424.8053097345133, 569.3761061946902], "contact_px": [424.0, 577.0], "bbox": [417, 561, 15, 17], "size_px": 17.0, "area_px": 593.0, "image_size": [1600, 1200], "trimmed_from_h": 47, "trimmed": "top", "position": [3.48996887384631, 1.3997301259775554, 0.0], "camera": "front", "size_m": 0.05897755806644182}, {"color": "yellow", "pixel": [806.5261324041812, 568.5296167247387], "contact_px": [806.5, 577.0], "bbox": [799, 560, 16, 18], "size_px": 18.0, "area_px": 464.0, "image_size": [1600, 1200], "trimmed_from_h": 32, "trimmed": "top", "position": [3.704904798446429, -0.12236771803252834, 0.0], "camera": "front", "size_m": 0.06715698023901763}]}
+{"t": "2026-10-14T16:59:28.965466+00:00", "event": "approach", "yaw": -0.0058536242028747534, "forward": 0.04002766481836312, "bearing_error_deg": -0.3353879616803541, "range_error_m": 0.04002766481836312, "grasp_point": [0.49082904788077447, 0.024720449520556572, 0.0]}
+{"t": "2026-10-14T16:59:29.077946+00:00", "event": "command", "method": "app_rc_move", "params": [{"velocity": 0.07, "omega": 0.0, "duration": 690, "seqnum": 5}]}
+{"t": "2026-10-14T16:59:29.114161+00:00", "event": "reply", "method": "app_rc_move", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:30.510405+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-14T16:59:30.525854+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:30.526076+00:00", "event": "odom_delta", "distance_m": 0.04665256713686525, "yaw_rad": 0.003763609210774496}
+{"t": "2026-10-14T16:59:30.577662+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": [{"color": "yellow", "pixel": [647.5119643850862, 570.0161380077907], "contact_px": [647.5, 580.0], "bbox": [640, 560, 16, 21], "size_px": 21.0, "area_px": 299.5, "image_size": [1600, 1200], "position": [3.0952023100142925, 0.44516673310662763, 0.0], "camera": "front", "size_m": 0.05403777470809473}]}
+{"t": "2026-10-14T16:59:30.577935+00:00", "event": "data_gap", "kind": "target_outside_gate", "predicted": [0.4842942986613585, 0.021687971310832742], "seen": [[3.0952023100142925, 0.44516673310662763, 0.0]]}
+{"t": "2026-10-14T16:59:31.166402+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": [{"color": "yellow", "pixel": [374.9264705882353, 577.5147058823529], "contact_px": [375.5, 596.0], "bbox": [352, 560, 32, 37], "size_px": 37.0, "area_px": 1346.5, "image_size": [1600, 1200], "trimmed_from_h": 79, "trimmed": "top", "position": [1.7966794405468356, 0.7575898877231141, 0.0], "camera": "front", "size_m": 0.06048618063078902}, {"color": "yellow", "pixel": [647.5, 570.5], "contact_px": [647.5, 580.0], "bbox": [640, 561, 16, 20], "size_px": 20.0, "area_px": 285.0, "image_size": [1600, 1200], "position": [3.0952023100142925, 0.44516673310662763, 0.0], "camera": "front", "size_m": 0.05403777470809473}]}
+{"t": "2026-10-14T16:59:31.166672+00:00", "event": "data_gap", "kind": "target_outside_gate", "predicted": [0.4842942986613585, 0.021687971310832742], "seen": [[1.7966794405468356, 0.7575898877231141, 0.0], [3.0952023100142925, 0.44516673310662763, 0.0]]}
+{"t": "2026-10-14T16:59:31.931566+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": [{"color": "yellow", "pixel": [377.03221083455344, 586.9531478770132], "contact_px": [375.5, 607.0], "bbox": [367, 570, 33, 38], "size_px": 38.0, "area_px": 1089.0, "image_size": [1600, 1200], "trimmed_from_h": 63, "trimmed": "bottom", "position": [1.4418541223836456, 0.5812475237742558, 0.0], "camera": "front", "size_m": 0.04784064906221613}]}
+{"t": "2026-10-14T16:59:31.931896+00:00", "event": "data_gap", "kind": "target_outside_gate", "predicted": [0.4842942986613585, 0.021687971310832742], "seen": [[1.4418541223836456, 0.5812475237742558, 0.0]]}
+{"t": "2026-10-14T16:59:32.572965+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": []}
+{"t": "2026-10-14T16:59:32.573241+00:00", "event": "data_gap", "kind": "target_not_visible"}
+{"t": "2026-10-14T16:59:33.173572+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": [{"color": "yellow", "pixel": [389.75067750677505, 604.5625241966706], "contact_px": [376.0, 646.0], "bbox": [352, 573, 64, 74], "size_px": 74.0, "area_px": 3210.5, "image_size": [1600, 1200], "trimmed_from_h": 103, "trimmed": "bottom", "position": [0.9128704735339761, 0.3180173276023707, 0.0], "camera": "front", "size_m": 0.050814391341004295}]}
+{"t": "2026-10-14T16:59:33.173891+00:00", "event": "data_gap", "kind": "target_outside_gate", "predicted": [0.4842942986613585, 0.021687971310832742], "seen": [[0.9128704735339761, 0.3180173276023707, 0.0]]}
+{"t": "2026-10-14T16:59:33.988487+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": [{"color": "yellow", "pixel": [707.6010716108764, 653.5614548967616], "contact_px": [710.5, 798.0], "bbox": [583, 496, 250, 303], "size_px": 303.0, "area_px": 48649.5, "image_size": [1600, 1200], "position": [0.5079291930385929, 0.01896407686997403, 0.0], "camera": "front", "size_m": 0.07196458312420423}, {"color": "yellow", "pixel": [471.5, 568.5], "contact_px": [471.5, 577.0], "bbox": [464, 560, 16, 18], "size_px": 18.0, "area_px": 690.0, "image_size": [1600, 1200], "trimmed_from_h": 48, "trimmed": "top", "position": [3.50791209124402, 1.2136304659829678, 0.0], "camera": "front", "size_m": 0.06251711245537195}]}
+{"t": "2026-10-14T16:59:33.988789+00:00", "event": "approach", "yaw": -0.011335663395768261, "forward": 0.016852545963111087, "bearing_error_deg": -0.6494856705584563, "range_error_m": 0.016852545963111087, "grasp_point": [0.49082904788077447, 0.024720449520556572, 0.0]}
+{"t": "2026-10-14T16:59:34.083147+00:00", "event": "command", "method": "app_rc_move", "params": [{"velocity": 0.07, "omega": 0.0, "duration": 290, "seqnum": 6}]}
+{"t": "2026-10-14T16:59:34.107652+00:00", "event": "reply", "method": "app_rc_move", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:35.099988+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-14T16:59:35.112998+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:35.113211+00:00", "event": "odom_delta", "distance_m": 0.016791792054586935, "yaw_rad": 0.000907217899804913}
+{"t": "2026-10-14T16:59:35.148930+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": []}
+{"t": "2026-10-14T16:59:35.149173+00:00", "event": "data_gap", "kind": "target_not_visible"}
+{"t": "2026-10-14T16:59:35.971588+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": []}
+{"t": "2026-10-14T16:59:35.971844+00:00", "event": "data_gap", "kind": "target_not_visible"}
+{"t": "2026-10-14T16:59:36.551403+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": []}
+{"t": "2026-10-14T16:59:36.551672+00:00", "event": "data_gap", "kind": "target_not_visible"}
+{"t": "2026-10-14T16:59:37.153396+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": [{"color": "yellow", "pixel": [703.6064595224697, 679.3041442238123], "contact_px": [666.0, 811.0], "bbox": [560, 499, 272, 313], "size_px": 313.0, "area_px": 54148.0, "image_size": [1600, 1200], "trimmed_from_h": 412, "trimmed": "bottom", "position": [0.4952507019624873, 0.030106766914801696, 0.0], "camera": "front", "size_m": 0.07418391292148342}, {"color": "yellow", "pixel": [652.8345705196183, 572.2866737363025], "contact_px": [664.0, 586.0], "bbox": [639, 559, 33, 28], "size_px": 33.0, "area_px": 471.5, "image_size": [1600, 1200], "position": [2.446360929853728, 0.2990261448275466, 0.0], "camera": "front", "size_m": 0.08622230116526151}]}
+{"t": "2026-10-14T16:59:37.153729+00:00", "event": "approach", "yaw": 0.010872562075978191, "forward": 0.004719713174987095, "bearing_error_deg": 0.622951919447547, "range_error_m": 0.004719713174987095, "grasp_point": [0.49082904788077447, 0.024720449520556572, 0.0]}
+{"t": "2026-10-14T16:59:37.153922+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-14T16:59:37.165599+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:37.165836+00:00", "event": "command", "method": "app_rc_end", "params": []}
+{"t": "2026-10-14T16:59:37.178249+00:00", "event": "reply", "method": "app_rc_end", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:37.178463+00:00", "event": "command", "method": "app_pick_up_enter_exit", "params": {"flag": 2}}
+{"t": "2026-10-14T16:59:37.194049+00:00", "event": "reply", "method": "app_pick_up_enter_exit", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:37.194262+00:00", "event": "command", "method": "app_arm_out_compartment", "params": []}
+{"t": "2026-10-14T16:59:37.243631+00:00", "event": "reply", "method": "app_arm_out_compartment", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:37.258128+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T16:59:37.268634+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:37.803593+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T16:59:37.820823+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:38.352665+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T16:59:38.361371+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:38.922495+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T16:59:38.931776+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:39.460537+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T16:59:39.477083+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:40.021977+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T16:59:40.041421+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:40.658776+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T16:59:40.670694+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:41.277652+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T16:59:41.294046+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:41.823657+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T16:59:41.832674+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:42.354716+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T16:59:42.375861+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:42.936442+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T16:59:42.948332+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:43.540195+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T16:59:43.594418+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:44.161780+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T16:59:44.171785+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:44.731589+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T16:59:44.745626+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:45.323148+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T16:59:45.333917+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:45.893691+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T16:59:45.906768+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:46.469059+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T16:59:46.482965+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:47.058361+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T16:59:47.072579+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:47.634838+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T16:59:47.674922+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:48.240299+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T16:59:48.253191+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:48.776922+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T16:59:48.795331+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:49.361701+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T16:59:49.379059+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:49.915796+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T16:59:49.938345+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:50.504177+00:00", "event": "command", "method": "get_status", "params": []}
+{"t": "2026-10-14T16:59:50.515234+00:00", "event": "reply", "method": "get_status", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:50.537195+00:00", "event": "camera_select", "camera": "front"}
+{"t": "2026-10-14T16:59:50.537467+00:00", "event": "command", "method": "app_open_gripper", "params": []}
+{"t": "2026-10-14T16:59:51.041881+00:00", "event": "reply", "method": "app_open_gripper", "dispatch": "unknown", "response": "transport_error", "transportReason": "timeout"}
+{"t": "2026-10-14T16:59:51.310442+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [1, 0, 0]}}
+{"t": "2026-10-14T16:59:51.319464+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:54.195778+00:00", "event": "visual_jog", "state": [160, 45], "changed_pixels": 48023, "marker_change_m": null}
+{"t": "2026-10-14T16:59:54.558489+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [1, 0, 0]}}
+{"t": "2026-10-14T16:59:54.619950+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T16:59:57.400499+00:00", "event": "visual_jog", "state": [170, 45], "changed_pixels": 34368, "marker_change_m": null}
+{"t": "2026-10-14T16:59:57.772975+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [1, 0, 0]}}
+{"t": "2026-10-14T16:59:57.786800+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:00:00.608814+00:00", "event": "visual_jog", "state": [180, 45], "changed_pixels": 63992, "marker_change_m": null}
+{"t": "2026-10-14T17:00:00.943026+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [1, 0, 0]}}
+{"t": "2026-10-14T17:00:00.975667+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:00:03.616235+00:00", "event": "visual_jog", "state": [190, 45], "changed_pixels": 31430, "marker_change_m": null}
+{"t": "2026-10-14T17:00:04.010926+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [0, 1, 0]}}
+{"t": "2026-10-14T17:00:04.021525+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:00:06.778983+00:00", "event": "visual_jog", "state": [190, 55], "changed_pixels": 93918, "marker_change_m": null}
+{"t": "2026-10-14T17:00:07.166968+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [0, 1, 0]}}
+{"t": "2026-10-14T17:00:07.179797+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:00:09.956429+00:00", "event": "visual_jog", "state": [190, 65], "changed_pixels": 54801, "marker_change_m": null}
+{"t": "2026-10-14T17:00:10.377009+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [1, 0, 0]}}
+{"t": "2026-10-14T17:00:10.386910+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:00:13.180742+00:00", "event": "visual_jog", "state": [200, 65], "changed_pixels": 58526, "marker_change_m": null}
+{"t": "2026-10-14T17:00:13.521506+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [1, 0, 0]}}
+{"t": "2026-10-14T17:00:13.535402+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:00:16.126715+00:00", "event": "visual_jog", "state": [210, 65], "changed_pixels": 113296, "marker_change_m": null}
+{"t": "2026-10-14T17:00:16.619630+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [1, 0, 0]}}
+{"t": "2026-10-14T17:00:16.629279+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:00:19.368553+00:00", "event": "visual_jog", "state": [220, 65], "changed_pixels": 157134, "marker_change_m": null}
+{"t": "2026-10-14T17:00:19.767065+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [0, 1, 0]}}
+{"t": "2026-10-14T17:00:19.784790+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:00:22.600067+00:00", "event": "visual_jog", "state": [220, 75], "changed_pixels": 140391, "marker_change_m": null}
+{"t": "2026-10-14T17:00:22.931745+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [1, 0, 0]}}
+{"t": "2026-10-14T17:00:22.946614+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:00:25.539677+00:00", "event": "visual_jog", "state": [230, 75], "changed_pixels": 145754, "marker_change_m": null}
+{"t": "2026-10-14T17:00:25.936548+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [0, 1, 0]}}
+{"t": "2026-10-14T17:00:25.948719+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:00:28.561725+00:00", "event": "visual_jog", "state": [230, 85], "changed_pixels": 101287, "marker_change_m": null}
+{"t": "2026-10-14T17:00:28.981756+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [0, 1, 0]}}
+{"t": "2026-10-14T17:00:28.998408+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:00:31.840449+00:00", "event": "visual_jog", "state": [230, 95], "changed_pixels": 83004, "marker_change_m": null}
+{"t": "2026-10-14T17:00:32.124043+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [1, 0, 0]}}
+{"t": "2026-10-14T17:00:32.138232+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:00:34.973129+00:00", "event": "visual_jog", "state": [240, 95], "changed_pixels": 120089, "marker_change_m": null}
+{"t": "2026-10-14T17:00:35.357211+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [0, 1, 0]}}
+{"t": "2026-10-14T17:00:35.371354+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:00:38.190208+00:00", "event": "visual_jog", "state": [240, 105], "changed_pixels": 167067, "marker_change_m": 0.023212824253707954}
+{"t": "2026-10-14T17:00:38.560803+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [0, 1, 0]}}
+{"t": "2026-10-14T17:00:38.620237+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:00:41.354809+00:00", "event": "visual_jog", "state": [240, 115], "changed_pixels": 141143, "marker_change_m": 0.017311178166930175}
+{"t": "2026-10-14T17:00:41.765183+00:00", "event": "command", "method": "app_arm_move", "params": {"m": [1, 0, 0]}}
+{"t": "2026-10-14T17:00:41.778361+00:00", "event": "reply", "method": "app_arm_move", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:00:44.640644+00:00", "event": "visual_jog", "state": [250, 115], "changed_pixels": 153015, "marker_change_m": 0.045000958958955235}
+{"t": "2026-10-14T17:00:44.951312+00:00", "event": "command", "method": "app_arm_in_compartment", "params": []}
+{"t": "2026-10-14T17:00:44.972153+00:00", "event": "reply", "method": "app_arm_in_compartment", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T17:00:44.973511+00:00", "event": "stow_estimate", "state": "IN_ROBOT", "physical_completion": "unverified"}
+{"t": "2026-10-14T17:00:44.973831+00:00", "event": "failure", "error": "LookupError", "reason": "target missing from jaw measurement frame", "log_dir": "/Users/mpentax/Code/RoboRockZ70-Connector/calibration/pickup/20261014T165914.899203Z-ros"}

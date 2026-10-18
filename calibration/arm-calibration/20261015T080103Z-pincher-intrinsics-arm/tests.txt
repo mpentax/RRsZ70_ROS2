@@ -1,0 +1,14 @@
+test_conditional_axis_distance_profile_minimum (test_arm_analysis.GeometryTest) ... ok
+test_registers_unknown_marker_mount_without_fk (test_arm_analysis.GeometryTest) ... ok
+test_station_separation_not_remote_skew_shortest_distance (test_arm_analysis.GeometryTest) ... ok
+test_all_originals_and_baselines_unchanged (test_artifacts.RealArtifacts) ... ok
+test_camera_identity_and_cleanup_not_filename_or_ack (test_artifacts.RealArtifacts) ... ok
+test_rigid_mount_holdouts_and_anatomical_nulls (test_artifacts.RealArtifacts) ... ok
+test_wholepose_holdouts_and_converged_bootstrap (test_artifacts.RealArtifacts) ... ok
+test_archived_board_without_lens_assumption (test_calibrate.DetectionTest) ... ok
+test_recovers_known_intrinsics_from_independent_plane_views (test_calibrate.SolverTest) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.167s
+
+OK

@@ -1,0 +1,18 @@
+{
+  "state": "IN_ROBOT",
+  "joints": {
+    "m3": 0,
+    "m4": 0,
+    "m5": 0,
+    "m6": 0
+  },
+  "wrist": null,
+  "sigmaDeg": {
+    "m3": 0,
+    "m4": 0,
+    "m5": 0
+  },
+  "stepsSinceAnchor": 0,
+  "anchoredAt": 1791898379171,
+  "updatedAt": 1791898379171
+}

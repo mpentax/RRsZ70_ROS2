@@ -1,0 +1,355 @@
+{
+  "raw": {
+    "031-target1-G1.jpg": {
+      "sha256": "afae2d8cf358f7d4d9ab000e7ce872587b6ec52d3fe3ed98fe660146d0492224",
+      "dimensions": [
+        1600,
+        896
+      ]
+    },
+    "018-route-front.jpg": {
+      "sha256": "b6ec43a271901f574d549aa86bb71b65c6f9e7b36442a2ac9f730f739760f985",
+      "dimensions": [
+        1600,
+        1200
+      ]
+    },
+    "009-route-m4plus-G.jpg": {
+      "sha256": "3f7f2a6276023e02579abce58890f3e04d70d9a6796b63c3efe06862e6286617",
+      "dimensions": [
+        1600,
+        896
+      ]
+    },
+    "017-route-m4minus-G.jpg": {
+      "sha256": "011da529b1ecf91770f8567517a088515f0f3775fa358c1cba198a80ebf2643b",
+      "dimensions": [
+        1600,
+        896
+      ]
+    },
+    "030-target1-Fbefore.jpg": {
+      "sha256": "9bc676387a66cc9e2b96db25fca3ce251ef01584bddf4d84b92ac9aecf3745f6",
+      "dimensions": [
+        1600,
+        1200
+      ]
+    },
+    "046-final-front.jpg": {
+      "sha256": "7fb54ab486f15cf2df81db5ee9bb0bbc23299e8ccd0e5d8ae3be03e7907cbbd1",
+      "dimensions": [
+        1600,
+        1200
+      ]
+    },
+    "004-route160-G.jpg": {
+      "sha256": "b151c8d790da7223adfa2b779bc1cd893cd39730b3694db20542b7377ff01f9b",
+      "dimensions": [
+        1600,
+        896
+      ]
+    },
+    "039-return20-F.jpg": {
+      "sha256": "9b4de9dcff1bdad6c568f91bdf85ed904b0dfa1cc4dbc19225c7fd30f131495c",
+      "dimensions": [
+        1600,
+        1200
+      ]
+    },
+    "011-route-m3plus-G.jpg": {
+      "sha256": "840173b507ebcc33743d43b4f63fdfcd6f2f32d1ec21d62fff3a590c28e4ee37",
+      "dimensions": [
+        1600,
+        896
+      ]
+    },
+    "002-deployed-front.jpg": {
+      "sha256": "af18ba1148bae4b772ba0cc0b4b0bc2cb2d48a21d452b874e5e8debe86782ae1",
+      "dimensions": [
+        1600,
+        1200
+      ]
+    },
+    "043-comparator2-G1.jpg": {
+      "sha256": "4ca1ad96edd8ec35eecf905dbd5ce009d73da21dd25322281e0db3905bfc1f07",
+      "dimensions": [
+        1600,
+        896
+      ]
+    },
+    "032-target1-G2.jpg": {
+      "sha256": "dbbb6fa95c6d8c6ed2ea0537f00e65742a6d3e44d8240154ccebd5a244311df8",
+      "dimensions": [
+        1600,
+        896
+      ]
+    },
+    "024-comparator1-G2.jpg": {
+      "sha256": "6756ef50647872c376f06f18eec8ff3e0de5f220267c395a7fb07e0e9af94c87",
+      "dimensions": [
+        1600,
+        896
+      ]
+    },
+    "022-comparator1-Fbefore.jpg": {
+      "sha256": "d4f64fb131e4bc34c95e33aa507381892c43342a6c03075f0e0270412fb0d699",
+      "dimensions": [
+        1600,
+        1200
+      ]
+    },
+    "028-roll30-F.jpg": {
+      "sha256": "ce81557fdf977565b703a2264d01af31c247973c1a54a391f01a936da19de0c6",
+      "dimensions": [
+        1600,
+        1200
+      ]
+    },
+    "006-route180-G.jpg": {
+      "sha256": "fae4365eb1047cb6f4151ae687150c965cb6df51065e21a1956c88b98256d17a",
+      "dimensions": [
+        1600,
+        896
+      ]
+    },
+    "012-route-m4plus-G.jpg": {
+      "sha256": "cbf68fdb69f0393fab8ec000f0f215ae78c1902981206fa3e42263a4078c07dc",
+      "dimensions": [
+        1600,
+        896
+      ]
+    },
+    "027-roll20-F.jpg": {
+      "sha256": "7ec2c29eb58b1728aee3ffe59e965051513ecea7fd765b43be1be24780a1b73a",
+      "dimensions": [
+        1600,
+        1200
+      ]
+    },
+    "014-route-m3plus-G.jpg": {
+      "sha256": "7e0b19a642d8e7d602cf41d2e79cd8d8fc57fd45d7c056d928adef73244aacae",
+      "dimensions": [
+        1600,
+        896
+      ]
+    },
+    "021-recovered-comparator-G.jpg": {
+      "sha256": "7e93e958f412606436e964d1a3b1b741c97fa9951aa69b744f5d8ba3a9f3fc2e",
+      "dimensions": [
+        1600,
+        896
+      ]
+    },
+    "008-route200-G.jpg": {
+      "sha256": "6621331e41813e91707d1b73f29451436f0434b2590a1eb17daa2986258a76f6",
+      "dimensions": [
+        1600,
+        896
+      ]
+    },
+    "034-target2-Fbefore.jpg": {
+      "sha256": "615e3d8cbf609e16cffaa16394b28cf9bd3a06c571894f9c1b124c93b559cf78",
+      "dimensions": [
+        1600,
+        1200
+      ]
+    },
+    "013-route-m4plus-G.jpg": {
+      "sha256": "a26243f05681b8ee5fe03ba26f371b31d99ffcc8ccc88e9c84c3b09675457c18",
+      "dimensions": [
+        1600,
+        896
+      ]
+    },
+    "029-roll40-F.jpg": {
+      "sha256": "cc63928a038c1eff55f06b9b0dcc4c472da854855d2b396ac701d90811ae8524",
+      "dimensions": [
+        1600,
+        1200
+      ]
+    },
+    "033-target1-Fafter.jpg": {
+      "sha256": "e77d02231aaee6bc2c0cf731d93d009c46efa103587fd042594af828fa7f031a",
+      "dimensions": [
+        1600,
+        1200
+      ]
+    },
+    "040-return10-F.jpg": {
+      "sha256": "10a97d69b1b4edb4d57461d8ef5a7d42f1a6d51f1da1a7ab791fba49de794aea",
+      "dimensions": [
+        1600,
+        1200
+      ]
+    },
+    "005-route170-G.jpg": {
+      "sha256": "b5ddc387e6263a09aaeed86d98e7990a465dc85188340d6482038647b6192c8d",
+      "dimensions": [
+        1600,
+        896
+      ]
+    },
+    "038-return30-F.jpg": {
+      "sha256": "0c7497d12871a4f38080b6e293428e87d8d100b1241b509555fed2c838c8a378",
+      "dimensions": [
+        1600,
+        1200
+      ]
+    },
+    "025-comparator1-Fafter.jpg": {
+      "sha256": "fec52b1e8589b2ffb8fc4bf50f5e4be266eb53c9c32a8c9f1f9d1cb7fb45cb27",
+      "dimensions": [
+        1600,
+        1200
+      ]
+    },
+    "015-route-m3plus-G.jpg": {
+      "sha256": "d5e75a56de209512b19653d0c75f47f90cdca3442eb3f8e426f9270b6c26a5ee",
+      "dimensions": [
+        1600,
+        896
+      ]
+    },
+    "045-comparator2-Fafter.jpg": {
+      "sha256": "825999e0ae55ed87e960dffd67d849fe00b7a25865998d3dd169ded67a17902d",
+      "dimensions": [
+        1600,
+        1200
+      ]
+    },
+    "020-achieved-comparator-G.jpg": {
+      "sha256": "33978ae7f14cc4d8a8d2054f53fd1520f8bed679e01b4c6b9d263c465da0a769",
+      "dimensions": [
+        1600,
+        896
+      ]
+    },
+    "016-route-m3plus-G.jpg": {
+      "sha256": "a4e2a067e924f53f964cb5cb8552ca5422a1105a615693ddd0812db980c3ccea",
+      "dimensions": [
+        1600,
+        896
+      ]
+    },
+    "036-target2-G2.jpg": {
+      "sha256": "7697a4c9759303dfa77e8113113cffa75c19fb2a154869c909be98cee884dd8c",
+      "dimensions": [
+        1600,
+        896
+      ]
+    },
+    "003-deployed-gripper.jpg": {
+      "sha256": "f2042ec4c041c1612b3fcf5d952b5382cf7c903cbe9dece4761c37c0fcced379",
+      "dimensions": [
+        1600,
+        896
+      ]
+    },
+    "010-route-m4plus-G.jpg": {
+      "sha256": "e539fb73e07e571f3365e60eee6542de3a52d5ad7485d07eb6c6b7f055d8f101",
+      "dimensions": [
+        1600,
+        896
+      ]
+    },
+    "037-target2-Fafter.jpg": {
+      "sha256": "58c2e1f531789dd439c5e3d0397b0a9c76a0e96172454e77d430f611fd0e8976",
+      "dimensions": [
+        1600,
+        1200
+      ]
+    },
+    "044-comparator2-G2.jpg": {
+      "sha256": "569eb7eaeb21644eb1e9022cafda98c363b45c86ea3af9cf0f784786e33cf3d6",
+      "dimensions": [
+        1600,
+        896
+      ]
+    },
+    "019-recover85-G.jpg": {
+      "sha256": "d781d0c71173ce378d7461770078dc78b937ad2aebdd75ff106be47f0f863f7d",
+      "dimensions": [
+        1600,
+        896
+      ]
+    },
+    "007-route190-G.jpg": {
+      "sha256": "f1fc2f14cef60fe5825009af2638030180004b9a8deda50e7b6a7c554696a790",
+      "dimensions": [
+        1600,
+        896
+      ]
+    },
+    "001-preflight-front.jpg": {
+      "sha256": "c8be73437b9d236b6ebde4a7c1ecc3af300300295032cbcefe68039b4dacd36e",
+      "dimensions": [
+        1600,
+        1200
+      ]
+    },
+    "000-preflight-front.jpg": {
+      "sha256": "6056844b0f402f602bf6fcdf09dd4461096e14832577f1805d02e3c967cc84c4",
+      "dimensions": [
+        1600,
+        1200
+      ]
+    },
+    "023-comparator1-G1.jpg": {
+      "sha256": "952ab9d2627f123bba50b7e8bf73d07dc78f7e9923d4c5ee020e30905902e7e0",
+      "dimensions": [
+        1600,
+        896
+      ]
+    },
+    "026-roll10-F.jpg": {
+      "sha256": "e3ceb0d5188182941cacc60fa411dc96a51e23e9044df4075751c00a8166a531",
+      "dimensions": [
+        1600,
+        1200
+      ]
+    },
+    "042-comparator2-Fbefore.jpg": {
+      "sha256": "493b95fd0d3c61b55ab85cac06899b7109ac99891eccd7920afd59d39429599c",
+      "dimensions": [
+        1600,
+        1200
+      ]
+    },
+    "041-return0-F.jpg": {
+      "sha256": "3a13e0fc90da30731d5bc3107a45c39ae2487cb571ad3d8160569f10b8c71afb",
+      "dimensions": [
+        1600,
+        1200
+      ]
+    },
+    "035-target2-G1.jpg": {
+      "sha256": "223d2b3ded186d7a946f83b5c217b4520fff8f6d7adb4d8b282cf55f135d9840",
+      "dimensions": [
+        1600,
+        896
+      ]
+    }
+  },
+  "frozen_verified": {
+    "20261015T094801Z-prospective-pitch-roll-resume/frozen-models/models.json": true,
+    "20261015T094801Z-prospective-pitch-roll-resume/frozen-models/proposed-camera-info.json": true,
+    "20261015T094801Z-prospective-pitch-roll-resume/frozen-models/pairing.json": true,
+    "20261015T094801Z-prospective-pitch-roll-resume/frozen-models/achieved-pose-acquisition-design.json": true,
+    "20261015T094801Z-prospective-pitch-roll-resume/frozen-models/hashes.json": true,
+    "20261015T094801Z-prospective-pitch-roll-resume/frozen-models/selection-frozen.json": true,
+    "20261015T094801Z-prospective-pitch-roll-resume/frozen-models/evaluation-models.json": true,
+    "20261015T094801Z-prospective-pitch-roll-resume/frozen-models/protocol.json": true,
+    "20261015T094801Z-prospective-pitch-roll-resume/frozen-models/candidate-proposal.json": true,
+    "20261015T094801Z-prospective-pitch-roll-resume/analyze.py": true,
+    "front_pincher_joint/joint.py": true,
+    "physical_base/observations.py": true,
+    "live.mjs": true
+  },
+  "code_hashes": {
+    "test_validation.py": "ae3cc3624ee6ea2c340f80e9d77754a145bf57d1edbfbbae0726cf39f99fd593",
+    "finalize.py": "cfac8645d16e4c96cd3968f80fe0bf3d3883ccd541f5c15aa009bf54b1ee32a1",
+    "evaluate.py": "650d07bc4a9532b0c978766e942106a5b34923c72bf5b3fd34f0f14cc763beff",
+    "analyze.py": "9bbfeaa14b9a15821487912b626a84e845a9ba492580487c8a71043e944ca5b1",
+    "recover.py": "30d4816077eee4ea26461048189cff3f2f3e060bb6cfc5382aafc1ae70066709"
+  }
+}

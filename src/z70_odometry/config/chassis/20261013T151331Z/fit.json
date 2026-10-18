@@ -1,0 +1,51 @@
+{
+  "input_pairs": 1,
+  "accepted_pairs": 1,
+  "rejected_pairs": 0,
+  "fit": {
+    "camera_x_m": 0.0,
+    "camera_x_source": "override",
+    "rotation_fitted_camera_x_m": null,
+    "camera_x_fit_sigma_m": null,
+    "camera_rotation_residual_rms_m": null,
+    "rotation_pairs": 1,
+    "yaw": {
+      "gain": -4.390649462271198e-05,
+      "n": 1,
+      "residual_rms": 1.6940658945086007e-21,
+      "per_pulse_gain_std": null
+    },
+    "yaw_positive": {
+      "gain": -4.390649462271198e-05,
+      "n": 1,
+      "residual_rms": 1.6940658945086007e-21,
+      "per_pulse_gain_std": null
+    },
+    "yaw_negative": null,
+    "forward": null,
+    "forward_lateral_rms_m": null,
+    "forward_yaw_rms_deg": null
+  },
+  "pulses": [
+    {
+      "before": "turn-plus-01-before.jpg",
+      "after": "turn-plus-01-after-2.jpg",
+      "velocity": 0.0,
+      "omega": 0.5,
+      "duration_ms": 400.0,
+      "id": "turn-plus-01",
+      "camera_dx_m": -7.614029708225001e-06,
+      "camera_dy_m": -2.3634620807296003e-06,
+      "dtheta_rad": -8.781298924542398e-06,
+      "dtheta_deg": -0.0005031313670190482,
+      "inliers": 3170,
+      "matches": 3356,
+      "rms_m": 0.00037575730997804025,
+      "dx_m": -7.614029708225001e-06,
+      "dy_m": -2.3634620807296003e-06
+    }
+  ],
+  "rejected": [],
+  "model": "gains multiply commanded velocity/omega times seconds; camera_y=0; pure rotations assumed; fit sigma excludes calibration error/slip",
+  "unidentifiable_fit": true
+}

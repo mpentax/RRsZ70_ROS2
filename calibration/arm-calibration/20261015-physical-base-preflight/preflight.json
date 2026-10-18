@@ -1,0 +1,14 @@
+{
+  "scope": "Setup preflight only; no robot motion sent",
+  "history": {
+    "board_source_message": 1113,
+    "marker_replacement_message": 10481,
+    "board": "A4 210x297mm, 10x14 ChArUco squares, 70 markers, 20mm square side, 15mm black marker side, DICT_4X4_1000",
+    "arm_target": "Snippet from the same dense board; owner currently identifies ID68. Earlier owner called it last marker 69; detectors observed 68. Preserve distinction and detect current ID.",
+    "physical_scale_status": "Known source print dimensions; actual printed-scale tolerance not independently remeasured this turn"
+  },
+  "status": {"observedAt": 1792044665797, "battery": 47, "state": 2, "error_code": 0, "in_cleaning": 0, "in_returning": 0},
+  "arm_estimate": {"source": "dead-reckoning", "state": "IN_ROBOT", "physical_stow_verified": false},
+  "frame": {"receivedAt": 1792044672723, "capturedAt": null, "camera": "front", "lensVerification": "unknown", "image": "front-setup-1792044672723.jpg", "sha256": "02300638b272326121630b937c6e354fa5f4a7a939bae7e8ea6462b3d5662488"},
+  "inspection": {"dense_floor_board_visible": true, "near_and_side_edges_clipped": true, "glare_present": true, "person_seated_in_background": true, "no_clear_pet": true, "rear_clearance": "not observable from front frame"}
+}

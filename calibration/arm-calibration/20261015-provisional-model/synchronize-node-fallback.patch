@@ -1,0 +1,7 @@
+--- a/ros2/src/z70_manipulation/z70_manipulation/node.py
++++ b/ros2/src/z70_manipulation/z70_manipulation/node.py
+@@ -46,2 +46,2 @@
+-        self.K=np.array([[843.031112295746,0,798.2109149516912],[0,843.031112295746,310.05713953605374],[0,0,1.]])
+-        self.D=np.array([-.09776527245500974,.02409305915340931,0,0,0])
++        self.K=planner.GRIPPER_MATRIX.copy()
++        self.D=planner.GRIPPER_D.copy()

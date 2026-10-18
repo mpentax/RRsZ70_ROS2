@@ -1,0 +1,323 @@
+{
+  "version": 1,
+  "fit_scope": "single documented stationary deployment block; fixed F optical mount; marker after M5; 15mm black square; no FK/nominal angle objective",
+  "counts": {
+    "brackets_attempted": 10,
+    "accepted": 8,
+    "rejected": 2,
+    "training_brackets": 5,
+    "training_pose_groups": 4,
+    "heldout_brackets": 3
+  },
+  "training_groups": [
+    [
+      250,
+      55,
+      0
+    ],
+    [
+      250,
+      55,
+      10
+    ],
+    [
+      250,
+      55,
+      30
+    ],
+    [
+      250,
+      65,
+      0
+    ]
+  ],
+  "test_ids": [
+    48,
+    67,
+    75
+  ],
+  "training_ids": [
+    39,
+    44,
+    71,
+    79,
+    83
+  ],
+  "models": {
+    "fixed": [],
+    "f": [
+      "f"
+    ],
+    "fcy": [
+      "f",
+      "cy"
+    ],
+    "fcyk1": [
+      "f",
+      "cy",
+      "k1"
+    ],
+    "full": [
+      "fx",
+      "fy",
+      "cx",
+      "cy",
+      "k1",
+      "k2"
+    ]
+  },
+  "selection": "training-only leave-whole-nominal-pose-group-out; score sqrt(mean(marker_RMS^2+floor_RMS^2)/2); simplest within10% best; no floor RMS >110% baseline",
+  "holdout_disclosure": "Prior analysis already inspected the retained final pitch/roll poses. These are exploratory held-out pixels under a newly declared protocol, NOT independent prospective validation.",
+  "weighting": "each front floor/marker/G board image divided by sqrt(number of points); robust soft_l1 f_scale=.5; duplicate exposures remain correlated, not independent poses",
+  "pair_policy": {
+    "policy": {
+      "pilot_files": [
+        "039-pair25065-Fbefore",
+        "040-pair25065-Fpilot"
+      ],
+      "max_translation_m": 0.003,
+      "max_orientation_deg": 12.779567131728307,
+      "principle": "both translation and orientation required; unchanged across later pairs"
+    },
+    "gripper_and_board_limits": {
+      "translation_m": 0.003,
+      "orientation_deg": 3
+    },
+    "heldout_marker_poses": [
+      [
+        250,
+        45,
+        0
+      ],
+      [
+        250,
+        55,
+        20
+      ],
+      [
+        250,
+        55,
+        40
+      ]
+    ],
+    "pairs": [
+      {
+        "seqs": [
+          39,
+          41,
+          42,
+          43
+        ],
+        "nominal": [
+          250,
+          65,
+          0
+        ],
+        "exposure_simultaneous": false,
+        "accepted": true,
+        "marker_translation_change_m": 0.0001185291209527482,
+        "marker_orientation_change_deg": 2.005607284255986,
+        "front_board_translation_change_m": 0.0006611221868060531,
+        "front_board_orientation_change_deg": 0.21726504835159974,
+        "gripper_translation_change_m": 7.414161239936018e-05,
+        "gripper_orientation_change_deg": 0.026449598443155146,
+        "reject": null,
+        "split": "train"
+      },
+      {
+        "seqs": [
+          44,
+          45,
+          46,
+          47
+        ],
+        "nominal": [
+          250,
+          55,
+          0
+        ],
+        "exposure_simultaneous": false,
+        "accepted": true,
+        "marker_translation_change_m": 0.0005782646390903649,
+        "marker_orientation_change_deg": 1.2605584929832323,
+        "front_board_translation_change_m": 0.000583357655580532,
+        "front_board_orientation_change_deg": 0.19234668514228834,
+        "gripper_translation_change_m": 3.72073147543835e-05,
+        "gripper_orientation_change_deg": 0.02399737332335137,
+        "reject": null,
+        "split": "train"
+      },
+      {
+        "seqs": [
+          48,
+          49,
+          50,
+          51
+        ],
+        "nominal": [
+          250,
+          45,
+          0
+        ],
+        "exposure_simultaneous": false,
+        "accepted": true,
+        "marker_translation_change_m": 0.0001750300554034853,
+        "marker_orientation_change_deg": 4.90375357574907,
+        "front_board_translation_change_m": 0.0006732748939361593,
+        "front_board_orientation_change_deg": 0.19372527631805395,
+        "gripper_translation_change_m": 0.000645725358753013,
+        "gripper_orientation_change_deg": 0.33633382675950546,
+        "reject": null,
+        "split": "holdout"
+      },
+      {
+        "seqs": [
+          52,
+          53,
+          54,
+          55
+        ],
+        "nominal": [
+          240,
+          45,
+          0
+        ],
+        "exposure_simultaneous": false,
+        "accepted": false,
+        "reject": "missing elevated ID68 or board"
+      },
+      {
+        "seqs": [
+          56,
+          57,
+          58,
+          59
+        ],
+        "nominal": [
+          230,
+          45,
+          0
+        ],
+        "exposure_simultaneous": false,
+        "accepted": false,
+        "reject": "missing elevated ID68 or board"
+      },
+      {
+        "seqs": [
+          67,
+          68,
+          69,
+          70
+        ],
+        "nominal": [
+          250,
+          55,
+          40
+        ],
+        "exposure_simultaneous": false,
+        "accepted": true,
+        "marker_translation_change_m": 0.0008629201553149124,
+        "marker_orientation_change_deg": 0.7916103298376642,
+        "front_board_translation_change_m": 0.0006623517195798779,
+        "front_board_orientation_change_deg": 0.1985981256853741,
+        "gripper_translation_change_m": 0.0003155894460391797,
+        "gripper_orientation_change_deg": 0.07167455986104031,
+        "reject": null,
+        "split": "holdout"
+      },
+      {
+        "seqs": [
+          71,
+          72,
+          73,
+          74
+        ],
+        "nominal": [
+          250,
+          55,
+          30
+        ],
+        "exposure_simultaneous": false,
+        "accepted": true,
+        "marker_translation_change_m": 0.0007440482265020641,
+        "marker_orientation_change_deg": 0.3628455293184055,
+        "front_board_translation_change_m": 0.0003762532105461773,
+        "front_board_orientation_change_deg": 0.11007706879783351,
+        "gripper_translation_change_m": 0.000177306342899232,
+        "gripper_orientation_change_deg": 0.06326571692324408,
+        "reject": null,
+        "split": "train"
+      },
+      {
+        "seqs": [
+          75,
+          76,
+          77,
+          78
+        ],
+        "nominal": [
+          250,
+          55,
+          20
+        ],
+        "exposure_simultaneous": false,
+        "accepted": true,
+        "marker_translation_change_m": 0.0010681224950348904,
+        "marker_orientation_change_deg": 0.2829929682976764,
+        "front_board_translation_change_m": 0.0016956222393921681,
+        "front_board_orientation_change_deg": 0.6127079561608512,
+        "gripper_translation_change_m": 8.53005057189768e-05,
+        "gripper_orientation_change_deg": 0.04501917141302548,
+        "reject": null,
+        "split": "holdout"
+      },
+      {
+        "seqs": [
+          79,
+          80,
+          81,
+          82
+        ],
+        "nominal": [
+          250,
+          55,
+          10
+        ],
+        "exposure_simultaneous": false,
+        "accepted": true,
+        "marker_translation_change_m": 7.217891076644434e-05,
+        "marker_orientation_change_deg": 1.0687381434942171,
+        "front_board_translation_change_m": 0.001127815663902968,
+        "front_board_orientation_change_deg": 0.42565823831192373,
+        "gripper_translation_change_m": 2.2490392236877177e-05,
+        "gripper_orientation_change_deg": 0.007113910941237456,
+        "reject": null,
+        "split": "train"
+      },
+      {
+        "seqs": [
+          83,
+          84,
+          85,
+          86
+        ],
+        "nominal": [
+          250,
+          55,
+          0
+        ],
+        "exposure_simultaneous": false,
+        "accepted": true,
+        "marker_translation_change_m": 0.0003997756976898558,
+        "marker_orientation_change_deg": 0.9843461975840685,
+        "front_board_translation_change_m": 0.00011593062748493525,
+        "front_board_orientation_change_deg": 0.07002146855630988,
+        "gripper_translation_change_m": 2.5023974664213844e-05,
+        "gripper_orientation_change_deg": 0.012128566786370476,
+        "reject": null,
+        "split": "train"
+      }
+    ]
+  },
+  "coordinate_convention": "T_A_B maps B into A; W=printed board frame; F/G=OpenCV optical frames; M=ID68 square frame; metre units"
+}

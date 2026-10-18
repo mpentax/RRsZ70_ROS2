@@ -1,0 +1,986 @@
+{
+  "cross_view_rigid_mount_holdout": {
+    "training_front_file": "raw/D-front240-95-before2.jpg",
+    "training_pincher_file": "raw/D-reference240-95-G.jpg",
+    "heldout_front_file": "raw/D-front240-105.jpg",
+    "heldout_pincher_file": "raw/D-reference240-105-G.jpg",
+    "heldout_predicted_from_pincher_board": true,
+    "validates_physical_shoulder_or_L2": false,
+    "mount_T_G_M": [
+      [
+        -0.9989209068217074,
+        -0.005516989897180639,
+        0.046114907968810286,
+        0.0015583111064509311
+      ],
+      [
+        0.046269406617793024,
+        -0.03226218480249432,
+        0.9984078792973379,
+        0.005015366011471525
+      ],
+      [
+        -0.004020438500309181,
+        0.9994642135935856,
+        0.032482638747816206,
+        -0.026685536886970396
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "point_errors_px": {
+      "n": 4,
+      "rms": 4.668666600946019,
+      "median": 4.48509720213875,
+      "p95": 5.311854456599585,
+      "max": 5.45566218878475
+    },
+    "marker_translation_error_m": 0.0017488762243249407,
+    "marker_orientation_error_deg": 2.222662946374134,
+    "predicted_marker_px": [
+      [
+        681.152960176564,
+        286.5665666045837
+      ],
+      [
+        588.6751882970976,
+        288.91527449519253
+      ],
+      [
+        573.7696261873675,
+        195.51622764633655
+      ],
+      [
+        673.6806615303535,
+        192.83665463724975
+      ]
+    ],
+    "scope": "fixed relative marker/pincher optical mount check only; free mount cancels shoulder/L2, so NOT shoulder placement proof",
+    "eligible_for_paired_calibration": false,
+    "rejection_reason": "front-before/after marker orientation variation exceeds frozen 3deg stationarity threshold; diagnostic only"
+  },
+  "front_ID68_M5": {
+    "files": [
+      "raw/B-reference-Fafter.jpg",
+      "raw/B-M5front-240-105-10.jpg",
+      "raw/B-M5front-240-105-20.jpg",
+      "raw/B-M5front-240-105-30.jpg",
+      "raw/B-M5front-240-105-40.jpg"
+    ],
+    "observed_rotation_deg_from_zero": [
+      0.0,
+      6.803077585204823,
+      14.694764915207998,
+      26.931826594854822,
+      38.04275369979794
+    ],
+    "axis_F": {
+      "direction": [
+        -0.03586038994704506,
+        0.6687330279744864,
+        0.7426373069870114
+      ],
+      "closest_point": [
+        -0.016581775098815796,
+        -0.10592013910424963,
+        0.09463937680826284
+      ],
+      "rms_m": 0.0016158642032266842,
+      "observed_angles_deg": [
+        6.803077585204823,
+        14.694764915207998,
+        26.931826594854822,
+        38.04275369979794
+      ],
+      "screw_translation_m": [
+        0.00032083320005770757,
+        0.001639657113381824,
+        0.000911945204048378,
+        0.0012219623783106762
+      ],
+      "singular_values": [
+        0.8491401774611297,
+        0.8488876729576027,
+        0.03100851757062153
+      ],
+      "axial_station_unobservable": true
+    },
+    "planar_branch_policy": "lowest positive-depth corner reprojection candidate; all alternatives retained in observations.json; no independent target orientation fixture",
+    "physical_axial_station_m": null
+  },
+  "M5_board_traces": {
+    "B19055": {
+      "trace": [
+        {
+          "file": "raw/048-B-M5-second-forward-g190-55-10.jpg",
+          "nominal_M5": 10,
+          "direction": "forward",
+          "observed_rotation_deg": 6.138558624556198
+        },
+        {
+          "file": "raw/049-B-M5-second-forward-g190-55-20.jpg",
+          "nominal_M5": 20,
+          "direction": "forward",
+          "observed_rotation_deg": 16.592910147191628
+        },
+        {
+          "file": "raw/050-B-M5-second-forward-g190-55-30.jpg",
+          "nominal_M5": 30,
+          "direction": "forward",
+          "observed_rotation_deg": 27.648517083580153
+        },
+        {
+          "file": "raw/051-B-M5-second-forward-g190-55-40.jpg",
+          "nominal_M5": 40,
+          "direction": "forward",
+          "observed_rotation_deg": 38.43991898006411
+        },
+        {
+          "file": "raw/052-B-M5-second-return-g190-55-30.jpg",
+          "nominal_M5": 30,
+          "direction": "reverse",
+          "observed_rotation_deg": 29.663332218070032
+        },
+        {
+          "file": "raw/053-B-M5-second-return-g190-55-20.jpg",
+          "nominal_M5": 20,
+          "direction": "reverse",
+          "observed_rotation_deg": 18.351602899170835
+        },
+        {
+          "file": "raw/054-B-M5-second-return-g190-55-10.jpg",
+          "nominal_M5": 10,
+          "direction": "reverse",
+          "observed_rotation_deg": 7.432252358807537
+        },
+        {
+          "file": "raw/055-B-M5-second-return-g190-55-0.jpg",
+          "nominal_M5": 0,
+          "direction": "reverse",
+          "observed_rotation_deg": 0.20652630098181862
+        }
+      ],
+      "direction_hysteresis_deg": {
+        "10": 1.293693734251339,
+        "20": 1.7586927519792077,
+        "30": 2.0148151344898793
+      }
+    },
+    "D20065": {
+      "trace": [
+        {
+          "file": "raw/079-D-M5-third-forward-g200-65-10.jpg",
+          "nominal_M5": 10,
+          "direction": "forward",
+          "observed_rotation_deg": 6.457001366553902
+        },
+        {
+          "file": "raw/080-D-M5-third-forward-g200-65-20.jpg",
+          "nominal_M5": 20,
+          "direction": "forward",
+          "observed_rotation_deg": 16.811920688011128
+        },
+        {
+          "file": "raw/081-D-M5-third-forward-g200-65-30.jpg",
+          "nominal_M5": 30,
+          "direction": "forward",
+          "observed_rotation_deg": 27.508277446585005
+        },
+        {
+          "file": "raw/082-D-M5-third-forward-g200-65-40.jpg",
+          "nominal_M5": 40,
+          "direction": "forward",
+          "observed_rotation_deg": 38.46679070492811
+        },
+        {
+          "file": "raw/083-D-M5-third-return-g200-65-30.jpg",
+          "nominal_M5": 30,
+          "direction": "reverse",
+          "observed_rotation_deg": 29.782083375251233
+        },
+        {
+          "file": "raw/084-D-M5-third-return-g200-65-20.jpg",
+          "nominal_M5": 20,
+          "direction": "reverse",
+          "observed_rotation_deg": 18.557811510380557
+        },
+        {
+          "file": "raw/085-D-M5-third-return-g200-65-10.jpg",
+          "nominal_M5": 10,
+          "direction": "reverse",
+          "observed_rotation_deg": 7.760414347955172
+        },
+        {
+          "file": "raw/086-D-M5-third-return-g200-65-0.jpg",
+          "nominal_M5": 0,
+          "direction": "reverse",
+          "observed_rotation_deg": 0.0933230797181353
+        }
+      ],
+      "direction_hysteresis_deg": {
+        "10": 1.3034129814012703,
+        "20": 1.7458908223694287,
+        "30": 2.2738059286662278
+      }
+    }
+  },
+  "position_only_circle_crosschecks": {
+    "D_M3_45": {
+      "position_only_circle": {
+        "direction": [
+          -0.9995756972740455,
+          0.028306950251455614,
+          0.0068660022259876335
+        ],
+        "closest_point": [
+          0.014579217786552703,
+          0.5439575575808571,
+          -0.12012051693187589
+        ],
+        "circle_center_at_marker_station": [
+          0.06755744640459005,
+          0.5424572689223885,
+          -0.12048441997254836
+        ],
+        "radius_m": 0.16062386323959732,
+        "circle_rms_m": 0.00016393107628658328,
+        "plane_rms_m": 0.00011808359144808587,
+        "singular_values": [
+          0.05642311509670043,
+          0.003991807023066331,
+          0.00023616718289617164
+        ],
+        "axial_station_unobservable": true
+      },
+      "axis_F": {
+        "direction_F": [
+          0.9995333853433385,
+          0.0004399330420747291,
+          0.030542070051059685
+        ],
+        "closest_point_to_front_optical_origin_m": [
+          0.004288430926804865,
+          -0.06503617210640143,
+          -0.13940830840615936
+        ],
+        "point_at_front_optical_x0_m": [
+          0.0,
+          -0.06503805960960145,
+          -0.13953934710851407
+        ],
+        "setback_from_optical_origin_m": 0.1408819867014221,
+        "axis_height_above_camera_m": 0.06207460424911477,
+        "axis_height_above_board_m": 0.12062466154418765,
+        "floor_up_F": [
+          0.006663794376099395,
+          -0.9997546747137555,
+          0.021123073462598452
+        ],
+        "floor_forward_F": [
+          -0.00014079123106406404,
+          0.021122604250792244,
+          0.9997768829931475
+        ],
+        "station_definition": "intersection with front optical x=0 plane, NOT an anatomical shoulder lateral centre"
+      },
+      "perpendicular_distance_from_pixel_screw_line_m": 0.01192368685775419,
+      "axis_direction_difference_deg": 1.5860324998427187,
+      "independent_metrology": false,
+      "method": "camera-center positions only; no camera orientations or nominal angles in circle fit"
+    },
+    "D_M3_85": {
+      "position_only_circle": {
+        "direction": [
+          -0.9998730933492309,
+          0.014830201921724781,
+          0.005819132856455761
+        ],
+        "closest_point": [
+          0.006913810939486745,
+          0.5156917670169046,
+          -0.12628677183750903
+        ],
+        "circle_center_at_marker_station": [
+          0.06716754961293549,
+          0.5147980784908208,
+          -0.12663744085017792
+        ],
+        "radius_m": 0.225950599241238,
+        "circle_rms_m": 0.00040215889851664754,
+        "plane_rms_m": 7.743676997574409e-05,
+        "singular_values": [
+          0.12751649526621694,
+          0.0137289881653635,
+          0.00017315388162377854
+        ],
+        "axial_station_unobservable": true
+      },
+      "axis_F": {
+        "direction_F": [
+          0.9998539665798243,
+          0.0012040660350603036,
+          0.01704686890824056
+        ],
+        "closest_point_to_front_optical_origin_m": [
+          0.00199439879803634,
+          -0.07058984457703647,
+          -0.1119919866316572
+        ],
+        "point_at_front_optical_x0_m": [
+          0.0,
+          -0.07059224631562365,
+          -0.11202598985212465
+        ],
+        "setback_from_optical_origin_m": 0.11349208703067852,
+        "axis_height_above_camera_m": 0.06820859503922289,
+        "axis_height_above_board_m": 0.12675865233429576,
+        "floor_up_F": [
+          0.006663794376099395,
+          -0.9997546747137555,
+          0.021123073462598452
+        ],
+        "floor_forward_F": [
+          -0.00014079123106406404,
+          0.021122604250792244,
+          0.9997768829931475
+        ],
+        "station_definition": "intersection with front optical x=0 plane, NOT an anatomical shoulder lateral centre"
+      },
+      "perpendicular_distance_from_pixel_screw_line_m": 0.015338466226792543,
+      "axis_direction_difference_deg": 0.9476488474131687,
+      "independent_metrology": false,
+      "method": "camera-center positions only; no camera orientations or nominal angles in circle fit"
+    },
+    "D_M3_95": {
+      "position_only_circle": {
+        "direction": [
+          0.9978682862911038,
+          0.06511328467559661,
+          0.004375314069945476
+        ],
+        "closest_point": [
+          -0.03525070527903734,
+          0.5483684983460988,
+          -0.12125147226284444
+        ],
+        "circle_center_at_marker_station": [
+          0.04557293525231702,
+          0.5536424335805741,
+          -0.12089708800546371
+        ],
+        "radius_m": 0.2846779284253775,
+        "circle_rms_m": 0.0001500180250902165,
+        "plane_rms_m": 1.1189648455942933e-05,
+        "singular_values": [
+          0.09909186366199142,
+          0.006904919633379409,
+          2.2379296911886005e-05
+        ],
+        "axial_station_unobservable": true
+      },
+      "axis_F": {
+        "direction_F": [
+          0.997960234376164,
+          0.009695067498838984,
+          -0.06309814791310997
+        ],
+        "closest_point_to_front_optical_origin_m": [
+          -0.009068146895107293,
+          -0.06551967739070713,
+          -0.15348893772508906
+        ],
+        "point_at_front_optical_x0_m": [
+          0.0,
+          -0.0654315813992948,
+          -0.15406229050446404
+        ],
+        "setback_from_optical_origin_m": 0.15541000198673866,
+        "axis_height_above_camera_m": 0.0621612602977166,
+        "axis_height_above_board_m": 0.12071131759278947,
+        "floor_up_F": [
+          0.006663794376099395,
+          -0.9997546747137555,
+          0.021123073462598452
+        ],
+        "floor_forward_F": [
+          -0.00014079123106406404,
+          0.021122604250792244,
+          0.9997768829931475
+        ],
+        "station_definition": "intersection with front optical x=0 plane, NOT an anatomical shoulder lateral centre"
+      },
+      "perpendicular_distance_from_pixel_screw_line_m": 0.027177307343536513,
+      "axis_direction_difference_deg": 3.9120419190103974,
+      "independent_metrology": false,
+      "method": "camera-center positions only; no camera orientations or nominal angles in circle fit"
+    }
+  },
+  "effective_upper_link_checks": {
+    "D_M4_190": {
+      "parallel_axis_direction_difference_deg": 0.334545782123746,
+      "effective_pitch_axis_perpendicular_distance_m": 0.18330321921011664,
+      "convention": "conditional approximately-parallel pitch-axis separation; not independently surveyed anatomy"
+    },
+    "D_M4_210": {
+      "parallel_axis_direction_difference_deg": 0.32055198887441627,
+      "effective_pitch_axis_perpendicular_distance_m": 0.18244772983865096,
+      "convention": "conditional approximately-parallel pitch-axis separation; not independently surveyed anatomy"
+    }
+  },
+  "stationarity_brackets": {
+    "B": {
+      "front_before": "raw/B-front-reference-before2.jpg",
+      "front_after": "raw/B-reference-Fafter.jpg",
+      "board_camera_position_change_m": 0.0022020060147015506,
+      "board_orientation_change_deg": 1.4079495641043434,
+      "marker_position_change_m": 0.00012253798061908732,
+      "marker_orientation_change_deg": 2.2633552445198997,
+      "board_registration_stationarity_pass": true,
+      "limits": "image-derived apparent body drift includes planar PnP noise; not synchronized exposure proof",
+      "marker_stationarity_pass": true,
+      "joint_pair_accepted": true
+    },
+    "D": {
+      "front_before": "raw/D-front240-95-before2.jpg",
+      "front_after": "raw/D-reference240-95-Fafter.jpg",
+      "board_camera_position_change_m": 0.0021056623202728103,
+      "board_orientation_change_deg": 0.769391141766683,
+      "marker_position_change_m": 0.0002379345840581454,
+      "marker_orientation_change_deg": 3.123138287758679,
+      "board_registration_stationarity_pass": true,
+      "limits": "image-derived apparent body drift includes planar PnP noise; not synchronized exposure proof",
+      "marker_stationarity_pass": false,
+      "joint_pair_accepted": false
+    }
+  },
+  "multistart": [
+    {
+      "initial_axis_perpendicular_shift_m": [
+        0.03,
+        0.03
+      ],
+      "axis_F": {
+        "direction_F": [
+          0.9999993614131812,
+          -0.0009272768258388587,
+          0.0006460115464185166
+        ],
+        "closest_point_to_front_optical_origin_m": [
+          1.8937628997850453e-05,
+          -0.06815032418941468,
+          -0.12713678827277552
+        ],
+        "point_at_front_optical_x0_m": [
+          0.0,
+          -0.06815030662897896,
+          -0.12713680050671033
+        ],
+        "setback_from_optical_origin_m": 0.12854794608081452,
+        "axis_height_above_camera_m": 0.06544806765859458,
+        "axis_height_above_board_m": 0.12399812495366747,
+        "floor_up_F": [
+          0.006663794376099395,
+          -0.9997546747137555,
+          0.021123073462598452
+        ],
+        "floor_forward_F": [
+          -0.00014079123106406404,
+          0.021122604250792244,
+          0.9997768829931475
+        ],
+        "station_definition": "intersection with front optical x=0 plane, NOT an anatomical shoulder lateral centre"
+      },
+      "point_rms_px": 2.708074932576877,
+      "success": true,
+      "rank": 14,
+      "parameter_count": 14
+    },
+    {
+      "initial_axis_perpendicular_shift_m": [
+        -0.03,
+        -0.03
+      ],
+      "axis_F": {
+        "direction_F": [
+          0.9999993614132389,
+          -0.0009272766471644482,
+          0.0006460117136971029
+        ],
+        "closest_point_to_front_optical_origin_m": [
+          1.8937662542656275e-05,
+          -0.06815032433253716,
+          -0.127136788634243
+        ],
+        "point_at_front_optical_x0_m": [
+          0.0,
+          -0.06815030677207372,
+          -0.12713680086820264
+        ],
+        "setback_from_optical_origin_m": 0.12854794644524872,
+        "axis_height_above_camera_m": 0.0654480677940184,
+        "axis_height_above_board_m": 0.12399812508909128,
+        "floor_up_F": [
+          0.006663794376099395,
+          -0.9997546747137555,
+          0.021123073462598452
+        ],
+        "floor_forward_F": [
+          -0.00014079123106406404,
+          0.021122604250792244,
+          0.9997768829931475
+        ],
+        "station_definition": "intersection with front optical x=0 plane, NOT an anatomical shoulder lateral centre"
+      },
+      "point_rms_px": 2.70807493392668,
+      "success": true,
+      "rank": 14,
+      "parameter_count": 14
+    },
+    {
+      "initial_axis_perpendicular_shift_m": [
+        0.04,
+        -0.04
+      ],
+      "axis_F": {
+        "direction_F": [
+          0.9999993614131847,
+          -0.0009272766893050092,
+          0.0006460117371229388
+        ],
+        "closest_point_to_front_optical_origin_m": [
+          1.8937662835005753e-05,
+          -0.06815032447712058,
+          -0.1271367891296264
+        ],
+        "point_at_front_optical_x0_m": [
+          0.0,
+          -0.06815030691665606,
+          -0.12713680136358668
+        ],
+        "setback_from_optical_origin_m": 0.12854794694357619,
+        "axis_height_above_camera_m": 0.06544806792810126,
+        "axis_height_above_board_m": 0.12399812522317413,
+        "floor_up_F": [
+          0.006663794376099395,
+          -0.9997546747137555,
+          0.021123073462598452
+        ],
+        "floor_forward_F": [
+          -0.00014079123106406404,
+          0.021122604250792244,
+          0.9997768829931475
+        ],
+        "station_definition": "intersection with front optical x=0 plane, NOT an anatomical shoulder lateral centre"
+      },
+      "point_rms_px": 2.708074934977744,
+      "success": true,
+      "rank": 14,
+      "parameter_count": 14
+    }
+  ],
+  "intrinsics_print_scale_sensitivity": [
+    {
+      "scenario": "G_f_+1pct",
+      "assumed_not_measured_bound": {
+        "fscale": 1.01
+      },
+      "axis_F": {
+        "direction_F": [
+          0.9999978768257489,
+          -0.0019955758428544176,
+          0.0005138297868601879
+        ],
+        "closest_point_to_front_optical_origin_m": [
+          -6.620872841382741e-05,
+          -0.06734438529071417,
+          -0.13269421575088283
+        ],
+        "point_at_front_optical_x0_m": [
+          0.0,
+          -0.0673445174155337,
+          -0.13269418173079378
+        ],
+        "setback_from_optical_origin_m": 0.13408706699196818,
+        "axis_height_above_camera_m": 0.06452508715376279,
+        "axis_height_above_board_m": 0.12307514444883566,
+        "floor_up_F": [
+          0.006663794376099395,
+          -0.9997546747137555,
+          0.021123073462598452
+        ],
+        "floor_forward_F": [
+          -0.00014079123106406404,
+          0.021122604250792244,
+          0.9997768829931475
+        ],
+        "station_definition": "intersection with front optical x=0 plane, NOT an anatomical shoulder lateral centre"
+      },
+      "delta_setback_m": 0.00553912082732555,
+      "delta_height_above_camera_m": -0.0009229806129315704
+    },
+    {
+      "scenario": "G_f_-1pct",
+      "assumed_not_measured_bound": {
+        "fscale": 0.99
+      },
+      "axis_F": {
+        "direction_F": [
+          0.9999996760531022,
+          0.00015020643590550001,
+          0.0007907791836107154
+        ],
+        "closest_point_to_front_optical_origin_m": [
+          0.00010651137246033004,
+          -0.06891402365841179,
+          -0.12160159254520665
+        ],
+        "point_at_front_optical_x0_m": [
+          0.0,
+          -0.06891403965711061,
+          -0.1216016767722101
+        ],
+        "setback_from_optical_origin_m": 0.12303018935706098,
+        "axis_height_above_camera_m": 0.06632853214897093,
+        "axis_height_above_board_m": 0.12487858944404381,
+        "floor_up_F": [
+          0.006663794376099395,
+          -0.9997546747137555,
+          0.021123073462598452
+        ],
+        "floor_forward_F": [
+          -0.00014079123106406404,
+          0.021122604250792244,
+          0.9997768829931475
+        ],
+        "station_definition": "intersection with front optical x=0 plane, NOT an anatomical shoulder lateral centre"
+      },
+      "delta_setback_m": -0.005517756807581653,
+      "delta_height_above_camera_m": 0.000880464382276569
+    },
+    {
+      "scenario": "G_cx_+10px",
+      "assumed_not_measured_bound": {
+        "cx": 10
+      },
+      "axis_F": {
+        "direction_F": [
+          0.9999806356004572,
+          -0.002399877486745969,
+          -0.0057418648672867
+        ],
+        "closest_point_to_front_optical_origin_m": [
+          -0.000887927509374345,
+          -0.0679229430610713,
+          -0.12624880418825413
+        ],
+        "point_at_front_optical_x0_m": [
+          0.0,
+          -0.06792507401957565,
+          -0.12625390264675349
+        ],
+        "setback_from_optical_origin_m": 0.12766048771111277,
+        "axis_height_above_camera_m": 0.06524153982080148,
+        "axis_height_above_board_m": 0.12379159711587437,
+        "floor_up_F": [
+          0.006663794376099395,
+          -0.9997546747137555,
+          0.021123073462598452
+        ],
+        "floor_forward_F": [
+          -0.00014079123106406404,
+          0.021122604250792244,
+          0.9997768829931475
+        ],
+        "station_definition": "intersection with front optical x=0 plane, NOT an anatomical shoulder lateral centre"
+      },
+      "delta_setback_m": -0.0008874584535298602,
+      "delta_height_above_camera_m": -0.00020652794589287593
+    },
+    {
+      "scenario": "G_cy_+10px",
+      "assumed_not_measured_bound": {
+        "cy": 10
+      },
+      "axis_F": {
+        "direction_F": [
+          0.999998196193553,
+          -0.0018992864871291049,
+          1.7901957088690324e-05
+        ],
+        "closest_point_to_front_optical_origin_m": [
+          -0.0001307947838720125,
+          -0.0700697648326274,
+          -0.12780778928460818
+        ],
+        "point_at_front_optical_x0_m": [
+          0.0,
+          -0.07007001324984109,
+          -0.12780778694312134
+        ],
+        "setback_from_optical_origin_m": 0.1292593320119703,
+        "axis_height_above_camera_m": 0.06735313003109174,
+        "axis_height_above_board_m": 0.12590318732616462,
+        "floor_up_F": [
+          0.006663794376099395,
+          -0.9997546747137555,
+          0.021123073462598452
+        ],
+        "floor_forward_F": [
+          -0.00014079123106406404,
+          0.021122604250792244,
+          0.9997768829931475
+        ],
+        "station_definition": "intersection with front optical x=0 plane, NOT an anatomical shoulder lateral centre"
+      },
+      "delta_setback_m": 0.0007113858473276613,
+      "delta_height_above_camera_m": 0.001905062264397378
+    },
+    {
+      "scenario": "G_k1_+0.01",
+      "assumed_not_measured_bound": {
+        "k1": 0.01
+      },
+      "axis_F": {
+        "direction_F": [
+          0.9999972935323788,
+          -0.0007868705974130282,
+          0.0021894662775585644
+        ],
+        "closest_point_to_front_optical_origin_m": [
+          0.00022492581772330655,
+          -0.06694146201326373,
+          -0.12678865165463055
+        ],
+        "point_at_front_optical_x0_m": [
+          0.0,
+          -0.06694128502527215,
+          -0.12678914412345627
+        ],
+        "setback_from_optical_origin_m": 0.12817482958074636,
+        "axis_height_above_camera_m": 0.064246686229782,
+        "axis_height_above_board_m": 0.12279674352485487,
+        "floor_up_F": [
+          0.006663794376099395,
+          -0.9997546747137555,
+          0.021123073462598452
+        ],
+        "floor_forward_F": [
+          -0.00014079123106406404,
+          0.021122604250792244,
+          0.9997768829931475
+        ],
+        "station_definition": "intersection with front optical x=0 plane, NOT an anatomical shoulder lateral centre"
+      },
+      "delta_setback_m": -0.00037311658389627134,
+      "delta_height_above_camera_m": -0.0012013815369123632
+    },
+    {
+      "scenario": "F_f_+1pct",
+      "assumed_not_measured_bound": {
+        "fscale": 1.01
+      },
+      "axis_F": {
+        "direction_F": [
+          0.9999990131686657,
+          -0.0014037445895096054,
+          -5.623897373090907e-05
+        ],
+        "closest_point_to_front_optical_origin_m": [
+          -0.00010148712132061755,
+          -0.06725237142118028,
+          -0.12592457127056506
+        ],
+        "point_at_front_optical_x0_m": [
+          0.0,
+          -0.06725251388331832,
+          -0.12592457697810225
+        ],
+        "setback_from_optical_origin_m": 0.12711150020691883,
+        "axis_height_above_camera_m": 0.06497993687896432,
+        "axis_height_above_board_m": 0.1240002596931903,
+        "floor_up_F": [
+          0.006202009421993919,
+          -0.999819635642005,
+          0.017950801202667288
+        ],
+        "floor_forward_F": [
+          -0.00011134897969795376,
+          0.01795045584998892,
+          0.9998388713868761
+        ],
+        "station_definition": "intersection with front optical x=0 plane, NOT an anatomical shoulder lateral centre"
+      },
+      "delta_setback_m": -0.0014364459577237976,
+      "delta_height_above_camera_m": -0.0004681308877300394
+    },
+    {
+      "scenario": "F_cx_+20px",
+      "assumed_not_measured_bound": {
+        "cx": 20
+      },
+      "axis_F": {
+        "direction_F": [
+          0.9998067416431836,
+          0.004417064615470811,
+          0.019156432471181744
+        ],
+        "closest_point_to_front_optical_origin_m": [
+          0.002740113697592292,
+          -0.06851475623893845,
+          -0.12721314607858497
+        ],
+        "point_at_front_optical_x0_m": [
+          0.0,
+          -0.06852686183770258,
+          -0.12726564702784343
+        ],
+        "setback_from_optical_origin_m": 0.12875799806150945,
+        "axis_height_above_camera_m": 0.06567512343269084,
+        "axis_height_above_board_m": 0.123979901246656,
+        "floor_up_F": [
+          0.011596393316277976,
+          -0.9996854394553059,
+          0.022238385802625105
+        ],
+        "floor_forward_F": [
+          -0.00025794886013742,
+          0.02223688974411556,
+          0.9997526965189409
+        ],
+        "station_definition": "intersection with front optical x=0 plane, NOT an anatomical shoulder lateral centre"
+      },
+      "delta_setback_m": 0.0002100518968668197,
+      "delta_height_above_camera_m": 0.00022705566599648397
+    },
+    {
+      "scenario": "F_cy_+20px",
+      "assumed_not_measured_bound": {
+        "cy": 20
+      },
+      "axis_F": {
+        "direction_F": [
+          0.9999986827763966,
+          -0.00143406650541051,
+          0.0007601965074182374
+        ],
+        "closest_point_to_front_optical_origin_m": [
+          4.885189554298952e-06,
+          -0.06540506295069289,
+          -0.12980905886609215
+        ],
+        "point_at_front_optical_x0_m": [
+          0.0,
+          -0.06540505594499695,
+          -0.12980906257980107
+        ],
+        "setback_from_optical_origin_m": 0.1296652196738352,
+        "axis_height_above_camera_m": 0.06568852192715705,
+        "axis_height_above_board_m": 0.12399830068099083,
+        "floor_up_F": [
+          0.006172125835318365,
+          -0.9999785442300759,
+          -0.0021945255002300823
+        ],
+        "floor_forward_F": [
+          1.3544920152050403e-05,
+          -0.0021944836992555147,
+          0.9999975920260152
+        ],
+        "station_definition": "intersection with front optical x=0 plane, NOT an anatomical shoulder lateral centre"
+      },
+      "delta_setback_m": 0.001117273509192579,
+      "delta_height_above_camera_m": 0.00024045416046268586
+    },
+    {
+      "scenario": "F_k1_+0.012",
+      "assumed_not_measured_bound": {
+        "k1": 0.012
+      },
+      "axis_F": {
+        "direction_F": [
+          0.9999967181607323,
+          -0.002196053533117877,
+          0.0013194758977511892
+        ],
+        "closest_point_to_front_optical_origin_m": [
+          1.588871499356992e-05,
+          -0.06843367565880153,
+          -0.12593839595502787
+        ],
+        "point_at_front_optical_x0_m": [
+          0.0,
+          -0.06843364076621831,
+          -0.12593841691987315
+        ],
+        "setback_from_optical_origin_m": 0.12744622493985097,
+        "axis_height_above_camera_m": 0.06558179782658881,
+        "axis_height_above_board_m": 0.12399855807566637,
+        "floor_up_F": [
+          0.005379349672947836,
+          -0.9997323857221385,
+          0.022499322999091076
+        ],
+        "floor_forward_F": [
+          -0.00012106237176438914,
+          0.022498997295870127,
+          0.9997468581919037
+        ],
+        "station_definition": "intersection with front optical x=0 plane, NOT an anatomical shoulder lateral centre"
+      },
+      "delta_setback_m": -0.0011017212247916575,
+      "delta_height_above_camera_m": 0.00013373005989444908
+    },
+    {
+      "scenario": "uniform_print_scale_0.99",
+      "assumed_not_measured_bound": {
+        "uniform_print_scale": 0.99
+      },
+      "delta_setback_m": -0.0012854794616464274,
+      "delta_height_above_camera_m": -0.0006544806776669442
+    },
+    {
+      "scenario": "uniform_print_scale_1.01",
+      "assumed_not_measured_bound": {
+        "uniform_print_scale": 1.01
+      },
+      "delta_setback_m": 0.0012854794616464274,
+      "delta_height_above_camera_m": 0.0006544806776669442
+    }
+  ],
+  "L2_mount_equivalence_examples": [
+    {
+      "physical_L2_hypothesis_m": 0.17,
+      "camera_nominal_wrist_x_m": -0.018786596023802532,
+      "sum_elbow_to_camera_x_m": 0.15121340397619745,
+      "same_observations_by_construction": true,
+      "is_measurement": false
+    },
+    {
+      "physical_L2_hypothesis_m": 0.205,
+      "camera_nominal_wrist_x_m": -0.05378659602380251,
+      "sum_elbow_to_camera_x_m": 0.1512134039761975,
+      "same_observations_by_construction": true,
+      "is_measurement": false
+    },
+    {
+      "physical_L2_hypothesis_m": 0.24,
+      "camera_nominal_wrist_x_m": -0.08878659602380251,
+      "sum_elbow_to_camera_x_m": 0.15121340397619748,
+      "same_observations_by_construction": true,
+      "is_measurement": false
+    }
+  ],
+  "absolute_5mm_1deg_verdict": {
+    "verdict": "INCONCLUSIVE",
+    "certified_95percent_bound_m": null,
+    "reason": "No independent physical survey, target-scale tolerance, full-image lens validation or remount session; A/B/D reconstruction disagreement exceeds 5mm/1deg goals"
+  },
+  "whole_redeployment_5mm_1deg_goal": {
+    "verdict": "FAIL",
+    "reason": "A/B versus centred D lines differ 28-38mm and >2deg; cannot identify motion versus lens/registration bias from present metrology"
+  }
+}

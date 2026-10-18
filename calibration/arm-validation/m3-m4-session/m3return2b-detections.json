@@ -1,0 +1,38 @@
+{
+  "file": "/Users/mpentax/Code/RoboRockZ70-Connector/calibration/arm-validation/m3-m4-session/m3return2b.jpg",
+  "detections": [
+    {
+      "id": 0,
+      "corners_px": [
+        [
+          689.975830078125,
+          150.2481689453125
+        ],
+        [
+          599.66015625,
+          152.2469482421875
+        ],
+        [
+          585.7968139648438,
+          54.824195861816406
+        ],
+        [
+          682.7319946289062,
+          53.503692626953125
+        ]
+      ],
+      "centre_px": [
+        639.5411987304688,
+        102.70575141906738
+      ],
+      "pose": null
+    }
+  ],
+  "roi": [
+    0,
+    0,
+    1600,
+    520
+  ],
+  "metric_pose_computed": false
+}

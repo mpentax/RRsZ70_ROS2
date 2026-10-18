@@ -1,0 +1,9 @@
+{
+  "name": "@rrsz70/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24.0.0" },
+  "scripts": { "start": "node src/mcp-main.ts", "test": "node --test src/*.test.ts", "typecheck": "tsc -p tsconfig.json" },
+  "dependencies": { "@rrsz70/http-contracts": "0.1.0", "@modelcontextprotocol/sdk": "^1.30.1", "zod": "^4.6.5" }
+}

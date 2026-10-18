@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="780" height="450" viewBox="0 0 780 450">
+<rect width="780" height="450" fill="white"/>
+<text x="30" y="28" font-family="sans-serif" font-size="18">M3: marker trajectory, camera YZ (mm)</text>
+<text x="30" y="52" font-family="sans-serif" font-size="12">Blue observed; orange frozen local model fit. Not wrist error.</text>
+<path d="M65 85 V370 H705" fill="none" stroke="black"/>
+<text x="320" y="422" font-family="sans-serif" font-size="14">Camera Z / depth (mm)</text>
+<text x="8" y="78" font-family="sans-serif" font-size="12">Camera Y</text>
+<polyline points="460.82,349.45 267.51,108.09 473.16,350.48 268.72,108.01 489.88,351.36" fill="none" stroke="#1768ac" stroke-width="2"/>
+<circle cx="460.82" cy="349.45" r="4" fill="#1768ac"/>
+<circle cx="267.51" cy="108.09" r="4" fill="#1768ac"/>
+<circle cx="473.16" cy="350.48" r="4" fill="#1768ac"/>
+<circle cx="268.72" cy="108.01" r="4" fill="#1768ac"/>
+<circle cx="489.88" cy="351.36" r="4" fill="#1768ac"/>
+<polyline points="492.49,352.94 271.91,107.06 492.49,352.94 271.91,107.06 492.49,352.94" fill="none" stroke="#cf6300" stroke-width="2"/>
+<circle cx="492.49" cy="352.94" r="4" fill="#cf6300"/>
+<circle cx="271.91" cy="107.06" r="4" fill="#cf6300"/>
+<circle cx="492.49" cy="352.94" r="4" fill="#cf6300"/>
+<circle cx="271.91" cy="107.06" r="4" fill="#cf6300"/>
+<circle cx="492.49" cy="352.94" r="4" fill="#cf6300"/>
+<text x="466.82" y="343.45" font-family="sans-serif" font-size="11">0</text>
+<text x="273.51" y="102.09" font-family="sans-serif" font-size="11">1</text>
+<text x="479.16" y="344.48" font-family="sans-serif" font-size="11">2</text>
+<text x="274.72" y="102.01" font-family="sans-serif" font-size="11">3</text>
+<text x="495.88" y="345.36" font-family="sans-serif" font-size="11">4</text>
+<text x="65.0" y="391" font-family="sans-serif" font-size="11">120.8</text>
+<text x="25" y="374.0" font-family="sans-serif" font-size="11">-82.1</text>
+<text x="222.5" y="391" font-family="sans-serif" font-size="11">123.1</text>
+<text x="25" y="304.0" font-family="sans-serif" font-size="11">-69.8</text>
+<text x="380.0" y="391" font-family="sans-serif" font-size="11">125.5</text>
+<text x="25" y="234.0" font-family="sans-serif" font-size="11">-57.5</text>
+<text x="537.5" y="391" font-family="sans-serif" font-size="11">127.8</text>
+<text x="25" y="164.0" font-family="sans-serif" font-size="11">-45.2</text>
+<text x="695.0" y="391" font-family="sans-serif" font-size="11">130.1</text>
+<text x="25" y="94.0" font-family="sans-serif" font-size="11">-32.9</text>
+</svg>

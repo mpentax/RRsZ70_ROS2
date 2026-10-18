@@ -1,0 +1,705 @@
+{
+  "marker": {
+    "dictionary": "DICT_4X4_1000",
+    "id": 0,
+    "paper_side_mm": 20,
+    "black_side_mm": 15,
+    "marker_to_wrist_transform": null,
+    "marker_to_fingertips_offset": null
+  },
+  "orientation_axis_camera_empirical": [
+    0.9867945252917195,
+    -0.14846956575073975,
+    -0.06475610318786071
+  ],
+  "orientation_axis_training": "noise3 -> m4plus1; frozen for later signed comparisons",
+  "orientation_method": "SO(3) midpoint per accepted pair; signed rotation-vector projection on frozen empirical M4+ axis. M3 joint proxy reverses sign.",
+  "measurement_command_count": 12,
+  "measurement_pose_pair_count": 12,
+  "noise": {
+    "M4": {
+      "angular_differences_deg": [
+        4.741541673594781,
+        2.9770885977877524,
+        1.966938600821764
+      ],
+      "centre_shifts_px": [
+        0.6152865528813084,
+        0.49177196253967803,
+        0.6913644002113257
+      ],
+      "max_fit_rms_px": 0.5278312929566705,
+      "overlapping_pairs": true,
+      "unique_frames": 4,
+      "independent_pairs": false
+    },
+    "M3": {
+      "angular_differences_deg": [
+        0.6733540951978934,
+        0.6602463623223809,
+        0.4878932162405285
+      ],
+      "centre_shifts_px": [
+        0.9535215946002225,
+        0.2955907456994348,
+        0.19402871291310966
+      ],
+      "max_fit_rms_px": 0.32198162789529516,
+      "overlapping_pairs": true,
+      "unique_frames": 4,
+      "independent_pairs": false
+    }
+  },
+  "per_joint_sign": [
+    {
+      "joint": "M4",
+      "sign": "+",
+      "n": 4,
+      "predicted_joint_increment_deg": 10,
+      "measured_joint_proxy_mean_deg": 11.49182965358789,
+      "sample_sd_deg": 2.0733544997090805,
+      "minimum_deg": 8.616106749082562,
+      "maximum_deg": 13.566941147332482
+    },
+    {
+      "joint": "M4",
+      "sign": "-",
+      "n": 4,
+      "predicted_joint_increment_deg": -10,
+      "measured_joint_proxy_mean_deg": -11.748058781249547,
+      "sample_sd_deg": 0.48484170605722143,
+      "minimum_deg": -12.187142216364728,
+      "maximum_deg": -11.138399830132858
+    },
+    {
+      "joint": "M3",
+      "sign": "+",
+      "n": 2,
+      "predicted_joint_increment_deg": 10,
+      "measured_joint_proxy_mean_deg": 10.328254127339292,
+      "sample_sd_deg": 0.10172813627205411,
+      "minimum_deg": 10.256321472343853,
+      "maximum_deg": 10.40018678233473
+    },
+    {
+      "joint": "M3",
+      "sign": "-",
+      "n": 2,
+      "predicted_joint_increment_deg": -10,
+      "measured_joint_proxy_mean_deg": -10.073209448868136,
+      "sample_sd_deg": 1.4144615447384616,
+      "minimum_deg": -11.073384798880301,
+      "maximum_deg": -9.07303409885597
+    }
+  ],
+  "increments": [
+    {
+      "joint": "m4",
+      "before": "noise3",
+      "after": "m4minus1",
+      "command_sign": "-",
+      "estimator_joint_delta_deg": -10.0,
+      "estimator_forearm_delta_deg": -10.0,
+      "measured_forearm_delta_deg": -11.138399830132858,
+      "measured_joint_proxy_delta_deg": -11.138399830132858,
+      "rotation_magnitude_deg": 11.349616051762842,
+      "cross_axis_rotation_deg": 2.1794113302745526,
+      "marker_displacement_camera_mm": [
+        -0.13556931264714633,
+        9.124969054162303,
+        -18.61932821717692
+      ],
+      "marker_displacement_image_px": [
+        -43.305992126464844,
+        -8.871296882629395
+      ],
+      "stationary_pair_angle_deg": 1.86425756976293,
+      "centre_shift_px": 0.8393319413006181,
+      "pose_rms_px": 0.43861564121697977,
+      "sigmaDeg": {
+        "m3": 7.500000000000001,
+        "m4": 7.90569415042095,
+        "m5": 0
+      },
+      "estimator_state": "IN_PROCESS_POS"
+    },
+    {
+      "joint": "m4",
+      "before": "m4minus1",
+      "after": "m4return1",
+      "command_sign": "+",
+      "estimator_joint_delta_deg": 10.0,
+      "estimator_forearm_delta_deg": 10.0,
+      "measured_forearm_delta_deg": 13.566941147332482,
+      "measured_joint_proxy_delta_deg": 13.566941147332482,
+      "rotation_magnitude_deg": 13.610129203782966,
+      "cross_axis_rotation_deg": 1.0833858262331115,
+      "marker_displacement_camera_mm": [
+        0.11405686683787011,
+        -9.053305053608144,
+        18.45252271842948
+      ],
+      "marker_displacement_image_px": [
+        42.661720275878906,
+        8.572486877441406
+      ],
+      "stationary_pair_angle_deg": 2.537764628676419,
+      "centre_shift_px": 0.7918957811354996,
+      "pose_rms_px": 0.5285867878864706,
+      "sigmaDeg": {
+        "m3": 7.500000000000001,
+        "m4": 8.2915619758885,
+        "m5": 0
+      },
+      "estimator_state": "IN_PROCESS_POS"
+    },
+    {
+      "joint": "m4",
+      "before": "m4return1",
+      "after": "m4plus1",
+      "command_sign": "+",
+      "estimator_joint_delta_deg": 10.0,
+      "estimator_forearm_delta_deg": 10.0,
+      "measured_forearm_delta_deg": 8.616106749082562,
+      "measured_joint_proxy_delta_deg": 8.616106749082562,
+      "rotation_magnitude_deg": 8.786340189758215,
+      "cross_axis_rotation_deg": 1.7211851784669665,
+      "marker_displacement_camera_mm": [
+        0.23464369220040082,
+        -11.916504705271668,
+        16.438867834925485
+      ],
+      "marker_displacement_image_px": [
+        28.25359344482422,
+        -19.641240119934082
+      ],
+      "stationary_pair_angle_deg": 1.4835531141933527,
+      "centre_shift_px": 0.4874997840340081,
+      "pose_rms_px": 0.4552776349198706,
+      "sigmaDeg": {
+        "m3": 7.500000000000001,
+        "m4": 8.660254037844387,
+        "m5": 0
+      },
+      "estimator_state": "IN_PROCESS_POS"
+    },
+    {
+      "joint": "m4",
+      "before": "m4plus1",
+      "after": "m4return2",
+      "command_sign": "-",
+      "estimator_joint_delta_deg": -10.0,
+      "estimator_forearm_delta_deg": -10.0,
+      "measured_forearm_delta_deg": -11.582161212450954,
+      "measured_joint_proxy_delta_deg": -11.582161212450954,
+      "rotation_magnitude_deg": 11.73766702543046,
+      "cross_axis_rotation_deg": 1.9043027198095839,
+      "marker_displacement_camera_mm": [
+        -0.1956294674999512,
+        12.234433161971175,
+        -16.947265229614388
+      ],
+      "marker_displacement_image_px": [
+        -28.845321655273438,
+        20.15370464324951
+      ],
+      "stationary_pair_angle_deg": 2.610818319750365,
+      "centre_shift_px": 0.39578283474215165,
+      "pose_rms_px": 0.3139431965281861,
+      "sigmaDeg": {
+        "m3": 7.500000000000001,
+        "m4": 9.013878188659973,
+        "m5": 0
+      },
+      "estimator_state": "IN_PROCESS_POS"
+    },
+    {
+      "joint": "m4",
+      "before": "m4return2",
+      "after": "m4minus2",
+      "command_sign": "-",
+      "estimator_joint_delta_deg": -10.0,
+      "estimator_forearm_delta_deg": -10.0,
+      "measured_forearm_delta_deg": -12.187142216364728,
+      "measured_joint_proxy_delta_deg": -12.187142216364728,
+      "rotation_magnitude_deg": 12.198654992687812,
+      "cross_axis_rotation_deg": 0.5298568002091434,
+      "marker_displacement_camera_mm": [
+        -0.05583575437616631,
+        9.397688651236095,
+        -19.51893123063289
+      ],
+      "marker_displacement_image_px": [
+        -45.40727996826172,
+        -11.014875888824463
+      ],
+      "stationary_pair_angle_deg": 3.525910953178498,
+      "centre_shift_px": 0.47608478719434805,
+      "pose_rms_px": 0.6019886104733068,
+      "sigmaDeg": {
+        "m3": 7.500000000000001,
+        "m4": 9.354143466934852,
+        "m5": 0
+      },
+      "estimator_state": "IN_PROCESS_POS"
+    },
+    {
+      "joint": "m4",
+      "before": "m4minus2",
+      "after": "m4return3",
+      "command_sign": "+",
+      "estimator_joint_delta_deg": 10.0,
+      "estimator_forearm_delta_deg": 10.0,
+      "measured_forearm_delta_deg": 11.88781136174062,
+      "measured_joint_proxy_delta_deg": 11.88781136174062,
+      "rotation_magnitude_deg": 11.890048866081548,
+      "cross_axis_rotation_deg": 0.23065789706332962,
+      "marker_displacement_camera_mm": [
+        -0.04935486236522582,
+        -9.142346414121732,
+        19.14124398139355
+      ],
+      "marker_displacement_image_px": [
+        43.85710906982422,
+        11.430586338043213
+      ],
+      "stationary_pair_angle_deg": 4.19843970464248,
+      "centre_shift_px": 0.46789743842442083,
+      "pose_rms_px": 0.44547643360131134,
+      "sigmaDeg": {
+        "m3": 7.500000000000001,
+        "m4": 9.68245836551854,
+        "m5": 0
+      },
+      "estimator_state": "IN_PROCESS_POS"
+    },
+    {
+      "joint": "m4",
+      "before": "m4return3",
+      "after": "m4plus2",
+      "command_sign": "+",
+      "estimator_joint_delta_deg": 10.0,
+      "estimator_forearm_delta_deg": 10.0,
+      "measured_forearm_delta_deg": 11.8964593561959,
+      "measured_joint_proxy_delta_deg": 11.8964593561959,
+      "rotation_magnitude_deg": 12.454382652028054,
+      "cross_axis_rotation_deg": 3.6859058628126102,
+      "marker_displacement_camera_mm": [
+        0.25144454032723085,
+        -11.696544395699448,
+        16.398424980637373
+      ],
+      "marker_displacement_image_px": [
+        28.841941833496094,
+        -18.845290184020996
+      ],
+      "stationary_pair_angle_deg": 1.8162986470352682,
+      "centre_shift_px": 0.31539124329843926,
+      "pose_rms_px": 0.41730133612983566,
+      "sigmaDeg": {
+        "m3": 7.500000000000001,
+        "m4": 9.999999999999996,
+        "m5": 0
+      },
+      "estimator_state": "IN_PROCESS_POS"
+    },
+    {
+      "joint": "m4",
+      "before": "m4plus2",
+      "after": "m4return4",
+      "command_sign": "-",
+      "estimator_joint_delta_deg": -10.0,
+      "estimator_forearm_delta_deg": -10.0,
+      "measured_forearm_delta_deg": -12.084531866049652,
+      "measured_joint_proxy_delta_deg": -12.084531866049652,
+      "rotation_magnitude_deg": 12.930004787625263,
+      "cross_axis_rotation_deg": 4.598816520197644,
+      "marker_displacement_camera_mm": [
+        -0.2087809966648535,
+        11.830284266425775,
+        -16.673259106619472
+      ],
+      "marker_displacement_image_px": [
+        -29.07074737548828,
+        18.73663330078125
+      ],
+      "stationary_pair_angle_deg": 5.424753869479807,
+      "centre_shift_px": 0.2192684545560721,
+      "pose_rms_px": 0.6115146207262513,
+      "sigmaDeg": {
+        "m3": 7.500000000000001,
+        "m4": 10.307764064044148,
+        "m5": 0
+      },
+      "estimator_state": "IN_PROCESS_POS"
+    },
+    {
+      "joint": "m3",
+      "before": "m3noise3",
+      "after": "m3plus1",
+      "command_sign": "+",
+      "estimator_joint_delta_deg": 10.0,
+      "estimator_forearm_delta_deg": -10.0,
+      "measured_forearm_delta_deg": -10.40018678233473,
+      "measured_joint_proxy_delta_deg": 10.40018678233473,
+      "rotation_magnitude_deg": 10.780941612269611,
+      "cross_axis_rotation_deg": 2.8398621339277113,
+      "marker_displacement_camera_mm": [
+        -0.576368185021759,
+        42.44177063554991,
+        -2.8638031321509274
+      ],
+      "marker_displacement_image_px": [
+        -10.417442321777344,
+        256.0131950378418
+      ],
+      "stationary_pair_angle_deg": 0.9349676912395317,
+      "centre_shift_px": 0.2655249559101137,
+      "pose_rms_px": 0.45689050707754575,
+      "sigmaDeg": {
+        "m3": 7.90569415042095,
+        "m4": 10.897247358851683,
+        "m5": 0
+      },
+      "estimator_state": "IN_PROCESS_POS"
+    },
+    {
+      "joint": "m3",
+      "before": "m3plus1",
+      "after": "m3return1",
+      "command_sign": "-",
+      "estimator_joint_delta_deg": -10.0,
+      "estimator_forearm_delta_deg": 10.0,
+      "measured_forearm_delta_deg": 11.073384798880301,
+      "measured_joint_proxy_delta_deg": -11.073384798880301,
+      "rotation_magnitude_deg": 11.405868227500852,
+      "cross_axis_rotation_deg": 2.7338579185905254,
+      "marker_displacement_camera_mm": [
+        0.585911140818237,
+        -42.62445480961427,
+        3.046534053597089
+      ],
+      "marker_displacement_image_px": [
+        10.674072265625,
+        -256.43456506729126
+      ],
+      "stationary_pair_angle_deg": 1.5798055536737114,
+      "centre_shift_px": 0.4954468430914342,
+      "pose_rms_px": 0.33930608366687914,
+      "sigmaDeg": {
+        "m3": 8.2915619758885,
+        "m4": 10.897247358851683,
+        "m5": 0
+      },
+      "estimator_state": "IN_PROCESS_POS"
+    },
+    {
+      "joint": "m3",
+      "before": "m3return1",
+      "after": "m3plus2",
+      "command_sign": "+",
+      "estimator_joint_delta_deg": 10.0,
+      "estimator_forearm_delta_deg": -10.0,
+      "measured_forearm_delta_deg": -10.256321472343853,
+      "measured_joint_proxy_delta_deg": 10.256321472343853,
+      "rotation_magnitude_deg": 10.47995638371792,
+      "cross_axis_rotation_deg": 2.153452033496086,
+      "marker_displacement_camera_mm": [
+        -0.564381243533349,
+        42.6383785285208,
+        -3.0286324918636502
+      ],
+      "marker_displacement_image_px": [
+        -10.498939514160156,
+        256.53719186782837
+      ],
+      "stationary_pair_angle_deg": 0.44945048546023286,
+      "centre_shift_px": 0.20453008470902734,
+      "pose_rms_px": 0.4125305769422257,
+      "sigmaDeg": {
+        "m3": 8.660254037844387,
+        "m4": 10.897247358851683,
+        "m5": 0
+      },
+      "estimator_state": "IN_PROCESS_POS"
+    },
+    {
+      "joint": "m3",
+      "before": "m3plus2",
+      "after": "m3return2",
+      "command_sign": "-",
+      "estimator_joint_delta_deg": -10.0,
+      "estimator_forearm_delta_deg": 10.0,
+      "measured_forearm_delta_deg": 9.07303409885597,
+      "measured_joint_proxy_delta_deg": -9.07303409885597,
+      "rotation_magnitude_deg": 9.423639006724418,
+      "cross_axis_rotation_deg": 2.5465711005300538,
+      "marker_displacement_camera_mm": [
+        0.4818448934356089,
+        -42.791683766845125,
+        3.2763678598424355
+      ],
+      "marker_displacement_image_px": [
+        10.274993896484375,
+        -256.5000305175781
+      ],
+      "stationary_pair_angle_deg": 1.0941443900899808,
+      "centre_shift_px": 0.31063756543039894,
+      "pose_rms_px": 0.37090821754374664,
+      "sigmaDeg": {
+        "m3": 9.013878188659973,
+        "m4": 10.897247358851683,
+        "m5": 0
+      },
+      "estimator_state": "IN_PROCESS_POS"
+    }
+  ],
+  "returns": [
+    {
+      "joint": "M4",
+      "pose": "m4return1",
+      "marker_centre_difference_px": 0.7101926757281253,
+      "marker_position_difference_mm": 0.18281845834735969,
+      "orientation_difference_deg": 2.9879186183745032,
+      "signed_forearm_difference_deg": 2.443421805046402
+    },
+    {
+      "joint": "M4",
+      "pose": "m4return2",
+      "marker_centre_difference_px": 1.2543302611334781,
+      "marker_position_difference_mm": 0.7797355592238364,
+      "orientation_difference_deg": 1.9716488942939947,
+      "signed_forearm_difference_deg": -0.5228181157389761
+    },
+    {
+      "joint": "M4",
+      "pose": "m4return3",
+      "marker_centre_difference_px": 2.8563698775773867,
+      "marker_position_difference_mm": 1.2378237939330106,
+      "orientation_difference_deg": 1.729653260265558,
+      "signed_forearm_difference_deg": -0.8244417177893133
+    },
+    {
+      "joint": "M4",
+      "pose": "m4return4",
+      "marker_centre_difference_px": 3.059611121243841,
+      "marker_position_difference_mm": 1.5398743744294257,
+      "orientation_difference_deg": 2.6096481681574026,
+      "signed_forearm_difference_deg": -1.0160802860532452
+    },
+    {
+      "joint": "M3",
+      "pose": "m3return1",
+      "marker_centre_difference_px": 0.4933676416198091,
+      "marker_position_difference_mm": 0.2585636577546718,
+      "orientation_difference_deg": 0.7569061190525963,
+      "signed_forearm_difference_deg": 0.6807636342287354
+    },
+    {
+      "joint": "M3",
+      "pose": "m3return2",
+      "marker_centre_difference_px": 0.38559638788416795,
+      "marker_position_difference_mm": 0.5509248108228536,
+      "orientation_difference_deg": 0.6030878554328573,
+      "signed_forearm_difference_deg": -0.5027423452053993
+    }
+  ],
+  "excursions": [
+    {
+      "joint": "M4",
+      "poses": [
+        "noise3",
+        "m4minus1",
+        "m4return1",
+        "m4plus1",
+        "m4return2"
+      ],
+      "nominal_peak_to_peak_deg": 20,
+      "measured_joint_proxy_from_cycle_reference_deg": [
+        0.0,
+        -11.138399830132858,
+        2.443421805046402,
+        11.060359259073154,
+        -0.5228181157389761
+      ],
+      "measured_peak_to_peak_deg": 22.198759089206014
+    },
+    {
+      "joint": "M4",
+      "poses": [
+        "m4return2",
+        "m4minus2",
+        "m4return3",
+        "m4plus2",
+        "m4return4"
+      ],
+      "nominal_peak_to_peak_deg": 20,
+      "measured_joint_proxy_from_cycle_reference_deg": [
+        0.0,
+        -12.187142216364728,
+        -0.30012687212141015,
+        11.594216639483635,
+        -0.49678362673832016
+      ],
+      "measured_peak_to_peak_deg": 23.781358855848364
+    },
+    {
+      "joint": "M3",
+      "poses": [
+        "m3noise3",
+        "m3plus1",
+        "m3return1"
+      ],
+      "nominal_peak_to_peak_deg": 10,
+      "measured_joint_proxy_from_cycle_reference_deg": [
+        -0.0,
+        10.40018678233473,
+        -0.6807636342287354
+      ],
+      "measured_peak_to_peak_deg": 11.080950416563466
+    },
+    {
+      "joint": "M3",
+      "poses": [
+        "m3return1",
+        "m3plus2",
+        "m3return2"
+      ],
+      "nominal_peak_to_peak_deg": 10,
+      "measured_joint_proxy_from_cycle_reference_deg": [
+        -0.0,
+        10.256321472343853,
+        1.184428978857716
+      ],
+      "measured_peak_to_peak_deg": 10.256321472343853
+    }
+  ],
+  "local_fit": {
+    "label": "Fitted local model-consistency check, not independent extrinsics or absolute wrist calibration",
+    "dimensions": "camera YZ only; lateral marker-to-wrist offset and full 3-D camera registration remain unknown",
+    "training_poses": [
+      "noise3",
+      "m4minus1",
+      "m4plus1",
+      "m3noise3",
+      "m3plus1"
+    ],
+    "heldout_poses": [
+      "m4minus2",
+      "m4return3",
+      "m4plus2",
+      "m4return4",
+      "m3plus2",
+      "m3return2"
+    ],
+    "parameters_frozen_for_heldout": true,
+    "valid_local_fit": true,
+    "jacobian_rank": 5,
+    "jacobian_singular_values": [
+      3.2210750311008742,
+      3.149794847717674,
+      0.2890998243061139,
+      0.2806998722057794,
+      0.02574373240513862
+    ],
+    "condition_number": 125.12074707775965,
+    "parameters": {
+      "plane_rotation_rad": 1.5686859735401353,
+      "camera_y_translation_m": 0.06370290986634394,
+      "camera_z_translation_m": -0.16938755162514407,
+      "fitted_marker_local_u_m": -0.09198141147474184,
+      "fitted_marker_local_v_m": -0.0019095867401975788
+    },
+    "training_rms_marker_yz_mm": 0.6203262782943926,
+    "heldout": [
+      {
+        "pose": "m4minus2",
+        "observed_marker_yz_m": [
+          -0.04392840992099878,
+          0.07760558395192552
+        ],
+        "predicted_marker_yz_m": [
+          -0.04492195185427729,
+          0.07968458432920761
+        ],
+        "error_mm": 2.304206618756634
+      },
+      {
+        "pose": "m4return3",
+        "observed_marker_yz_m": [
+          -0.05307075633512051,
+          0.09674682793331907
+        ],
+        "predicted_marker_yz_m": [
+          -0.05349447106903693,
+          0.0974252148580188
+        ],
+        "error_mm": 0.7998393559593251
+      },
+      {
+        "pose": "m4plus2",
+        "observed_marker_yz_m": [
+          -0.06476730073081996,
+          0.11314525291395644
+        ],
+        "predicted_marker_yz_m": [
+          -0.06501738261656875,
+          0.11340772300645935
+        ],
+        "error_mm": 0.36253482458676695
+      },
+      {
+        "pose": "m4return4",
+        "observed_marker_yz_m": [
+          -0.052937016464394186,
+          0.09647199380733697
+        ],
+        "predicted_marker_yz_m": [
+          -0.05349447106903693,
+          0.0974252148580188
+        ],
+        "error_mm": 1.1042581254853348
+      },
+      {
+        "pose": "m3plus2",
+        "observed_marker_yz_m": [
+          -0.03607031611121085,
+          0.1238314683089992
+        ],
+        "predicted_marker_yz_m": [
+          -0.03590282083453028,
+          0.12387881442799253
+        ],
+        "error_mm": 0.17405838874938442
+      },
+      {
+        "pose": "m3return2",
+        "observed_marker_yz_m": [
+          -0.07886199987805598,
+          0.12710783616884164
+        ],
+        "predicted_marker_yz_m": [
+          -0.07914056866037555,
+          0.12714648835197834
+        ],
+        "error_mm": 0.2812375468251793
+      }
+    ],
+    "heldout_rms_marker_yz_mm": 1.1112545106350247,
+    "heldout_max_marker_yz_mm": 2.304206618756634
+  },
+  "robot_release": {
+    "event": "robot released",
+    "timestamp": "2026-10-13T13:34:07.023050+00:00",
+    "physical_stow_confirmed": true,
+    "manual_exit_acknowledged": true,
+    "final_status": {
+      "state": 3,
+      "battery": 81,
+      "error_code": 0
+    },
+    "anchor_readback": "IN_ROBOT",
+    "robot_commands_finished": true
+  },
+  "decision": "Do not change vendor constants; limited local observations support direction and coarse nominal increments, not full calibration"
+}

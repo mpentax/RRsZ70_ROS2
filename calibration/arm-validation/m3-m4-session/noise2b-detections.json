@@ -1,0 +1,38 @@
+{
+  "file": "/Users/mpentax/Code/RoboRockZ70-Connector/calibration/arm-validation/m3-m4-session/noise2b.jpg",
+  "detections": [
+    {
+      "id": 0,
+      "corners_px": [
+        [
+          659.5230102539062,
+          222.0408477783203
+        ],
+        [
+          540.8314208984375,
+          224.2038116455078
+        ],
+        [
+          525.3645629882812,
+          92.51795959472656
+        ],
+        [
+          651.068603515625,
+          89.48817443847656
+        ]
+      ],
+      "centre_px": [
+        594.1968994140625,
+        157.0626983642578
+      ],
+      "pose": null
+    }
+  ],
+  "roi": [
+    0,
+    0,
+    1600,
+    520
+  ],
+  "metric_pose_computed": false
+}

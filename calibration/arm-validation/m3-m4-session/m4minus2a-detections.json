@@ -1,0 +1,38 @@
+{
+  "file": "/Users/mpentax/Code/RoboRockZ70-Connector/calibration/arm-validation/m3-m4-session/m4minus2a.jpg",
+  "detections": [
+    {
+      "id": 0,
+      "corners_px": [
+        [
+          626.7246704101562,
+          227.12489318847656
+        ],
+        [
+          478.66986083984375,
+          230.95144653320312
+        ],
+        [
+          463.93414306640625,
+          66.17678833007812
+        ],
+        [
+          620.1774291992188,
+          61.9624137878418
+        ]
+      ],
+      "centre_px": [
+        547.3765258789062,
+        146.5538854598999
+      ],
+      "pose": null
+    }
+  ],
+  "roi": [
+    0,
+    0,
+    1600,
+    520
+  ],
+  "metric_pose_computed": false
+}

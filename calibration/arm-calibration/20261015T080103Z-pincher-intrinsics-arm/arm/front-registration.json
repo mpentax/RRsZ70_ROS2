@@ -1,0 +1,59 @@
+{
+  "T_F_W": [
+    [
+      0.9980232410267262,
+      0.062425768838165765,
+      -0.0072549125062327385,
+      -0.12407347997213176
+    ],
+    [
+      0.008719088272665081,
+      -0.023214310696126395,
+      0.9996924893579011,
+      0.06675387077107907
+    ],
+    [
+      0.06223815445691393,
+      -0.9977795944816008,
+      -0.02371271738813857,
+      0.3964139325557437
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "frames": [
+    "raw/039-pair25065-Fbefore.jpg",
+    "raw/040-pair25065-Fpilot.jpg",
+    "raw/043-pair25065-Fafter.jpg",
+    "raw/044-pair25055-Fbefore.jpg",
+    "raw/047-pair25055-Fafter.jpg",
+    "raw/048-pair25045-Fbefore.jpg",
+    "raw/051-pair25045-Fafter.jpg",
+    "raw/052-pair24045-Fbefore.jpg",
+    "raw/055-pair24045-Fafter.jpg",
+    "raw/056-pair23045-Fbefore.jpg",
+    "raw/059-pair23045-Fafter.jpg",
+    "raw/067-roll40-Fbefore.jpg",
+    "raw/070-roll40-Fafter.jpg",
+    "raw/071-roll30-Fbefore.jpg",
+    "raw/074-roll30-Fafter.jpg",
+    "raw/075-roll20-Fbefore.jpg",
+    "raw/078-roll20-Fafter.jpg",
+    "raw/079-roll10-Fbefore.jpg",
+    "raw/082-roll10-Fafter.jpg",
+    "raw/083-roll0-Fbefore.jpg",
+    "raw/086-roll0-Fafter.jpg"
+  ],
+  "point_errors_px": {
+    "n": 1332,
+    "rms": 3.242536373943809,
+    "median": 2.592727639060829,
+    "p95": 5.91695275837039,
+    "max": 10.062766849577345
+  },
+  "camera_height_above_board_m": 0.058233433935542395
+}

@@ -1,0 +1,14 @@
+{
+  "file": "/Users/mpentax/Code/RoboRockZ70-Connector/calibration/arm-calibration/20261015T121045Z-m3-rotation-retry/raw/B1-G2.jpg",
+  "camera": "gripper",
+  "dimensions": [
+    1600,
+    896
+  ],
+  "sha256": "586cc1fd8fa01dac1f774603e467bc5940eaef946bed16f3951a2ad4ff1f1214",
+  "raw_markers": [],
+  "rejected_quads": 10,
+  "marker": null,
+  "marker_ambiguous": false,
+  "board": null
+}

@@ -1,0 +1,187 @@
+{
+  "01-turned.jpg": {
+    "joints": null,
+    "gripper": "not_applicable",
+    "filename_is_state_authority": false
+  },
+  "02-deployed.jpg": {
+    "joints": [
+      150,
+      45,
+      0
+    ],
+    "gripper": "not_applicable",
+    "filename_is_state_authority": false
+  },
+  "f160-45-open.jpg": {
+    "joints": [
+      160,
+      45,
+      0
+    ],
+    "gripper": "open",
+    "filename_is_state_authority": false
+  },
+  "f170-45-0-open.jpg": {
+    "joints": [
+      170,
+      45,
+      0
+    ],
+    "gripper": "open",
+    "filename_is_state_authority": false
+  },
+  "f180-45-0-open.jpg": {
+    "joints": [
+      180,
+      45,
+      0
+    ],
+    "gripper": "open",
+    "filename_is_state_authority": false
+  },
+  "f190-45-0-open.jpg": {
+    "joints": [
+      190,
+      45,
+      0
+    ],
+    "gripper": "open",
+    "filename_is_state_authority": false
+  },
+  "f190-55-0-open.jpg": {
+    "joints": [
+      190,
+      55,
+      0
+    ],
+    "gripper": "open",
+    "filename_is_state_authority": false
+  },
+  "f190-65-0-open.jpg": {
+    "joints": [
+      190,
+      65,
+      0
+    ],
+    "gripper": "open",
+    "filename_is_state_authority": false
+  },
+  "f200-65-0-open.jpg": {
+    "joints": [
+      200,
+      65,
+      0
+    ],
+    "gripper": "open",
+    "filename_is_state_authority": false
+  },
+  "f210-65-0-open.jpg": {
+    "joints": [
+      210,
+      65,
+      0
+    ],
+    "gripper": "open",
+    "filename_is_state_authority": false
+  },
+  "f220-65-0-open.jpg": {
+    "joints": [
+      220,
+      65,
+      0
+    ],
+    "gripper": "open",
+    "filename_is_state_authority": false
+  },
+  "f220-75-0-open.jpg": {
+    "joints": [
+      220,
+      75,
+      0
+    ],
+    "gripper": "open",
+    "filename_is_state_authority": false
+  },
+  "f230-75-0-open.jpg": {
+    "joints": [
+      230,
+      75,
+      0
+    ],
+    "gripper": "open",
+    "filename_is_state_authority": false
+  },
+  "f230-85-0-open.jpg": {
+    "joints": [
+      230,
+      85,
+      0
+    ],
+    "gripper": "open",
+    "filename_is_state_authority": false
+  },
+  "f240-85-0-open.jpg": {
+    "joints": [
+      240,
+      85,
+      0
+    ],
+    "gripper": "open",
+    "filename_is_state_authority": false
+  },
+  "f240-85-closed.jpg": {
+    "joints": [
+      240,
+      85,
+      0
+    ],
+    "gripper": "closed_empty",
+    "filename_is_state_authority": false
+  },
+  "f240-95-0-open.jpg": {
+    "joints": [
+      240,
+      95,
+      0
+    ],
+    "gripper": "closed_empty",
+    "filename_is_state_authority": false
+  },
+  "f240-105-0-open.jpg": {
+    "joints": [
+      240,
+      105,
+      0
+    ],
+    "gripper": "closed_empty",
+    "filename_is_state_authority": false
+  },
+  "f240-115-0-open.jpg": {
+    "joints": [
+      240,
+      115,
+      0
+    ],
+    "gripper": "closed_empty",
+    "filename_is_state_authority": false
+  },
+  "f250-115-0-open.jpg": {
+    "joints": [
+      250,
+      115,
+      0
+    ],
+    "gripper": "closed_empty",
+    "filename_is_state_authority": false
+  },
+  "f250-115-actual-open.jpg": {
+    "joints": [
+      250,
+      115,
+      0
+    ],
+    "gripper": "open",
+    "filename_is_state_authority": false
+  }
+}

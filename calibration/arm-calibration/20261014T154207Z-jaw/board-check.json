@@ -1,0 +1,28 @@
+[
+  {
+    "file": "f240-105-0-open.jpg",
+    "board_corners": 8,
+    "rms_px": 1.7388919591903687,
+    "jaw_height_from_board_m": 0.08143761574603409,
+    "front_camera_height_from_board_m": 0.054058939302803026,
+    "normal_CF": [
+      0.09495386906012089,
+      -0.0019680995476845024,
+      0.995479728238945
+    ],
+    "jaw_height_frozen_floor_m": 0.07612150396229359
+  },
+  {
+    "file": "f250-115-0-open.jpg",
+    "board_corners": 8,
+    "rms_px": 1.775815486907959,
+    "jaw_height_from_board_m": 0.04788813051735588,
+    "front_camera_height_from_board_m": 0.05397938614267049,
+    "normal_CF": [
+      0.09487009539477044,
+      -0.003015902415720271,
+      0.9954850924712061
+    ],
+    "jaw_height_frozen_floor_m": 0.04219913816111473
+  }
+]

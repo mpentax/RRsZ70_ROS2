@@ -1,0 +1,17 @@
+{
+  "original_hashes_verified": 90,
+  "total_capture_requests": 96,
+  "failed_capture_requests": 4,
+  "successful_unretained": 1,
+  "counts_reconciled": true,
+  "final_state": 3,
+  "battery": 56,
+  "error_code": 0,
+  "pickup_bits_cleared": true,
+  "program_state": 0,
+  "streams_empty": true,
+  "final_image": "raw/final-front.jpg",
+  "tests": "4 passed",
+  "production_edits": false,
+  "commits": false
+}

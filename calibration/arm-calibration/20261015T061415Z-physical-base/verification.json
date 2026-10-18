@@ -1,0 +1,27 @@
+{
+  "tests_passed": 8,
+  "tests_failed": 0,
+  "git_diff_check": "passed",
+  "python_compile": "passed",
+  "raw_files": 195,
+  "unique_sha256": 195,
+  "all_manifest_hashes_verified": true,
+  "baseline_hashes_unchanged": {
+    "calibration/front-camera/front_camera.json": true,
+    "ros2/src/z70_description/config/mount_calibration.yaml": true
+  },
+  "production_config_URDF_planner_firmware_edited": false,
+  "committed": false,
+  "overlay_review": "front marker and floor corners correctly separated; floor paper curvature/full-image intrinsics not independently validated",
+  "final_status": {
+    "state": 3,
+    "battery": 31,
+    "error_code": 0,
+    "in_cleaning": 0,
+    "in_returning": 0,
+    "common_status": 49154,
+    "camera_status": 11685
+  },
+  "final_grab_status": 0,
+  "final_grab_mode": 0
+}

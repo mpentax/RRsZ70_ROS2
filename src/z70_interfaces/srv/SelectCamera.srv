@@ -1,0 +1,4 @@
+uint8 camera
+---
+z70_interfaces/CommandOutcome outcome
+z70_interfaces/CameraState state

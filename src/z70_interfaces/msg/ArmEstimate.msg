@@ -1,0 +1,20 @@
+# Generated from docs/migration/interfaces.md; SI units.
+std_msgs/Header header
+z70_interfaces/EvidenceStamp evidence
+z70_interfaces/Validity validity
+uint8 source
+string<=64 model_id
+string<=128 calibration_id
+sensor_msgs/JointState joints
+bool joint_uncertainty_known
+float64[] joint_sigma_rad
+bool wrist_known
+geometry_msgs/Point wrist
+string<=64 wrist_frame
+bool wrist_uncertainty_known
+float64[9] wrist_covariance
+uint32 steps_since_anchor
+bool anchor_time_known
+builtin_interfaces/Time anchored_at
+bool restored
+string<=64 unknown_reason

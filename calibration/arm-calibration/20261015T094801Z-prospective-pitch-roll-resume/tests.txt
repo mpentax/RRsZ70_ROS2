@@ -1,0 +1,10 @@
+test_G_pose_excludes_front_pixels (__main__.ValidationChecks) ... ok
+test_final_idle_and_no_consumers (__main__.ValidationChecks) ... ok
+test_frozen_inputs_unchanged (__main__.ValidationChecks) ... ok
+test_metrics_from_raw_all_corners (__main__.ValidationChecks) ... ok
+test_stationarity_rejections_retained (__main__.ValidationChecks) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.008s
+
+OK

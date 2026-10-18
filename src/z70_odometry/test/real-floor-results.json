@@ -1,0 +1,132 @@
+{
+  "full_geometric_mask": {
+    "features": {
+      "camera-fixed-frame-1": 3000,
+      "camera-fixed-frame-2": 3000,
+      "deploy-frame-2": 3000
+    },
+    "pairs": [
+      {
+        "a": "camera-fixed-frame-1",
+        "b": "camera-fixed-frame-2",
+        "ratio_matches": 1342,
+        "motion": {
+          "dx": -3.8072801691879654e-07,
+          "dy": -3.833480966387849e-06,
+          "dtheta": 3.1044510907411732e-06,
+          "inliers": 1000,
+          "matches": 1342,
+          "rms_m": 0.0008565571388629973
+        }
+      }
+    ],
+    "rendered_bare_floor": [
+      {
+        "dx": 0.03,
+        "angle_deg": 0,
+        "motion": {
+          "dx": 0.030002271336459246,
+          "dy": 3.2817787447093216e-05,
+          "dtheta": -8.725086940970839e-05,
+          "inliers": 779,
+          "matches": 1541,
+          "rms_m": 0.0013537059689124247
+        }
+      },
+      {
+        "dx": 0.06,
+        "angle_deg": 0,
+        "motion": {
+          "dx": 0.059405479448971066,
+          "dy": 0.00027563860779487024,
+          "dtheta": -0.00037449117359644474,
+          "inliers": 396,
+          "matches": 940,
+          "rms_m": 0.001625355510676012
+        }
+      },
+      {
+        "dx": 0,
+        "angle_deg": 5,
+        "motion": {
+          "dx": 3.806457478802705e-05,
+          "dy": 7.5141233680397e-05,
+          "dtheta": 0.08713522877523967,
+          "inliers": 920,
+          "matches": 1599,
+          "rms_m": 0.0012316742706895039
+        }
+      },
+      {
+        "dx": 0,
+        "angle_deg": 15,
+        "motion": {
+          "dx": 9.828530922387224e-05,
+          "dy": 0.00013861627726075715,
+          "dtheta": 0.26141976639642717,
+          "inliers": 128,
+          "matches": 271,
+          "rms_m": 0.0014481370364766188
+        }
+      }
+    ]
+  },
+  "bare_floor_roi": {
+    "features": {
+      "camera-fixed-frame-1": 1796,
+      "camera-fixed-frame-2": 1737,
+      "deploy-frame-2": 1850
+    },
+    "pairs": [
+      {
+        "a": "camera-fixed-frame-1",
+        "b": "camera-fixed-frame-2",
+        "ratio_matches": 175,
+        "motion": {
+          "dx": 2.654535930127211e-05,
+          "dy": -0.0003598088924229479,
+          "dtheta": 0.001402835555398914,
+          "inliers": 150,
+          "matches": 175,
+          "rms_m": 0.0003513922724263026
+        }
+      }
+    ],
+    "rendered_bare_floor": [
+      {
+        "dx": 0.03,
+        "angle_deg": 0,
+        "motion": {
+          "dx": 0.0299748005534618,
+          "dy": -2.8545173420073012e-05,
+          "dtheta": 4.8349615243940125e-05,
+          "inliers": 251,
+          "matches": 285,
+          "rms_m": 0.0003550120385091044
+        }
+      },
+      {
+        "dx": 0.06,
+        "angle_deg": 0,
+        "motion": null
+      },
+      {
+        "dx": 0,
+        "angle_deg": 5,
+        "motion": {
+          "dx": 4.656493757415614e-06,
+          "dy": -1.3770772293071262e-05,
+          "dtheta": 0.08735764849576334,
+          "inliers": 764,
+          "matches": 772,
+          "rms_m": 0.0002518724335256064
+        }
+      },
+      {
+        "dx": 0,
+        "angle_deg": 15,
+        "motion": null
+      }
+    ]
+  }
+}

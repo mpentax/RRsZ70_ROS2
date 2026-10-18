@@ -1,0 +1,6 @@
+# OpenCV hue 0..179; saturation rejects neutral floor and grout.
+yellow: {h: [10, 29], s: [110, 255], v: [35, 255], size_m: [0.035, 0.125]}   # live 2026-10-15: warm/shadow facets H12..21; H16 cutoff split the 6.6cm target
+orange: {h: [5, 15], s: [105, 255], v: [65, 255]}
+green: {h: [39, 85], s: [75, 255], v: [45, 255]}
+blue: {h: [86, 126], s: [85, 255], v: [45, 255]}
+purple: {h: [127, 168], s: [65, 255], v: [45, 255]}

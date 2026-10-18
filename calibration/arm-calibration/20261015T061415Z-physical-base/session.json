@@ -1,0 +1,31 @@
+{
+  "authorization": "supervised clear floor/rear, bounded reverse and arm calibration",
+  "frames": "T_A_B maps B into A; optical x right y down z forward; W = dense board printed origin, unsurveyed scale",
+  "baseline": "mount_calibration.yaml preserved",
+  "goal": "5mm/1deg requires independent survey; not claimable here",
+  "floor_mask": "pilot observed floor y>=710; board corners checked per frame; ID68 associated by >30mm absolute board-plane height",
+  "thresholds": {
+    "board_min_corners": 8,
+    "board_trim_px": 4,
+    "minimum_inlier_fraction": 0.65,
+    "marker_rms_px": 2,
+    "settled_translation_m": 0.003,
+    "settled_rotation_deg": 3
+  },
+  "holdouts": "whole reverse sweep and third deployment block; pose combinations with (M3/10+M4/10)%4==0 held out",
+  "intrinsics": "existing one-plane front and retained pincher; no new multi-tilt validation",
+  "unobserved_angles": "nominal tracked angles are input labels only; observed relative SE3 used for axes",
+  "capture_timing": "MCP receipt only; no exposure timestamp; historical helper records local capture completion",
+  "baseline_hashes": {
+    "calibration/front-camera/front_camera.json": "b1d00207c78d5f56da9781ce24cebb0719c6146a94b1812576365e62061d19ae",
+    "ros2/src/z70_description/config/mount_calibration.yaml": "196bc3c26f27da4c0377c238461d582494f39eb93da81cd64f5a5cefc70ad012"
+  },
+  "software": {
+    "opencv": "5.0.0"
+  },
+  "replication_missing": [
+    "human remount",
+    "independent survey",
+    "new full-image lens calibration"
+  ]
+}

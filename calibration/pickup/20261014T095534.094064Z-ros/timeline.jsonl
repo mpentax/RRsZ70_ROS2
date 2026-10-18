@@ -1,0 +1,12 @@
+{"t": "2026-10-14T09:55:34.094251+00:00", "event": "start", "color": "yellow", "dry_run": false}
+{"t": "2026-10-14T09:55:34.518477+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": [{"color": "yellow", "pixel": [1254.898349139445, 699.2986301369863], "contact_px": [1251.0, 720.0], "bbox": [1216, 671, 80, 50], "size_px": 80.0, "area_px": 2372.5, "image_size": [1600, 1200], "position": [0.6211410839144836, -0.2071297994851974, 0.0], "camera": "front", "size_m": 0.035827178407153694}]}
+{"t": "2026-10-14T09:55:34.518750+00:00", "event": "approach", "yaw": -0.35497565263917236, "forward": 0.1671476749103495, "bearing_error_deg": -20.338606726126518, "range_error_m": 0.1671476749103495, "grasp_point": [0.4872599319924749, 0.021672193911926634, 0.0]}
+{"t": "2026-10-14T09:55:34.538898+00:00", "event": "command", "method": "app_rc_start", "params": []}
+{"t": "2026-10-14T09:55:34.548082+00:00", "event": "reply", "method": "app_rc_start", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T09:55:39.609073+00:00", "event": "command", "method": "app_rc_move", "params": {"velocity": 0.0, "omega": -0.22, "duration": 700, "seqnum": 1}}
+{"t": "2026-10-14T09:55:39.621182+00:00", "event": "stop", "reason": "robot error: rejected app_rc_move"}
+{"t": "2026-10-14T09:55:39.621414+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-14T09:55:39.632634+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T09:55:39.632875+00:00", "event": "command", "method": "app_rc_end", "params": []}
+{"t": "2026-10-14T09:55:39.644805+00:00", "event": "reply", "method": "app_rc_end", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T09:55:39.645063+00:00", "event": "failure", "error": "SafetyStop", "reason": "robot error: rejected app_rc_move", "log_dir": "/Users/mpentax/Code/RoboRockZ70-Connector/calibration/pickup/20261014T095534.094064Z-ros"}

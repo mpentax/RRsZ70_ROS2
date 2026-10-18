@@ -1,0 +1,124 @@
+{
+  "truth": {
+    "camera_x_m": 0.23,
+    "yaw_gain": 0.6,
+    "forward_gain": 0.55
+  },
+  "accepted_pairs": 9,
+  "fit": {
+    "camera_x_m": 0.229705670046216,
+    "camera_x_source": "pure_rotation_fit",
+    "rotation_fitted_camera_x_m": 0.229705670046216,
+    "camera_x_fit_sigma_m": 0.00022831368646939937,
+    "camera_rotation_residual_rms_m": 0.00014118064968762808,
+    "rotation_pairs": 6,
+    "yaw": {
+      "gain": 0.6007623024316955,
+      "n": 6,
+      "residual_rms": 0.00036281517947801557,
+      "per_pulse_gain_std": 0.0012022814956678912,
+      "duration_groups": {
+        "400": {
+          "n": 2,
+          "mean_gain": 0.6014356932046812
+        },
+        "600": {
+          "n": 2,
+          "mean_gain": 0.6004046057929967
+        },
+        "800": {
+          "n": 2,
+          "mean_gain": 0.6007951590977171
+        }
+      },
+      "duration_relative_range": 0.0017162984553307275
+    },
+    "yaw_positive": {
+      "gain": 0.6018258243896247,
+      "n": 3,
+      "residual_rms": 3.779947867951804e-05,
+      "per_pulse_gain_std": 0.00015503685985535524,
+      "duration_groups": {
+        "400": {
+          "n": 1,
+          "mean_gain": 0.601628941481122
+        },
+        "600": {
+          "n": 1,
+          "mean_gain": 0.60172431794195
+        },
+        "800": {
+          "n": 1,
+          "mean_gain": 0.6019321424935673
+        }
+      },
+      "duration_relative_range": 0.0005038019309869362
+    },
+    "yaw_negative": {
+      "gain": 0.5996987804737662,
+      "n": 3,
+      "residual_rms": 0.00020776343205198061,
+      "per_pulse_gain_std": 0.0011175560271857517,
+      "duration_groups": {
+        "400": {
+          "n": 1,
+          "mean_gain": 0.6012424449282402
+        },
+        "600": {
+          "n": 1,
+          "mean_gain": 0.5990848936440434
+        },
+        "800": {
+          "n": 1,
+          "mean_gain": 0.5996581757018669
+        }
+      },
+      "duration_relative_range": 0.003597724982019026
+    },
+    "forward": {
+      "gain": 0.549306850649085,
+      "n": 3,
+      "residual_rms": 2.5487447494745657e-05,
+      "per_pulse_gain_std": 0.000489650408704114,
+      "duration_groups": {
+        "400": {
+          "n": 1,
+          "mean_gain": 0.5491420250097826
+        },
+        "600": {
+          "n": 1,
+          "mean_gain": 0.5499141655981177
+        },
+        "800": {
+          "n": 1,
+          "mean_gain": 0.5490064424000797
+        }
+      },
+      "duration_relative_range": 0.0016524883987254053
+    },
+    "forward_positive": {
+      "gain": 0.549306850649085,
+      "n": 3,
+      "residual_rms": 2.5487447494745657e-05,
+      "per_pulse_gain_std": 0.000489650408704114,
+      "duration_groups": {
+        "400": {
+          "n": 1,
+          "mean_gain": 0.5491420250097826
+        },
+        "600": {
+          "n": 1,
+          "mean_gain": 0.5499141655981177
+        },
+        "800": {
+          "n": 1,
+          "mean_gain": 0.5490064424000797
+        }
+      },
+      "duration_relative_range": 0.0016524883987254053
+    },
+    "forward_negative": null,
+    "forward_lateral_rms_m": 0.00010147157221747806,
+    "forward_yaw_rms_deg": 0.013135696505628394
+  }
+}

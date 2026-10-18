@@ -1,0 +1,248 @@
+<?xml version="1.0"?>
+<!--
+  Roborock Saros Z70 - kinematic description.
+  PROVISIONAL shared geometry: config/mount_calibration.yaml, 20261015.
+  L2=0.205 and the vendor shoulder reference define a coordinate gauge, NOT measured wrist anatomy.
+  M4 zero/physical L2 remain confounded with unknown marker mounts. Firmware FK stays in arm_model.py.
+  Display assembly length follows rough owner tape; internal wrist/finger split and M6 remain provisional.
+  M5 stays at the nominal gauge station; rolling visuals are translated back along the same x axis.
+
+  URDF joint values (radians) from app angles (degrees), computed in z70_bridge:
+    m3_joint = rad(M3 - 270)      link1 absolute app angle = 270 - M3 (from +x toward up)
+    m4_joint = rad(180 - M4)      link2 relative to link1 = M4 - 180
+    m5_joint = -rad(M5), axis -x  => physical positive roll (live 20261014T144906Z)
+    m6 drive = rad(M6)/2; photo-estimated articulation mimics this with multiplier
+    2*opening_ratio (pincher_geometry.yaml); nominal0 closed/90 open, not feedback.
+-->
+<robot name="z70" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:include filename="$(find z70_description)/urdf/pincher_collisions.xacro"/>
+  <xacro:property name="hand" value="${xacro.load_yaml('$(find z70_description)/config/pincher_geometry.yaml')}"/>
+  <xacro:property name="cad" value="${xacro.load_yaml('$(find z70_description)/config/cad_arm.yaml')}"/>
+  <xacro:property name="sh_x" value="${cad['shoulder_in_vendor_m'][0]}"/>
+  <xacro:property name="sh_y" value="${cad['shoulder_in_vendor_m'][1]}"/>
+  <xacro:property name="sh_z" value="${cad['shoulder_in_vendor_m'][2]}"/>
+  <xacro:property name="l1" value="${cad['L1_m']}"/>
+  <xacro:property name="l2" value="${cad['L2_m']}"/>
+  <xacro:property name="cal" value="${xacro.load_yaml('$(find z70_description)/config/mount_calibration.yaml')}"/>
+  <!-- Rough exterior wrist-cover extent, not an identified M5/M6 axis.
+       Head and fingers are defined only in pincher_geometry.yaml. -->
+  <xacro:property name="visual_proximal_len" value="${cal['visual_open_assembly_length_m']-cal['visual_terminal_span_m']}"/>
+  <xacro:property name="cam_x" value="${cal['front_camera_x_m']}"/>
+  <xacro:property name="cam_z" value="${cal['front_camera_z_m']}"/>
+  <xacro:property name="cam_pitch" value="${cal['front_camera_pitch_deg'] * pi / 180}"/>
+
+  <material name="body"><color rgba="0.96 0.96 0.96 1"/></material>
+  <material name="moving"><color rgba="0.12 0.12 0.12 1"/></material>
+  <material name="arm"><color rgba="0.2 0.2 0.2 1"/></material>
+  <material name="cam"><color rgba="0.1 0.4 0.9 1"/></material>
+  <material name="pincher_shell"><color rgba="0.10 0.105 0.115 1"/></material>
+  <material name="pincher_glass"><color rgba="0.025 0.03 0.035 1"/></material>
+  <material name="pincher_hardware"><color rgba="0.62 0.58 0.50 1"/></material>
+  <material name="pincher_collar"><color rgba="0.42 0.42 0.44 1"/></material>
+  <material name="pincher_bowl"><color rgba="0.12 0.12 0.13 1"/></material>
+  <material name="pincher_rib"><color rgba="0.34 0.34 0.36 1"/></material>
+  <material name="marker_white"><color rgba="0.96 0.96 0.96 1"/></material>
+
+  <link name="base_footprint"/>
+  <link name="base_link">
+    <visual><geometry><mesh filename="package://z70_description/meshes/cad/cad_body.stl"/></geometry><material name="body"/></visual>
+    <visual><geometry><mesh filename="package://z70_description/meshes/cad/cad_wheels.stl"/></geometry><material name="moving"/></visual>
+    <visual><geometry><mesh filename="package://z70_description/meshes/cad/cad_mops.stl"/></geometry><material name="moving"/></visual>
+    <visual><geometry><mesh filename="package://z70_description/meshes/cad/cad_spinners.stl"/></geometry><material name="moving"/></visual>
+    <visual><geometry><mesh filename="package://z70_description/meshes/cad/cad_lenses.stl"/></geometry><material name="moving"/></visual>
+  </link>
+  <joint name="base_joint" type="fixed">
+    <parent link="base_footprint"/><child link="base_link"/>
+  </joint>
+
+  <!-- front RGB camera -->
+  <link name="camera_link">
+    <visual><geometry><box size="0.01 0.03 0.015"/></geometry><material name="moving"/></visual>
+  </link>
+  <joint name="camera_joint" type="fixed">
+    <parent link="base_link"/><child link="camera_link"/>
+    <!-- New-run floor normal; roll is required for projector/optical-TF agreement. -->
+    <origin xyz="${cam_x} 0 ${cam_z}" rpy="${cal['front_camera_roll_deg'] * pi / 180} ${cam_pitch} 0"/>
+  </joint>
+  <link name="camera_optical_frame"/>
+  <joint name="camera_optical_joint" type="fixed">
+    <parent link="camera_link"/><child link="camera_optical_frame"/>
+    <origin rpy="${-pi/2} 0 ${-pi/2}"/>
+  </joint>
+
+  <link name="bumper_front">
+    <visual><geometry><mesh filename="package://z70_description/meshes/cad/cad_bumper_front.stl"/></geometry><material name="moving"/></visual>
+  </link>
+  <joint name="bumper_front_mount" type="fixed">
+    <parent link="base_link"/><child link="bumper_front"/>
+  </joint>
+  <link name="bumper_rear">
+    <visual><geometry><mesh filename="package://z70_description/meshes/cad/cad_bumper_rear.stl"/></geometry><material name="moving"/></visual>
+  </link>
+  <joint name="bumper_rear_mount" type="fixed">
+    <parent link="base_link"/><child link="bumper_rear"/>
+  </joint>
+  <link name="arm_lid_base">
+    <visual><geometry><mesh filename="package://z70_description/meshes/cad/cad_lid_base.stl"/></geometry><material name="moving"/></visual>
+  </link>
+  <joint name="arm_lid_base_mount" type="fixed">
+    <parent link="base_link"/><child link="arm_lid_base"/>
+  </joint>
+  <link name="arm_compartment_lid">
+    <visual><geometry><mesh filename="package://z70_description/meshes/cad/cad_lid.stl"/></geometry><material name="moving"/></visual>
+  </link>
+  <joint name="arm_lid" type="revolute">
+    <parent link="base_link"/><child link="arm_compartment_lid"/>
+    <origin xyz="0.0348 0 0.0966"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.2" upper="0" effort="1" velocity="1"/>
+  </joint>
+
+  <!-- Lift brings the shoulder up from the side. Yaw then turns the raised arm from sideways to forward. -->
+  <link name="shoulder_lift_link"/>
+  <link name="shoulder_yaw_link">
+    <visual><geometry><mesh filename="package://z70_description/meshes/cad/cad_shoulder_mount.stl"/></geometry><material name="moving"/></visual>
+  </link>
+  <link name="arm_shoulder_link"/>
+  <link name="arm_vendor_frame"/>
+  <joint name="arm_mount" type="fixed">
+    <parent link="base_footprint"/><child link="arm_vendor_frame"/>
+    <origin xyz="${cal['arm_origin_x_m']} ${cal['arm_origin_y_m']} ${cal['arm_origin_z_m']}"
+            rpy="0 0 ${cal['arm_yaw_deg'] * pi / 180}"/>
+  </joint>
+  <joint name="shoulder_lift" type="revolute">
+    <parent link="arm_vendor_frame"/><child link="shoulder_lift_link"/>
+    <origin xyz="0.0377 -0.0177 0.0716"/>
+    <axis xyz="-1 0 0"/>
+    <limit lower="0" upper="${pi/2}" effort="5" velocity="1"/>
+  </joint>
+  <joint name="shoulder_yaw" type="revolute">
+    <parent link="shoulder_lift_link"/><child link="shoulder_yaw_link"/>
+    <origin xyz="${sh_x - 0.0377} ${sh_y + 0.0177} ${sh_z - 0.0716}"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="${-pi/2}" upper="${pi/2}" effort="5" velocity="1"/>
+  </joint>
+  <joint name="arm_shoulder_mount" type="fixed">
+    <parent link="arm_vendor_frame"/><child link="arm_shoulder_link"/>
+    <!-- Yaw 0 is the straight unstow estimate, arm in the forward plane. -->
+    <origin xyz="${sh_x} ${sh_y} ${sh_z}" rpy="0 0 0"/>
+  </joint>
+
+  <link name="arm_link1">
+    <visual><geometry><mesh filename="package://z70_description/meshes/cad/cad_link1.stl"/></geometry><material name="moving"/></visual>
+  </link>
+  <joint name="m3_joint" type="revolute">
+    <parent link="arm_shoulder_link"/><child link="arm_link1"/>
+    <origin rpy="0 ${-cal['measured_M3_offset_deg']*pi/180} 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="${-pi}" upper="0" effort="5" velocity="1"/>
+  </joint>
+
+  <link name="arm_link2">
+    <visual><geometry><mesh filename="package://z70_description/meshes/cad/cad_link2.stl"/></geometry><material name="moving"/></visual>
+  </link>
+  <joint name="m4_joint" type="revolute">
+    <parent link="arm_link1"/><child link="arm_link2"/>
+    <origin xyz="${l1} 0 0" rpy="0 ${cal['measured_M3_offset_deg']*pi/180} 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="${10*pi/180}" upper="${145*pi/180}" effort="5" velocity="1"/>
+  </joint>
+
+  <!-- Camera rolls with M5 (measured 20261014T144906Z); nominal L2 is only a gauge. -->
+  <link name="gripper_camera_link">
+    <!-- Small glass surface INSIDE the shared shell's real pocket. +X is view direction. -->
+    <visual><geometry><mesh filename="package://z70_description/meshes/pincher_lens.stl"/></geometry><material name="moving"/></visual>
+  </link>
+  <joint name="gripper_camera_mount" type="fixed">
+    <parent link="arm_wrist_link"/><child link="gripper_camera_link"/>
+    <origin xyz="${cad['camera_from_wrist_m'][0]} ${cad['camera_from_wrist_m'][1]} ${cad['camera_from_wrist_m'][2]}"
+            rpy="${cad['camera_rpy'][0]} ${cad['camera_rpy'][1]} ${cad['camera_rpy'][2]}"/>
+  </joint>
+  <link name="gripper_camera_optical_frame"/>
+  <joint name="gripper_camera_optical_joint" type="fixed">
+    <parent link="gripper_camera_link"/><child link="gripper_camera_optical_frame"/>
+    <origin rpy="${-pi/2} 0 ${-pi/2}"/>
+  </joint>
+
+  <link name="arm_wrist_link">
+    <!-- Broad upper face follows the wrist, not the marker-plane orientation.
+         Small marker backing is local; cavity and hidden anatomy provisional. -->
+    <visual>
+      <geometry><mesh filename="package://z70_description/meshes/cad/cad_hand.stl"/></geometry>
+      <material name="moving"/>
+    </visual>
+    <xacro:arm_wrist_link_collisions/>
+  </link>
+  <joint name="m5_joint" type="revolute">
+    <parent link="arm_link2"/><child link="arm_wrist_link"/>
+    <origin xyz="${l2} 0 0"/>
+    <axis xyz="-1 0 0"/>
+    <limit lower="${-155*pi/180}" upper="0" effort="5" velocity="1"/>
+  </joint>
+
+  <!-- Photo-estimated side roots and nominal coupling; NOT measured linkage.
+       Keep bridge drive coordinates M6/2, with an explicit mimic multiplier. -->
+  <xacro:macro name="finger" params="side sign">
+    <link name="m6_${side}_drive"/>
+    <joint name="m6_${side}_joint" type="revolute">
+      <parent link="arm_wrist_link"/><child link="m6_${side}_drive"/>
+      <axis xyz="0 0 ${sign}"/>
+      <limit lower="0" upper="${pi/4}" effort="1" velocity="1"/>
+    </joint>
+    <link name="finger_${side}">
+      <xacro:if value="${sign == 1}"><xacro:finger_left_collisions/></xacro:if>
+      <xacro:if value="${sign == -1}"><xacro:finger_right_collisions/></xacro:if>
+    </link>
+    <joint name="finger_${side}_articulation" type="revolute">
+      <parent link="arm_wrist_link"/><child link="finger_${side}"/>
+      <origin xyz="${hand['root_elbow_x_m']-l2} ${sign*hand['root_half_gap_m']} ${hand['root_z_m']}"/>
+      <axis xyz="0 0 ${sign}"/>
+      <limit lower="0" upper="${pi/2*hand['opening_ratio']}" effort="1" velocity="1"/>
+      <mimic joint="m6_${side}_joint" multiplier="${2*hand['opening_ratio']}" offset="0"/>
+    </joint>
+  </xacro:macro>
+  <xacro:finger side="left" sign="1"/>
+  <xacro:finger side="right" sign="-1"/>
+  <xacro:macro name="jaw" params="side sign mesh x y z">
+    <link name="jaw_${side}">
+      <visual><geometry><mesh filename="package://z70_description/meshes/cad/${mesh}"/></geometry><material name="moving"/></visual>
+    </link>
+    <joint name="jaw_${side}" type="revolute">
+      <parent link="arm_wrist_link"/><child link="jaw_${side}"/>
+      <origin xyz="${x} ${y} ${z}"/>
+      <axis xyz="0 0 ${sign}"/>
+      <limit lower="0" upper="${pi/2*hand['opening_ratio']}" effort="1" velocity="1"/>
+      <mimic joint="m6_${side}_joint" multiplier="${2*hand['opening_ratio']}" offset="0"/>
+    </joint>
+  </xacro:macro>
+  <xacro:jaw side="left" sign="1" mesh="cad_jaw_left.stl" x="0.0515" y="0.0106" z="0.0041"/>
+  <xacro:jaw side="right" sign="-1" mesh="cad_jaw_right.stl" x="0.0515" y="-0.0101" z="0.0041"/>
+
+  <!-- ID68 is on the underside of the pincher, not at the nominal wrist.
+       CAD-face registration in cad_arm.yaml: photo-oriented, owner-adjusted provisional
+       placement, not the historical free optical fit. Paper thickness is illustrative. -->
+  <link name="pincher_marker_68">
+    <visual><origin xyz="0 0 -0.0001"/><geometry><box size="${cal['marker_paper_side_m']} ${cal['marker_paper_side_m']} 0.0003"/></geometry><material name="marker_white"/></visual>
+    <visual><origin xyz="0 0 0.0002"/><geometry><box size="${cal['marker_black_side_m']} ${cal['marker_black_side_m']} 0.00015"/></geometry><material name="arm"/></visual>
+    <!-- DICT_4X4_1000 id 68 white modules, 15mm square, 6x6 including border. -->
+    <visual><origin xyz="-0.00375 0.00375 0.0004"/><geometry><box size="0.0025 0.0025 0.0006"/></geometry><material name="marker_white"/></visual>
+    <visual><origin xyz="-0.00125 0.00125 0.0004"/><geometry><box size="0.0025 0.0025 0.0006"/></geometry><material name="marker_white"/></visual>
+    <visual><origin xyz="0.00375 0.00125 0.0004"/><geometry><box size="0.0025 0.0025 0.0006"/></geometry><material name="marker_white"/></visual>
+    <visual><origin xyz="-0.00375 -0.00125 0.0004"/><geometry><box size="0.0025 0.0025 0.0006"/></geometry><material name="marker_white"/></visual>
+    <visual><origin xyz="0.00375 -0.00125 0.0004"/><geometry><box size="0.0025 0.0025 0.0006"/></geometry><material name="marker_white"/></visual>
+    <visual><origin xyz="-0.00375 -0.00375 0.0004"/><geometry><box size="0.0025 0.0025 0.0006"/></geometry><material name="marker_white"/></visual>
+    <visual><origin xyz="-0.00125 -0.00375 0.0004"/><geometry><box size="0.0025 0.0025 0.0006"/></geometry><material name="marker_white"/></visual>
+  </link>
+  <joint name="pincher_marker_68_mount" type="fixed">
+    <parent link="arm_wrist_link"/><child link="pincher_marker_68"/>
+    <origin xyz="${cad['marker_from_wrist_m'][0]} ${cad['marker_from_wrist_m'][1]} ${cad['marker_from_wrist_m'][2]}"
+            rpy="${cad['marker_rpy'][0]} ${cad['marker_rpy'][1]} ${cad['marker_rpy'][2]}"/>
+  </joint>
+
+  <link name="gripper_tcp"/>
+  <joint name="tcp_joint" type="fixed">
+    <parent link="arm_wrist_link"/><child link="gripper_tcp"/>
+    <!-- Provisional marker-relative terminal-region surrogate, not an exact pad/contact-seam midpoint; physical M5 station and pad anatomy remain unmeasured. -->
+    <origin xyz="${cal['effective_jaw_from_elbow_m'][0] - l2} ${cal['effective_jaw_from_elbow_m'][1]} ${cal['effective_jaw_from_elbow_m'][2]}"/>
+  </joint>
+</robot>

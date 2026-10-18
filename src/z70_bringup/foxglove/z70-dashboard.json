@@ -1,0 +1,1211 @@
+{
+  "configById": {
+    "Gauge!Battery-%": {
+      "path": "/z70/battery.data",
+      "style": "bar",
+      "minValue": 0,
+      "maxValue": 100,
+      "tickInterval": 20,
+      "showTicks": true,
+      "colorMode": "colormap",
+      "colorMap": "red-yellow-green",
+      "mirrorColorAtOrigin": false,
+      "title": "Battery %"
+    },
+    "Indicator!Robot-state": {
+      "path": "/z70/state_name.data",
+      "style": "background",
+      "fontSize": 20,
+      "rules": [
+        {
+          "rawValue": "IDLE",
+          "operator": "=",
+          "color": "#0f766e",
+          "label": "IDLE"
+        },
+        {
+          "rawValue": "CHARGER_DISCONNECTED",
+          "operator": "=",
+          "color": "#0e7490",
+          "label": "CHARGER_DISCONNECTED"
+        },
+        {
+          "rawValue": "CHARGING",
+          "operator": "=",
+          "color": "#0f766e",
+          "label": "CHARGING"
+        },
+        {
+          "rawValue": "CHARGING_COMPLETE",
+          "operator": "=",
+          "color": "#0f766e",
+          "label": "CHARGING_COMPLETE"
+        },
+        {
+          "rawValue": "STARTING",
+          "operator": "=",
+          "color": "#0e7490",
+          "label": "STARTING"
+        },
+        {
+          "rawValue": "CLEANING",
+          "operator": "=",
+          "color": "#0369a1",
+          "label": "CLEANING"
+        },
+        {
+          "rawValue": "SEGMENT_CLEANING",
+          "operator": "=",
+          "color": "#0369a1",
+          "label": "SEGMENT_CLEANING"
+        },
+        {
+          "rawValue": "ZONED_CLEANING",
+          "operator": "=",
+          "color": "#0369a1",
+          "label": "ZONED_CLEANING"
+        },
+        {
+          "rawValue": "SPOT_CLEANING",
+          "operator": "=",
+          "color": "#0369a1",
+          "label": "SPOT_CLEANING"
+        },
+        {
+          "rawValue": "GOING_TO_TARGET",
+          "operator": "=",
+          "color": "#0369a1",
+          "label": "GOING_TO_TARGET"
+        },
+        {
+          "rawValue": "PATROL",
+          "operator": "=",
+          "color": "#0369a1",
+          "label": "PATROL"
+        },
+        {
+          "rawValue": "RETURNING_HOME",
+          "operator": "=",
+          "color": "#b45309",
+          "label": "RETURNING_HOME"
+        },
+        {
+          "rawValue": "DOCKING",
+          "operator": "=",
+          "color": "#b45309",
+          "label": "DOCKING"
+        },
+        {
+          "rawValue": "ARM_RESETTING",
+          "operator": "=",
+          "color": "#b45309",
+          "label": "ARM_RESETTING"
+        },
+        {
+          "rawValue": "REMOTE_PICKUP",
+          "operator": "=",
+          "color": "#6d28d9",
+          "label": "REMOTE_PICKUP"
+        },
+        {
+          "rawValue": "REMOTE_CONTROL_ACTIVE",
+          "operator": "=",
+          "color": "#6d28d9",
+          "label": "REMOTE_CONTROL_ACTIVE"
+        },
+        {
+          "rawValue": "PROGRAM_MODE",
+          "operator": "=",
+          "color": "#6d28d9",
+          "label": "PROGRAM_MODE"
+        },
+        {
+          "rawValue": "MANUAL_MODE",
+          "operator": "=",
+          "color": "#6d28d9",
+          "label": "MANUAL_MODE"
+        },
+        {
+          "rawValue": "ERROR",
+          "operator": "=",
+          "color": "#b91c1c",
+          "label": "ERROR"
+        },
+        {
+          "rawValue": "CHARGING_PROBLEM",
+          "operator": "=",
+          "color": "#b91c1c",
+          "label": "CHARGING_PROBLEM"
+        },
+        {
+          "rawValue": "DEVICE_OFFLINE",
+          "operator": "=",
+          "color": "#b91c1c",
+          "label": "DEVICE_OFFLINE"
+        },
+        {
+          "rawValue": "PAUSED",
+          "operator": "=",
+          "color": "#a16207",
+          "label": "PAUSED"
+        }
+      ],
+      "fallbackColor": "#475569",
+      "fallbackLabel": "UNKNOWN / unavailable",
+      "title": "Robot state"
+    },
+    "Indicator!Robot-link": {
+      "path": "/z70/connected.data",
+      "style": "background",
+      "fontSize": 20,
+      "rules": [
+        {
+          "rawValue": "true",
+          "operator": "=",
+          "color": "#0f766e",
+          "label": "CONNECTED"
+        },
+        {
+          "rawValue": "false",
+          "operator": "=",
+          "color": "#b91c1c",
+          "label": "DISCONNECTED"
+        }
+      ],
+      "fallbackColor": "#475569",
+      "fallbackLabel": "UNKNOWN / unavailable",
+      "title": "Robot link"
+    },
+    "Indicator!Error": {
+      "path": "/z70/error_code.data",
+      "style": "background",
+      "fontSize": 20,
+      "rules": [
+        {
+          "rawValue": "0",
+          "operator": "=",
+          "color": "#0f766e",
+          "label": "NO ERROR"
+        }
+      ],
+      "fallbackColor": "#475569",
+      "fallbackLabel": "UNKNOWN / unavailable",
+      "title": "Error"
+    },
+    "DiagnosticSummary!Health": {
+      "minLevel": 0,
+      "topicToRender": "/diagnostics",
+      "sortByLevel": true,
+      "secondsUntilStale": 5,
+      "title": "Health"
+    },
+    "3D!Robot-map-and-depth": {
+      "scene": {
+        "backgroundColor": "#101827",
+        "meshUpAxis": "z_up",
+        "transforms": {
+          "visible": false,
+          "editable": false,
+          "showLabel": false,
+          "axisSize": 0.05
+        }
+      },
+      "layers": {
+        "z70-grid": {
+          "visible": true,
+          "instanceId": "z70-grid",
+          "layerId": "foxglove.Grid",
+          "label": "Floor \u00b7 1 m grid",
+          "frameId": "odom",
+          "size": 10,
+          "divisions": 10,
+          "lineWidth": 1,
+          "color": "#334155"
+        },
+        "z70-urdf": {
+          "visible": true,
+          "instanceId": "z70-urdf",
+          "layerId": "foxglove.Urdf",
+          "label": "Saros Z70 \u00b7 estimated arm",
+          "sourceType": "topic",
+          "topic": "/robot_description",
+          "displayMode": "visual",
+          "showOutlines": true,
+          "opacity": 1
+        }
+      },
+      "topics": {
+        "/z70/odom_path": {
+          "visible": true,
+          "type": "line",
+          "lineWidth": 0.02,
+          "gradient": [
+            "#38bdf8",
+            "#34d399"
+          ]
+        },
+        "/odom": {
+          "visible": true,
+          "type": "arrow",
+          "arrowScale": [
+            0.3,
+            0.05,
+            0.05
+          ],
+          "color": "#38bdf8",
+          "showCovariance": false
+        },
+        "/map": {
+          "visible": true,
+          "colorMode": "map",
+          "alpha": 0.7,
+          "frameLocked": true
+        },
+        "/z70/map/markers": {
+          "visible": true
+        },
+        "/z70/objects": {
+          "visible": true
+        },
+        "/z70/floor_mosaic": {
+          "visible": false,
+          "cubeOutline": false,
+          "pointShape": "circle",
+          "frameLocked": true,
+          "cameraInfoTopic": "/z70/camera_info",
+          "distance": 0.01
+        },
+        "/z70/floor_mosaic_mask": {
+          "visible": false,
+          "cubeOutline": false,
+          "pointShape": "circle",
+          "frameLocked": true,
+          "cameraInfoTopic": "/z70/camera_info",
+          "distance": 0.01
+        },
+        "/camera/front/depth/points": {
+          "visible": true,
+          "pointSize": 2,
+          "cubeOutline": false,
+          "pointShape": "circle",
+          "colorMode": "colormap",
+          "colorField": "z",
+          "colorMap": "turbo",
+          "minValue": 0,
+          "maxValue": 2
+        },
+        "/z70/map/robot_pose": {
+          "visible": true,
+          "type": "arrow",
+          "arrowScale": [
+            0.3,
+            0.05,
+            0.05
+          ],
+          "color": "#fbbf24",
+          "showCovariance": false
+        },
+        "/z70/map/dock_pose": {
+          "visible": true,
+          "type": "arrow",
+          "arrowScale": [
+            0.35,
+            0.08,
+            0.08
+          ],
+          "color": "#34d399",
+          "showCovariance": false
+        }
+      },
+      "cameraState": {
+        "distance": 8.0,
+        "perspective": true,
+        "phi": 50,
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "targetOffset": [
+          0,
+          0,
+          0
+        ],
+        "targetOrientation": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "thetaOffset": 135,
+        "fovy": 45,
+        "near": 0.01,
+        "far": 100
+      },
+      "followTf": "odom",
+      "fixedFrame": "map",
+      "followMode": "follow-none",
+      "title": "Robot map and depth"
+    },
+    "Image!Front-live": {
+      "imageMode": {
+        "imageTopic": "/camera/front/image_raw/compressed",
+        "imageSchemaName": "sensor_msgs/msg/CompressedImage",
+        "calibrationTopic": "/camera/front/camera_info",
+        "synchronize": false
+      },
+      "title": "Front live"
+    },
+    "RawMessages!Robot-status": {
+      "defaultExpanded": true,
+      "topicPath": "/z70/state",
+      "fontSize": 12,
+      "title": "Robot status"
+    },
+    "RawMessages!Spatial-context": {
+      "defaultExpanded": true,
+      "topicPath": "/z70/map/spatial_context",
+      "fontSize": 12,
+      "title": "Spatial context"
+    },
+    "Indicator!Active-lens": {
+      "path": "/z70/camera/state.selected_camera",
+      "style": "background",
+      "fontSize": 18,
+      "rules": [
+        {
+          "rawValue": "1",
+          "operator": "=",
+          "color": "#0f766e",
+          "label": "FRONT LENS \u00b7 1600\u00d71200"
+        },
+        {
+          "rawValue": "2",
+          "operator": "=",
+          "color": "#6d28d9",
+          "label": "GRIPPER LENS \u00b7 1600\u00d7896"
+        }
+      ],
+      "fallbackColor": "#475569",
+      "fallbackLabel": "UNKNOWN LENS",
+      "title": "Active lens"
+    },
+    "Image!Front-camera": {
+      "imageMode": {
+        "imageTopic": "/camera/front/image_raw/compressed",
+        "imageSchemaName": "sensor_msgs/msg/CompressedImage",
+        "calibrationTopic": "/camera/front/camera_info",
+        "synchronize": false
+      },
+      "title": "Front camera"
+    },
+    "Image!Gripper-camera": {
+      "imageMode": {
+        "imageTopic": "/camera/gripper/image_raw/compressed",
+        "imageSchemaName": "sensor_msgs/msg/CompressedImage",
+        "calibrationTopic": "/camera/gripper/camera_info",
+        "synchronize": false
+      },
+      "title": "Gripper camera"
+    },
+    "RawMessages!Detected-objects": {
+      "defaultExpanded": true,
+      "topicPath": "/z70/objects/json",
+      "fontSize": 12,
+      "title": "Detected objects"
+    },
+    "RawMessages!Camera-state": {
+      "defaultExpanded": true,
+      "topicPath": "/z70/camera/state",
+      "fontSize": 12,
+      "title": "Camera state"
+    },
+    "RawMessages!Front-metadata": {
+      "defaultExpanded": true,
+      "topicPath": "/camera/front/metadata",
+      "fontSize": 12,
+      "title": "Front metadata"
+    },
+    "Indicator!Arm-estimate-state": {
+      "path": "/z70/arm/state.data",
+      "style": "background",
+      "fontSize": 20,
+      "rules": [
+        {
+          "rawValue": "UNKNOWN",
+          "operator": "=",
+          "color": "#b45309",
+          "label": "UNKNOWN"
+        },
+        {
+          "rawValue": "IN_ROBOT",
+          "operator": "=",
+          "color": "#475569",
+          "label": "IN_ROBOT"
+        },
+        {
+          "rawValue": "WORKING_POS",
+          "operator": "=",
+          "color": "#0f766e",
+          "label": "WORKING_POS"
+        },
+        {
+          "rawValue": "IN_PROCESS_POS",
+          "operator": "=",
+          "color": "#6d28d9",
+          "label": "IN_PROCESS_POS"
+        },
+        {
+          "rawValue": "TRANSFER_POS",
+          "operator": "=",
+          "color": "#0e7490",
+          "label": "TRANSFER_POS"
+        }
+      ],
+      "fallbackColor": "#475569",
+      "fallbackLabel": "UNKNOWN / unavailable",
+      "title": "Arm estimate state"
+    },
+    "3D!Arm-closeup": {
+      "scene": {
+        "backgroundColor": "#101827",
+        "meshUpAxis": "z_up",
+        "transforms": {
+          "visible": false,
+          "editable": false,
+          "showLabel": false,
+          "axisSize": 0.05
+        }
+      },
+      "layers": {
+        "z70-grid": {
+          "visible": true,
+          "instanceId": "z70-grid",
+          "layerId": "foxglove.Grid",
+          "label": "Floor \u00b7 1 m grid",
+          "frameId": "odom",
+          "size": 10,
+          "divisions": 10,
+          "lineWidth": 1,
+          "color": "#334155"
+        },
+        "z70-urdf": {
+          "visible": true,
+          "instanceId": "z70-urdf",
+          "layerId": "foxglove.Urdf",
+          "label": "Saros Z70 \u00b7 estimated arm",
+          "sourceType": "topic",
+          "topic": "/robot_description",
+          "displayMode": "visual",
+          "showOutlines": true,
+          "opacity": 1
+        }
+      },
+      "topics": {
+        "/z70/odom_path": {
+          "visible": true,
+          "type": "line",
+          "lineWidth": 0.02,
+          "gradient": [
+            "#38bdf8",
+            "#34d399"
+          ]
+        },
+        "/odom": {
+          "visible": true,
+          "type": "arrow",
+          "arrowScale": [
+            0.3,
+            0.05,
+            0.05
+          ],
+          "color": "#38bdf8",
+          "showCovariance": false
+        },
+        "/map": {
+          "visible": false,
+          "colorMode": "map",
+          "alpha": 0.7,
+          "frameLocked": true
+        },
+        "/z70/map/markers": {
+          "visible": false
+        },
+        "/z70/objects": {
+          "visible": true
+        },
+        "/z70/floor_mosaic": {
+          "visible": false,
+          "cubeOutline": false,
+          "pointShape": "circle",
+          "frameLocked": true,
+          "cameraInfoTopic": "/z70/camera_info",
+          "distance": 0.01
+        },
+        "/z70/floor_mosaic_mask": {
+          "visible": false,
+          "cubeOutline": false,
+          "pointShape": "circle",
+          "frameLocked": true,
+          "cameraInfoTopic": "/z70/camera_info",
+          "distance": 0.01
+        },
+        "/camera/front/depth/points": {
+          "visible": false,
+          "pointSize": 2,
+          "cubeOutline": false,
+          "pointShape": "circle",
+          "colorMode": "colormap",
+          "colorField": "z",
+          "colorMap": "turbo",
+          "minValue": 0,
+          "maxValue": 2
+        },
+        "/z70/map/robot_pose": {
+          "visible": false,
+          "type": "arrow",
+          "arrowScale": [
+            0.3,
+            0.05,
+            0.05
+          ],
+          "color": "#fbbf24",
+          "showCovariance": false
+        },
+        "/z70/map/dock_pose": {
+          "visible": false,
+          "type": "arrow",
+          "arrowScale": [
+            0.35,
+            0.08,
+            0.08
+          ],
+          "color": "#34d399",
+          "showCovariance": false
+        }
+      },
+      "cameraState": {
+        "distance": 1.1,
+        "perspective": true,
+        "phi": 50,
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "targetOffset": [
+          0,
+          0,
+          0
+        ],
+        "targetOrientation": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "thetaOffset": 135,
+        "fovy": 45,
+        "near": 0.01,
+        "far": 100
+      },
+      "followTf": "base_footprint",
+      "fixedFrame": "odom",
+      "followMode": "follow-none",
+      "title": "Arm closeup"
+    },
+    "Plot!App-joint-estimates": {
+      "paths": [
+        {
+          "enabled": true,
+          "color": "#38bdf8",
+          "label": "M3",
+          "lineSize": 2,
+          "showLine": true,
+          "value": "/z70/arm/m3_deg.data",
+          "timestampMethod": "receiveTime"
+        },
+        {
+          "enabled": true,
+          "color": "#a78bfa",
+          "label": "M4",
+          "lineSize": 2,
+          "showLine": true,
+          "value": "/z70/arm/m4_deg.data",
+          "timestampMethod": "receiveTime"
+        },
+        {
+          "enabled": true,
+          "color": "#34d399",
+          "label": "M5",
+          "lineSize": 2,
+          "showLine": true,
+          "value": "/z70/arm/m5_deg.data",
+          "timestampMethod": "receiveTime"
+        },
+        {
+          "enabled": true,
+          "color": "#fb923c",
+          "label": "M6",
+          "lineSize": 2,
+          "showLine": true,
+          "value": "/z70/arm/m6_deg.data",
+          "timestampMethod": "receiveTime"
+        }
+      ],
+      "showLegend": true,
+      "legendDisplay": "top",
+      "showPlotValuesInLegend": true,
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
+      "isSynced": true,
+      "xAxisVal": "timestamp",
+      "yAxisLabel": "degrees",
+      "followingViewWidth": 60,
+      "title": "App joint estimates"
+    },
+    "Plot!Joint-uncertainty": {
+      "paths": [
+        {
+          "enabled": true,
+          "color": "#38bdf8",
+          "label": "M3 sigma",
+          "lineSize": 2,
+          "showLine": true,
+          "value": "/z70/arm/sigma_m3_deg.data",
+          "timestampMethod": "receiveTime"
+        },
+        {
+          "enabled": true,
+          "color": "#a78bfa",
+          "label": "M4 sigma",
+          "lineSize": 2,
+          "showLine": true,
+          "value": "/z70/arm/sigma_m4_deg.data",
+          "timestampMethod": "receiveTime"
+        },
+        {
+          "enabled": true,
+          "color": "#34d399",
+          "label": "M5 sigma",
+          "lineSize": 2,
+          "showLine": true,
+          "value": "/z70/arm/sigma_m5_deg.data",
+          "timestampMethod": "receiveTime"
+        }
+      ],
+      "showLegend": true,
+      "legendDisplay": "top",
+      "showPlotValuesInLegend": true,
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
+      "isSynced": true,
+      "xAxisVal": "timestamp",
+      "yAxisLabel": "sigma \u00b7 degrees",
+      "followingViewWidth": 60,
+      "title": "Joint uncertainty"
+    },
+    "RawMessages!UNKNOWN-reason": {
+      "defaultExpanded": true,
+      "topicPath": "/z70/arm/unknown_reason",
+      "fontSize": 12,
+      "title": "UNKNOWN reason"
+    },
+    "RawMessages!Arm-source-detail": {
+      "defaultExpanded": true,
+      "topicPath": "/z70/arm_estimate",
+      "fontSize": 12,
+      "title": "Arm source detail"
+    },
+    "3D!Odometry-trail": {
+      "scene": {
+        "backgroundColor": "#101827",
+        "meshUpAxis": "z_up",
+        "transforms": {
+          "visible": false,
+          "editable": false,
+          "showLabel": false,
+          "axisSize": 0.05
+        }
+      },
+      "layers": {
+        "z70-grid": {
+          "visible": true,
+          "instanceId": "z70-grid",
+          "layerId": "foxglove.Grid",
+          "label": "Floor \u00b7 1 m grid",
+          "frameId": "odom",
+          "size": 10,
+          "divisions": 10,
+          "lineWidth": 1,
+          "color": "#334155"
+        },
+        "z70-urdf": {
+          "visible": true,
+          "instanceId": "z70-urdf",
+          "layerId": "foxglove.Urdf",
+          "label": "Saros Z70 \u00b7 estimated arm",
+          "sourceType": "topic",
+          "topic": "/robot_description",
+          "displayMode": "visual",
+          "showOutlines": true,
+          "opacity": 1
+        }
+      },
+      "topics": {
+        "/z70/odom_path": {
+          "visible": true,
+          "type": "line",
+          "lineWidth": 0.02,
+          "gradient": [
+            "#38bdf8",
+            "#34d399"
+          ]
+        },
+        "/odom": {
+          "visible": true,
+          "type": "arrow",
+          "arrowScale": [
+            0.3,
+            0.05,
+            0.05
+          ],
+          "color": "#38bdf8",
+          "showCovariance": false
+        },
+        "/map": {
+          "visible": false,
+          "colorMode": "map",
+          "alpha": 0.7,
+          "frameLocked": true
+        },
+        "/z70/map/markers": {
+          "visible": false
+        },
+        "/z70/objects": {
+          "visible": true
+        },
+        "/z70/floor_mosaic": {
+          "visible": false,
+          "cubeOutline": false,
+          "pointShape": "circle",
+          "frameLocked": true,
+          "cameraInfoTopic": "/z70/camera_info",
+          "distance": 0.01
+        },
+        "/z70/floor_mosaic_mask": {
+          "visible": false,
+          "cubeOutline": false,
+          "pointShape": "circle",
+          "frameLocked": true,
+          "cameraInfoTopic": "/z70/camera_info",
+          "distance": 0.01
+        },
+        "/camera/front/depth/points": {
+          "visible": false,
+          "pointSize": 2,
+          "cubeOutline": false,
+          "pointShape": "circle",
+          "colorMode": "colormap",
+          "colorField": "z",
+          "colorMap": "turbo",
+          "minValue": 0,
+          "maxValue": 2
+        },
+        "/z70/map/robot_pose": {
+          "visible": false,
+          "type": "arrow",
+          "arrowScale": [
+            0.3,
+            0.05,
+            0.05
+          ],
+          "color": "#fbbf24",
+          "showCovariance": false
+        },
+        "/z70/map/dock_pose": {
+          "visible": false,
+          "type": "arrow",
+          "arrowScale": [
+            0.35,
+            0.08,
+            0.08
+          ],
+          "color": "#34d399",
+          "showCovariance": false
+        }
+      },
+      "cameraState": {
+        "distance": 4.5,
+        "perspective": true,
+        "phi": 50,
+        "target": [
+          0,
+          0,
+          0
+        ],
+        "targetOffset": [
+          0,
+          0,
+          0
+        ],
+        "targetOrientation": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "thetaOffset": 135,
+        "fovy": 45,
+        "near": 0.01,
+        "far": 100
+      },
+      "followTf": "odom",
+      "fixedFrame": "odom",
+      "followMode": "follow-none",
+      "title": "Odometry trail"
+    },
+    "Image!Floor-mosaic": {
+      "imageMode": {
+        "imageTopic": "/z70/floor_mosaic",
+        "imageSchemaName": "sensor_msgs/msg/Image",
+        "calibrationTopic": "/z70/camera_info",
+        "synchronize": false
+      },
+      "title": "Floor mosaic"
+    },
+    "Plot!VO-accept-reject": {
+      "paths": [
+        {
+          "enabled": true,
+          "color": "#38bdf8",
+          "label": "accepted",
+          "lineSize": 2,
+          "showLine": true,
+          "value": "/z70/calibration/vo_accepted.data",
+          "timestampMethod": "receiveTime"
+        },
+        {
+          "enabled": true,
+          "color": "#a78bfa",
+          "label": "rejected",
+          "lineSize": 2,
+          "showLine": true,
+          "value": "/z70/calibration/vo_rejected.data",
+          "timestampMethod": "receiveTime"
+        }
+      ],
+      "showLegend": true,
+      "legendDisplay": "top",
+      "showPlotValuesInLegend": true,
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
+      "isSynced": true,
+      "xAxisVal": "timestamp",
+      "yAxisLabel": "frames",
+      "followingViewWidth": 60,
+      "title": "VO accept reject"
+    },
+    "Plot!Chassis-gains": {
+      "paths": [
+        {
+          "enabled": true,
+          "color": "#38bdf8",
+          "label": "yaw +",
+          "lineSize": 2,
+          "showLine": true,
+          "value": "/z70/calibration/yaw_positive_gain.data",
+          "timestampMethod": "receiveTime"
+        },
+        {
+          "enabled": true,
+          "color": "#a78bfa",
+          "label": "yaw \u2212",
+          "lineSize": 2,
+          "showLine": true,
+          "value": "/z70/calibration/yaw_negative_gain.data",
+          "timestampMethod": "receiveTime"
+        }
+      ],
+      "showLegend": true,
+      "legendDisplay": "top",
+      "showPlotValuesInLegend": true,
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
+      "isSynced": true,
+      "xAxisVal": "timestamp",
+      "yAxisLabel": "gain",
+      "followingViewWidth": 60,
+      "title": "Chassis gains"
+    },
+    "Plot!Camera-x": {
+      "paths": [
+        {
+          "enabled": true,
+          "color": "#38bdf8",
+          "label": "fit",
+          "lineSize": 2,
+          "showLine": true,
+          "value": "/z70/calibration/camera_x_m.data",
+          "timestampMethod": "receiveTime"
+        },
+        {
+          "enabled": true,
+          "color": "#a78bfa",
+          "label": "active",
+          "lineSize": 2,
+          "showLine": true,
+          "value": "/z70/calibration/active_camera_x_m.data",
+          "timestampMethod": "receiveTime"
+        },
+        {
+          "enabled": true,
+          "color": "#34d399",
+          "label": "fit sigma",
+          "lineSize": 2,
+          "showLine": true,
+          "value": "/z70/calibration/camera_x_sigma_m.data",
+          "timestampMethod": "receiveTime"
+        }
+      ],
+      "showLegend": true,
+      "legendDisplay": "top",
+      "showPlotValuesInLegend": true,
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
+      "isSynced": true,
+      "xAxisVal": "timestamp",
+      "yAxisLabel": "meters",
+      "followingViewWidth": 60,
+      "title": "Camera x"
+    },
+    "RawMessages!Calibration-source": {
+      "defaultExpanded": true,
+      "topicPath": "/z70/chassis_calibration",
+      "fontSize": 12,
+      "title": "Calibration source"
+    },
+    "DiagnosticStatusPanel!Robot-diagnostics": {
+      "selectedHardwareId": "Saros Z70",
+      "selectedName": "Z70/Robot",
+      "topicToRender": "/diagnostics",
+      "secondsUntilStale": 5,
+      "title": "Robot diagnostics"
+    },
+    "RawMessages!Diagnostics-raw": {
+      "defaultExpanded": true,
+      "topicPath": "/diagnostics",
+      "fontSize": 12,
+      "title": "Diagnostics raw"
+    },
+    "Plot!Battery-history": {
+      "paths": [
+        {
+          "enabled": true,
+          "color": "#38bdf8",
+          "label": "battery",
+          "lineSize": 2,
+          "showLine": true,
+          "value": "/z70/battery.data",
+          "timestampMethod": "receiveTime"
+        }
+      ],
+      "minYValue": 0,
+      "maxYValue": 100,
+      "showLegend": true,
+      "legendDisplay": "top",
+      "showPlotValuesInLegend": true,
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
+      "isSynced": true,
+      "xAxisVal": "timestamp",
+      "yAxisLabel": "%",
+      "followingViewWidth": 60,
+      "title": "Battery history"
+    },
+    "Plot!Last-RC-command-age": {
+      "paths": [
+        {
+          "enabled": true,
+          "color": "#38bdf8",
+          "label": "age",
+          "lineSize": 2,
+          "showLine": true,
+          "value": "/z70/last_command/age_s.data",
+          "timestampMethod": "receiveTime"
+        }
+      ],
+      "showLegend": true,
+      "legendDisplay": "top",
+      "showPlotValuesInLegend": true,
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
+      "isSynced": true,
+      "xAxisVal": "timestamp",
+      "yAxisLabel": "seconds",
+      "followingViewWidth": 60,
+      "title": "Last RC command age"
+    },
+    "Tab!z70-dashboard": {
+      "activeTabIdx": 0,
+      "tabs": [
+        {
+          "title": "Overview",
+          "layout": {
+            "direction": "row",
+            "first": "3D!Robot-map-and-depth",
+            "second": {
+              "direction": "column",
+              "first": "Image!Front-live",
+              "second": {
+                "direction": "column",
+                "first": {
+                  "direction": "row",
+                  "first": "Gauge!Battery-%",
+                  "second": "Indicator!Robot-state",
+                  "splitPercentage": 50
+                },
+                "second": {
+                  "direction": "column",
+                  "first": {
+                    "direction": "row",
+                    "first": "Indicator!Robot-link",
+                    "second": "Indicator!Error",
+                    "splitPercentage": 50
+                  },
+                  "second": {
+                    "direction": "row",
+                    "first": "RawMessages!Robot-status",
+                    "second": "RawMessages!Spatial-context",
+                    "splitPercentage": 50
+                  },
+                  "splitPercentage": 35
+                },
+                "splitPercentage": 30
+              },
+              "splitPercentage": 47
+            },
+            "splitPercentage": 62
+          }
+        },
+        {
+          "title": "Cameras",
+          "layout": {
+            "direction": "column",
+            "first": {
+              "direction": "row",
+              "first": "Image!Front-camera",
+              "second": "Image!Gripper-camera",
+              "splitPercentage": 55
+            },
+            "second": {
+              "direction": "row",
+              "first": "RawMessages!Detected-objects",
+              "second": {
+                "direction": "column",
+                "first": "Indicator!Active-lens",
+                "second": {
+                  "direction": "row",
+                  "first": "RawMessages!Camera-state",
+                  "second": "RawMessages!Front-metadata",
+                  "splitPercentage": 50
+                },
+                "splitPercentage": 28
+              },
+              "splitPercentage": 55
+            },
+            "splitPercentage": 62
+          }
+        },
+        {
+          "title": "Arm",
+          "layout": {
+            "direction": "row",
+            "first": "3D!Arm-closeup",
+            "second": {
+              "direction": "row",
+              "first": {
+                "direction": "column",
+                "first": "Plot!App-joint-estimates",
+                "second": "Plot!Joint-uncertainty",
+                "splitPercentage": 50
+              },
+              "second": {
+                "direction": "column",
+                "first": "Indicator!Arm-estimate-state",
+                "second": {
+                  "direction": "column",
+                  "first": "RawMessages!UNKNOWN-reason",
+                  "second": "RawMessages!Arm-source-detail",
+                  "splitPercentage": 50
+                },
+                "splitPercentage": 25
+              },
+              "splitPercentage": 58
+            },
+            "splitPercentage": 38
+          }
+        },
+        {
+          "title": "Odometry & calibration",
+          "layout": {
+            "direction": "row",
+            "first": {
+              "direction": "column",
+              "first": "3D!Odometry-trail",
+              "second": "Image!Floor-mosaic",
+              "splitPercentage": 62
+            },
+            "second": {
+              "direction": "column",
+              "first": "Plot!VO-accept-reject",
+              "second": {
+                "direction": "column",
+                "first": "Plot!Chassis-gains",
+                "second": {
+                  "direction": "column",
+                  "first": "Plot!Camera-x",
+                  "second": "RawMessages!Calibration-source",
+                  "splitPercentage": 65
+                },
+                "splitPercentage": 50
+              },
+              "splitPercentage": 30
+            },
+            "splitPercentage": 50
+          }
+        },
+        {
+          "title": "Diagnostics",
+          "layout": {
+            "direction": "row",
+            "first": {
+              "direction": "column",
+              "first": "DiagnosticSummary!Health",
+              "second": "DiagnosticStatusPanel!Robot-diagnostics",
+              "splitPercentage": 42
+            },
+            "second": {
+              "direction": "column",
+              "first": "RawMessages!Diagnostics-raw",
+              "second": {
+                "direction": "column",
+                "first": "Plot!Battery-history",
+                "second": "Plot!Last-RC-command-age",
+                "splitPercentage": 50
+              },
+              "splitPercentage": 50
+            },
+            "splitPercentage": 60
+          }
+        }
+      ]
+    }
+  },
+  "globalVariables": {},
+  "userNodes": {},
+  "playbackConfig": {
+    "speed": 1
+  },
+  "layout": "Tab!z70-dashboard"
+}

@@ -1,0 +1,18 @@
+{
+  "source": "RoboClaw MCP get_state followed by robot_rpc get_status",
+  "observedAt": 1792053536927,
+  "battery": 17,
+  "state": 8,
+  "charge_status": 1,
+  "error_code": 0,
+  "in_cleaning": 0,
+  "in_returning": 0,
+  "common_status": 16386,
+  "grab_status_decoded": 0,
+  "grab_mode_decoded": 0,
+  "camera_status": 11685,
+  "selected_camera": "front",
+  "camera_consumers_MCP_get_state_observedAt": 1792053528547,
+  "camera_consumers": {"z70":[], "z70_jpeg":[]},
+  "scope_note": "Cleanup completed earlier at18percent/idle3 with observed arm absent and IN_ROBOT. Later offline-analysis readback reports state8/charge_status1, not idle3. No dock, navigation, or chassis-motion command was issued in this acquisition; the transition route/cause was not observed. Do not infer a supervised dock maneuver. No additional camera preview was opened."
+}

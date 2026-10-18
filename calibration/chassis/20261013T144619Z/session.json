@@ -1,0 +1,11 @@
+{
+  "session": "20261013T144619Z",
+  "authorization": "Michael confirmed presence, physically stowed arm, flat fixed boards 0.15–0.8 m ahead, about 1 m clearance and acceptance of undocking/RC mode",
+  "ros_domain_id": 92,
+  "foxglove_port": 8766,
+  "ros_camera_x_m": 0.16,
+  "existing_ros_nodes_left_untouched": true,
+  "baseline": {"accepted": true, "translation_m": 0.000022353073635714613, "yaw_deg": -0.0072843515252123394, "inliers": 2994, "rms_m": 0.0003903557839037763},
+  "baseline_note": "Frames separated by approximately 20 s because of tool overhead, not prescribed ~1 s; no intervening commands; settling passed",
+  "frame_timestamp_note": "MCP receipt timestamps only; capturedAt/lens identity unverified"
+}

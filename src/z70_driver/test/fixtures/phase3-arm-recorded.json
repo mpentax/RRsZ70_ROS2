@@ -1,0 +1,691 @@
+{
+  "version": 1,
+  "source": "calibration/arm-calibration/20261015T121045Z-m3-rotation-retry/log.jsonl",
+  "source_sha256": "3a4d51c8995148e3846abf3ce518d4d5c349a6d7e56f68964521b46e45f5dcea",
+  "initial_anchor": "stowed",
+  "initial_anchor_provenance": "Retained first get_arm_estimate IN_ROBOT; model state only, not independent physical stow.",
+  "records": [
+    {
+      "at": 1792066263340,
+      "status": {
+        "state": 3
+      }
+    },
+    {
+      "at": 1792066290971,
+      "status": {
+        "state": 39,
+        "common_status": 51202
+      }
+    },
+    {
+      "at": 1792066294890,
+      "method": "app_arm_out_compartment",
+      "params": {},
+      "outcome": "received"
+    },
+    {
+      "at": 1792066306917,
+      "status": {
+        "state": 39,
+        "common_status": 51266
+      }
+    },
+    {
+      "at": 1792066339083,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066367968,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          1,
+          0,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066369537,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066385989,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          2,
+          0,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066387570,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066404805,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          1,
+          0,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066404858,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066405876,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          1,
+          0,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066405932,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066406960,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          1,
+          0,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066406973,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066422246,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          1,
+          0,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066422365,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066423386,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          0,
+          1,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066423423,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066424446,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          0,
+          1,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066424465,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066425963,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          1,
+          0,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066425981,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066427005,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          1,
+          0,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066427059,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066434404,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          1,
+          0,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066434425,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066435448,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          0,
+          1,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066435509,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066436552,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          0,
+          1,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066436567,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066465679,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          1,
+          0,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066465745,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066499453,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          0,
+          1,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066499516,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066500547,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          0,
+          1,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066500612,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066510944,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          1,
+          0,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066511000,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066565800,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          2,
+          0,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066565821,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066566842,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          0,
+          2,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066566864,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066567890,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          0,
+          2,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066567980,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066577810,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          0,
+          2,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066577877,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066633512,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          1,
+          0,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066633571,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066659759,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          0,
+          1,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066659790,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066660810,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          0,
+          1,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066660872,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066661898,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          0,
+          1,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066661965,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066672190,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          1,
+          0,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066672213,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066702374,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          2,
+          0,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066702435,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066737163,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          2,
+          0,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066737216,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066739923,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          2,
+          0,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066739979,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066749529,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          1,
+          0,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066749543,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066752184,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          1,
+          0,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066752247,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066754992,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          1,
+          0,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066755050,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066812484,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          2,
+          0,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066812568,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066822050,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          0,
+          2,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066822074,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066836470,
+      "method": "app_arm_move",
+      "params": {
+        "m": [
+          2,
+          0,
+          0
+        ]
+      },
+      "outcome": "received"
+    },
+    {
+      "at": 1792066836532,
+      "status": {
+        "state": 39
+      }
+    },
+    {
+      "at": 1792066855974,
+      "method": "app_arm_in_compartment",
+      "params": {},
+      "outcome": "received"
+    },
+    {
+      "at": 1792066871006,
+      "status": {
+        "state": 39,
+        "common_status": 51202
+      }
+    },
+    {
+      "at": 1792066876048,
+      "status": {
+        "state": 3,
+        "common_status": 49154
+      }
+    }
+  ]
+}

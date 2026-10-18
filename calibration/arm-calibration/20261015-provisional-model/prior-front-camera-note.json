@@ -1,0 +1,7 @@
+{
+  "source": "calibration/front-camera/front_camera.json",
+  "sha256": "b1d00207c78d5f56da9781ce24cebb0719c6146a94b1812576365e62061d19ae",
+  "status": "Original active baseline preserved byte-for-byte before provisional floor-extrinsics replacement; original K/D remains active.",
+  "old_height_mm": 68.35586240971422,
+  "replacement_scope": "New-run front-registration.json best T_F_W height and floor normal only; no rejected front intrinsics, no live deployment."
+}

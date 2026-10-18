@@ -1,0 +1,86 @@
+{"t": "2026-10-14T10:00:48.797376+00:00", "event": "start", "color": "yellow", "dry_run": false}
+{"t": "2026-10-14T10:00:49.096674+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": [{"color": "yellow", "pixel": [1254.834862385321, 705.0701098652169], "contact_px": [1256.0, 735.0], "bbox": [1217, 672, 79, 64], "size_px": 79.0, "area_px": 2943.0, "image_size": [1600, 1200], "position": [0.5903634498908072, -0.1911197006018206, 0.0], "camera": "front", "size_m": 0.032246109886480044}]}
+{"t": "2026-10-14T10:00:49.096928+00:00", "event": "approach", "yaw": -0.3480173339221699, "forward": 0.13289009738440832, "bearing_error_deg": -19.939924431135392, "range_error_m": 0.13289009738440832, "grasp_point": [0.4872599319924749, 0.021672193911926634, 0.0]}
+{"t": "2026-10-14T10:00:49.154623+00:00", "event": "command", "method": "app_rc_start", "params": []}
+{"t": "2026-10-14T10:00:49.168756+00:00", "event": "reply", "method": "app_rc_start", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T10:00:54.198479+00:00", "event": "command", "method": "app_rc_move", "params": [{"velocity": 0.0, "omega": -0.22, "duration": 700, "seqnum": 1}]}
+{"t": "2026-10-14T10:00:54.226735+00:00", "event": "reply", "method": "app_rc_move", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T10:00:55.632076+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-14T10:00:55.648442+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T10:00:55.648675+00:00", "event": "odom_delta", "distance_m": 0.00690655972701706, "yaw_rad": 0.05992860953302423}
+{"t": "2026-10-14T10:00:55.913964+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": []}
+{"t": "2026-10-14T10:00:55.914231+00:00", "event": "data_gap", "kind": "target_not_visible"}
+{"t": "2026-10-14T10:00:56.551619+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": []}
+{"t": "2026-10-14T10:00:56.551858+00:00", "event": "data_gap", "kind": "target_not_visible"}
+{"t": "2026-10-14T10:00:57.309027+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": []}
+{"t": "2026-10-14T10:00:57.318513+00:00", "event": "data_gap", "kind": "target_not_visible"}
+{"t": "2026-10-14T10:00:58.130690+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": []}
+{"t": "2026-10-14T10:00:58.130967+00:00", "event": "data_gap", "kind": "target_not_visible"}
+{"t": "2026-10-14T10:00:59.037800+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": [{"color": "yellow", "pixel": [1045.1310116086233, 583.044776119403], "contact_px": [1045.0, 590.0], "bbox": [1041, 577, 10, 14], "size_px": 14.0, "area_px": 100.5, "image_size": [1600, 1200], "position": [2.2508841700689426, -0.6488807449646454, 0.0], "camera": "front", "size_m": 0.025591300340789415}]}
+{"t": "2026-10-14T10:00:59.038091+00:00", "event": "approach", "yaw": -0.2899201077876284, "forward": 1.8551866702300541, "bearing_error_deg": -16.611198572209016, "range_error_m": 1.8551866702300541, "grasp_point": [0.4872599319924749, 0.021672193911926634, 0.0]}
+{"t": "2026-10-14T10:00:59.079253+00:00", "event": "command", "method": "app_rc_move", "params": [{"velocity": 0.0, "omega": -0.22, "duration": 700, "seqnum": 2}]}
+{"t": "2026-10-14T10:00:59.087810+00:00", "event": "reply", "method": "app_rc_move", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T10:01:00.510115+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-14T10:01:00.525052+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T10:01:00.525181+00:00", "event": "odom_delta", "distance_m": 0.007880648846459865, "yaw_rad": 0.08845085863511688}
+{"t": "2026-10-14T10:01:00.939258+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": []}
+{"t": "2026-10-14T10:01:00.939573+00:00", "event": "data_gap", "kind": "target_not_visible"}
+{"t": "2026-10-14T10:01:01.503248+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": [{"color": "yellow", "pixel": [972.3732103391948, 689.539828961276], "contact_px": [967.0, 719.0], "bbox": [947, 665, 61, 55], "size_px": 61.0, "area_px": 1734.5, "image_size": [1600, 1200], "position": [0.6274257611197125, -0.08264315086029575, 0.0], "camera": "front", "size_m": 0.026650036089057964}]}
+{"t": "2026-10-14T10:01:01.503545+00:00", "event": "approach", "yaw": -0.16521624696485823, "forward": 0.14521401380435545, "bearing_error_deg": -9.466193658077474, "range_error_m": 0.14521401380435545, "grasp_point": [0.4872599319924749, 0.021672193911926634, 0.0]}
+{"t": "2026-10-14T10:01:01.597052+00:00", "event": "command", "method": "app_rc_move", "params": [{"velocity": 0.0, "omega": -0.22, "duration": 700, "seqnum": 3}]}
+{"t": "2026-10-14T10:01:01.611371+00:00", "event": "reply", "method": "app_rc_move", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T10:01:03.141916+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-14T10:01:03.152473+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T10:01:03.152649+00:00", "event": "odom_delta", "distance_m": 0.00517522808813137, "yaw_rad": 0.061581800858526714}
+{"t": "2026-10-14T10:01:03.275072+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": []}
+{"t": "2026-10-14T10:01:03.275359+00:00", "event": "data_gap", "kind": "target_not_visible"}
+{"t": "2026-10-14T10:01:04.306536+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": [{"color": "yellow", "pixel": [1095.9840891010342, 583.4828957836118], "contact_px": [1096.0, 591.0], "bbox": [1089, 576, 15, 16], "size_px": 16.0, "area_px": 209.5, "image_size": [1600, 1200], "position": [2.1973872571557114, -0.7541894587011289, 0.0], "camera": "front", "size_m": 0.03800942428511621}]}
+{"t": "2026-10-14T10:01:04.306852+00:00", "event": "approach", "yaw": -0.3399515899383588, "forward": 1.8358506580434895, "bearing_error_deg": -19.47779134222998, "range_error_m": 1.8358506580434895, "grasp_point": [0.4872599319924749, 0.021672193911926634, 0.0]}
+{"t": "2026-10-14T10:01:04.352087+00:00", "event": "command", "method": "app_rc_move", "params": [{"velocity": 0.0, "omega": -0.22, "duration": 700, "seqnum": 4}]}
+{"t": "2026-10-14T10:01:04.362812+00:00", "event": "reply", "method": "app_rc_move", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T10:01:05.765444+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-14T10:01:05.780246+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T10:01:05.780469+00:00", "event": "odom_delta", "distance_m": 0.002095430263469175, "yaw_rad": 0.03187055187359711}
+{"t": "2026-10-14T10:01:05.912538+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": [{"color": "yellow", "pixel": [713.4630975985899, 702.3965080414187], "contact_px": [706.0, 736.0], "bbox": [687, 656, 65, 81], "size_px": 81.0, "area_px": 3026.0, "image_size": [1600, 1200], "position": [0.5918326926246078, 0.027485736490996376, 0.0], "camera": "front", "size_m": 0.02528698268160133}, {"color": "yellow", "pixel": [967.5, 599.5], "contact_px": [967.5, 606.0], "bbox": [960, 593, 16, 14], "size_px": 16.0, "area_px": 195.0, "image_size": [1600, 1200], "position": [1.5281537459209429, -0.2916565182082954, 0.0], "camera": "front", "size_m": 0.025048619883711012}]}
+{"t": "2026-10-14T10:01:05.912892+00:00", "event": "approach", "yaw": -0.20251844195715224, "forward": 1.0683260385654494, "bearing_error_deg": -11.603451997709955, "range_error_m": 1.0683260385654494, "grasp_point": [0.4872599319924749, 0.021672193911926634, 0.0]}
+{"t": "2026-10-14T10:01:05.974129+00:00", "event": "command", "method": "app_rc_move", "params": [{"velocity": 0.0, "omega": -0.22, "duration": 700, "seqnum": 5}]}
+{"t": "2026-10-14T10:01:05.996708+00:00", "event": "reply", "method": "app_rc_move", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T10:01:07.400087+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-14T10:01:07.415772+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T10:01:07.415980+00:00", "event": "data_gap", "kind": "odom"}
+{"t": "2026-10-14T10:01:07.569264+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": [{"color": "yellow", "pixel": [578.5056074766355, 703.1536863966769], "contact_px": [584.0, 736.0], "bbox": [544, 663, 65, 74], "size_px": 74.0, "area_px": 3210.0, "image_size": [1600, 1200], "position": [0.5901197571945387, 0.07487408316557041, 0.0], "camera": "front", "size_m": 0.02521987382740528}, {"color": "yellow", "pixel": [1575.0159108989658, 583.4828957836118], "contact_px": [1575.0, 591.0], "bbox": [1568, 576, 15, 16], "size_px": 16.0, "area_px": 209.5, "image_size": [1600, 1200], "position": [2.3959019855590085, -2.2770956312568904, 0.0], "camera": "front", "size_m": 0.06722218948108366}]}
+{"t": "2026-10-14T10:01:07.569541+00:00", "event": "approach", "yaw": 0.0897640646040417, "forward": 0.10719593026499324, "bearing_error_deg": 5.14310205375125, "range_error_m": 0.10719593026499324, "grasp_point": [0.4872599319924749, 0.021672193911926634, 0.0]}
+{"t": "2026-10-14T10:01:07.710334+00:00", "event": "command", "method": "app_rc_move", "params": [{"velocity": 0.0, "omega": 0.22, "duration": 576, "seqnum": 6}]}
+{"t": "2026-10-14T10:01:07.722837+00:00", "event": "reply", "method": "app_rc_move", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T10:01:09.009371+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-14T10:01:09.022056+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T10:01:09.022214+00:00", "event": "data_gap", "kind": "odom"}
+{"t": "2026-10-14T10:01:09.303090+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": []}
+{"t": "2026-10-14T10:01:09.303366+00:00", "event": "data_gap", "kind": "target_not_visible"}
+{"t": "2026-10-14T10:01:09.903958+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": []}
+{"t": "2026-10-14T10:01:09.904251+00:00", "event": "data_gap", "kind": "target_not_visible"}
+{"t": "2026-10-14T10:01:10.501430+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": []}
+{"t": "2026-10-14T10:01:10.501718+00:00", "event": "data_gap", "kind": "target_not_visible"}
+{"t": "2026-10-14T10:01:11.092556+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": []}
+{"t": "2026-10-14T10:01:11.092844+00:00", "event": "data_gap", "kind": "target_not_visible"}
+{"t": "2026-10-14T10:01:11.892357+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": []}
+{"t": "2026-10-14T10:01:11.892618+00:00", "event": "data_gap", "kind": "target_not_visible"}
+{"t": "2026-10-14T10:01:12.920293+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": []}
+{"t": "2026-10-14T10:01:12.920552+00:00", "event": "data_gap", "kind": "target_not_visible"}
+{"t": "2026-10-14T10:01:13.539122+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": []}
+{"t": "2026-10-14T10:01:13.539388+00:00", "event": "data_gap", "kind": "target_not_visible"}
+{"t": "2026-10-14T10:01:14.096111+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": []}
+{"t": "2026-10-14T10:01:14.096383+00:00", "event": "data_gap", "kind": "target_not_visible"}
+{"t": "2026-10-14T10:01:14.920771+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": []}
+{"t": "2026-10-14T10:01:14.921069+00:00", "event": "data_gap", "kind": "target_not_visible"}
+{"t": "2026-10-14T10:01:15.497639+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": []}
+{"t": "2026-10-14T10:01:15.497904+00:00", "event": "data_gap", "kind": "target_not_visible"}
+{"t": "2026-10-14T10:01:16.089683+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": []}
+{"t": "2026-10-14T10:01:16.089956+00:00", "event": "data_gap", "kind": "target_not_visible"}
+{"t": "2026-10-14T10:01:16.933782+00:00", "event": "observation", "camera": "front", "color": "yellow", "objects": []}
+{"t": "2026-10-14T10:01:16.934220+00:00", "event": "data_gap", "kind": "target_not_visible"}
+{"t": "2026-10-14T10:01:17.494770+00:00", "event": "command", "method": "app_rc_stop", "params": []}
+{"t": "2026-10-14T10:01:17.510216+00:00", "event": "reply", "method": "app_rc_stop", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T10:01:17.510515+00:00", "event": "command", "method": "app_rc_end", "params": []}
+{"t": "2026-10-14T10:01:17.530871+00:00", "event": "reply", "method": "app_rc_end", "dispatch": "sent", "response": "received", "transportReason": null}
+{"t": "2026-10-14T10:01:17.531261+00:00", "event": "failure", "error": "LookupError", "reason": "target not visible; no blind movement", "log_dir": "/Users/mpentax/Code/RoboRockZ70-Connector/calibration/pickup/20261014T100048.797214Z-ros"}

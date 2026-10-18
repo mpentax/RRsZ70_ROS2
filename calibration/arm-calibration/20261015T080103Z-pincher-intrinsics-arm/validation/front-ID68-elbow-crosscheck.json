@@ -1,0 +1,118 @@
+{
+  "marker_only_M4_front": {
+    "direction": [
+      -0.9921997250815896,
+      -0.10154313121638489,
+      -0.07230973690167887
+    ],
+    "closest_point": [
+      0.014726471580419575,
+      -0.1656939989557709,
+      0.03077514669304863
+    ],
+    "rms_m": 0.0020994593665402176,
+    "observed_angles_deg": [
+      9.254756888726893,
+      20.960490302171248
+    ],
+    "screw_translation_m": [
+      -0.0002411943514902628,
+      0.0005205364564632945
+    ],
+    "singular_values": [
+      0.39796898468396613,
+      0.3979465619908457,
+      0.004224520097377061
+    ],
+    "axial_station_unobservable": true
+  },
+  "marker_only_position_circle": {
+    "direction": [
+      -0.9990878169093501,
+      0.030972488448423534,
+      0.029397943169906075
+    ],
+    "closest_point": [
+      -0.004452512563233167,
+      -0.17006292224897884,
+      0.027852997523234127
+    ],
+    "circle_center_at_marker_station": [
+      -0.029088007659172157,
+      -0.1692992030099228,
+      0.028577891644186684
+    ],
+    "radius_m": 0.13143357127077715,
+    "circle_rms_m": 7.850462293418876e-17,
+    "plane_rms_m": 1.6762366137385253e-18,
+    "singular_values": [
+      0.03277979453119631,
+      0.0016805087686003496,
+      2.9152186194394274e-18
+    ],
+    "axial_station_unobservable": true
+  },
+  "pincher_board_elbow_axis_in_front": {
+    "direction": [
+      -0.9999637249322558,
+      0.005026139478381544,
+      0.0068765355777415
+    ],
+    "closest_point": [
+      -0.0006412060275253484,
+      -0.16643492872696203,
+      0.02840709481024215
+    ]
+  },
+  "model_free_marker_vs_pincher_at_front_station": {
+    "separation_m": 0.0018647558416319205,
+    "shoulder_point_m": [
+      0.007073046456120176,
+      -0.1664772613695834,
+      0.030217378792952426
+    ],
+    "elbow_point_m": [
+      0.007134104455640679,
+      -0.16647400993961178,
+      0.02835362567148004
+    ],
+    "station_origin_m": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "station_plane_normal": [
+      -0.9982913620494507,
+      -0.04836554909306126,
+      -0.032789176848152385
+    ],
+    "axis_nonparallel_deg": 7.625697597307489,
+    "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+  },
+  "circle_marker_vs_pincher_at_front_station": {
+    "separation_m": 0.0037487979532024843,
+    "shoulder_point_m": [
+      -0.0025591200297346876,
+      -0.1701216188694156,
+      0.027797284856983927
+    ],
+    "elbow_point_m": [
+      -0.0024812689734169443,
+      -0.166425679978448,
+      0.02841974852756931
+    ],
+    "station_origin_m": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "station_plane_normal": [
+      -0.9996733828491833,
+      0.01800197213742962,
+      0.018139917916946295
+    ],
+    "axis_nonparallel_deg": 1.9692671328194855,
+    "convention": "both axis lines intersect same station plane normal to their mean direction; not infinite skew-line minimum, not surveyed anatomical centres"
+  },
+  "scope": "three-pose20deg front ID68 elbow line diagnostic, NOT shoulder axis or L1; planar marker orientation noisy"
+}

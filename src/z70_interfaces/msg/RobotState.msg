@@ -1,0 +1,19 @@
+# Generated from docs/migration/interfaces.md; SI units.
+std_msgs/Header header
+z70_interfaces/EvidenceStamp evidence
+bool connected
+uint8 transport_state
+bool robot_state_known
+uint32 robot_state
+bool error_code_known
+uint32 error_code
+bool battery_known
+float32 battery_fraction
+bool common_status_known
+uint32 common_status
+bool grab_status_known
+uint32 grab_status
+bool cleaning_known
+bool in_cleaning
+bool returning_known
+bool in_returning

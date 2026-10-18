@@ -1,0 +1,178 @@
+{
+  "state": "IN_PROCESS_POS",
+  "joints": {
+    "m3": 160,
+    "m4": 45,
+    "m5": 0,
+    "m6": 90
+  },
+  "wrist": {
+    "x": 0.17258452090220705,
+    "y": 0.2201586965326554
+  },
+  "sigmaDeg": {
+    "m3": 2.5,
+    "m4": 0,
+    "m5": 0
+  },
+  "stepsSinceAnchor": 1,
+  "anchoredAt": 1792066294885,
+  "updatedAt": 1792066367963,
+  "restored": false,
+  "lastFault": null,
+  "unknownReason": null,
+  "history": [
+    {
+      "at": 1792061521368,
+      "method": "app_arm_move",
+      "effect": "refused by firmware reach limit (wrist x > 0.367 m); pose kept"
+    },
+    {
+      "at": 1792061523916,
+      "method": "app_arm_move",
+      "effect": "m4-"
+    },
+    {
+      "at": 1792061526300,
+      "method": "app_arm_move",
+      "effect": "m3-"
+    },
+    {
+      "at": 1792061562862,
+      "method": "app_arm_move",
+      "effect": "m3+"
+    },
+    {
+      "at": 1792061573524,
+      "method": "app_arm_move",
+      "effect": "m3+"
+    },
+    {
+      "at": 1792061609365,
+      "method": "app_arm_move",
+      "effect": "m5+"
+    },
+    {
+      "at": 1792061620092,
+      "method": "app_arm_move",
+      "effect": "m5+"
+    },
+    {
+      "at": 1792061622741,
+      "method": "app_arm_move",
+      "effect": "m5+"
+    },
+    {
+      "at": 1792061625256,
+      "method": "app_arm_move",
+      "effect": "m5+"
+    },
+    {
+      "at": 1792061682197,
+      "method": "app_arm_move",
+      "effect": "m5-"
+    },
+    {
+      "at": 1792061692786,
+      "method": "app_arm_move",
+      "effect": "m5-"
+    },
+    {
+      "at": 1792061695400,
+      "method": "app_arm_move",
+      "effect": "m5-"
+    },
+    {
+      "at": 1792061697966,
+      "method": "app_arm_move",
+      "effect": "m5-"
+    },
+    {
+      "at": 1792061700623,
+      "method": "app_arm_move",
+      "effect": "m4+"
+    },
+    {
+      "at": 1792061718437,
+      "method": "app_arm_move",
+      "effect": "m5+"
+    },
+    {
+      "at": 1792061728921,
+      "method": "app_arm_move",
+      "effect": "m5+"
+    },
+    {
+      "at": 1792061731572,
+      "method": "app_arm_move",
+      "effect": "m5+"
+    },
+    {
+      "at": 1792061734173,
+      "method": "app_arm_move",
+      "effect": "m5+"
+    },
+    {
+      "at": 1792061758459,
+      "method": "app_arm_move",
+      "effect": "m5-"
+    },
+    {
+      "at": 1792061760967,
+      "method": "app_arm_move",
+      "effect": "m5-"
+    },
+    {
+      "at": 1792061763532,
+      "method": "app_arm_move",
+      "effect": "m5-"
+    },
+    {
+      "at": 1792061766147,
+      "method": "app_arm_move",
+      "effect": "m5-"
+    },
+    {
+      "at": 1792061790662,
+      "method": "app_arm_move",
+      "effect": "m3-"
+    },
+    {
+      "at": 1792062014002,
+      "method": "app_arm_in_compartment",
+      "effect": "anchor IN_ROBOT"
+    },
+    {
+      "at": 1792062174411,
+      "method": "app_arm_in_compartment",
+      "effect": "anchor IN_ROBOT"
+    },
+    {
+      "at": 1792065748057,
+      "method": "app_arm_out_compartment",
+      "effect": "anchor WORKING_POS"
+    },
+    {
+      "at": 1792065810976,
+      "method": "app_arm_in_compartment",
+      "effect": "anchor IN_ROBOT"
+    },
+    {
+      "at": 1792066252398,
+      "method": "anchor",
+      "effect": "anchor IN_ROBOT"
+    },
+    {
+      "at": 1792066294885,
+      "method": "app_arm_out_compartment",
+      "effect": "anchor WORKING_POS"
+    },
+    {
+      "at": 1792066367963,
+      "method": "app_arm_move",
+      "effect": "m3+"
+    }
+  ],
+  "source": "dead-reckoning",
+  "model": "vendor-app"
+}

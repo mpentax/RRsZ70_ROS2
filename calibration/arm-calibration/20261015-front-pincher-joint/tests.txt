@@ -1,0 +1,13 @@
+test_acquisition_information_is_psd_not_hardware_evidence (test_joint.JointTests) ... ok
+test_cli_reproduces_real_trace_without_archive_writes (test_joint.JointTests) ... ok
+test_design_can_use_an_actually_observed_gripper_pose (test_joint.JointTests) ... ok
+test_fixed_gripper_conditional_fit_preserves_measured_poses (test_joint.JointTests) ... ok
+test_output_guard_rejects_sources_and_symlink_alias (test_joint.JointTests) ... ok
+test_projection_respects_transform_chain (test_joint.JointTests) ... ok
+test_real_data_joint_fit_uses_training_pixels_only (test_joint.JointTests) ... ok
+test_whole_front_holdout_does_not_change_gripper_pose (test_joint.JointTests) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 32.473s
+
+OK
