@@ -1,4 +1,4 @@
-"""SE(2) single-pose alignment, not a SLAM/fusion/localisation filter."""
+"""SE(2) pose alignment and ego-centric map spatial context."""
 import math
 
 
@@ -25,7 +25,7 @@ def room_names(mapping, rooms):
 
 
 def spatial_context(m, labels, robot_pose_map=None) -> dict:
-    """Snapshot-grid context; ray distances are not live collision clearance."""
+    """Compute current room, relative room/dock bearings, and 8-sector clearance rays."""
     pose = robot_pose_map if robot_pose_map is not None else m.robot
 
     def cell(x, y):

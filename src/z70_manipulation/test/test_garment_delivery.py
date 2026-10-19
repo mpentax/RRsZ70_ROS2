@@ -1,8 +1,8 @@
-"""Offline delivery safety contracts; no vendor or robot connections."""
+"""Unit and DDS tests for garment delivery."""
 from types import SimpleNamespace as NS
 import numpy as np
 import pytest
-from z70_manipulation.garment_delivery import TowingQualificationConfig, TowingTrialHarness, transport_policy, loaded_route
+from z70_manipulation.garment_delivery import TowingQualificationConfig, transport_policy, loaded_route
 from z70_mapping.boundary import BoundaryConfig, compute_safe_interior
 
 
@@ -20,14 +20,6 @@ def test_loaded_route_is_four_connected_and_respects_deployed_envelope():
     route=loaded_route(b,(1.,1.),(2.,2.))
     assert route and route[-1]==(2.,2.)
     assert loaded_route(b,(1.,1.),(.15,.15)) is None
-
-
-def test_towing_harness_requires_all_observed_phases(tmp_path):
-    harness=TowingTrialHarness(tmp_path)
-    assert harness.artifact()['capability']=='INCONCLUSIVE'
-    harness.record('straight_pull',passed=False,swept_envelope=[[0,0],[1,1]],rear_observable=False,evidence_uri='file:///trial')
-    assert harness.artifact()['capability']=='UNSUPPORTED'
-    assert harness.artifact()['warnings']
 
 
 def test_delivery_dry_run_is_read_only_and_loaded_route_blocked():
@@ -219,3 +211,26 @@ def test_deliver_garment_dds_action_uses_typed_observations_without_commands(tmp
     from z70_interfaces.action import DeliverGarment
     run_dds_dry_action(tmp_path,DeliverGarment,'/z70/deliver_garment',
         DeliverGarment.Goal(category='sock',drop_x_m=2.,drop_y_m=2.,max_duration_s=10.,allow_towing=False,dry_run=True),monkeypatch)
+
+
+def test_transit_and_approach_use_calibrated_gains(tmp_path,monkeypatch):
+    from z70_manipulation import planner
+    from z70_manipulation.garment_delivery import GarmentDeliverer
+    fixture=DeliveryFixture(tmp_path)
+    fixture.ex.gains={'forward':{'gain':.5},'yaw_positive':{'gain':.5},'yaw_negative':{'gain':.5}}
+    durations=[]
+    def pulse(velocity=0.,omega=0.,duration=500):
+        durations.append((velocity,omega,duration))
+        fixture.pose[0]+=.2
+    fixture.ex.pulse=pulse
+    runner=GarmentDeliverer(fixture.obs,fixture.ex,boundary_config=BoundaryConfig(allowed_segments=(1,)),
+        held_check=lambda *_:True,support_check=lambda *_:True)
+    baseline,b=runner.context()
+    runner.transit((1.15,1.05),baseline,b,loaded=False)
+    assert durations and durations[0][2]==pytest.approx(500.)
+    durations.clear()
+    calls=iter([dict(yaw=0.,forward=.015),dict(yaw=0.,forward=0.)])
+    monkeypatch.setattr(planner,'approach',lambda *_:next(calls))
+    runner.track=fixture.garment
+    runner.approach('sock')
+    assert durations and durations[0][2]==pytest.approx(500.)

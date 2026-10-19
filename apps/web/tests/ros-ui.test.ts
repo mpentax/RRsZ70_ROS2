@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { Window } from 'happy-dom';
 import { createElement, act } from 'react';
 import { createRoot } from 'react-dom/client';
-import '../../../scripts/phase4-test-tsx.ts';
+import './setup-tsx.ts';
 const {App,TaskList}=await import('../src/App.tsx');
 const {SetupForm}=await import('../src/SetupForm.tsx');
 const {SESSION_EXPIRED}=await import('../src/api.ts');

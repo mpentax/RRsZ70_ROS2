@@ -32,6 +32,10 @@ def test_dashboard_publishes_disconnected_and_unknown_not_healthy_defaults():
         assert names['Z70/Connection'].level == DiagnosticStatus.OK
         assert names['Z70/Robot'].level == DiagnosticStatus.ERROR
         assert names['Z70/Robot'].message == 'REMOTE_PICKUP / MAIN_BRUSH_JAMMED'
+        arm_keys = {kv.key for kv in names['Z70/Arm estimate'].values}
+        cmd_keys = {kv.key for kv in names['Z70/Last RC command'].values}
+        assert 'source' not in arm_keys and 'visual' not in arm_keys
+        assert 'physical_completion' not in cmd_keys and 'scope' not in cmd_keys
         assert {s.name:s for s in dashboard.message(now=110).status}['Z70/Robot'].level == DiagnosticStatus.STALE
     finally:
         node.destroy_node()

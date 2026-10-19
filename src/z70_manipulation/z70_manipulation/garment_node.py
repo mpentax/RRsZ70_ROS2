@@ -1,8 +1,4 @@
-"""Passive shared-front-camera garment perception; one in-flight + one latest frame.
-
-Torch stays in an offline-only child interpreter. This node never acquires cameras
-or commands the robot. Unverified geofence/weight remain explicitly unqualified.
-"""
+"""Front-camera garment perception ROS 2 node."""
 from copy import deepcopy
 import json
 import math
@@ -73,7 +69,7 @@ class GarmentNode(Node):
         hz = float(self.declare_parameter('garment_hz', .5).value)
         self.max_age = float(self.declare_parameter('max_frame_age_s', 5.).value)
         self.cam = front_camera(); self.camera_x = calibration()['front_camera_x_m']
-        self.pub = self.create_publisher(GarmentObservations, '/z70/garments/observations', 1)
+        self.pub = self.create_publisher(GarmentObservations, '/z70/garments/observations', LATCHED)
         self.markers = self.create_publisher(MarkerArray, '/z70/garments', 1)
         self.json_pub = self.create_publisher(String, '/z70/garments/json', 1)
         self.status = self.create_publisher(String, '/z70/garments/status', LATCHED)

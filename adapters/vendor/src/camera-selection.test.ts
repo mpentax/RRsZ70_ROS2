@@ -24,8 +24,14 @@ async function fixture(t: import("node:test").TestContext) {
     return ["ok"];
   }};
   const store: ServiceStore = { async initialize() {}, async serviceToken() { return token; },
-    async loadDevice() { return { duid: "robot1", host: "127.0.0.1", localKey: "0123456789abcdef", name: "Z70", model: "roborock.vacuum.a179", protocolVersion: "L01" }; },
-    async saveDevice() {}, async loadCamera() { return { account: { user: "camera-user", secret: "mock-long-camera-secret", key: "mock-long-camera-key", mqttUrl: "ssl://mqtt-eu.roborock.com:8883" }, pin: "1234" }; }, async saveCamera() {} };
+    async loadPairing() {
+      return {
+        device: { duid: "robot1", host: "127.0.0.1", localKey: "0123456789abcdef", name: "Z70", model: "roborock.vacuum.a179", protocolVersion: "L01" },
+        camera: { account: { user: "camera-user", secret: "mock-long-camera-secret", key: "mock-long-camera-key", mqttUrl: "ssl://mqtt-eu.roborock.com:8883" }, pin: "1234" },
+        home: { deviceId: "robot1", homeId: 1, realApi: "https://api-eu.roborock.com", user: "camera-user", secret: "s", hawkKey: "k", rooms: [] },
+      };
+    },
+    async savePairing() {} };
   const config = { ...loadServiceConfig(), port: 0 };
   const service = await createService({ store, config, robotFactory: () => robot,
     driver: { async configure() { calls.push("configure"); }, async offer() { return { type: "answer", sdp: "v=0" }; }, async frame() {

@@ -29,20 +29,6 @@ def test_xdg_path_is_durable_not_cwd(monkeypatch,tmp_path):
     assert resources.runtime_calibration_path()==Path.home()/'.local/share/RRsZ70_ROS2/calibration/chassis/online.json'
 
 
-def test_explicit_archive_import_retains_measured_samples_without_clobber(tmp_path):
-    source=tmp_path/'archive/online.json'; source.parent.mkdir()
-    content=b'{"version":1,"updated_at":123.5,"samples":[],"seen":["historical-command"]}\n'
-    source.write_bytes(content); target=tmp_path/'data/online.json'
-    assert resources.initialize_runtime_state(target,source)
-    assert target.read_bytes()==source.read_bytes()==content
-    assert not resources.initialize_runtime_state(target,tmp_path/'missing-source')
-    assert target.read_bytes()==content
-    assert not list(target.parent.glob('*.tmp'))
-    broken=tmp_path/'broken.json'; broken.write_text('{"version":2,"samples":[]}')
-    with pytest.raises(ValueError): resources.initialize_runtime_state(tmp_path/'new.json',broken)
-    assert not (tmp_path/'new.json').exists()
-
-
 def test_initial_offset_is_centralized_without_changing_legacy_value():
     assert resources.initial_camera_x_m()==.16
 
@@ -102,10 +88,3 @@ def test_missing_sigma_is_unknown_and_ready_gate_is_unchanged(tmp_path):
     assert not state.camera_x_ready and calibrated_camera_x(state) is None
     assert state.yaw_positive_known and not state.yaw_positive_sigma_known
 
-
-def test_packaged_seed_hashes_preserve_original_archive():
-    root=resources.seed_directory()
-    manifest=json.loads((root/'provenance.json').read_text())
-    for asset in manifest['assets']:
-        path=root.parent.parent/asset['resource']
-        assert hashlib.sha256(path.read_bytes()).hexdigest()==asset['sha256']

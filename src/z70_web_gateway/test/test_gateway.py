@@ -168,6 +168,8 @@ def test_native_gateway_accepts_exact_docker_host_alias_without_weakening_auth()
 
 def test_validation_token_and_closed_error_contract(system, tmp_path):
     request = system['request']
+    goals = request('GET', '/api/ros/goals').json()['goals']
+    assert any(g['kind'] == 'pick' and g['topic'] == '/z70/pick' and g['action'] == 'Pick' and g['fields'] == ['color', 'dry_run'] for g in goals)
     assert request('GET','/api/ros/state',token='wrong').status_code == 401
     assert request('POST','/api/ros/tasks',{'kind':'arm_step','goal':{'joint':3,'direction':True}}).status_code == 400
     assert request('POST','/api/ros/tasks',{'kind':'base_pulse','goal':{'linear_mps':.1,'angular_radps':.2,'duration':{'sec':0,'nanosec':100}}}).status_code == 400
@@ -326,33 +328,6 @@ def test_ros_unavailable_reconnect_does_not_replay(system):
     reply=request('POST','/api/ros/rpc',{'method':'app_open_gripper','params':{}})
     assert reply.status_code == 200 and system['calls']==['app_open_gripper']
     gateway.destroy_client(missing)
-
-
-def test_mcp_web_cross_surface_end_to_end(system):
-    """Node uses real MCP SDK + browser API functions through the real TS HTTP proxy."""
-    def execute(goal):
-        goal.publish_feedback(Pick.Feedback(phase=3,reason='OBSERVING'))
-        until=time.monotonic()+15
-        while goal.request.color == 'wait' and time.monotonic()<until:
-            if goal.is_cancel_requested:
-                goal.canceled();return Pick.Result()
-            time.sleep(.02)
-        result=Pick.Result(dry_run_valid=goal.request.color=='yellow')
-        if result.dry_run_valid: goal.succeed()
-        else: goal.abort()
-        return result
-    server=ActionServer(system['peer'],Pick,'/z70/pick',execute_callback=execute,
-        cancel_callback=lambda _:CancelResponse.ACCEPT,callback_group=system['gateway'].group)
-    wait(lambda:system['gateway'].actions['pick'].server_is_ready())
-    repo=Path(__file__).resolve().parents[3]
-    try:
-        completed=subprocess.run(['node',str(repo/'scripts/phase4-cross-surface.ts'),system['origin']],cwd=repo,
-            capture_output=True,text=True,timeout=60)
-    finally: server.destroy()
-    assert completed.returncode == 0, completed.stdout+'\n'+completed.stderr
-    report=json.loads(completed.stdout.strip().splitlines()[-1])
-    assert report['cross_surface'] and report['cancel_both_directions'] and report['stop_during_task']
-    assert report['rendered_ui'] and report['web_form_to_mcp']
 
 
 def test_pick_feedback_and_cancel_have_same_action_identity(system):

@@ -6,13 +6,13 @@ import yaml
 from z70_description.floor_geometry import FrontCamera
 from .resources import front_calibration_path, description_config, colors_path
 
-@lru_cache(maxsize=4)
-def calibration(repo=None):
-    return description_config('mount_calibration.yaml', repo)
+@lru_cache(maxsize=1)
+def calibration():
+    return description_config('mount_calibration.yaml')
 
-@lru_cache(maxsize=4)
-def front_camera(repo=None):
-    return FrontCamera.load(front_calibration_path(repo))
+@lru_cache(maxsize=1)
+def front_camera():
+    return FrontCamera.load(front_calibration_path())
 
 @lru_cache(maxsize=1)
 def gripper_camera_info():
@@ -51,8 +51,8 @@ def detect(image,thresholds=None,min_area=70,keep_masks=False):
     found=sorted(found,key=lambda b:(b['color'],-b['area_px']))
     return found if keep_masks else [{k:v for k,v in b.items() if k!='_mask'} for b in found]
 
-def front_objects(image,repo=None,thresholds=None):
-    cam=front_camera(repo); offset=calibration(repo)['front_camera_x_m']; result=[]
+def front_objects(image,thresholds=None):
+    cam=front_camera(); offset=calibration()['front_camera_x_m']; result=[]
     sx=cam.width/image.shape[1]; sy=cam.height/image.shape[0]
     hsv=cv2.cvtColor(image,cv2.COLOR_BGR2HSV)
     for b in detect(image,thresholds,keep_masks=True):
@@ -123,7 +123,7 @@ def front_objects(image,repo=None,thresholds=None):
         result.append(b)
     return result
 
-def front_jaw(image,repo=None):
+def front_jaw(image):
     """Observed ID68 pose plus shared provisional grasp aim, never nominal FK.
 
     ``position`` is the PHOTO-ESTIMATED operational aim derived from full marker
@@ -131,7 +131,7 @@ def front_jaw(image,repo=None):
     registered terminal-region evidence separately. Neither is an exact seam.
     Floor-board ID68 is rejected by elevation; uncertainty remains >=15mm.
     """
-    cam=front_camera(repo);cfg=calibration(repo)
+    cam=front_camera();cfg=calibration()
     if image.shape[:2]!=(cam.height,cam.width): raise LookupError('front frame dimensions')
     K=np.array([[cam.f,0,cam.cx],[0,cam.f,cam.cy],[0,0,1.]])
     D=np.array([cam.k1,cam.k2,0.,0.,0.])

@@ -6,9 +6,7 @@ platforms = ["osx-arm64"]
 [dependencies]
 python = "3.12.*"
 ros-jazzy-ros-base = "*"
-ros-jazzy-rviz2 = "*"
 ros-jazzy-robot-state-publisher = "*"
-ros-jazzy-joint-state-publisher-gui = "*"
 ros-jazzy-xacro = "*"
 ros-jazzy-foxglove-bridge = "*"
 ros-jazzy-tf2-ros = "*"
@@ -29,6 +27,5 @@ ROS_AUTOMATIC_DISCOVERY_RANGE = "LOCALHOST"
 pick = { cmd = "bash -c 'source install/setup.bash && export Z70_REPO=\"$PWD\" && exec ros2 run z70_manipulation pick \"$@\"' --", depends-on = ["build"] }
 stack = { cmd = "bash -c 'source install/setup.bash && export Z70_REPO=\"$PWD\" && exec ros2 run z70_manipulation stack \"$@\"' --", depends-on = ["build"] }
 build = "colcon build --symlink-install --base-paths src"
-view = { cmd = "bash -c 'source install/setup.bash && exec ros2 launch z70_bringup view_model.launch.py \"$@\"' --", depends-on = ["build"] }
 bringup = { cmd = "bash -c 'source install/setup.bash && export Z70_REPO=\"$PWD\" && exec ros2 launch z70_bringup bringup.launch.py \"$@\"' --", depends-on = ["build"] }
 test = { cmd = "bash -c 'source install/setup.bash && export ROS_DOMAIN_ID=91 && exec python -m pytest src --basetemp build/pytest -q \"$@\"' --", depends-on = ["build"] }

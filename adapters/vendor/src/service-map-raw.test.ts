@@ -11,7 +11,9 @@ test('authenticated raw map reads preserve exact verified bytes and selected-dev
   const device = { duid: 'robot1', host: '127.0.0.1', localKey: '1234567890abcdef', name: 'test', model: 'a179', protocolVersion: 'L01' };
   const metadata = mapMetadataFromRead(device.duid, { bytes: raw.length, sha256: createHash('sha256').update(raw).digest('hex'), mapIndex: 2, mapSequence: 3 }, 12345);
   let selected = true;
-  const store: ServiceStore = { async initialize() {}, async serviceToken() { return token; }, async loadDevice() { return device; }, async saveDevice() {}, async loadCamera() { return null; }, async saveCamera() {},
+  const camera = { account: { user: 'u', secret: 's', key: 'k', mqttUrl: 'ssl://mqtt-eu.roborock.com:8883' }, pin: '1234' };
+  const home = { deviceId: device.duid, homeId: 1, realApi: 'https://api-eu.roborock.com', user: 'u', secret: 's', hawkKey: 'k', rooms: [] };
+  const store: ServiceStore = { async initialize() {}, async serviceToken() { return token; }, async loadPairing() { return { device, camera, home }; }, async savePairing() {},
     async loadMapRasterSource() { return { raw, metadata: { ...metadata, deviceId: selected ? device.duid : 'other' } }; } };
   const config = { ...loadServiceConfig(), port: 0 };
   const service = await createService({ store, config, robotFactory: () => ({ connection: { state: 'connected', connectedAt: 1 }, close() {}, async request() { throw new Error('Raw map must not contact robot'); } }) });

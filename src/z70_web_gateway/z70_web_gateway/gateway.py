@@ -7,7 +7,6 @@ import hmac
 import json
 import math
 import os
-from pathlib import Path
 import re
 import socket
 import stat
@@ -26,19 +25,48 @@ from rosidl_runtime_py.set_message import set_message_fields
 from sensor_msgs.msg import CompressedImage
 from nav_msgs.msg import OccupancyGrid
 from unique_identifier_msgs.msg import UUID
-from z70_interfaces.action import DeliverGarment, PatrolCollect, PinAndGo, BasePulse, ArmStep, HandStep, ArmOperation, Pick, Stack, DeployArm, AlignToTarget, MoveArm, GraspAndLift, ReleaseAndStow
+from z70_interfaces.action import (
+    DeliverGarment, PatrolCollect, PinAndGo, BasePulse, ArmStep, HandStep,
+    ArmOperation, Pick, Stack, DeployArm, AlignToTarget, MoveArm, GraspAndLift, ReleaseAndStow,
+)
 from z70_interfaces.msg import RobotState, CameraState, ArmEstimate, CalibrationState, FrameMetadata
 from z70_interfaces.srv import RawRpc, Stop, SelectCamera, SetArmAnchor, SetControlSession
 from std_msgs.msg import Bool
 
-ACTIONS = {'deliver_garment': (DeliverGarment, '/z70/deliver_garment'), 'patrol_collect': (PatrolCollect, '/z70/patrol_collect'), 'pin_and_go': (PinAndGo, '/z70/nav/pin_and_go'), 'pick': (Pick, '/z70/pick'), 'stack': (Stack, '/z70/stack'), 'base_pulse': (BasePulse, '/z70/base/pulse'),
-           'arm_step': (ArmStep, '/z70/arm/step'), 'hand_step': (HandStep, '/z70/arm/hand_step'),
-           'arm_operation': (ArmOperation, '/z70/arm/operation'),
-           'deploy_arm': (DeployArm, '/z70/arm/deploy'), 'align_target': (AlignToTarget, '/z70/align_target'),
-           'move_arm': (MoveArm, '/z70/arm/move'), 'grasp_and_lift': (GraspAndLift, '/z70/arm/grasp_and_lift'),
-           'release_and_stow': (ReleaseAndStow, '/z70/arm/release_and_stow')}
+ACTIONS = {
+    'deliver_garment': (DeliverGarment, '/z70/deliver_garment'),
+    'patrol_collect': (PatrolCollect, '/z70/patrol_collect'),
+    'pin_and_go': (PinAndGo, '/z70/nav/pin_and_go'),
+    'pick': (Pick, '/z70/pick'),
+    'stack': (Stack, '/z70/stack'),
+    'base_pulse': (BasePulse, '/z70/base/pulse'),
+    'arm_step': (ArmStep, '/z70/arm/step'),
+    'hand_step': (HandStep, '/z70/arm/hand_step'),
+    'arm_operation': (ArmOperation, '/z70/arm/operation'),
+    'deploy_arm': (DeployArm, '/z70/arm/deploy'),
+    'align_target': (AlignToTarget, '/z70/align_target'),
+    'move_arm': (MoveArm, '/z70/arm/move'),
+    'grasp_and_lift': (GraspAndLift, '/z70/arm/grasp_and_lift'),
+    'release_and_stow': (ReleaseAndStow, '/z70/arm/release_and_stow'),
+}
+SERVICES = (
+    ('rpc', RawRpc, '/z70/driver/raw_rpc'),
+    ('stop', Stop, '/z70/stop'),
+    ('control/session', SetControlSession, '/z70/control/session'),
+    ('camera/select', SelectCamera, '/z70/camera/select'),
+    ('arm/anchor', SetArmAnchor, '/z70/arm/anchor'),
+)
+TOPICS = (
+    ('session', Bool, '/z70/control/enabled'),
+    ('state', RobotState, '/z70/state'),
+    ('camera', CameraState, '/z70/camera/state'),
+    ('arm', ArmEstimate, '/z70/arm_estimate'),
+    ('calibration', CalibrationState, '/z70/chassis_calibration'),
+    ('map', OccupancyGrid, '/map'),
+)
 TERMINAL = {'succeeded', 'failed', 'cancelled', 'rejected'}
 ID = r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+COLOR_RE = re.compile(r'[a-zA-Z0-9_-]{1,32}')
 
 
 class ApiError(Exception):
@@ -53,7 +81,7 @@ def data(message):
 
 
 def checked(body, allowed, required=()):
-    if not isinstance(body, dict) or set(body)-set(allowed) or set(required)-set(body):
+    if not isinstance(body, dict) or set(body) - set(allowed) or set(required) - set(body):
         raise ApiError(400, 'INVALID_INPUT')
 
 
@@ -65,57 +93,56 @@ def number(value, low, high):
     return type(value) in (int, float) and math.isfinite(value) and low <= value <= high
 
 
+def is_color(value):
+    return isinstance(value, str) and bool(COLOR_RE.fullmatch(value))
+
+
+def _valid_pulse(p):
+    d = p['duration']
+    checked(d, ('sec', 'nanosec'), ('sec', 'nanosec'))
+    return (integer(d['sec'], 0, 0) and integer(d['nanosec'], 1, 800000000)
+            and number(p['linear_mps'], -.1, .1) and number(p['angular_radps'], -.5, .5)
+            and not (p['linear_mps'] and p['angular_radps']))
+
+
+GOAL_SPECS = {
+    'deliver_garment': (('drop_x_m', 'drop_y_m', 'max_duration_s', 'allow_towing', 'dry_run', 'category'),
+                        lambda p: number(p['drop_x_m'], -100., 100.) and number(p['drop_y_m'], -100., 100.)
+                        and number(p['max_duration_s'], 1., 3600.) and type(p['allow_towing']) is bool
+                        and type(p['dry_run']) is bool and isinstance(p['category'], str) and len(p['category']) <= 32),
+    'patrol_collect': (('drop_x_m', 'drop_y_m', 'max_duration_s', 'allow_towing', 'dry_run', 'max_items'),
+                       lambda p: number(p['drop_x_m'], -100., 100.) and number(p['drop_y_m'], -100., 100.)
+                       and number(p['max_duration_s'], 1., 3600.) and type(p['allow_towing']) is bool
+                       and type(p['dry_run']) is bool and integer(p['max_items'], 1, 1000)),
+    'pin_and_go': (('target_x_m', 'target_y_m', 'max_duration_s', 'dry_run'),
+                   lambda p: number(p['target_x_m'], -100., 100.) and number(p['target_y_m'], -100., 100.)
+                   and number(p['max_duration_s'], 1., 600.) and type(p['dry_run']) is bool),
+    'pick': (('color', 'dry_run'), lambda p: is_color(p['color']) and type(p['dry_run']) is bool),
+    'stack': (('base_color', 'middle_color', 'top_color', 'dry_run'),
+              lambda p: all(is_color(p[k]) for k in ('base_color', 'middle_color', 'top_color'))
+              and len({p['base_color'], p['middle_color'], p['top_color']}) == 3 and type(p['dry_run']) is bool),
+    'base_pulse': (('linear_mps', 'angular_radps', 'duration'), _valid_pulse),
+    'arm_step': (('joint', 'direction'),
+                 lambda p: type(p['joint']) is int and p['joint'] in (3, 4, 5, 34, 43)
+                 and type(p['direction']) is int and p['direction'] in (-1, 1)),
+    'hand_step': (('direction',), lambda p: integer(p['direction'], 1, 4)),
+    'arm_operation': (('operation',), lambda p: integer(p['operation'], 1, 9)),
+    'deploy_arm': (('settle',), lambda p: type(p['settle']) is bool),
+    'align_target': (('color',), lambda p: is_color(p['color'])),
+    'move_arm': (('m3_deg', 'm4_deg', 'm5_deg'),
+                 lambda p: number(p['m3_deg'], 90, 270) and number(p['m4_deg'], 35, 170) and number(p['m5_deg'], 0, 155)),
+    'grasp_and_lift': (('lift_steps', 'verify_color'),
+                       lambda p: integer(p['lift_steps'], 0, 10) and isinstance(p['verify_color'], str)
+                       and (p['verify_color'] == '' or is_color(p['verify_color']))),
+    'release_and_stow': (('put_down',), lambda p: type(p['put_down']) is bool),
+}
+
+
 def goal_message(kind, payload):
     if kind not in ACTIONS or not isinstance(payload, dict): raise ApiError(400, 'INVALID_INPUT')
-    if kind in ('deliver_garment','patrol_collect'):
-        fields = ('drop_x_m','drop_y_m','max_duration_s','allow_towing','dry_run') + (('category',) if kind=='deliver_garment' else ('max_items',))
-        checked(payload, fields, fields)
-        valid = (number(payload['drop_x_m'],-100.,100.) and number(payload['drop_y_m'],-100.,100.)
-                 and number(payload['max_duration_s'],1.,3600.) and type(payload['allow_towing']) is bool
-                 and type(payload['dry_run']) is bool)
-        valid = valid and (isinstance(payload['category'],str) and len(payload['category'])<=32 if kind=='deliver_garment' else integer(payload['max_items'],1,1000))
-    elif kind == 'pin_and_go':
-        fields = ('target_x_m', 'target_y_m', 'max_duration_s', 'dry_run')
-        checked(payload, fields, fields)
-        valid = (number(payload['target_x_m'], -100., 100.) and number(payload['target_y_m'], -100., 100.)
-                 and number(payload['max_duration_s'], 1., 600.) and type(payload['dry_run']) is bool)
-    elif kind == 'pick':
-        checked(payload, ('color', 'dry_run'), ('color', 'dry_run'))
-        valid = isinstance(payload['color'], str) and bool(re.fullmatch(r'[a-zA-Z0-9_-]{1,32}', payload['color'])) and type(payload['dry_run']) is bool
-    elif kind == 'stack':
-        checked(payload, ('base_color', 'middle_color', 'top_color', 'dry_run'), ('base_color', 'middle_color', 'top_color', 'dry_run'))
-        colors = [payload['base_color'], payload['middle_color'], payload['top_color']]
-        valid = (all(isinstance(c, str) and bool(re.fullmatch(r'[a-zA-Z0-9_-]{1,32}', c)) for c in colors)
-                 and len(set(colors)) == 3 and type(payload['dry_run']) is bool)
-    elif kind == 'base_pulse':
-        checked(payload, ('linear_mps', 'angular_radps', 'duration'), ('linear_mps', 'angular_radps', 'duration'))
-        duration = payload['duration']; checked(duration, ('sec', 'nanosec'), ('sec', 'nanosec'))
-        valid = (integer(duration['sec'], 0, 0) and integer(duration['nanosec'], 1, 800000000)
-                 and number(payload['linear_mps'], -.1, .1) and number(payload['angular_radps'], -.5, .5)
-                 and not (payload['linear_mps'] and payload['angular_radps']))
-    elif kind == 'arm_step':
-        checked(payload, ('joint', 'direction'), ('joint', 'direction'))
-        valid = type(payload['joint']) is int and payload['joint'] in (3, 4, 5, 34, 43) and type(payload['direction']) is int and payload['direction'] in (-1, 1)
-    elif kind == 'hand_step':
-        checked(payload, ('direction',), ('direction',)); valid = integer(payload['direction'], 1, 4)
-    elif kind == 'arm_operation':
-        checked(payload, ('operation',), ('operation',)); valid = integer(payload['operation'], 1, 9)
-    elif kind == 'deploy_arm':
-        checked(payload, ('settle',), ('settle',)); valid = type(payload['settle']) is bool
-    elif kind == 'align_target':
-        checked(payload, ('color',), ('color',))
-        valid = isinstance(payload['color'], str) and bool(re.fullmatch(r'[a-zA-Z0-9_-]{1,32}', payload['color']))
-    elif kind == 'move_arm':
-        checked(payload, ('m3_deg', 'm4_deg', 'm5_deg'), ('m3_deg', 'm4_deg', 'm5_deg'))
-        valid = (number(payload['m3_deg'], 90, 270) and number(payload['m4_deg'], 35, 170)
-                 and number(payload['m5_deg'], 0, 155))
-    elif kind == 'grasp_and_lift':
-        checked(payload, ('lift_steps', 'verify_color'), ('lift_steps', 'verify_color'))
-        valid = (integer(payload['lift_steps'], 0, 10) and isinstance(payload['verify_color'], str)
-                 and bool(re.fullmatch(r'[a-zA-Z0-9_-]{0,32}', payload['verify_color'])))
-    else:
-        checked(payload, ('put_down',), ('put_down',)); valid = type(payload['put_down']) is bool
-    if not valid: raise ApiError(400, 'INVALID_INPUT')
+    fields, validate = GOAL_SPECS[kind]
+    checked(payload, fields, fields)
+    if not validate(payload): raise ApiError(400, 'INVALID_INPUT')
     try:
         message = ACTIONS[kind][0].Goal()
         set_message_fields(message, payload)
@@ -139,19 +166,17 @@ class Gateway(Node):
         self.tasks = OrderedDict(); self.handles = {}; self.disappeared = {}
         self.group = ReentrantCallbackGroup()
         self.actions = {k: ActionClient(self, cls, path, callback_group=self.group) for k, (cls, path) in ACTIONS.items()}
-        self.ros_clients = {k: self.create_client(cls, path, callback_group=self.group) for k, cls, path in (
-            ('rpc', RawRpc, '/z70/driver/raw_rpc'), ('stop', Stop, '/z70/stop'),
-            ('control/session', SetControlSession, '/z70/control/session'),
-            ('camera/select', SelectCamera, '/z70/camera/select'), ('arm/anchor', SetArmAnchor, '/z70/arm/anchor'))}
+        self.ros_clients = {k: self.create_client(cls, path, callback_group=self.group) for k, cls, path in SERVICES}
         qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL)
-        self.subscriptions_owned = [self.create_subscription(cls, topic, partial(self.sample, key), qos, callback_group=self.group)
-            for key, cls, topic in [('session', Bool, '/z70/control/enabled'), ('state', RobotState, '/z70/state'), ('camera', CameraState, '/z70/camera/state'),
-                ('arm', ArmEstimate, '/z70/arm_estimate'), ('calibration', CalibrationState, '/z70/chassis_calibration'),
-                ('map', OccupancyGrid, '/map')]]
+        self.subscriptions_owned = [
+            self.create_subscription(cls, topic, partial(self.sample, key), qos, callback_group=self.group)
+            for key, cls, topic in TOPICS
+        ]
         for camera in ('front', 'gripper'):
             self.subscriptions_owned += [
                 self.create_subscription(CompressedImage, f'/camera/{camera}/image_raw/compressed', partial(self.image, camera), 2, callback_group=self.group),
-                self.create_subscription(FrameMetadata, f'/camera/{camera}/metadata', partial(self.meta, camera), 2, callback_group=self.group)]
+                self.create_subscription(FrameMetadata, f'/camera/{camera}/metadata', partial(self.meta, camera), 2, callback_group=self.group),
+            ]
         self.create_timer(1., self.check_tasks, callback_group=self.group)
 
     def sample(self, key, message):
@@ -298,6 +323,8 @@ class Gateway(Node):
                     **{k: deepcopy(self.samples.get(k)) for k in ('state', 'camera', 'arm', 'calibration')}), {}
         if method == 'GET' and path == '/api/ros/map':
             with self.lock: return 200, {'map':deepcopy(self.samples.get('map'))}, {}
+        if method == 'GET' and path == '/api/ros/goals':
+            return 200, {'goals': [{'kind': kind, 'topic': ACTIONS[kind][1], 'action': ACTIONS[kind][0].__name__, 'fields': list(GOAL_SPECS[kind][0])} for kind in ACTIONS]}, {}
         if path == '/api/ros/tasks':
             if method == 'GET':
                 with self.lock: return 200, {'tasks':deepcopy(list(self.tasks.values()))}, {}

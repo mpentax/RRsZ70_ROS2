@@ -17,10 +17,14 @@ test("private acquisition reports an empty go2rtc startup response without priva
   });
   const token = "t".repeat(43);
   const store: ServiceStore = { async initialize() {}, async serviceToken() { return token; },
-    async loadDevice() { return { duid: "test-device", host: "127.0.0.1", localKey: "1234567890abcdef", name: "test", model: "a179", protocolVersion: "L01" }; },
-    async saveDevice() {}, async saveCamera() {}, async loadCamera() { return {
-      account: { user: "synthetic-user", secret: "synthetic-secret", key: "synthetic-account-key", mqttUrl: "ssl://mqtt-eu.roborock.com:8883" }, pin: "1234",
-    }; } };
+    async loadPairing() {
+      return {
+        device: { duid: "test-device", host: "127.0.0.1", localKey: "1234567890abcdef", name: "test", model: "a179", protocolVersion: "L01" },
+        camera: { account: { user: "synthetic-user", secret: "synthetic-secret", key: "synthetic-account-key", mqttUrl: "ssl://mqtt-eu.roborock.com:8883" }, pin: "1234" },
+        home: { deviceId: "test-device", homeId: 1, realApi: "https://api-eu.roborock.com", user: "synthetic-user", secret: "s", hawkKey: "k", rooms: [] },
+      };
+    },
+    async savePairing() {} };
   const config = { ...loadServiceConfig(), port: 0 };
   const service = await createService({ config, store, driver: new Go2Rtc(), robotFactory: () => ({
     connection: { state: "connected", connectedAt: 1 }, close() {}, async request(method) {

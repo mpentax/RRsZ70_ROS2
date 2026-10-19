@@ -1,7 +1,4 @@
-"""Offline, fail-closed interior contract in the vendor map's metric xy frame.
-
-This is geometry, NOT localization, a navigation planner, or firmware enforcement.
-"""
+"""Safe interior grid, patrol waypoint dispersion, and swept-corridor checks."""
 from dataclasses import asdict, dataclass, field
 import math
 
@@ -11,16 +8,7 @@ import numpy as np
 
 @dataclass(frozen=True)
 class BoundaryConfig:
-    """Explicit physical envelope; all distances are metres.
-
-    The default 0.199 m radius is half the Z70's 39.8 cm chassis diameter.
-    Alternatively configure radius=0.175 and uncertainty=0.025 for 0.20 m.
-    Deployed extension is extra forward reach, conservatively applied isotropically
-    (e.g. +0.10 m). Uncertainty and stopping distance are additive, not implicit.
-    waypoint_clearance_m is measured from raw allowed-interior boundaries, not
-    extra clearance from the already eroded safe grid. Spacing is observation
-    dispersion, NOT permission to drive straight between waypoint pairs.
-    """
+    """Physical clearance and waypoint dispersion parameters (metres)."""
     allowed_segments: tuple[int, ...] = (1, 2, 3, 4, 5, 6)
     chassis_radius_m: float = .199
     deployed_arm_extension_m: float = 0.
@@ -86,14 +74,11 @@ class BoundaryResult:
                     active_component=self.active_component,
                     component_selection=self.selection_method,
                     room_connectivity=self.room_connectivity, lost_rooms=self.lost_rooms,
-                    patrol_waypoints=self.waypoints,
-                    firmware_enforced=False, localization_verified=False,
-                    route_validation_required=True,
-                    caveat='Static snapshot only; validate routes, swept motion, live obstacles and stopping distance.')
+                    patrol_waypoints=self.waypoints)
 
 
 def extract_segment_ids(m):
-    """Never infer a room from unknown, occupied, or unsegmented free floor."""
+    """Extract room segment IDs (1..30) from free segmented pixels."""
     valid = ((m.occupancy == 0) & ((m.pixels & 7) == 7)
              & (m.pixels != 7) & (m.pixels != 255))
     return np.where(valid, m.pixels >> 3, 0).astype(np.uint8)
@@ -144,15 +129,7 @@ def rasterize_forbidden(m):
 
 
 def compute_safe_interior(m, labels, config, robot_pose_map=None):
-    """Union allowlisted rooms BEFORE erosion, subtract zones/walls/nonfree cells.
-
-    EDT is zero-padded at map edges and reduced by half a cell diagonal: distance
-    to an excluded cell's centre alone would overestimate physical clearance.
-    Four-connected components prevent diagonal corner cutting. Choose the pose's
-    safe cell, nearest safe centre within chassis_radius_m, or largest component
-    (row-major tie break). A largest-component fallback is reported, not evidence
-    that the robot can reach it. None uses m.robot; pose coordinates are map metres.
-    """
+    """Union allowlisted rooms before erosion and subtract zones, walls, and obstacles."""
     if not math.isfinite(m.resolution) or m.resolution <= 0:
         raise ValueError('map resolution must be positive and finite')
     ids = extract_segment_ids(m)
@@ -220,13 +197,7 @@ def compute_safe_interior(m, labels, config, robot_pose_map=None):
 
 
 def generate_patrol_waypoints(result, robot_pose_map=None):
-    """Clearance-first greedy dispersion, one seed per reachable room, then tour.
-
-    A narrow room with no candidate meeting waypoint_clearance_m still gets its
-    safest reachable observation cell; clearance_preference_met records that
-    fallback. Never reduce the physical envelope to obtain an observation point.
-    Tour order is NOT a collision-free route; planners must validate every leg.
-    """
+    """Clearance-first greedy dispersion with one seed per reachable room, ordered as a nearest-neighbor tour."""
     ys, xs = np.nonzero(result.reachable_mask)
     if not len(xs):
         return []
@@ -279,17 +250,7 @@ def _point_segment_distance2(p, a, b):
 
 
 def check_corridor_containment(safe_grid_or_result, start_xy, end_xy, radius_m):
-    """Check a straight swept disk, rejecting even obstacle-corner touches.
-
-    BoundaryResult uses its reachable safe mask and metric map coordinates.
-    OccupancyGrid uses its origin/resolution and only value 0 as free (rotated
-    grids are rejected). A 2-D boolean array uses True=free, unit cells, origin
-    (0,0); an integer array uses 0=free. Radius is ADDITIONAL footprint on the
-    supplied grid; zero validates a centreline against an already eroded result.
-    Sample centres at <= quarter-cell steps, then test continuous capsule/closed
-    excluded-cell intersections analytically, so sampling cannot skip a thin
-    wall or a diagonal corner. This does not validate dynamics or vendor routes.
-    """
+    """Check whether a straight swept disk stays inside the reachable safe grid."""
     if isinstance(safe_grid_or_result, BoundaryResult):
         mask = safe_grid_or_result.reachable_mask
         origin, resolution = safe_grid_or_result.origin, safe_grid_or_result.resolution

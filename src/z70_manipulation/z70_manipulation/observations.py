@@ -1,8 +1,4 @@
-"""ROS-only latest observation adapter for the transitional pickup executor.
-
-No camera acquisition or HTTP. An unchanged latched sample is not made fresh by receipt.
-The one image slot is shared by all reads; each caller waits for a newer acquisition.
-"""
+"""ROS 2 observation adapter for manipulation and navigation actions."""
 from copy import deepcopy
 from types import SimpleNamespace
 import math
@@ -12,7 +8,7 @@ import time
 import cv2
 import numpy as np
 import rclpy
-from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.qos import QoSProfile, DurabilityPolicy, ReliabilityPolicy
 from sensor_msgs.msg import CompressedImage
@@ -53,9 +49,9 @@ class Observations:
         for camera in ('front','gripper'):
             self.subscriptions.extend([
                 self.node.create_subscription(CompressedImage, f'/camera/{camera}/image_raw/compressed',
-                                              lambda m,c=camera:self.on_image(m,c), 2, callback_group=self.group),
+                                              lambda m,c=camera:self.on_image(m,c), 2, callback_group=MutuallyExclusiveCallbackGroup()),
                 self.node.create_subscription(FrameMetadata, f'/camera/{camera}/metadata',
-                                              lambda m,c=camera:self.on_metadata(m,c), 2, callback_group=self.group)])
+                                              lambda m,c=camera:self.on_metadata(m,c), 2, callback_group=MutuallyExclusiveCallbackGroup())])
         self.selector = self.node.create_client(SelectCamera, '/z70/camera/select', callback_group=self.group)
         if self.owned:
             self.executor = SingleThreadedExecutor(); self.executor.add_node(self.node)
@@ -75,7 +71,7 @@ class Observations:
             return dict(garment=self.evidence_id(self.garments.evidence) if self.garments else None,
                         image=self.evidence_id(meta.evidence) if meta else None)
 
-    def garment_snapshot(self, after=None, max_age_s=3.):
+    def garment_snapshot(self, after=None, max_age_s=6.):
         prior = after.get('garment') if isinstance(after,dict) else after
         def ready():
             m = self.garments
@@ -91,7 +87,7 @@ class Observations:
         def ready():
             meta=self.metadata.get('front'); frame=self.frames.get('front')
             return (meta is not None and frame is not None and self.key(meta)==self.key(frame)
-                    and self.fresh(meta.evidence,3.) and self.evidence_id(meta.evidence)!=prior
+                    and self.fresh(meta.evidence,6.) and self.evidence_id(meta.evidence)!=prior
                     and self.evidence_id(meta.evidence)!=self.used)
         self.wait(ready)
         with self.condition:
@@ -127,16 +123,21 @@ class Observations:
             expected = response.snapshot
         def ready():
             m=self.map_snapshot
-            return (m is not None and self.fresh(m.evidence,max_age_s)
+            return (m is not None and m.evidence.valid and not m.evidence.stale
+                    and (refresh or max_age_s is None or self.fresh(m.evidence,max_age_s)
+                         or (m.header.stamp.sec > 0 and 0 <= time.time()-stamp_seconds(m.header.stamp) <= max_age_s))
                     and (expected is None or (m.evidence.session_id == expected.session_id
                          and m.evidence.sequence >= expected.sequence)))
         self.wait(ready)
         with self.condition: m=deepcopy(self.map_snapshot)
+        raw_age=time.time()-stamp_seconds(m.evidence.received_at)
+        hdr_age=time.time()-stamp_seconds(m.header.stamp) if m.header.stamp.sec > 0 else raw_age
+        cache_age_s=0. if refresh else min(raw_age, hdr_age) if hdr_age >= 0 else raw_age
         return SimpleNamespace(map=decode_map(bytes(m.raw)), labels={r.segment_id:r.name for r in m.rooms},
             sequence=m.evidence.sequence, map_index=m.map_index, map_sequence=m.map_sequence,
             session_id=bytes(m.evidence.session_id.uuid),
             active_floor_verified=m.active_floor_verified, current_pose_verified=m.current_pose_verified,
-            cache_age_s=time.time()-stamp_seconds(m.evidence.received_at), evidence=m.evidence)
+            cache_age_s=cache_age_s, evidence=m.evidence)
 
     def on_state(self, msg):
         with self.condition: self.state = msg; self.condition.notify_all()
@@ -174,36 +175,39 @@ class Observations:
                 if remaining <= 0: raise LookupError('shared driver observation unavailable or stale')
                 self.condition.wait(min(remaining,.05))
 
+    def status(self) -> dict:
+        self.wait(lambda:self.state is not None and self.state.evidence.valid and not self.state.evidence.stale
+                  and self.fresh(self.state.evidence, 15.))
+        with self.condition: m = deepcopy(self.state)
+        if not m.connected: raise LookupError('driver disconnected')
+        status = {}
+        for field, key in [('robot_state','state'),('error_code','error_code'),('common_status','common_status'),('grab_status','grab_status')]:
+            if getattr(m,field+'_known'): status[key] = getattr(m,field)
+        if m.battery_known: status['battery'] = m.battery_fraction*100
+        if m.cleaning_known: status['in_cleaning']=m.in_cleaning
+        if m.returning_known: status['in_returning']=m.in_returning
+        return status
+
+    def arm_estimate(self) -> dict:
+        self.wait(lambda:self.arm is not None and self.arm.evidence.valid and not self.arm.evidence.stale
+                  and self.state is not None and self.state.evidence.valid and not self.state.evidence.stale
+                  and self.fresh(self.state.evidence, 15.))
+        with self.condition: m = deepcopy(self.arm)
+        usable = m.validity.value in (1,2) and not m.restored
+        q = dict(zip(m.joints.name, m.joints.position))
+        j = {}
+        if usable and all(k in q for k in ('m3_joint','m4_joint','m5_joint')):
+            j = {'m3':math.degrees(q['m3_joint'])+270, 'm4':180-math.degrees(q['m4_joint']),
+                 'm5':-math.degrees(q['m5_joint'])}
+        else: usable = False
+        state='IN_PROCESS_POS' if usable else 'IN_ROBOT' if m.validity.value==3 and m.validity.reason=='COMMAND_DERIVED_STOW' else 'UNKNOWN'
+        return {'state':state, 'joints':j,
+                'source':'ROS_COMMAND_ESTIMATE', 'updatedAt':stamp_seconds(m.evidence.source_at)*1000,
+                'stepsSinceAnchor':m.steps_since_anchor}
+
     def get(self, path):
-        if path == '/api/state':
-            self.wait(lambda:self.state is not None and self.fresh(self.state.evidence, 5.))
-            with self.condition: m = deepcopy(self.state)
-            if not m.connected: raise LookupError('driver disconnected')
-            status = {}
-            for field, key in [('robot_state','state'),('error_code','error_code'),('common_status','common_status'),('grab_status','grab_status')]:
-                if getattr(m,field+'_known'): status[key] = getattr(m,field)
-            if m.battery_known: status['battery'] = m.battery_fraction*100
-            if m.cleaning_known: status['in_cleaning']=m.in_cleaning
-            if m.returning_known: status['in_returning']=m.in_returning
-            return {'telemetry':{'status':{'value':status}}}
-        if path == '/api/arm/estimate':
-            # Command-derived update time can predate the current poll. Fresh
-            # transport/state plus explicit estimate validity establish availability;
-            # never rewrite source_at to hide the age of the command-derived pose.
-            self.wait(lambda:self.arm is not None and self.arm.evidence.valid and not self.arm.evidence.stale
-                      and self.state is not None and self.fresh(self.state.evidence,5.))
-            with self.condition: m = deepcopy(self.arm)
-            usable = m.validity.value in (1,2) and not m.restored
-            q = dict(zip(m.joints.name, m.joints.position))
-            j = {}
-            if usable and all(k in q for k in ('m3_joint','m4_joint','m5_joint')):
-                j = {'m3':math.degrees(q['m3_joint'])+270, 'm4':180-math.degrees(q['m4_joint']),
-                     'm5':-math.degrees(q['m5_joint'])}
-            else: usable = False
-            state='IN_PROCESS_POS' if usable else 'IN_ROBOT' if m.validity.value==3 and m.validity.reason=='COMMAND_DERIVED_STOW' else 'UNKNOWN'
-            return {'state':state, 'joints':j,
-                    'source':'ROS_COMMAND_ESTIMATE', 'updatedAt':stamp_seconds(m.evidence.source_at)*1000,
-                    'stepsSinceAnchor':m.steps_since_anchor}
+        if path == '/api/state': return {'telemetry':{'status':{'value':self.status()}}}
+        if path == '/api/arm/estimate': return self.arm_estimate()
         raise ValueError('unsupported observation path')
 
     def frame(self):

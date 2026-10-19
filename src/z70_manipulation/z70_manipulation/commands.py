@@ -44,7 +44,7 @@ class Commands:
         client=self.clients[kind]
         if not client.wait_for_service(timeout_sec=1.): raise LookupError('ROS_DRIVER_UNAVAILABLE')
         future=client.call_async(request); done=threading.Event();future.add_done_callback(lambda _:done.set())
-        deadline=time.monotonic()+timeout
+        deadline=time.monotonic()+max(timeout,10.)
         while not done.wait(.02):
             if cancellable and self.cancelled.is_set(): raise InterruptedError('CANCELLED')
             if time.monotonic()>=deadline: raise TimeoutError('ROS_DEADLINE_UNKNOWN_DISPATCH')

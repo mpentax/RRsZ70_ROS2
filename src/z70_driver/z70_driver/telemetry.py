@@ -1,9 +1,4 @@
-"""Decode RoboClaw's public telemetry, without turning absent data into observations.
-
-Common enums: python-roborock roborock/data/v1/v1_code_mappings.py.
-Z70 additions 39/41/42: recovered vendor arm model and arm-feedback.ts.
-Unknown numeric codes are deliberately retained, not mapped to a healthy default.
-"""
+"""Decode Z70 status, arm, command, and calibration telemetry payloads."""
 import math
 
 STATE_NAMES = {

@@ -5,20 +5,8 @@ import { loadServiceConfig } from "./service-config.ts";
 import { RpcError } from "./robot.ts";
 import { TransportError } from "./rpc-outcome.ts";
 const token = "t".repeat(43), key = "1234567890abcdef";
-test("RC command observations include successful and uncertain outcomes without redispatch", async t => {
-  const { post, get, calls } = await fixture(t, method => { if (method === 'app_rc_end') throw new TransportError('timeout', 'unknown'); return ['ok']; });
-  const params=[{velocity:.1,omega:0,duration:400,seqnum:1}];
-  await post('/api/driver/rpc',{method:'app_rc_move',params});
-  await post('/api/driver/rpc',{method:'app_rc_end',params:[]});
-  const recent=await get('/api/commands/recent');
-  assert.equal(recent.commands.length,3);
-  assert.deepEqual(recent.commands[0].params,params);
-  assert.equal(recent.commands[0].dispatch,'sent');
-  assert.equal(recent.commands[1].dispatch,'unknown');
-  assert.ok(recent.commands[0].replyAt>=recent.commands[0].sentAt);
-  assert.notEqual(recent.commands[0].id,recent.commands[1].id);
-  await get('/api/commands/recent'); assert.equal(calls.length,3);
-});
+const camera = { account: { user: "u", secret: "s", key: "k", mqttUrl: "ssl://mqtt-eu.roborock.com:8883" }, pin: "1234" };
+const home = { deviceId: "robot1", homeId: 1, realApi: "https://api-eu.roborock.com", user: "u", secret: "s", hawkKey: "k", rooms: [] };
 
 async function fixture(t: import("node:test").TestContext, behavior?: (method: string) => unknown) {
   const calls: { method: string; params: unknown }[] = [];
@@ -26,8 +14,8 @@ async function fixture(t: import("node:test").TestContext, behavior?: (method: s
     calls.push({ method, params }); return behavior ? behavior(method) : ["ok"];
   } };
   const store: ServiceStore = { async initialize() {}, async serviceToken() { return token; },
-    async loadDevice() { return { duid: "robot1", host: "127.0.0.1", localKey: key, name: "test", model: "a179", protocolVersion: "L01" }; },
-    async saveDevice() {}, async loadCamera() { return null; }, async saveCamera() {} };
+    async loadPairing() { return { device: { duid: "robot1", host: "127.0.0.1", localKey: key, name: "test", model: "a179", protocolVersion: "L01" }, camera, home }; },
+    async savePairing() {} };
   const config = { ...loadServiceConfig(), port: 0 };
   const service = await createService({ store, config, robotFactory: () => robot });
   await service.start(); t.after(() => service.stop());
@@ -68,20 +56,12 @@ test("vendor rejection is correlated response evidence, not a lockout", async t 
   const next = await post("/api/driver/rpc", { method: "app_stop_grasp" });
   assert.equal(next.status, 200); assert.equal(JSON.stringify(next.body).includes(key), false); assert.equal(calls.length, 2);
 });
-test("malformed envelopes, wrong device and retired workflows do not dispatch", async t => {
+test("malformed envelopes and unknown routes do not dispatch", async t => {
   const { calls, post } = await fixture(t);
   for (const body of [{ method: "app_charge", supervisedPermit: {} }, { method: "bad\nmethod" }, { method: "app_charge", transport: "unknown" }, { method: "app_charge", timeoutMs: 0 }])
     assert.equal((await post("/api/driver/rpc", body)).status, 400);
-  assert.equal((await post("/api/v1/devices/wrong/rpc", { method: "app_charge" })).status, 503);
-  assert.equal((await post("/api/commands/recovery", {})).status, 410);
-  assert.equal((await post("/api/docking/start", {})).status, 410);
+  assert.equal((await post("/api/v1/devices/wrong/rpc", { method: "app_charge" })).status, 404);
   assert.equal(calls.length, 0);
-});
-test("legacy dock and arm stop aliases cannot dispatch outside ROS", async t => {
-  const { calls, post } = await fixture(t);
-  assert.equal((await post("/api/agent/chassis/dock", {})).status, 503);
-  assert.equal((await post("/api/agent/arm/stop-grasp", {})).status, 503);
-  assert.deepEqual(calls, []);
 });
 
 test("explicit null params pass unchanged rather than becoming an empty list", async t => {
@@ -91,8 +71,8 @@ test("explicit null params pass unchanged rather than becoming an empty list", a
 });
 test("service uses explicit local protocol independently of cloud inventory", async t => {
   const store: ServiceStore = { async initialize() {}, async serviceToken() { return token; },
-    async loadDevice() { return { duid: "robot1", host: "127.0.0.1", localKey: key, name: "test", model: "a179", protocolVersion: "1.0", localProtocol: "L01" }; },
-    async saveDevice() {}, async loadCamera() { return null; }, async saveCamera() {} };
+    async loadPairing() { return { device: { duid: "robot1", host: "127.0.0.1", localKey: key, name: "test", model: "a179", protocolVersion: "1.0", localProtocol: "L01" }, camera, home }; },
+    async savePairing() {} };
   const config = { ...loadServiceConfig(), port: 0 };
   const service = await createService({ store, config });
   t.after(() => service.stop());
@@ -102,13 +82,6 @@ test("service uses explicit local protocol independently of cloud inventory", as
   const response = await fetch(`http://127.0.0.1:${address.port}/api/state`, { headers: { Host: "127.0.0.1:57000", Authorization: `Bearer ${token}` } });
   const state = await response.json() as { connection: { protocol: string }; device: { cloudProtocolVersion: string; localProtocol: string } };
   assert.equal(state.connection.protocol, "L01"); assert.equal(state.device.cloudProtocolVersion, "1.0"); assert.equal(state.device.localProtocol, "L01");
-});
-test("retired command and estimator routes cannot bypass ROS authority", async t => {
-  const { post, get, calls } = await fixture(t);
-  for (const path of ['/api/v1/rpc','/api/v1/devices/robot1/rpc','/api/arm/anchor','/api/camera/select'])
-    assert.equal((await post(path,{method:'app_arm_move',params:{m:[1,0,0]},anchor:'deployed',camera:'front'})).status,503);
-  assert.equal((await get('/api/arm/estimate')).state,undefined);
-  assert.equal(calls.length,0);
 });
 test("repeat-safe commands retry once; a move that may have run is never re-sent; a move that never left is", async t => {
   let failStop = true, failMove = 0;

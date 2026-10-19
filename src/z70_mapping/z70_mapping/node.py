@@ -1,4 +1,4 @@
-"""Read-only vendor SLAM observer. No navigation/mode/cleaning/arm calls."""
+"""Vendor LiDAR map decoder and ROS 2 publisher node."""
 import json
 import signal
 import math
@@ -67,7 +67,6 @@ class MappingNode(Node):
                           obstacle_record_counts=m.obstacle_counts,
                           active_map_verified=msg.active_floor_verified,
                           current_pose_verified=msg.current_pose_verified,
-                          heading_convention='vendor degrees interpreted CCW in raw xy; not physically validated',
                           refresh_error=None)
             with self.lock: self.pending = (m, labels, status)
         except (ValueError, KeyError, TypeError):
@@ -121,15 +120,11 @@ class MappingNode(Node):
         self.pub_spatial.publish(String(data=json.dumps(ctx)))
         diagnostic = dict(status, boundary_contract=contract,
                           cache_age_s=time.time() - status['saved_at_ms']/1000.,
-                          alignment_method=('single-pose SE2; re-anchor on new sequence, broadcast 5 Hz'
-                                            if self.realign else
-                                            'startup single-pose SE2; frozen offset, broadcast 5 Hz'),
-                          map_to_odom=self.anchor, alignment_verified=False,
-                          caveat='Cache receipt time is not capture time. Snapshot pose may be stale; this is visual alignment, not localisation.')
+                          map_to_odom=self.anchor)
         self.pub_status.publish(String(data=json.dumps(diagnostic)))
 
     def close(self):
-        pass  # Acquisition and its owned workers belong only to z70_driver.
+        pass
 
 
 def main():

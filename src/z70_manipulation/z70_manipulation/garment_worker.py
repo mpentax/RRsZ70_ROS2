@@ -1,10 +1,4 @@
-"""Persistent offline-only MPS garment worker (no ROS imports).
-
-Wire protocol matches depth_worker: uint32 LE byte count + JPEG request;
-uint32 LE byte count + NPZ response. NPZ contains uint8 masks and JSON quality
-and detections, never pickle. Model logs go to stderr, EOF releases the models.
-Contour fallback is diagnostic only and never advertises model availability.
-"""
+"""Persistent Apple Silicon MPS garment segmentation worker."""
 import argparse
 import contextlib
 import io

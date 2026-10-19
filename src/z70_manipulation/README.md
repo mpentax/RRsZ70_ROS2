@@ -80,8 +80,37 @@ ros2 action send_goal /z70/patrol_collect z70_interfaces/action/PatrolCollect \
 ```
 
 - Uses `/z70/garments/observations` and plans loaded transit over a `+0.10 m` deployed-arm safety margin using 4-connected A* and capsule corridor checks (`LOADED_ROUTE_BLOCKED` if no safe corridor exists).
-- Stages arm deployment in open space (`>= 0.8 m` clearance), reacquires the garment after deployment, grasps and lifts with two upward hand steps, verifies elevation and floor-spot contrast, transports to `(drop_x_m, drop_y_m)` (`TEMPORARY_STAGING_DROP`), releases in place (`grab_mode == 1`, `app_put_down {flag: 0}`), withdraws `0.15 m`, and verifies detachment before stowing.
-- `PatrolCollect` persists mission progress atomically in `patrol_ledger.json` (`patrol_ledger_directory`, default `calibration/patrol`), tracks waypoint observation states (`UNVISITED`, `VISITED`, `ADEQUATELY_OBSERVED`, `OCCLUDED_DEFERRED`, `CLEARED`, `UNREACHABLE`), and enforces a `25%` battery reserve (`SAFE_RELEASE_BEFORE_DOCK` before charging, resuming at `80%`).
+- Stages arm deployment in open space (`>= 0.8 m` clearance), reacquires the garment after deployment, grasps and lifts with two upward hand steps, verifies elevation and floor-spot contrast, transports to `(drop_x_m, drop_y_m)`, releases in place (`grab_mode == 1`, `app_put_down {flag: 0}`), withdraws `0.15 m`, and verifies detachment before stowing.
+- `PatrolCollect` persists mission progress atomically in `patrol_ledger.json` (`patrol_ledger_directory`, default `.local/patrol`), tracks waypoint observation states (`UNVISITED`, `VISITED`, `ADEQUATELY_OBSERVED`, `OCCLUDED_DEFERRED`, `CLEARED`, `UNREACHABLE`), and enforces a `25%` battery reserve (`SAFE_RELEASE_BEFORE_DOCK` before charging, resuming at `80%`).
+
+---
+
+## Authoring ROS 2 Goals (`z70_manipulation/goals.py`)
+
+All action servers on `PickServer` (`z70_manipulation/node.py`) are registered declaratively via `GoalSpec` and executed through a shared `GoalContext` (`ctx`) that manages single-owner locking, `TaskSession` (`begin()` / `end()`), deadline watchdogs, task-local cancellation, and `CommandOutcome` reporting:
+
+```python
+from z70_manipulation.goals import GoalContext, GoalSpec
+
+self.register_goal(GoalSpec(
+    name='my_goal',
+    action_cls=MyGoal,
+    topic='/z70/my_goal',
+    timeout_s=lambda req: req.max_duration_s,
+    validate=lambda server, req: req.max_duration_s > 0,
+    run=self._goal_my_goal,
+    fields=('max_duration_s', 'dry_run'),
+    description='Custom ROS 2 action goal.',
+))
+```
+
+- **Runtime Goal Catalog (`GET /api/ros/goals` & `GoalSpec.describe()`):** `z70_web_gateway` exposes `GET /api/ros/goals` returning `{goals: [{kind, topic, action, fields}, ...]}` for all registered gateway actions, and `PickServer.goal_specs[name].describe()` returns `{name, topic, action, fields, navigation, description}` for each manipulation/navigation `GoalSpec`.
+- **Dynamic Custom Goal Plugins (`.local/goals/*.py`):** On startup, `PickServer` calls `load_custom_goals(self, self.custom_goals_directory)` (default `<repo>/.local/goals`, configurable via the `custom_goals_directory` ROS parameter). Any non-underscored `*.py` module in that directory that defines `register(server)` or `GOAL_SPECS = [GoalSpec(...), ...]` is automatically loaded and registered on `PickServer` without modifying `node.py`.
+
+Inside a goal handler `def _goal_my_goal(self, ctx: GoalContext, req) -> tuple[bool, MyGoal.Result]`, `ctx` provides:
+- **State & Perception:** `ctx.status()`, `ctx.arm()`, `ctx.arm_msg()`, `ctx.odom()`, `ctx.map_pose()`, `ctx.map_snapshot(refresh=False)`, `ctx.safe_interior(refresh=False, deployed_arm_extension_m=0.0)`, `ctx.objects(camera='front', color=None)`, `ctx.garments(category='any')`, `ctx.frame()`
+- **Motion & Manipulation:** `ctx.navigate(x_m, y_m, max_duration_s=60.0, dry_run=False)`, `ctx.deploy_arm(settle=True)`, `ctx.align_target(color)`, `ctx.move_arm(m3_deg, m4_deg, m5_deg=0.0)`, `ctx.grasp_and_lift(lift_steps=2, verify_color='')`, `ctx.release_and_stow(put_down=True)`, `ctx.pulse(velocity=0.0, omega=0.0, duration=300)`, `ctx.rpc(method, params, timeout_ms=5000)`, `ctx.stop()`
+- **Lifecycle & Feedback:** `ctx.sleep(seconds)`, `ctx.hazard()`, `ctx.is_cancelled()`, `ctx.feedback(**fields)`, `ctx.outcome(success)`
 
 ---
 

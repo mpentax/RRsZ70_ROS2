@@ -188,7 +188,7 @@ def main():
     from rclpy.node import Node
     from nav_msgs.msg import Odometry
     from z70_interfaces.msg import CommandEvent, CalibrationState, OdometryStatus
-    from z70_odometry.resources import runtime_calibration_path, seed_directory, initialize_runtime_state
+    from z70_odometry.resources import runtime_calibration_path, seed_directory
     from z70_odometry.calibration_state import CalibrationPublication
     from rclpy.qos import QoSProfile,DurabilityPolicy
     class Calibrator(Node):
@@ -196,8 +196,6 @@ def main():
             super().__init__('chassis_calibrator')
             path=self.declare_parameter('output_file',str(runtime_calibration_path())).value
             seeds=self.declare_parameter('seed_directory',str(seed_directory())).value
-            initial=self.declare_parameter('initial_state_file','').value
-            initialize_runtime_state(path,initial)
             self.estimator=OnlineCalibration(path,settle_s=float(self.declare_parameter('settle_s',2.).value),max_gap_s=float(self.declare_parameter('max_gap_s',1.5).value),min_camera_n=int(self.declare_parameter('min_camera_n',4).value),max_camera_sigma_m=float(self.declare_parameter('max_camera_sigma_m',.01).value))
             if seeds: self.estimator.seed(seeds)
             else: self.estimator.save()

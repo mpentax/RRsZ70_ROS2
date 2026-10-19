@@ -8,7 +8,7 @@ ROOT=Path(__file__).resolve().parents[3]
 
 def test_front_jaw_uses_elevated_68_not_floor_duplicate():
     # Render the real registered marker in a synthetic calibrated frame.
-    camera=perception.front_camera(ROOT);K=np.array([[camera.f,0,camera.cx],[0,camera.f,camera.cy],[0,0,1.]])
+    camera=perception.front_camera();K=np.array([[camera.f,0,camera.cx],[0,camera.f,camera.cy],[0,0,1.]])
     R=np.array([[0,0,-1],[1,0,0],[0,-1,0.]])
     pos=np.array([.16,.02,.10]);C=np.array([0,0,camera.h/1000])
     obj=np.array([[-.0075,.0075,0],[.0075,.0075,0],[.0075,-.0075,0],[-.0075,-.0075,0]])
@@ -26,7 +26,7 @@ def test_front_jaw_uses_elevated_68_not_floor_duplicate():
     detector=cv2.aruco.ArucoDetector(cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_1000))
     _,ids,_=detector.detectMarkers(image)
     assert list(ids.flatten()).count(68)==2
-    out=perception.front_jaw(cv2.cvtColor(image,cv2.COLOR_GRAY2BGR),ROOT)
+    out=perception.front_jaw(cv2.cvtColor(image,cv2.COLOR_GRAY2BGR))
     expected=pos+R@np.array(planner._CALIBRATION['jaw_region_in_marker_m'])+[.275,0,planner._CALIBRATION.get('jaw_z_correction_m',0.)]
     assert out['legacy_surrogate_position']==pytest.approx(expected,abs=.004)
     # New servo aim comes from the SAME shared pad geometry and the observed

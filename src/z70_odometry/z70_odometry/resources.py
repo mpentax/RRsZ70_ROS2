@@ -17,39 +17,6 @@ def runtime_calibration_path():
     return base / 'RRsZ70_ROS2/calibration/chassis/online.json'
 
 
-def initialize_runtime_state(path, initial_state_file=''):
-    """Explicit one-time archive import; never overwrite existing durable state.
-
-    The source bytes, update time and IDs remain exact. No checkout is searched.
-    Publishing historical state still marks it ESTIMATED, not a fresh measurement.
-    """
-    import json
-    import tempfile
-    target = Path(path)
-    if target.exists() or not initial_state_file:
-        return False
-    content = Path(initial_state_file).read_bytes()
-    value = json.loads(content)
-    if not isinstance(value, dict) or value.get('version') != 1 or not isinstance(value.get('samples'), list):
-        raise ValueError('initial state must be a version-1 calibration sample file')
-    target.parent.mkdir(parents=True, exist_ok=True)
-    temporary = None
-    try:
-        with tempfile.NamedTemporaryFile(dir=target.parent, prefix=target.name + '.', suffix='.tmp', delete=False) as stream:
-            temporary = Path(stream.name)
-            stream.write(content); stream.flush(); os.fsync(stream.fileno())
-        try:
-            os.link(temporary, target)  # Atomic no-clobber commit, unlike replace.
-        except FileExistsError:
-            return False
-        directory = os.open(target.parent, os.O_RDONLY)
-        try: os.fsync(directory)
-        finally: os.close(directory)
-    finally:
-        if temporary is not None: temporary.unlink(missing_ok=True)
-    return True
-
-
 def _package_root():
     try:
         from ament_index_python.packages import get_package_share_directory, PackageNotFoundError

@@ -1,9 +1,4 @@
-"""Bounded Roborock rr/V1 decoder. Vendor bottom-up raster maps directly to ROS xy.
-
-Pixels 1/(low bits 1) are walls, 7/255/(low bits 7) floor; other values unknown.
-Coordinates in position blocks are millimetres, image origins are 50-mm cells.
-No claims of capture-time freshness, live localisation, or obstacle-free floor.
-"""
+"""Roborock V1 LiDAR map binary decoder."""
 from dataclasses import dataclass, field
 import hashlib
 import math

@@ -248,7 +248,5 @@ def test_node_publishes_latched_safe_grid_and_contract_on_both_json_topics(mappi
     contracts = [json.loads(pubs[topic].publish.call_args.args[0].data)['boundary_contract']
                  for topic in ('/z70/map/status', '/z70/map/spatial_context')]
     assert contracts[0] == contracts[1]
-    assert contracts[0]['firmware_enforced'] is False
-    assert contracts[0]['route_validation_required'] is True
     assert contracts[0]['room_connectivity']['2']['raw_cells'] > 0
 

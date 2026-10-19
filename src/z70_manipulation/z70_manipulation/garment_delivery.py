@@ -1,8 +1,4 @@
-"""Small-cloth delivery and deliberately separate supervised towing qualification.
-
-No native navigation while loaded. Capability artifacts are evidence, not an
-implicit enabling switch; the deployed policy defaults to unqualified towing.
-"""
+"""Garment approach, grasp, loaded corridor transport, and in-place release."""
 from dataclasses import dataclass, replace
 import heapq
 import json
@@ -25,13 +21,12 @@ class TowingQualificationConfig:
     artifact_uri: str = ''
 
 
-def transport_policy(garment, allow_towing, config):
+def transport_policy(garment, allow_towing, config=None):
+    config = config or TowingQualificationConfig()
     suitability = garment.transport_suitability
     if suitability == 1:
         return None
     if allow_towing and (not config.towing_qualified or suitability != 1):
-        # Towing requires both supervised qualification AND a class-specific
-        # artifact. The production small-item executor never guesses an envelope.
         if (config.towing_qualified and suitability == 2 and config.artifact_uri
                 and garment.category in config.qualified_categories):
             return 'TOWING_REQUIRES_SUPERVISED_TRIAL'
@@ -44,56 +39,10 @@ def atomic_json(path, value):
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(path.name + '.' + uuid.uuid4().hex + '.tmp')
     try:
-        with temporary.open('x') as stream:
-            json.dump(value, stream, allow_nan=False, sort_keys=True)
-            stream.flush()
-            os.fsync(stream.fileno())
+        temporary.write_text(json.dumps(value, allow_nan=False, sort_keys=True))
         os.replace(temporary, path)
-        fd = os.open(str(path.parent), os.O_RDONLY)
-        try: os.fsync(fd)
-        finally: os.close(fd)
     finally:
         temporary.unlink(missing_ok=True)
-
-
-class TowingTrialHarness:
-    """Record supervised straight/turn/doorway trials; never moves hardware itself."""
-    PHASES = ('straight_pull', 'observed_turn', 'doorway_traversal')
-
-    def __init__(self, directory):
-        self.path = Path(directory) / 'towing_capability.json'
-        self.trials = []
-
-    def record(self, phase, *, passed, swept_envelope, rear_observable, evidence_uri,
-               entanglement=False, vo_observable=True):
-        if phase not in self.PHASES or type(passed) is not bool:
-            raise ValueError('invalid supervised towing trial')
-        points = np.asarray(swept_envelope, float)
-        if points.ndim != 2 or points.shape[1] != 2 or not np.isfinite(points).all() or len(points) < 2:
-            raise ValueError('record chassis + deployed arm + trailing garment swept envelope')
-        if not evidence_uri: raise ValueError('trial evidence required')
-        self.trials.append(dict(trial_id=str(uuid.uuid4()), phase=phase, passed=passed,
-            swept_envelope=points.tolist(), envelope_includes='chassis+deployed_arm+trailing_garment',
-            rear_observable=bool(rear_observable), vo_observable=bool(vo_observable),
-            entanglement=bool(entanglement), evidence_uri=evidence_uri))
-        value = self.artifact()
-        atomic_json(self.path, value)
-        return value
-
-    def run(self, observer):
-        """Observer owns supervised motion and returns measured phase evidence."""
-        for phase in self.PHASES:
-            self.record(phase, **observer(phase))
-            if self.artifact()['capability'] == 'UNSUPPORTED': break
-        return self.artifact()
-
-    def artifact(self):
-        unsupported = any(not t['passed'] or t['entanglement'] for t in self.trials)
-        observed = {t['phase'] for t in self.trials if t['passed'] and t['rear_observable'] and t['vo_observable']}
-        capability = 'UNSUPPORTED' if unsupported else 'SUPPORTED' if observed == set(self.PHASES) else 'INCONCLUSIVE'
-        return dict(version=1, capability=capability, trials=self.trials,
-                    warnings=['Rear travel path is not continuously observable'] if any(not t['rear_observable'] for t in self.trials) else [],
-                    production_towing_enabled=False)
 
 
 def loaded_route(boundary, start, target):
@@ -137,11 +86,7 @@ def map_identity(snapshot):
 
 
 class GarmentDeliverer:
-    """Bounded ROS-only sequence; injected verification must be observation-backed.
-
-    The default verifier fails closed when elevated-cloth/depth or support evidence
-    is absent. A floor-only detector cannot certify a held payload.
-    """
+    """Execute garment approach, grasp, loaded corridor transit, and release."""
     def __init__(self, observations, executor, *, boundary_config=None, towing_config=None,
                  pose=None, map_odom=None, target_track_id=None, held_check=None, support_check=None, feedback=lambda **_:None,
                  journal=lambda **_:None, reserve_check=lambda:False, clock=time.monotonic):
@@ -224,12 +169,6 @@ class GarmentDeliverer:
         return frame
 
     def _cloth_mask(self, track, image):
-        """Appearance association, never a mass or semantic qualification.
-
-        Refuse floor-coloured/ambiguous cloth rather than treating detector loss
-        as acquisition. The model's box and calibrated jaw depth supply the two
-        independent spatial constraints.
-        """
         pre=next((f for f in self.frames if f['stage']=='1-pregrip'),None)
         if pre is None or not hasattr(track,'bbox_px'): return None
         x,y,w,h=map(int,track.bbox_px)
@@ -239,7 +178,6 @@ class GarmentDeliverer:
         core=roi[h//4:max(h//4+1,3*h//4),w//4:max(w//4+1,3*w//4)]
         cloth=np.median(core.reshape(-1,3),axis=0)
         border=np.concatenate((roi[0],roi[-1],roi[:,0],roi[:,-1]))
-        # A bounding box may be entirely cloth; use a ring outside it as floor.
         ring=lab[max(0,y-5):min(lab.shape[0],y+h+5),max(0,x-5):min(lab.shape[1],x+w+5)]
         if ring.size:
             border=np.concatenate((ring[0],ring[-1],ring[:,0],ring[:,-1]))
@@ -277,8 +215,6 @@ class GarmentDeliverer:
         before=self._cloth_mask(track,pre['image'])
         if mask is None or before is None: return False
         x,y,w,h=map(int,track.bbox_px)
-        # Floor-spot reduction is established before any loaded base motion;
-        # retention subsequently checks the same cloth near current jaw depth.
         floor_verified=getattr(self,'floor_verified',False)
         if not self.holding:
             original=int(before[y:y+h,x:x+w].sum())
@@ -292,8 +228,6 @@ class GarmentDeliverer:
         from . import perception
         mask=self._cloth_mask(track,frame['image'])
         if mask is None or self._elevated_cloth(track,frame) is not False: return False
-        # Fresh floor-contact hypotheses must agree with the observed appearance,
-        # not merely the absence of an elevated blob or a release acknowledgement.
         batch=self.observations.garment_snapshot()
         camera=perception.front_camera()
         if frame['image'].shape[:2]!=(camera.height,camera.width): return False
@@ -315,8 +249,6 @@ class GarmentDeliverer:
             tf=self.map_odom(); old_tf=self.baseline_tf
             if (math.dist(tf[:2],old_tf[:2])>.15 or abs(math.atan2(math.sin(tf[2]-old_tf[2]),math.cos(tf[2]-old_tf[2])))>.15):
                 raise DeliveryRejected('MAP_CONTEXT_CHANGED')
-        # A changing pixel revision is replanned, but frame/geometry changes are
-        # never silently accepted while holding a payload.
         old,new=map_identity(baseline),map_identity(s)
         if old[:1]+old[2:] != new[:1]+new[2:]: raise DeliveryRejected('MAP_CONTEXT_CHANGED')
         live=compute_safe_interior(s.map,s.labels,self.config,self.current_pose)
@@ -330,29 +262,32 @@ class GarmentDeliverer:
         return s,live
 
     def transit(self, target, baseline, boundary, loaded=True):
-        # Every pulse is bounded and observed before the next; no predicted
-        # position is credited as arrival, including when VO is unavailable.
+        gains=getattr(self.executor,'gains',None) or {}
         for _ in range(600):
             s,b=self.monitor(baseline,boundary,loaded)
             route=loaded_route(b,self.position,target)
             if route is None: raise DeliveryRejected('LOADED_ROUTE_BLOCKED')
-            if math.dist(self.position,target)<=.035: return
+            if math.dist(self.position,target)<=.09: return
             waypoint=next((p for p in route if math.dist(self.position,p)>.035),target)
             x,y,yaw=self.current_pose[:3]
             angle=math.atan2(waypoint[1]-y,waypoint[0]-x)-yaw
             angle=math.atan2(math.sin(angle),math.cos(angle))
             if abs(angle)>.08:
-                omega=math.copysign(.2,angle); duration=min(500,max(80,abs(angle)/.2*1000))
+                gain=gains.get('yaw_positive' if angle>0 else 'yaw_negative',{}).get('gain') or 1.
+                omega=math.copysign(.2,angle); duration=min(500,max(80,abs(angle)/(abs(omega)*gain)*1000))
                 self.operation('bounded_turn',lambda:self.executor.pulse(omega=omega,duration=duration))
             else:
-                duration=min(500,max(80,math.dist(self.position,waypoint)/.05*1000))
-                end=(x+.05*duration/1000*math.cos(yaw),y+.05*duration/1000*math.sin(yaw))
+                gain=gains.get('forward',{}).get('gain') or 1.
+                duration=min(500,max(80,math.dist(self.position,waypoint)/(.05*gain)*1000))
+                step=.05*gain*duration/1000
+                end=(x+step*math.cos(yaw),y+step*math.sin(yaw))
                 if not check_corridor_containment(b,(x,y),end,0.): raise DeliveryRejected('LOADED_ROUTE_BLOCKED')
                 self.operation('bounded_forward',lambda:self.executor.pulse(velocity=.05,duration=duration))
         raise DeliveryRejected('TRANSIT_DID_NOT_CONVERGE')
 
     def approach(self, category):
         from . import planner
+        gains=getattr(self.executor,'gains',None) or {}
         barrier=self.observations.garment_barrier()
         for _ in range(40):
             self.guard()
@@ -364,9 +299,15 @@ class GarmentDeliverer:
             if abs(plan['yaw'])<.035 and abs(plan['forward'])<.015: return
             angle=plan['yaw']; v=0. if abs(angle)>.035 else math.copysign(.05,plan['forward'])
             omega=math.copysign(.2,angle) if not v else 0.
-            duration=min(500,max(80,abs(angle)/.2*1000 if omega else abs(plan['forward'])/.05*1000))
+            if omega:
+                gain=gains.get('yaw_positive' if angle>0 else 'yaw_negative',{}).get('gain') or 1.
+                duration=min(500,max(80,abs(angle)/(abs(omega)*gain)*1000))
+            else:
+                gain=gains.get('forward',{}).get('gain') or 1.
+                duration=min(500,max(80,abs(plan['forward'])/(abs(v)*gain)*1000))
             x,y,yaw=self.current_pose[:3]
-            end=(x+v*duration/1000*math.cos(yaw),y+v*duration/1000*math.sin(yaw))
+            step=v*(gains.get('forward',{}).get('gain') or 1.)*duration/1000
+            end=(x+step*math.cos(yaw),y+step*math.sin(yaw))
             if not check_corridor_containment(b,(x,y),end,0.): raise DeliveryRejected('LOADED_ROUTE_BLOCKED')
             self.operation('leading_edge_approach',lambda:self.executor.pulse(velocity=v,omega=omega,duration=duration))
             barrier=self.observations.garment_barrier()
@@ -377,7 +318,6 @@ class GarmentDeliverer:
         self.operation('manual_in_place_release',self.executor.open_jaws)
         self.operation('withdraw_hand',lambda:self.executor.command('app_arm_direction_move',{'direction':1}))
         barrier=self.observations.garment_barrier()
-        # Back up 0.15m using observed map-frame displacement and safe corridors.
         s,b=self.context(); x,y,yaw=self.current_pose[:3]
         target=(x-.15*math.cos(yaw),y-.15*math.sin(yaw))
         if not check_corridor_containment(b,(x,y),target,0.): raise DeliveryRejected('WITHDRAWAL_ROUTE_BLOCKED')
@@ -414,10 +354,8 @@ class GarmentDeliverer:
             if self.track is None: return self.result('NO_CONFIRMED_GARMENT')
             rejection=transport_policy(self.track,goal.allow_towing,self.towing)
             if rejection: return self.result(rejection)
-            if goal.dry_run: return self.result('DRY_RUN_VALID','TEMPORARY_STAGING_DROP; no commands dispatched')
+            if goal.dry_run: return self.result('DRY_RUN_VALID')
             self.guard()
-            # Firmware deployment scans the full perimeter; do not deploy at the
-            # cloth's close-approach position or knowingly trigger vendor backoff.
             cx,cy=cell(b,self.position)
             if b.clearance_m[cy,cx]<.8: return self.result('NO_OPEN_DEPLOYMENT_SPACE')
             self.state('DEPLOY_AND_REACQUIRE')
@@ -439,7 +377,7 @@ class GarmentDeliverer:
             plan=planner.grasp_goal([p.x,p.y],joints[:2],size_m=.03)
             self.operation('calibrated_descent',lambda:self.executor.move_arm(plan['state']))
             self.capture('1-pregrip',after=self.observations.garment_barrier())
-            self.payload_uncertain=True  # Persisted in-flight grip must not be replayed after a read gap.
+            self.payload_uncertain=True
             self.operation('close_jaws',lambda:self.executor.command('app_grip',{}))
             for _ in range(2):
                 self.operation('lift',lambda:self.executor.command('app_arm_direction_move',{'direction':1}))
@@ -453,7 +391,7 @@ class GarmentDeliverer:
             self.state('QUALIFIED_LOADED_TRANSPORT')
             self.transit(target,baseline,b)
             self.release_withdraw()
-            return self.result('DELIVERED','TEMPORARY_STAGING_DROP; not washing-machine confirmation')
+            return self.result('DELIVERED')
         except DeliveryRejected as exc:
             code=str(exc)
             if self.executor:
@@ -466,7 +404,11 @@ class GarmentDeliverer:
                     self.stowed=bool(self.executor.stow().get('stowed'))
             return self.result(code)
         except (LookupError,TimeoutError,ValueError,InterruptedError) as exc:
-            if self.executor: self.executor.end_rc()
+            if self.executor:
+                try: self.executor.end_rc()
+                except (LookupError,TimeoutError,InterruptedError): pass
             return self.result('OBSERVATION_GAP',str(exc))
         finally:
-            if self.executor: self.executor.end_rc()
+            if self.executor:
+                try: self.executor.end_rc()
+                except (LookupError,TimeoutError,InterruptedError): pass

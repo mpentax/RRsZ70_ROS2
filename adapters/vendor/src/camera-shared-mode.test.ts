@@ -109,10 +109,14 @@ test("service switches between front and gripper using pre-warmed per-camera str
   };
   const store = {
     async initialize() {}, async serviceToken() { return token; },
-    async loadDevice() { return { duid: "robot1", host: "127.0.0.1", localKey: "0123456789abcdef", name: "Z70", model: "roborock.vacuum.a179", protocolVersion: "L01" as const }; },
-    async saveDevice() {},
-    async loadCamera() { return { account: { user: "u", secret: "mock-long-camera-secret", key: "mock-long-camera-key", mqttUrl: "ssl://mqtt-eu.roborock.com:8883" }, pin: "1234" }; },
-    async saveCamera() {},
+    async loadPairing() {
+      return {
+        device: { duid: "robot1", host: "127.0.0.1", localKey: "0123456789abcdef", name: "Z70", model: "roborock.vacuum.a179", protocolVersion: "L01" as const },
+        camera: { account: { user: "u", secret: "mock-long-camera-secret", key: "mock-long-camera-key", mqttUrl: "ssl://mqtt-eu.roborock.com:8883" }, pin: "1234" },
+        home: { deviceId: "robot1", homeId: 1, realApi: "https://api-eu.roborock.com", user: "u", secret: "s", hawkKey: "k", rooms: [] },
+      };
+    },
+    async savePairing() {},
   };
   const config = { ...loadServiceConfig(), port: 0 };
   const service = await createService({

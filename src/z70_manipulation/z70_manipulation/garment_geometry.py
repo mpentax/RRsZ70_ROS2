@@ -1,10 +1,4 @@
-"""Garment lower-edge hypotheses, not a flat-cloth or weight estimator.
-
-All positions are base_footprint metres. Only actual lower silhouette pixels
-are projected. A box alone gives an unqualified contact hypothesis, not a grasp.
-Footprint dimensions describe the observed near-edge strip, NOT full cloth size.
-No Torch/ROS imports: runs in the Pixi ROS interpreter.
-"""
+"""Garment floor-contact projection, geofence filtering, and multi-frame tracking."""
 import math
 import uuid
 import cv2

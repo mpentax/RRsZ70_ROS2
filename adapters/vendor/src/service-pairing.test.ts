@@ -9,8 +9,8 @@ const camera = { account: { user: "old", secret: "s", key: "k", mqttUrl: "mqtts:
 const home = { deviceId: "robot1", homeId: 1, realApi: "https://example.invalid", user: "old", secret: "s", hawkKey: "k", rooms: [] };
 const login: CameraLogin = { devices: [device], account: { ...camera.account, user: "new" }, home: { ...home, user: "new" } };
 function deferred<T>() { return Promise.withResolvers<T>(); }
-async function fixture(t: import("node:test").TestContext, overrides: Partial<ServiceOptions>, savePairing: NonNullable<ServiceStore["savePairing"]>) {
-  const store: ServiceStore = { async initialize() {}, async serviceToken() { return token; }, async loadPairing() { return { device, camera, home }; }, async loadDevice() { return null; }, async saveDevice() {}, async loadCamera() { return null; }, async saveCamera() {}, savePairing };
+async function fixture(t: import("node:test").TestContext, overrides: Partial<ServiceOptions>, savePairing: ServiceStore["savePairing"]) {
+  const store: ServiceStore = { async initialize() {}, async serviceToken() { return token; }, async loadPairing() { return { device, camera, home }; }, savePairing };
   const config = { ...loadServiceConfig(), port: 0 };
   const service = await createService({ store, config, robotFactory: () => ({ connection: { state: "connected", connectedAt: 1 }, close() {}, async request() { return ["ok"]; } }), ...overrides });
   await service.start(); t.after(() => service.stop());

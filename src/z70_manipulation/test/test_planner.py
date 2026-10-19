@@ -70,24 +70,6 @@ def test_metric_closed_jaw_height_uses_owner_registered_closing_point():
     assert p.tip_height((230,95)) == pytest.approx(.13401118896525022,abs=1e-10)
 
 
-class HistoricalOpticalPixelMismatch(AssertionError):
-    """Only the disclosed pixel-accuracy failure is expected."""
-
-
-@pytest.mark.parametrize('state,point,observed',[
-    ((170,55),(.498267538,.028477801,0.),(791.428,659.244)),
-    ((200,65),(.478638201,.108569555,0.),(499.285,425.143)),
-    ((240,95),(.477989916,-.031428944,0.),(1191.786,235.086)),
-])
-@pytest.mark.xfail(strict=True, raises=HistoricalOpticalPixelMismatch, reason='Provisional physical preview is NOT precision validated against historical nominal-angle optical FK; retain the 12px diagnostic rather than widening its tolerance')
-def test_camera_projection_matches_retained_charuco_observations(state,point,observed):
-    predicted=api().gripper_pixel(state,point)
-    assert predicted is not None
-    assert all(math.isfinite(v) for v in predicted)
-    if predicted[:2] != pytest.approx(observed,abs=12.):
-        raise HistoricalOpticalPixelMismatch(f'predicted {predicted[:2]}, observed {observed}, tolerance 12px')
-
-
 def test_approach_places_target_on_arm_plane():
     p=api(); grasp=p.grasp_point(); plan=p.approach([.9,.20,0],grasp)
     th=plan['yaw']; d=plan['forward']

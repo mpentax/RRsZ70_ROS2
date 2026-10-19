@@ -3,9 +3,8 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { randomUUID } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { CommandEvents, pulseParams } from './command-events.ts';
-import { lstat, open } from "node:fs/promises";
-import { constants } from "node:fs";
-import { extname, join } from "node:path";
+import { readFile } from "node:fs/promises";
+import { extname, resolve, sep } from "node:path";
 import { isIP } from "node:net";
 import { RoborockCloud, type CameraAccount, type HomeAuthorization, type CameraLogin } from "./cloud.ts";
 import type { SavedDevice } from "./credentials.ts";
@@ -25,7 +24,6 @@ import { readSplitMap } from "./split-map-reader.ts";
 import { mapMetadataFromRead, publicMapStatus, validatedMapMetadata, type PrivateMapMetadata } from "./map-cache-status.ts";
 import { renderPrivateV1Map } from "./private-map-raster.ts";
 import { refreshRooms, selectedRooms } from "./home-account.ts";
-import { namedRpc } from "./vendor-rpc.ts";
 import { proxyRos, rosGatewayOrigin, rosRoute } from "./ros-gateway.ts";
 
 /** Connection-level events only; messages are fixed internal labels (no payloads, keys or addresses). */
@@ -35,15 +33,8 @@ function logRobotDiagnostic(e: RobotDiagnostic): void {
 
 export interface ServiceStore {
   initialize(): Promise<void>;
-  loadPairing?(): Promise<{ device: SavedDevice; camera: { account: CameraAccount; pin: string }; home: HomeAuthorization } | null>;
-  savePairing?(pairing: { device: SavedDevice; camera: { account: CameraAccount; pin: string }; home: HomeAuthorization }): Promise<void>;
-  loadDevice(): Promise<SavedDevice | null>;
-  saveDevice(device: SavedDevice): Promise<void>;
-  loadCamera(): Promise<{ account: CameraAccount; pin: string } | null>;
-  saveCamera(camera: { account: CameraAccount; pin: string }): Promise<void>;
-  loadHome?(): Promise<HomeAuthorization | null>;
-  saveHome?(home: HomeAuthorization): Promise<void>;
-  clearHome?(): Promise<void>;
+  loadPairing(): Promise<{ device: SavedDevice; camera: { account: CameraAccount; pin: string }; home: HomeAuthorization } | null>;
+  savePairing(pairing: { device: SavedDevice; camera: { account: CameraAccount; pin: string }; home: HomeAuthorization }): Promise<void>;
   serviceToken(): Promise<string>;
   loadMapCache?(): Promise<unknown | null>;
   loadMapRasterSource?(): Promise<{ metadata: PrivateMapMetadata; raw: Buffer } | null>;
@@ -125,40 +116,22 @@ async function staticFile(req: IncomingMessage, res: ServerResponse, webRoot: st
   if (decoded.includes("\\") || decoded.includes("\0") || decoded.split("/").some((part) => part.startsWith("."))) {
     return fail(404, "Not found.");
   }
-  const root = await lstat(webRoot).catch((error: unknown) => {
-    if (record(error) && error.code === "ENOENT") return null;
-    throw error;
-  });
-  if (!root?.isDirectory() || root.isSymbolicLink()) return fail(503, "The frontend build is unavailable.");
+  const root = resolve(webRoot);
   let relative = decoded.slice(1) || "index.html";
-  async function inspect(name: string): Promise<boolean> {
-    const parts = name.split("/");
-    for (let i = 0; i < parts.length; i++) {
-      if (!parts[i]) return false;
-      const info = await lstat(join(webRoot, ...parts.slice(0, i + 1))).catch((error: unknown) => {
-        if (record(error) && (error.code === "ENOENT" || error.code === "ENOTDIR")) return null;
-        throw error;
-      });
-      if (!info) return false;
-      if (info.isSymbolicLink()) return fail(404, "Not found.");
-      if (i < parts.length - 1 ? !info.isDirectory() : !info.isFile()) return false;
-    }
-    return true;
-  }
-  if (!await inspect(relative)) {
+  let target = resolve(root, relative);
+  if (target !== root && !target.startsWith(root + sep)) return fail(404, "Not found.");
+  let body = await readFile(target).catch(() => null);
+  if (!body) {
     if (extname(relative) || !req.headers.accept?.includes("text/html")) return fail(404, "Not found.");
     relative = "index.html";
-    if (!await inspect(relative)) return fail(503, "The frontend build is unavailable.");
+    target = resolve(root, relative);
+    body = await readFile(target).catch(() => null);
+    if (!body) return fail(503, "The frontend build is unavailable.");
   }
   const mime = MIME[extname(relative)];
   if (!mime) return fail(404, "Not found.");
-  const file = await open(join(webRoot, relative), constants.O_RDONLY | constants.O_NOFOLLOW);
-  try {
-    const info = await file.stat();
-    if (!info.isFile() || info.size > 32 * 1024 * 1024) return fail(404, "Not found.");
-    res.writeHead(200, { "Content-Type": mime, "Content-Length": info.size });
-    res.end(req.method === "HEAD" ? undefined : await file.readFile());
-  } finally { await file.close(); }
+  res.writeHead(200, { "Content-Type": mime, "Content-Length": body.length });
+  res.end(req.method === "HEAD" ? undefined : body);
 }
 
 /** Owns the robot connection and timers, but never spawns or stops the independent sidecar. */
@@ -171,11 +144,11 @@ export async function createService(options: ServiceOptions) {
   const serviceToken = await store.serviceToken();
   const auth = new ServiceAuth(serviceToken, config);
   const rosOrigin = rosGatewayOrigin(options.rosOrigin ?? process.env.Z70_ROS_GATEWAY_ORIGIN ?? "http://127.0.0.1:57020");
-  const savedPairing = await store.loadPairing?.();
-  let device = savedPairing?.device ?? await store.loadDevice();
-  let camera = savedPairing?.camera ?? await store.loadCamera();
+  const savedPairing = await store.loadPairing();
+  let device = savedPairing?.device ?? null;
+  let camera = savedPairing?.camera ?? null;
   let pinConfigured = !!camera?.pin && /^[1-9]{4,12}$/.test(camera.pin);
-  let home = savedPairing?.home ?? await store.loadHome?.() ?? null;
+  let home = savedPairing?.home ?? null;
   let robot: ServiceRobot | null = null;
   let cloudRobot: ServiceRobot | null = null;
   let stopped = false;
@@ -188,14 +161,7 @@ export async function createService(options: ServiceOptions) {
   const driver = options.driver ?? new Go2Rtc(config.go2rtcOrigin);
   const jobs = new Set<Promise<void>>();
   const cameraSession = randomUUID();
-  const commandSession = randomUUID();
   const commandEvents = new CommandEvents();
-  const recentCommands: Record<string, unknown>[] = [];
-  function rememberCommand(input: Record<string, unknown>, outcome: Record<string, unknown>) {
-    if (typeof input.method !== 'string' || !input.method.startsWith('app_rc_')) return;
-    recentCommands.push({ ...outcome, method: input.method, params: publicRpcValue(Object.hasOwn(input,'params') ? input.params : [],secrets()) });
-    if (recentCommands.length>256) recentCommands.shift();
-  }
   function replaceRobot() {
     robot?.close(); cloudRobot?.close(); cloudRobot = null; configured = false;
     robot = device ? (options.robotFactory?.(device, () => {}) ?? new RobotClient({ host: device.host, localKey: device.localKey, protocol: selectedLocalProtocol(device), onDiagnostic: logRobotDiagnostic })) : null;
@@ -204,13 +170,6 @@ export async function createService(options: ServiceOptions) {
   function secrets(): string[] { return [serviceToken, device?.localKey, camera?.pin, camera?.account.secret, camera?.account.key, home?.hawkKey, home?.secret].filter((value): value is string => !!value); }
 
   async function dispatch(input: Record<string, unknown>): Promise<RpcOutcome> {
-    const outcome = await dispatchRaw(input);
-    if (typeof input.method==='string' && input.method.startsWith('app_rc_') && !recentCommands.some(c=>c.requestId===outcome.requestId))
-      rememberCommand(input,{id:randomUUID(),requestId:outcome.requestId,requestedAt:outcome.startedAt,sentAt:null,replyAt:outcome.finishedAt,dispatch:outcome.dispatch,response:outcome.response});
-
-    return outcome;
-  }
-  async function dispatchRaw(input: Record<string, unknown>): Promise<RpcOutcome> {
     if (Object.keys(input).some(key => !["method", "params", "transport", "timeoutMs", "commandId"].includes(key)) ||
       typeof input.method !== "string" || !/^[A-Za-z][A-Za-z0-9_]{0,127}$/.test(input.method) ||
       (input.commandId !== undefined && (typeof input.commandId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.commandId))) ||
@@ -249,7 +208,6 @@ export async function createService(options: ServiceOptions) {
         event('dispatched', 'unknown', 'none');
         try {
           const value=await (t.rpc ? t.rpc(input.method as string,params,remaining) : t.request(input.method as string,params));
-          rememberCommand(input,{id,requestId,requestedAt:startedAt,sentAt,replyAt:Date.now(),dispatch:'sent',response:'received'});
           event('replied', 'sent', 'received');
           return value;
         } catch (error) {
@@ -257,7 +215,6 @@ export async function createService(options: ServiceOptions) {
             error instanceof RpcError ? 'vendor_error' : 'transport_error',
             error instanceof RpcError ? 'VENDOR_REJECTED' : error instanceof TransportError && error.reason === 'cancelled' ? 'CANCELLED' : error instanceof TransportError && /timeout|timed out/i.test(error.message) ? 'TIMEOUT' : 'TRANSPORT',
             error instanceof RpcError ? error.code : undefined);
-          rememberCommand(input,{id,requestId,requestedAt:startedAt,sentAt,replyAt:Date.now(),dispatch:error instanceof RpcError ? 'sent' : error instanceof TransportError ? error.dispatch : 'unknown',response:error instanceof RpcError ? 'vendor_error' : 'transport_error'});
           throw error;
         }
       };
@@ -306,7 +263,6 @@ export async function createService(options: ServiceOptions) {
   let account: { owner: string; email: string; expiresAt: number; cloud: Pick<RoborockCloud, "requestCode" | "loginCameraWithCode">; login?: CameraLogin; attempts: number } | null = null;
   let lastCode = 0;
   let pairingWrite = Promise.resolve();
-  let atomicPairing = !!savedPairing;
   function persistPairing(operation: () => Promise<void>): Promise<void> {
     const update = pairingWrite.then(operation);
     pairingWrite = update.catch(() => {});
@@ -359,9 +315,6 @@ export async function createService(options: ServiceOptions) {
     // use the shared ROS cache and cannot open additional previews or workflows.
     if (caller.kind === 'cookie' && !path.startsWith('/api/account/') && path !== '/api/camera/pin' && path !== '/api/v1/capabilities')
       return fail(410, 'Use the shared /api/ros interfaces; account and camera input remain in web setup.');
-    const canonical = /^\/api\/v1\/devices\/([^/]+)\/rpc$/.exec(path);
-    if (path === "/api/v1/rpc" || canonical)
-      return fail(503, "Command authority moved to ROS. Use /api/ros/rpc or /api/ros/tasks.");
     if (path === '/api/driver/control/session' && req.method === 'POST') {
       if (!req.headers.authorization?.startsWith('Bearer ')) return fail(403, 'Private driver bearer authentication required.');
       const body = await readJson(req);
@@ -379,7 +332,6 @@ export async function createService(options: ServiceOptions) {
     if (path === "/api/driver/rpc") {
       if (!req.headers.authorization?.startsWith("Bearer ")) return fail(403, "Private driver bearer authentication required.");
       if (req.method !== "POST") return fail(405, "Method not allowed.");
-      if (canonical && canonical[1] !== device?.duid) return fail(404, "Device is not selected.");
       const outcome = await dispatch(await readJson(req));
       return reply(res, outcome.response === "received" ? 200 : 502, outcome);
     }
@@ -387,16 +339,8 @@ export async function createService(options: ServiceOptions) {
       if (req.method !== 'GET') return fail(405, 'Method not allowed.');
       commandEvents.subscribe(res); return;
     }
-    if (path === '/api/commands/recent') {
-      if (req.method !== 'GET') return fail(405,'Method not allowed.');
-      return reply(res,200,{session:commandSession,capacity:256,commands:recentCommands});
-    }
-    if (path.startsWith("/api/commands/") || path.startsWith("/api/docking") || path.startsWith("/api/robotics/") || path === "/api/agent/docking/start")
-      return fail(410, "Controller workflows were retired. Use authenticated vendor RPC; orchestration belongs in the controller.");
     if (path === "/api/v1/capabilities")
       return reply(res, 200, { apiVersion: "1", rpc: null, commandOwner: "ROS", rosRawRpc: "/z70/driver/raw_rpc", genericVendorRpc: true, transports: ["local", "cloud"], physicalCompletion: "unverified" });
-    if (path === "/api/arm/estimate" || path === "/api/arm/anchor")
-      return fail(503, "Arm estimation moved to ROS /z70/arm_estimate and /z70/arm/anchor.");
     if (path === "/api/state") {
       if (req.method !== "GET") return fail(405, "Method not allowed.");
       return reply(res, 200, { observationSession: cameraSession, device: device ? { id: device.duid, name: device.name, model: device.model, cloudProtocolVersion: device.protocolVersion, localProtocol: selectedLocalProtocol(device) } : null,
@@ -414,14 +358,12 @@ export async function createService(options: ServiceOptions) {
     }
     if (path === "/api/home/rooms") return reply(res, 200, home && home.deviceId === device?.duid ? selectedRooms(home) : { source: "unavailable", rooms: [] });
     if (path === "/api/home/rooms/refresh" && req.method === "POST") {
-      await readJson(req); if (!home || home.deviceId !== device?.duid) return fail(503, "Account authorization unavailable.");
+      await readJson(req); if (!device || !camera || !home || home.deviceId !== device.duid) return fail(503, "Account authorization unavailable.");
       const selected = device, authorization = home, selectedCamera = camera;
       const updated = { ...authorization, rooms: await (options.roomRefresher ?? refreshRooms)(authorization) };
       await persistPairing(async () => {
         if (device !== selected || home !== authorization || camera !== selectedCamera) return fail(409, "Selected account changed.");
-        if (atomicPairing && store.savePairing && selected && selectedCamera)
-          await store.savePairing({ device: selected, camera: selectedCamera, home: updated });
-        else await store.saveHome?.(updated);
+        await store.savePairing({ device: selected, camera: selectedCamera, home: updated });
         home = updated;
       });
       return reply(res, 200, selectedRooms(updated));
@@ -486,13 +428,12 @@ export async function createService(options: ServiceOptions) {
         if (body.localProtocol !== undefined && body.localProtocol !== "1.0" && body.localProtocol !== "L01") return fail(400, "Unsupported local protocol.");
         const nextDevice = { ...selected, host: body.host, localProtocol: localProtocol(body.localProtocol ?? "1.0") }, nextCamera = { account: login.account, pin: body.pin === undefined ? camera?.pin ?? "" : pinValue(body.pin) }, nextHome = { ...login.home, deviceId: selected.duid };
         // Stop using the old account pairing before changing credentials. Failed persistence remains disconnected.
-        if (!store.savePairing) return fail(503, "Atomic authenticated pairing persistence unavailable.");
         await persistPairing(async () => {
           auth.require(req);
           if (account !== attempt || attempt.login !== login) return fail(409, "Account login changed.");
           robot?.close(); cloudRobot?.close(); robot = null; cloudRobot = null; device = null; camera = null; home = null; configured = false;
-          await store.savePairing!({ device: nextDevice, camera: nextCamera, home: nextHome });
-          device = nextDevice; camera = nextCamera; home = nextHome; atomicPairing = true; if (account === attempt) account = null;
+          await store.savePairing({ device: nextDevice, camera: nextCamera, home: nextHome });
+          device = nextDevice; camera = nextCamera; home = nextHome; if (account === attempt) account = null;
           pinConfigured = /^[1-9]{4,12}$/.test(nextCamera.pin);
           if (pinConfigured) { auth.revokeSetup(); account = null; }
           replaceRobot();
@@ -502,15 +443,13 @@ export async function createService(options: ServiceOptions) {
       }
     }
     if (path === "/api/camera/pin" && req.method === "POST") {
-      const body = await readJson(req); auth.require(req); if (!camera) return fail(503, "Authenticated account required.");
+      const body = await readJson(req); auth.require(req); if (!device || !camera || !home) return fail(503, "Authenticated account required.");
       const selected = device, selectedCamera = camera, authorization = home;
       const next = { ...selectedCamera, pin: pinValue(body.pin) };
       await persistPairing(async () => {
         auth.require(req);
         if (device !== selected || camera !== selectedCamera || home !== authorization) return fail(409, "Selected account changed.");
-        if (atomicPairing && store.savePairing && selected && authorization)
-          await store.savePairing({ device: selected, camera: next, home: authorization });
-        else await store.saveCamera(next);
+        await store.savePairing({ device: selected, camera: next, home: authorization });
         camera = next; configured = false;
         if (!pinConfigured) account = null;
         pinConfigured = true; auth.revokeSetup();
@@ -522,7 +461,6 @@ export async function createService(options: ServiceOptions) {
       if (!device || !camera) return fail(503, "Authenticated camera account required.");
       return reply(res, 200, await cameraBrokerDiagnostic(camera.account, device));
     }
-    if (path === "/api/camera/select") return fail(503, "Camera selection moved to ROS /z70/camera/select.");
     if (path === "/api/driver/camera/select" && req.method === "POST") {
       if (!req.headers.authorization?.startsWith("Bearer ")) return fail(403, "Private driver bearer authentication required.");
       const generation = cameraGeneration; checkCamera(generation);
@@ -558,10 +496,6 @@ export async function createService(options: ServiceOptions) {
       if (body.enabled) { if (!driver.preload) return fail(503, "Preload unsupported."); await driver.preload(true); }
       else { if (!driver.unload) return fail(503, "Unload unsupported."); await driver.unload(); }
       return reply(res, 200, { persistentStream: await driver.preloaded?.() ?? null, physicalCompletion: "unverified" });
-    }
-    if (req.method === "POST") {
-      const mapping = namedRpc(path, await readJson(req));
-      if (mapping) return fail(503, "Command authority moved to the ROS dispatcher.");
     }
     return fail(404, "Not found.");
   }

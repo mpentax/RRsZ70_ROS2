@@ -9,7 +9,7 @@ from dataclasses import replace
 from .garment_delivery import (GarmentDeliverer, TowingQualificationConfig, atomic_json,
     map_identity, transport_policy, track_key, loaded_route, DeliveryRejected)
 from z70_mapping.boundary import BoundaryConfig, compute_safe_interior
-from .navigation import inside
+from .navigation import PinAndGoNavigator, inside
 
 
 class PatrolLedger:
@@ -36,7 +36,6 @@ class PatrolLedger:
             a['status']=='IN_FLIGHT_UNKNOWN' for a in self.data['actions'])
 
     def reconcile(self, observations):
-        """Absence alone never credits delivery and never authorizes replay."""
         for key,item in self.data['items'].items():
             if item['status']=='IN_FLIGHT_UNKNOWN' and observations.get(key)=='PRESENT_ON_FLOOR':
                 item['status']='PENDING' if item['attempts']<self.MAX_ATTEMPTS_PER_ITEM else 'FAILED'
@@ -50,8 +49,6 @@ class PatrolLedger:
 
     def bind_map(self, identity, allowed_segments, tf=None):
         previous=self.data['map_identity']
-        # A pose/map acquisition sequence is not a floor/geometry change.
-        # Keep the revision in identity without erasing coverage on each poll.
         changed=previous is not None and previous[:1]+previous[2:]!=identity[:1]+identity[2:]
         previous_tf=self.data.get('map_odom')
         jumped=(tf is not None and previous_tf is not None and
@@ -110,7 +107,6 @@ class PatrolLedger:
 
     def journal(self,**event):
         if self.data.get('active_item'): event['item_key']=self.data['active_item']
-        # Update the same command rather than creating a second ACK record.
         existing=next((a for a in reversed(self.data['actions']) if event.get('command_id') and a.get('command_id')==event['command_id']),None)
         if existing is not None: existing.update(event)
         else: self.data['actions'].append(dict(event))
@@ -146,11 +142,12 @@ class PatrolCollector:
 
     def __init__(self,observations,executor,ledger,*,boundary_config=None,towing_config=None,
                  pose=None,map_odom=None,feedback=lambda **_:None,delivery_factory=GarmentDeliverer,
-                 reserve_for_loaded_transit_and_dock=25.,resume_battery_pct=80.,
+                 navigator_factory=None,reserve_for_loaded_transit_and_dock=25.,resume_battery_pct=80.,
                  sleep=time.sleep,clock=time.monotonic):
         self.observations=observations; self.executor=executor; self.ledger=ledger
         self.config=boundary_config or BoundaryConfig(); self.towing=towing_config or TowingQualificationConfig()
-        self.pose=pose; self.map_odom=map_odom; self.feedback=feedback; self.delivery_factory=delivery_factory
+        self.pose=pose; self.map_odom=map_odom; self.feedback=feedback
+        self.delivery_factory=delivery_factory; self.navigator_factory=navigator_factory
         self.reserve=reserve_for_loaded_transit_and_dock; self.resume=resume_battery_pct
         self.sleep=sleep; self.clock=clock; self.deadline=math.inf; self.latest_observation=None; self.position=[0.,0.]
 
@@ -187,7 +184,7 @@ class PatrolCollector:
         self.guard()
         if deliverer is not None and deliverer.holding:
             self.state('SAFE_RELEASE_BEFORE_DOCK')
-            deliverer.release_withdraw()  # Must verify support + stow; exception forbids dock.
+            deliverer.release_withdraw()
             deliverer.holding=False
             self.executor.gripped=False
         if self.executor.gripped: raise DeliveryRejected('PAYLOAD_STATE_UNKNOWN')
@@ -199,7 +196,6 @@ class PatrolCollector:
             self.guard()
             if self.battery()>=self.resume:
                 self.verify_context(refresh=True)
-                # Fresh context reconciles docking, not grasp/release outcomes.
                 for a in self.ledger.data['actions']:
                     if a['operation']=='dock': a['status']='OBSERVED'
                 self.ledger.save(); return
@@ -207,32 +203,31 @@ class PatrolCollector:
         raise DeliveryRejected('RECHARGE_TIMEOUT')
 
     def observe_waypoint(self,key):
-        # Distinct post-turn acquisitions; latched detections never clear coverage.
         for heading in range(2):
             self.guard()
             if heading:
-                start=(self.pose() if self.pose else self.observations.navigation_snapshot().map.robot)[2]
+                start=(self.pose() if self.pose else self.observations.navigation_snapshot(refresh=False,max_age_s=None).map.robot)[2]
                 command_id=str(uuid.uuid4())
                 self.ledger.journal(operation='observe_turn',status='IN_FLIGHT',command_id=command_id)
                 for _ in range(24):
                     self.guard()
-                    self.verify_context()
-                    yaw=(self.pose() if self.pose else self.observations.navigation_snapshot().map.robot)[2]
+                    self.verify_context(refresh=True)
+                    yaw=(self.pose() if self.pose else self.observations.navigation_snapshot(refresh=False,max_age_s=None).map.robot)[2]
                     if abs(math.atan2(math.sin(yaw-start),math.cos(yaw-start)))>=.8: break
-                    self.executor.pulse(omega=.2,duration=500)
+                    self.executor.pulse(omega=.35,duration=600)
                 else:
-                    self.ledger.data['waypoints'][key]['status']='OCCLUDED_DEFERRED'
+                    self.ledger.data['waypoints'].setdefault(key,dict(status='OCCLUDED_DEFERRED',views=[]))['status']='OCCLUDED_DEFERRED'
                     self.ledger.save(); return batch
                 self.executor.end_rc()
                 self.ledger.journal(operation='observe_turn',status='OBSERVED',command_id=command_id)
             barrier=self.observations.garment_barrier()
             batch=self.observations.garment_snapshot(after=barrier)
-            pose=self.pose() if self.pose else self.observations.navigation_snapshot().map.robot
+            pose=self.pose() if self.pose else self.observations.navigation_snapshot(refresh=False,max_age_s=None).map.robot
             valid=batch.model_available and batch.geofence_active
             source=bytes(batch.evidence.session_id.uuid).hex()+':'+str(batch.evidence.sequence)
-            # A model available flag does not guarantee unobstructed coverage.
             frame=self.observations.garment_frame(after=barrier)
-            empty=not batch.garments  # two distinct fresh headings are required by the ledger
+            empty=not batch.garments
+            self.ledger.data['waypoints'].setdefault(key,dict(status='UNVISITED',views=[]))
             self.ledger.observe(key,heading=pose[2],frame_id=source,valid=valid,
                                 empty=empty,occluded=not frame.get('coverage_valid',False))
             if batch.garments: return batch
@@ -264,25 +259,44 @@ class PatrolCollector:
                     reconciliation['__robot__']='STOWED_LOCALIZED_STATIONARY'
                 self.ledger.reconcile(reconciliation)
                 if self.ledger.requires_reconciliation: return dict(self.ledger.completion(),detail='Fresh observation required; no in-flight command replay')
-            for key in list(self.ledger.data['waypoints']):
+            for key in sorted(list(self.ledger.data['waypoints']),
+                              key=lambda k: math.dist(self.position, (self.ledger.data['waypoints'][k]['x'], self.ledger.data['waypoints'][k]['y']))):
                 self.guard()
                 snapshot,b=self.verify_context()
-                waypoint=self.ledger.data['waypoints'][key]
-                if waypoint['status'] in ('CLEARED','UNREACHABLE'): continue
+                waypoint=self.ledger.data['waypoints'].get(key)
+                if waypoint is None or waypoint['status'] in ('CLEARED','UNREACHABLE'): continue
                 self.state('SELECT_REACHABLE_WAYPOINT')
                 if self.battery()<self.reserve:
                     self.recharge()
                     snapshot,b=self.verify_context()
-                mover=self.delivery_factory(self.observations,self.executor,boundary_config=self.config,
-                    pose=self.pose,map_odom=self.map_odom,journal=self.ledger.journal)
-                mover.deadline=self.deadline
-                mover.config=self.config  # stowed/unloaded footprint; loaded deliveries add 0.10 m
-                mover.baseline_tf=self.map_odom() if self.map_odom else None
                 self.state('UNLOADED_TRANSIT')
-                try: mover.transit((waypoint['x'],waypoint['y']),snapshot,b,loaded=False)
-                except DeliveryRejected:
-                    waypoint['status']='UNREACHABLE'; self.ledger.save(); continue
-                self.position=list(mover.position)
+                commands=getattr(getattr(self.executor,'client',None),'commands',None)
+                if self.navigator_factory is not None or commands is not None:
+                    nav_cls=self.navigator_factory or PinAndGoNavigator
+                    nav=nav_cls(self.observations,commands,boundary_config=self.config,
+                        hazard=self.executor.hazard if self.executor else lambda:None,
+                        odom=getattr(self.executor,'odom',lambda:None),
+                        clock=self.clock,sleep=self.sleep)
+                    command_id=str(uuid.uuid4())
+                    self.ledger.journal(operation='pin_and_go',status='IN_FLIGHT',command_id=command_id)
+                    nav_res=nav.execute(SimpleNamespace(target_x_m=float(waypoint['x']),target_y_m=float(waypoint['y']),
+                        max_duration_s=min(600.,max(1.,self.deadline-self.clock())),dry_run=False))
+                    self.ledger.journal(operation='pin_and_go',status='OBSERVED',command_id=command_id,status_code=nav_res.get('status_code'))
+                    if not nav_res.get('arrived'):
+                        if nav_res.get('status_code') in ('BOUNDARY_ABORT','TIMED_OUT','CANCELLED'):
+                            raise DeliveryRejected(nav_res['status_code'])
+                        waypoint['status']='UNREACHABLE'; self.ledger.save(); continue
+                    self.position=list(nav_res.get('final_position_m',getattr(nav,'position',self.position)))
+                else:
+                    mover=self.delivery_factory(self.observations,self.executor,boundary_config=self.config,
+                        pose=self.pose,map_odom=self.map_odom,journal=self.ledger.journal)
+                    mover.deadline=self.deadline
+                    mover.config=self.config
+                    mover.baseline_tf=self.map_odom() if self.map_odom else None
+                    try: mover.transit((waypoint['x'],waypoint['y']),snapshot,b,loaded=False)
+                    except DeliveryRejected:
+                        waypoint['status']='UNREACHABLE'; self.ledger.save(); continue
+                    self.position=list(mover.position)
                 self.state('OBSERVE')
                 batch=self.observe_waypoint(key)
                 self.state('SELECT_SUPPORTED_GARMENT')
@@ -295,8 +309,6 @@ class PatrolCollector:
                     pose=self.pose() if self.pose else self.observations.navigation_snapshot().map.robot
                     c,s=math.cos(pose[2]),math.sin(pose[2])
                     location=[pose[0]+c*p.x-s*p.y,pose[1]+s*p.x+c*p.y]
-                    # Map-location alias prevents a tracker restart from resetting
-                    # an exhausted budget for the same piece of cloth.
                     aliases=[k for k,v in self.ledger.data['items'].items() if math.dist(v['position'],location)<.15]
                     if any(not self.ledger.may_attempt(k) for k in aliases): continue
                     attempted+=1
@@ -314,13 +326,13 @@ class PatrolCollector:
                     self.ledger.finish_item(item_key,status,result['status_code'])
                     if result['status_code']=='SAFE_RELEASE_BEFORE_DOCK':
                         self.recharge(delivery)
-                        break  # Resume at the next verified waypoint, not a pre-charge observation.
+                        break
                     elif uncertain: return self.ledger.completion()
                 self.state('CONTINUE')
-                # Returning to the same waypoint is a later mission, not an
-                # unbounded loop on one target. Any occupied/deferred view remains partial.
             return self.ledger.completion()
         except (DeliveryRejected,LookupError,TimeoutError,InterruptedError) as exc:
             return dict(self.ledger.completion(),detail=str(exc)[:128])
         finally:
-            if self.executor: self.executor.end_rc()
+            if self.executor:
+                try: self.executor.end_rc()
+                except (LookupError,TimeoutError,InterruptedError): pass

@@ -161,5 +161,33 @@ def test_patrol_dry_run_validates_loaded_drop_route_without_commands(tmp_path):
     from z70_mapping.boundary import BoundaryConfig
     fixture=DeliveryFixture(tmp_path)
     patrol=PatrolCollector(fixture.obs,None,PatrolLedger(tmp_path),boundary_config=BoundaryConfig(allowed_segments=(1,)))
-    result=patrol.execute(NS(drop_x_m=.05,drop_y_m=.05,max_duration_s=60.,max_items=10,allow_towing=False,dry_run=True))
+    result=patrol.execute(NS(drop_x_m=.05,drop_y_m=.05,max_duration_s=10.,max_items=10,allow_towing=False,dry_run=True))
     assert result['status_code']=='LOADED_ROUTE_BLOCKED' and not result['dry_run_valid']
+
+
+def test_unloaded_transit_uses_pin_and_go_when_commands_available(tmp_path):
+    from test_garment_delivery import DeliveryFixture
+    from z70_mapping.boundary import BoundaryConfig
+    fixture=DeliveryFixture(tmp_path)
+    fixture.obs.get=lambda _:dict(telemetry=dict(status=dict(value=dict(battery=90))))
+    fixture.obs.garment_frame=lambda **_:dict(coverage_valid=True,valid_empty_view=True)
+    fixture.obs.garment_snapshot=lambda **_:NS(garments=[],evidence=NS(session_id=NS(uuid=[1]*16),sequence=1),model_available=True,geofence_active=True)
+    fixture.ex.client.commands=NS()
+    nav_calls=[]
+    class Nav:
+        def __init__(self,obs,commands,**_):
+            self.commands=commands
+            self.position=[2.,2.]
+        def execute(self,goal):
+            nav_calls.append((goal.target_x_m,goal.target_y_m))
+            return dict(arrived=True,status_code='ARRIVED',final_position_m=[goal.target_x_m,goal.target_y_m])
+    class FailMover:
+        def __init__(self,*_,**__): raise AssertionError('mover fallback should not be used when PinAndGo is available')
+    ledger=PatrolLedger(tmp_path)
+    patrol=PatrolCollector(fixture.obs,fixture.ex,ledger,boundary_config=BoundaryConfig(allowed_segments=(1,),waypoint_spacing_m=10),
+                           delivery_factory=FailMover,navigator_factory=Nav)
+    patrol.observe_waypoint=lambda key: NS(garments=[])
+    result=patrol.execute(NS(drop_x_m=1.,drop_y_m=1.,max_duration_s=60.,max_items=10,allow_towing=False,dry_run=False))
+    assert nav_calls
+    assert any(a['operation']=='pin_and_go' and a['status']=='OBSERVED' for a in ledger.data['actions'])
+    assert result['partial_completion']

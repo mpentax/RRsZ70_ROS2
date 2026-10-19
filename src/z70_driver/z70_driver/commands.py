@@ -170,8 +170,9 @@ class CommandSurfaces:
             methods = ['stop_goto_target'] + methods
         if scope in (2, 3):
             with self.estimator_lock:
-                self.estimator.invalidate('STOP_UNVERIFIED')
-                self.publish_estimate(self.estimator.snapshot())
+                if self.estimator.data['state'] != 'IN_ROBOT':
+                    self.estimator.invalidate('STOP_UNVERIFIED')
+                    self.publish_estimate(self.estimator.snapshot())
         outcomes = []; deadline = time.monotonic()+15
         for method in methods:
             budget = max(.001, min(5., deadline-time.monotonic()))

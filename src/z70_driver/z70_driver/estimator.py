@@ -178,6 +178,7 @@ class ArmEstimator:
                     self.grab_mode = p['flag']
                 return False
             if method.startswith(('get_','app_get_','app_rc_')) or method == 'app_change_camera': return False
+            if method in ('app_goto_target','stop_goto_target','app_charge','app_pause','app_stop','app_stop_grasp') and self.data['state']=='IN_ROBOT': return False
             # Advanced unknown programs/operations cannot silently preserve a
             # planning pose. This does not reject or retry the vendor command.
             return self.invalidate('UNOBSERVED_MOTION')
@@ -223,7 +224,7 @@ class ArmEstimator:
                 elif cmd == 'arm_move': changed = self._hand(c.get('direction'),n,method) or changed
                 elif cmd not in ('delay','sound','chassis_move','chassis_rotate'): changed=self.invalidate('PROGRAM_POSE_UNVERIFIED') or changed
             return changed
-        if method == 'app_stop' and self.data['state']=='IN_ROBOT': return False
+        if method in ('app_stop', 'app_stop_grasp') and self.data['state']=='IN_ROBOT': return False
         return self.invalidate('UNOBSERVED_MOTION')
 
     def observe_status(self, status, observed_at_ms):

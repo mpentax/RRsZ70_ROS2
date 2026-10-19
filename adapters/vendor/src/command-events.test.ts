@@ -18,8 +18,8 @@ test('live event stream authenticates and preserves attempts, uncertainty and cl
       return ['ok'];
     }};
   const store: ServiceStore = {async initialize(){}, async serviceToken(){return token;},
-    async loadDevice(){return {duid:'fake',host:'127.0.0.1',localKey:'1234567890abcdef',name:'fake',model:'a179',protocolVersion:'L01'};},
-    async saveDevice(){},async loadCamera(){return null;},async saveCamera(){}};
+    async loadPairing(){return {device:{duid:'fake',host:'127.0.0.1',localKey:'1234567890abcdef',name:'fake',model:'a179',protocolVersion:'L01'},camera:{account:{user:'u',secret:'s',key:'k',mqttUrl:'ssl://mqtt-eu.roborock.com:8883'},pin:'1234'},home:{deviceId:'fake',homeId:1,realApi:'https://api-eu.roborock.com',user:'u',secret:'s',hawkKey:'k',rooms:[]}};},
+    async savePairing(){}};
   const config = {...loadServiceConfig(),port:0};
   const service = await createService({store, config, robotFactory:()=>robot});
   await service.start();

@@ -5,8 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { SecretStore } from "./secret-store.ts";
-import { validatedMapMetadata, publicMapStatus } from "./map-cache-status.ts";
-import { publishCliMapCache } from "./map-cache-publication.ts";
+import { mapMetadataFromRead, validatedMapMetadata, publicMapStatus } from "./map-cache-status.ts";
 
 function synthetic(): Buffer {
   const header = Buffer.alloc(20); header.write("rr"); header.writeUInt16LE(20, 2);
@@ -25,8 +24,8 @@ test("private map metadata persists bound to selected device, checks bytes and p
   await store.initialize();
   const raw = synthetic(), sha256 = createHash("sha256").update(raw).digest("hex");
   const result = { raw, sha256, bytes: raw.length, mapIndex: 0, mapSequence: 0 };
-  assert.equal((await publishCliMapCache(store, join(root, "state"), "private-device", result)).saved, true);
-  assert.equal((await publishCliMapCache(store, join(root, "state"), "private-device", result)).saved, false);
+  await store.saveMapBytes(raw);
+  await store.saveMapCache(mapMetadataFromRead("private-device", result));
   const metadata = validatedMapMetadata(await store.loadMapCache());
   assert.equal(metadata.deviceId, "private-device");
   assert.equal(metadata.sha256, sha256);
@@ -40,20 +39,4 @@ test("private map metadata persists bound to selected device, checks bytes and p
   const corrupted = Buffer.from(await readFile(file)); corrupted[25] ^= 1;
   await writeFile(file, corrupted);
   await assert.rejects(store.loadMapCache(), /Cannot load private map metadata/);
-});
-
-
-test("CLI publication rejects incorrect result binding without changing prior metadata", async t => {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "roboclaw-map-metadata-")));
-  t.after(() => rm(root, { recursive: true, force: true }));
-  const store = new SecretStore(join(root, "state"));
-  await store.initialize();
-  const raw = synthetic(), sha256 = createHash("sha256").update(raw).digest("hex");
-  const result = { raw, sha256, bytes: raw.length, mapIndex: 0, mapSequence: 0 };
-  await publishCliMapCache(store, join(root, "state"), "selected", result);
-  const before = await store.loadMapCache();
-  await assert.rejects(publishCliMapCache(store, join(root, "state"), "wrong", { ...result, sha256: "a".repeat(64) }),
-    /Private map read differs/);
-  assert.deepEqual(await store.loadMapCache(), before);
-  assert.equal(publicMapStatus(validatedMapMetadata(before), "other").cached, false);
 });

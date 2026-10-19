@@ -10,7 +10,7 @@ async function fixture(t:import('node:test').TestContext, transport:typeof fetch
   const login={devices:[{duid:'fake1',name:'fake Z70',model:'a179',localKey:'synthetic-local-key',protocolVersion:'L01'}],
     account:{user:'fake',secret:'synthetic-account-secret',key:'synthetic-account-key',mqttUrl:'mqtts://example.invalid'},
     home:{homeId:1,realApi:'https://example.invalid',user:'fake',secret:'synthetic-home-secret',hawkKey:'synthetic-hawk',rooms:[]}};
-  const store:ServiceStore={async initialize(){},async serviceToken(){return token;},async loadDevice(){return null;},async saveDevice(){},async loadCamera(){return {account:login.account,pin};},async saveCamera(){},async savePairing(p){saved.push(p);}};
+  const store:ServiceStore={async initialize(){},async serviceToken(){return token;},async loadPairing(){return {device:{...login.devices[0]!,host:'127.0.0.1'},camera:{account:login.account,pin},home:{...login.home,deviceId:'fake1'}};},async savePairing(p){saved.push(p);}};
   const config={...loadServiceConfig(),port:0};
   const service=await createService({store,config,rosTransport:transport,
     robotFactory:()=>({connection:{state:'disconnected',connectedAt:null},async request(){throw new Error('No private robot access permitted');},close(){}}),

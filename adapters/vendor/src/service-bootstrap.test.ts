@@ -10,14 +10,14 @@ const device = {duid:'robot1',host:'127.0.0.1',localKey:'fake-local-key-abcdef',
 const camera = {account:{user:'test-user',secret:'fake-account-secret',key:'fake-account-key',mqttUrl:'mqtts://example.invalid'},pin:''};
 const home = {deviceId:'robot1',homeId:1,realApi:'https://example.invalid',user:'test-user',secret:'fake-home-secret',hawkKey:'fake-hawk-key',rooms:[]};
 const login: CameraLogin = {devices:[device],account:camera.account,home};
-type Pairing = NonNullable<Awaited<ReturnType<NonNullable<ServiceStore['loadPairing']>>>>;
+type Pairing = NonNullable<Awaited<ReturnType<ServiceStore['loadPairing']>>>;
 async function fixture(t:TestContext, initial: Pairing|null = null, overrides:Partial<ServiceOptions> = {}) {
   let saved:Pairing|null = initial; let writes = 0, privateCalls = 0;
   const backend = createServer((req,res)=>{privateCalls++; assert.equal(req.headers.authorization,`Bearer ${token}`);res.setHeader('Content-Type','application/json');res.end(JSON.stringify({available:true}));});
   await new Promise<void>(resolve=>backend.listen(0,'127.0.0.1',resolve));
   t.after(()=>new Promise<void>(resolve=>backend.close(()=>resolve())));
   const address = backend.address();assert.ok(address && typeof address==='object');
-  const store:ServiceStore = {async initialize(){},async serviceToken(){return token;},async loadPairing(){return saved;},async loadDevice(){return null;},async loadCamera(){return null;},async saveDevice(){},async saveCamera(){},async savePairing(value){saved=value;writes++;}};
+  const store:ServiceStore = {async initialize(){},async serviceToken(){return token;},async loadPairing(){return saved;},async savePairing(value){saved=value;writes++;}};
   const config={...loadServiceConfig({}),port:0};
   const service=await createService({store,config,rosOrigin:`http://127.0.0.1:${address.port}`,robotFactory:()=>({connection:{state:'disconnected',connectedAt:null},close(){},async request(){privateCalls++;return ['ok'];}}),cloudFactory:()=>({async requestCode(){},async loginCameraWithCode(){return login;}}),...overrides});
   await service.start();t.after(()=>service.stop());

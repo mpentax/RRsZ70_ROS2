@@ -31,7 +31,8 @@ def fake(tmp_path, monkeypatch):
         def do_GET(self):
             events.append(('GET', self.path))
             if self.path == '/api/state':
-                self.send({'telemetry': {'status': {'value': {'error_code': state['error'], 'state': 39, 'common_status': 256 | (state.get('grab_mode', 0) << 10)}}}})
+                action = 3 if state.get('deployed') else 0
+                self.send({'telemetry': {'status': {'value': {'error_code': state['error'], 'state': 39, 'common_status': (action << 6) | (state.get('grab_mode', 0) << 10)}}}})
             else:
                 j = state['joints']
                 m5 = j[2] if len(j) > 2 else 0
@@ -60,12 +61,12 @@ def fake(tmp_path, monkeypatch):
                     cv2.circle(image, (state.get('gripper_u', round(u)), round(v)), radius, (0, 160, 240), -1)
                 elif not state['gripped'] or state.get('missed_grip'):
                     g = state['floor_point']
-                    u, v = map(round, perception.front_camera(ROOT).floor_to_pixel((g[0] - .275) * 1000, g[1] * 1000))
+                    u, v = map(round, perception.front_camera().floor_to_pixel((g[0] - .275) * 1000, g[1] * 1000))
                     half = max(10, round(822 * .066 / (g[0] - .275) / 2))
                     height = round(half * 1.6)
                     cv2.rectangle(image, (u - half, v - height), (u + half, v), (0, 160, 240), -1)
                 if state.get('deployed'):
-                    cam = perception.front_camera(ROOT)
+                    cam = perception.front_camera()
                     cfg = planner._CALIBRATION
                     a = math.radians(state['joints'][1] - state['joints'][0] + 90)
                     cy, sy = math.cos(planner.YAW), math.sin(planner.YAW)
@@ -101,7 +102,8 @@ def fake(tmp_path, monkeypatch):
             method = d['method']
             result = ['ok']
             if method == 'get_status':
-                result = [{'common_status': 256 | (state.get('grab_mode', 0) << 10), 'error_code': state['error']}]
+                action = 3 if state.get('deployed') else 0
+                result = [{'common_status': (action << 6) | (state.get('grab_mode', 0) << 10), 'error_code': state['error']}]
             if method == 'app_pick_up_enter_exit':
                 state['grab_mode'] = d['params']['flag']
             if method == 'app_arm_move':
@@ -211,7 +213,7 @@ def observer(client):
     def observe(camera, color):
         image, tag = client.frame()
         assert tag == camera
-        blobs = perception.front_objects(image, ROOT) if camera == 'front' else perception.detect(image)
+        blobs = perception.front_objects(image) if camera == 'front' else perception.detect(image)
         for b in blobs:
             if b['color'] == color:
                 if 'position' not in b:
@@ -622,3 +624,18 @@ def test_current_pose_recovery_uses_observation_when_estimator_unknown(tmp_path,
     ex.fresh_frame=lambda:(np.zeros((10,10,3),np.uint8),'front')
     monkeypatch.setattr(perception,'front_jaw',lambda _:dict(hand_pose_base=planner.hand.hand_pose([210.,75.,0.]).tolist()))
     assert ex.current_arm_joints() == pytest.approx([210.,75.,0.])
+
+
+def test_stow_polls_common_status_instead_of_blind_10s_sleep(tmp_path):
+    _, Executor = api()
+    client = MemoryClient()
+    statuses = iter([{'common_status': 3 << 6}, {'common_status': 0}])
+    client.status = lambda: next(statuses, {'common_status': 0})
+    client.arm_estimate = lambda: {'state': 'IN_ROBOT', 'joints': {}}
+    sleeps = []
+    ex = Executor(client, lambda *_: [], tmp_path / 'stow', sleep=lambda d: sleeps.append(d))
+    ex.snap = lambda _: None
+    res = ex.stow()
+    assert res == {'stowed': True, 'state': 'IN_ROBOT'}
+    assert 10. not in sleeps and sleeps == [.5, 1.]
+

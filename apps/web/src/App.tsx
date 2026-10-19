@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { ApiError, deleteSession, json, snapshot, SESSION_EXPIRED, type SessionStatus } from "./api.ts";
 import { cancelTask, listTasks, startTask, stopRobot, setControlSession, terminal, type Task, type RosState, type Setup } from './ros.ts';
 import { SetupForm } from './SetupForm.tsx';
+import { ArmControlPanel } from './ArmControlPanel.tsx';
+import { MapCanvas } from './MapCanvas.tsx';
 import { robotRpc } from './rpc.ts';
 import { actionOutcome } from './outcomes.ts';
 import { record } from './helpers.ts';
@@ -66,7 +68,6 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
   const holdTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const holdActiveRef = useRef(false);
   const imageGeneration = useRef(0);
-  const mapCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const controlStopped = sessionStopped || state?.session_enabled === false;
 
   function stopHoldJog(sendStop = true) {
@@ -193,31 +194,6 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
     void tick();
     return () => { controller.abort(); clearTimeout(timer); };
   }, [authenticated, autoStream, controlStopped]);
-
-  useEffect(() => {
-    const canvas = mapCanvasRef.current;
-    if (!canvas || !mapData) return;
-    const info = record(mapData.info);
-    const width = Number(info.width) || 0;
-    const height = Number(info.height) || 0;
-    const data = Array.isArray(mapData.data) ? mapData.data as number[] : [];
-    if (width <= 0 || height <= 0 || data.length < width * height) return;
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    const img = ctx.createImageData(width, height);
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const val = data[(height - 1 - y) * width + x];
-        const idx = (y * width + x) * 4;
-        if (val === 100) { img.data[idx] = 166; img.data[idx + 1] = 227; img.data[idx + 2] = 203; img.data[idx + 3] = 255; }
-        else if (val === 0) { img.data[idx] = 30; img.data[idx + 1] = 58; img.data[idx + 2] = 66; img.data[idx + 3] = 255; }
-        else { img.data[idx] = 11; img.data[idx + 1] = 18; img.data[idx + 2] = 21; img.data[idx + 3] = 255; }
-      }
-    }
-    ctx.putImageData(img, 0, 0);
-  }, [mapData]);
 
   async function run(task: () => Promise<void>) {
     setBusy(true); setError("");
@@ -476,32 +452,11 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
           </div>
         </section>
 
-        <section className="card map-cache-card" style={{marginTop: 0}}>
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">VENDOR V1 OCCUPANCY GRID</p>
-              <h2>Map</h2>
-            </div>
-            <button className="quiet" disabled={busy} onClick={() => void run(async () => {
-              const res = await json<Record<string, unknown>>('/api/ros/map');
-              setMapData(res);
-              setOutcome(res);
-            })}>Read ROS map</button>
-          </div>
-          <p className="caption">Shared OccupancyGrid; receipt time is not source freshness or localisation.</p>
-          {mapData && (
-            <div className="map-panel" style={{marginTop: 12, paddingTop: 12}}>
-              <figure className="map-figure">
-                <div className="map-image-wrap">
-                  <canvas ref={mapCanvasRef} style={{ display: 'block', width: '100%', maxHeight: '340px', imageRendering: 'pixelated' }} />
-                </div>
-                <figcaption className="caption">
-                  Grid {String(record(mapData.info).width ?? '?')}×{String(record(mapData.info).height ?? '?')} cells @ {Number(record(mapData.info).resolution ?? 0.05).toFixed(2)} m/cell
-                </figcaption>
-              </figure>
-            </div>
-          )}
-        </section>
+        <MapCanvas mapData={mapData} busy={busy} onReadMap={() => void run(async () => {
+          const res = await json<Record<string, unknown>>('/api/ros/map');
+          setMapData(res);
+          setOutcome(res);
+        })} />
 
         <section className="card">
           <div className="section-heading">
@@ -552,119 +507,26 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
             </div>
           </form>
 
-          <div className="task-panel-box">
-            <h3>Curated Manipulation Stages</h3>
-            <div className="button-row" style={{margin: '10px 0 0'}}>
-              <button disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'deploy_arm',goal:{settle:true}})); })}>Deploy Arm</button>
-              <button disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'align_target',goal:{color}})); })}>Align to Target</button>
-              <button disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'move_arm',goal:{m3_deg:190,m4_deg:65,m5_deg:0}})); })}>Move Arm (Hover 190/65)</button>
-              <button disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'grasp_and_lift',goal:{lift_steps:2,verify_color:color}})); })}>Grasp &amp; Lift</button>
-              <button disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'release_and_stow',goal:{put_down:true}})); })}>Release &amp; Stow</button>
-            </div>
-            <div className="angle-bar">
-              <label>M3°<input type="number" min={90} max={270} step={10} value={targetM3} onChange={e => setTargetM3(e.target.value)} /></label>
-              <label>M4°<input type="number" min={35} max={170} step={10} value={targetM4} onChange={e => setTargetM4(e.target.value)} /></label>
-              <label>M5°<input type="number" min={0} max={155} step={10} value={targetM5} onChange={e => setTargetM5(e.target.value)} /></label>
-              <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => {
-                setOutcome(await startTask({kind:'move_arm',goal:{m3_deg:Number(targetM3),m4_deg:Number(targetM4),m5_deg:Number(targetM5)}}));
-              })}>Move to angles</button>
-            </div>
-          </div>
-
-          <div className="task-panel-box">
-            <h3>Manual Mode Lifecycle &amp; Gripper (<code>/z70/arm/operation</code>)</h3>
-            <p className="caption" style={{marginBottom: 8}}>
-              Active grab mode: <strong>{grabModeLabel}</strong> · Action: <strong>{grabActionLabel}</strong>
-            </p>
-            <div className="button-row" style={{margin: '6px 0 0'}}>
-              <button type="button" className={grabModeCode === 1 ? 'primary' : 'quiet'} disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'arm_operation',goal:{operation:6}})); })}>Enter Manual Mode (flag=1)</button>
-              <button type="button" className={grabModeCode === 2 ? 'primary' : 'quiet'} disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'arm_operation',goal:{operation:7}})); })}>Remote Pickup Mode (flag=2)</button>
-              <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'arm_operation',goal:{operation:8}})); })}>Exit Arm Mode (flag=0)</button>
-              <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'arm_operation',goal:{operation:1}})); })}>Unstow Arm</button>
-              <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'arm_operation',goal:{operation:2}})); })}>Stow Arm</button>
-              <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'arm_operation',goal:{operation:9}})); })}>Recover Arm</button>
-            </div>
-            <div className="button-row" style={{margin: '8px 0 0'}}>
-              <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'arm_operation',goal:{operation:4}})); })}>Close Gripper (Grip)</button>
-              <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'arm_operation',goal:{operation:5}})); })}>Release Jaws In-Place (Put Down)</button>
-              <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'arm_operation',goal:{operation:3}})); })}>Open Gripper (Recovery)</button>
-              <button type="button" className="danger" disabled={controlStopped} onClick={() => { stopHoldJog(false); void robotRpc({method:'app_stop_grasp',params:[],timeoutMs:5000}).then(setOutcome).catch(() => {}); }}>Stop Arm (app_stop_grasp)</button>
-            </div>
-          </div>
-
-          <div className="task-panel-box">
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap'}}>
-              <h3 style={{margin:0}}>Joint Steps, Coordinated Multi-Axis &amp; Cartesian IK Jog</h3>
-              <label className="checkbox-row" style={{margin:0}}>
-                <input type="checkbox" checked={holdToJog} onChange={e => { setHoldToJog(e.target.checked); if (!e.target.checked) stopHoldJog(false); }} />
-                <span>Hold-to-Jog (continuous press &amp; hold, stop on release)</span>
-              </label>
-            </div>
-            <div className="joint-grid" style={{marginTop:10}}>
-              {[3,4,5].map(joint => [-1,1].map(direction => {
-                const m = [0, 0, 0];
-                m[joint - 3] = direction === 1 ? 1 : 2;
-                return (
-                  <button
-                    key={`${joint}/${direction}`}
-                    className="quiet"
-                    disabled={busy || controlStopped}
-                    onPointerDown={() => startHoldJog({ method: 'app_arm_move', params: { m } })}
-                    onPointerUp={() => stopHoldJog(true)}
-                    onPointerLeave={() => stopHoldJog(true)}
-                    onPointerCancel={() => stopHoldJog(true)}
-                    onClick={() => { if (!holdToJog) void run(async () => { setOutcome(await startTask({kind:'arm_step',goal:{joint,direction}})); }); }}
-                  >
-                    M{joint} {direction > 0 ? '+' : '−'} nominal step
-                  </button>
-                );
-              }))}
-            </div>
-            <div className="button-row" style={{margin: '10px 0 0'}}>
-              {([
-                ['M3+ & M4+ Down-Out', 34, 1, [1, 1, 0]],
-                ['M3− & M4− Up-In', 34, -1, [2, 2, 0]],
-                ['M3+ & M4− Reach-Level', 43, 1, [1, 2, 0]],
-                ['M3− & M4+ Retract-Level', 43, -1, [2, 1, 0]],
-              ] as const).map(([label, joint, direction, m]) => (
-                <button
-                  key={label}
-                  type="button"
-                  className="quiet"
-                  disabled={busy || controlStopped}
-                  onPointerDown={() => startHoldJog({ method: 'app_arm_move', params: { m: [...m] } })}
-                  onPointerUp={() => stopHoldJog(true)}
-                  onPointerLeave={() => stopHoldJog(true)}
-                  onPointerCancel={() => stopHoldJog(true)}
-                  onClick={() => { if (!holdToJog) void run(async () => { setOutcome(await startTask({kind:'arm_step',goal:{joint,direction}})); }); }}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <div className="button-row" style={{margin: '10px 0 0'}}>
-              {([
-                [1, 'Hand Up +40mm (IK)'],
-                [2, 'Hand Down −40mm (IK)'],
-                [3, 'Hand Forward +40mm (IK)'],
-                [4, 'Hand Back −40mm (IK)'],
-              ] as const).map(([dir, label]) => (
-                <button
-                  key={dir}
-                  type="button"
-                  className="quiet"
-                  disabled={busy || controlStopped}
-                  onPointerDown={() => startHoldJog({ method: 'app_arm_direction_move', params: { direction: dir } })}
-                  onPointerUp={() => stopHoldJog(true)}
-                  onPointerLeave={() => stopHoldJog(true)}
-                  onPointerCancel={() => stopHoldJog(true)}
-                  onClick={() => { if (!holdToJog) void run(async () => { setOutcome(await startTask({kind:'hand_step',goal:{direction:dir}})); }); }}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
+          <ArmControlPanel
+            busy={busy}
+            controlStopped={controlStopped}
+            color={color}
+            targetM3={targetM3}
+            targetM4={targetM4}
+            targetM5={targetM5}
+            setTargetM3={setTargetM3}
+            setTargetM4={setTargetM4}
+            setTargetM5={setTargetM5}
+            grabModeCode={grabModeCode}
+            grabModeLabel={grabModeLabel}
+            grabActionLabel={grabActionLabel}
+            holdToJog={holdToJog}
+            setHoldToJog={setHoldToJog}
+            startHoldJog={startHoldJog}
+            stopHoldJog={stopHoldJog}
+            run={run}
+            setOutcome={setOutcome}
+          />
 
           <div className="task-panel-box">
             <h3>Bounded Chassis Pulse Nudge (<code>/z70/base/pulse</code>)</h3>

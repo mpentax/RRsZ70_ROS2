@@ -39,6 +39,14 @@ class Client:
     def get(self, path):
         return self.observations.get(path)
 
+    def status(self) -> dict:
+        fn = getattr(self.observations, 'status', None)
+        return (fn() if callable(fn) else self.get('/api/state')['telemetry']['status']['value'])  # type: ignore[return-value]
+
+    def arm_estimate(self) -> dict:
+        fn = getattr(self.observations, 'arm_estimate', None)
+        return (fn() if callable(fn) else self.get('/api/arm/estimate'))  # type: ignore[return-value]
+
     def frame(self):
         # Keep timing metadata paired with the image returned by Observations.
         obs = self.observations
@@ -81,7 +89,7 @@ class Client:
 
 
 def log_directory(repo):
-    return Path(repo) / 'calibration/pickup' / (datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ') + '-ros')
+    return Path(repo) / '.local/pickup' / (datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ') + '-ros')
 
 
 class Executor:
@@ -126,13 +134,20 @@ class Executor:
         self.log('reply', method=method, dispatch=d.get('dispatch'), response=d.get('response'), transportReason=d.get('transportReason'))
         return d
 
+    def _status(self) -> dict:
+        fn = getattr(self.client, 'status', None)
+        return (fn() if callable(fn) else (self.client.get('/api/state').get('telemetry', {}).get('status', {}).get('value') or {}))  # type: ignore[return-value]
+
+    def _arm(self) -> dict:
+        fn = getattr(self.client, 'arm_estimate', None)
+        return (fn() if callable(fn) else self.client.get('/api/arm/estimate'))  # type: ignore[return-value]
+
     def safety(self):
         reason = self.hazard()
         if reason:
             raise SafetyStop(reason)
         try:
-            state = self.client.get('/api/state')
-            status = state.get('telemetry', {}).get('status', {}).get('value') or {}
+            status = self._status()
         except (requests.RequestException, LookupError):
             self.log('data_gap', kind='state')
             return
@@ -185,7 +200,7 @@ class Executor:
         raise LookupError('target not visible; no blind movement')
 
     def fresh_frame(self):
-        """Sparse read recovery; never replays a physical command."""
+        """Read a fresh camera frame with bounded retry."""
         for attempt in range(3):
             self.safety()
             try:
@@ -230,8 +245,15 @@ class Executor:
             try:
                 self.command('app_rc_stop')
             finally:
-                self.command('app_rc_end')
-                self.rc = False
+                try:
+                    self.command('app_rc_end')
+                finally:
+                    self.rc = False
+                    if not self.deployed and not self.gripped:
+                        try:
+                            self.command('app_pick_up_enter_exit', {'flag': 0})
+                        except Exception:
+                            pass
 
     def pulse(self, velocity=0., omega=0., duration=500):
         self.safety()
@@ -280,7 +302,7 @@ class Executor:
             self.end_rc()
 
     def deploy(self, settle=True):
-        status = self.client.get('/api/state')['telemetry']['status']['value']
+        status = self._status()
         common = int(status.get('common_status', 0))
         if ((common >> 6) & 15) in (2, 3):
             self.deployed = True
@@ -293,7 +315,7 @@ class Executor:
         self.command('app_arm_out_compartment', {})
         for i in range(60):
             self.safety()
-            status = self.client.get('/api/state')['telemetry']['status']['value']
+            status = self._status()
             common = int(status.get('common_status', 0))
             action_bits = (common >> 6) & 15
             grab_mode = (common >> 10) & 3
@@ -314,9 +336,8 @@ class Executor:
         else:
             raise LookupError('arm readiness not observed')
         if settle:
-            for _ in range(15):
-                self.sleep(1.)
-                self.safety()
+            self.sleep(1.)
+            self.safety()
         self.last_motion = None
         return dict(ready=True, state='WORKING_POS')
 
@@ -354,7 +375,7 @@ class Executor:
         else:
             goal_m3, goal_m4, goal_m5 = round(goal_joints[0]), round(goal_joints[1]), round(goal_joints[2])
         if start_joints is None:
-            est = self.client.get('/api/arm/estimate')
+            est = self._arm()
             if est.get('state') in ('UNKNOWN', 'IN_ROBOT'):
                 raise LookupError(f"cannot plan arm steps from state {est.get('state')}")
             j = est.get('joints') or {}
@@ -586,7 +607,7 @@ class Executor:
     def current_arm_joints(self):
         """Usable ROS pose, otherwise a fresh marker-backed conditional fit."""
         from . import placement, perception
-        estimate = self.client.get('/api/arm/estimate')
+        estimate = self._arm()
         j = estimate.get('joints') or {}
         if estimate.get('state') not in ('UNKNOWN','IN_ROBOT') and all(k in j for k in ('m3','m4','m5')):
             return [j['m3'],j['m4'],j['m5']]
@@ -600,12 +621,7 @@ class Executor:
         return fit['joints']
 
     def placement_sample(self, color, support_color, base_color, tower_spot, *, released=False, after=0.):
-        """Save one paired exposure; post-command reads discard the buffered slot.
-
-        ROS currently provides host receipt, NOT known exposure time. Log that
-        limitation, and require a later receipt after the settling/drain barrier.
-        Never call a pre-release cached image a post-release observation.
-        """
+        """Capture and measure one front-camera placement frame."""
         from . import placement
         if after:
             self.fresh_frame()  # discard the possibly pre-command buffered image
@@ -630,11 +646,7 @@ class Executor:
         raise LookupError('no placement frame received after command/settling barrier')
 
     def supported_place(self, color, support_color, base_color, tower_spot, tier):
-        """Observe -> align held column -> one bounded descent -> observe.
-
-        Incomplete is recoverable evidence, not an emergency or permission to
-        free-drop. No caller may count this tier until detach/support/stability.
-        """
+        """Align the held column over the support object, descend to contact, release, and verify stability."""
         from . import placement
         sample = None
         def incomplete(detail):
@@ -730,15 +742,11 @@ class Executor:
             self.end_rc()
 
     def open_jaws(self):
-        """Normal in-place opening: manual mode is observed before put_down.
-
-        Dispatch/ACK is not detachment; retain gripped until visual verification.
-        app_open_gripper belongs to abnormal-arm recovery, not normal pickup.
-        """
+        """Confirm manual grab mode and dispatch in-place jaw release."""
         self.command('app_pick_up_enter_exit', {'flag': 1})
         for _ in range(12):
             self.safety()
-            status = self.client.get('/api/state')['telemetry']['status']['value']
+            status = self._status()
             mode = status.get('grabMode', status.get('grab_mode'))
             if mode is None and 'common_status' in status:
                 mode = (int(status['common_status']) >> 10) & 3
@@ -756,22 +764,39 @@ class Executor:
             self.command('app_put_down', {'flag': 0})
         except (UncertainMotion, requests.RequestException):
             self.log('data_gap', kind='put_down_outcome_observe')
-        for index in range(4):
-            self.sleep(5.)
+        for _ in range(40):
             self.safety()
-            self.log('release_progress', settle_seconds=(index + 1) * 5, odom=self.odom())
+            status = self._status()
+            common = int(status.get('common_status', 0))
+            if ((common >> 6) & 15) in (0, 3):
+                break
+            self.sleep(.5)
+        else:
+            raise LookupError('put_down readiness not observed')
+        self.sleep(1.)
+        self.safety()
         self.snap('5-put-down')
-        self.log('release_settled', settle_seconds=20, odom=self.odom())
+        self.log('release_settled', settle_seconds=1, odom=self.odom())
 
     def stow(self):
         self.command('app_arm_in_compartment', {})
         self.deployed = False
         for _ in range(20):
             try:
-                estimate = self.client.get('/api/arm/estimate')
+                estimate = self._arm()
                 if estimate.get('state') == 'IN_ROBOT':
                     self.log('stow_estimate', state='IN_ROBOT', physical_completion='unverified')
-                    self.sleep(10.)
+                    for _ in range(40):
+                        reason = self.hazard()
+                        if reason:
+                            raise SafetyStop(reason)
+                        status = self._status()
+                        if status.get('error_code', 0):
+                            raise SafetyStop('robot error: ' + str(status['error_code']))
+                        if 'common_status' not in status or ((int(status['common_status']) >> 6) & 15) == 0:
+                            break
+                        self.sleep(.5)
+                    self.sleep(1.)
                     self.snap('6-stowed')
                     self.log('stow_observation', odom=self.odom())
                     return dict(stowed=True, state='IN_ROBOT')
@@ -789,8 +814,8 @@ class Executor:
     def pick(self, color, dry_run=False):
         self.log('start', color=color, dry_run=dry_run)
         if dry_run:
-            self.client.get('/api/state')
-            estimate = self.client.get('/api/arm/estimate')
+            self._status()
+            estimate = self._arm()
             blobs = self.observe('front', color) or []
             candidates = [b for b in blobs if b['color'] == color]
             target = max(candidates, key=lambda b: b['area_px']) if candidates else None
@@ -854,8 +879,8 @@ class Executor:
             raise ValueError('stack requires 3 distinct colors')
         self.log('stack_start', base_color=base_color, middle_color=middle_color, top_color=top_color, dry_run=dry_run)
         if dry_run:
-            self.client.get('/api/state')
-            estimate = self.client.get('/api/arm/estimate')
+            self._status()
+            estimate = self._arm()
             all_blobs = []
             seen_ids = set()
             for c in colors:

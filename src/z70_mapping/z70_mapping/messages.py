@@ -1,4 +1,4 @@
-"""ROS serialization; cache receipt stamp is NOT sensor capture time."""
+"""ROS OccupancyGrid, PoseStamped, and MarkerArray serializers for vendor maps."""
 import math
 import cv2
 import numpy as np
@@ -115,7 +115,7 @@ def markers_message(m, labels, saved_at, waypoints=None, boundary_result=None):
         text.pose.position.z = .4; text.scale.z = .16
         text.text = (f'Interior: {int(boundary_result.reachable_mask.sum())} reachable cells; '
                      f'clearance {boundary_result.config.clearance_m:.3f} m; '
-                     f'lost rooms {boundary_result.lost_rooms}; NOT firmware enforced')
+                     f'lost rooms {boundary_result.lost_rooms}')
     for i, waypoint in enumerate(waypoints or []):
         point = marker('patrol_waypoints', i, Marker.SPHERE, (.1, 1., .8, 1.))
         point.pose.position.x, point.pose.position.y = waypoint['x'], waypoint['y']

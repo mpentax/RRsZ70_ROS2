@@ -471,11 +471,25 @@ class Driver(CommandSurfaces, Node):
                 labels = {str(room['id']): str(room['name']) for room in rooms}
                 m.rooms = [RoomLabel(segment_id=int(pair[0]), name=labels[str(pair[1])][:128])
                            for pair in mapping if isinstance(pair, list) and len(pair)>=2 and str(pair[1]) in labels]
+                if m.rooms and m.map_index >= 0 and m.map_sequence > 0:
+                    from z70_mapping.decoder import decode_map
+                    decoded = decode_map(bytes(m.raw))
+                    with self.sample_lock:
+                        cur_state = self.samples.get('state')
+                    status_vals = (self.dashboard.state or {}).get('telemetry', {}).get('status', {}).get('value') or {}
+                    locating = bool(status_vals.get('is_locating', 0)) or bool(status_vals.get('is_exploring', 0))
+                    r_state = cur_state[0].robot_state if cur_state and cur_state[0].robot_state_known else status_vals.get('state')
+                    if (decoded.robot is not None and len(decoded.robot) == 3 and
+                            all(v is not None and math.isfinite(v) for v in decoded.robot) and
+                            bool(decoded.rooms) and len(decoded.pixels) > 64 and
+                            not locating and r_state not in (22,)):
+                        m.active_floor_verified = True
+                        m.current_pose_verified = True
             except (requests.RequestException, ValueError, TypeError, KeyError):
                 self.diagnostic('map', 'ROOM_LABELS_UNAVAILABLE')
             with self.sample_lock:
                 old = self.samples.get('map')
-                if (old and old[0].evidence.valid and not old[0].evidence.stale and
+                if (not refresh and old and old[0].evidence.valid and not old[0].evidence.stale and
                     old[0].evidence.session_id == m.evidence.session_id and
                     old[0].raw == m.raw and old[0].rooms == m.rooms):
                     return old[0]  # Preserve original evidence when cache did not change.
@@ -488,7 +502,8 @@ class Driver(CommandSurfaces, Node):
         while not self.stop_event.is_set():
             try: self.read_map(refresh=not first)
             except BlockingIOError: pass
-            except (requests.RequestException, ValueError, KeyError, TypeError): self.gap('map')
+            except (requests.RequestException, ValueError, KeyError, TypeError):
+                if first: self.gap('map')
             first = False
             self.stop_event.wait(self.map_interval)
 
@@ -497,12 +512,21 @@ class Driver(CommandSurfaces, Node):
         try:
             response.snapshot = self.read_map(refresh=True).evidence
             outcome.dispatch = 1; outcome.response = 1
-        except BlockingIOError:
-            outcome.error_code = 'BUSY'
-        except (requests.RequestException, ValueError, KeyError, TypeError):
-            self.gap('map'); outcome.dispatch = 2; outcome.response = 3; outcome.error_code = 'OBSERVATION_GAP'
+        except (BlockingIOError, requests.RequestException, ValueError, KeyError, TypeError):
             with self.sample_lock:
-                if 'map' in self.samples: response.snapshot = self.samples['map'][0].evidence
+                cached = self.samples.get('map')
+            if cached and cached[0].evidence.valid and not cached[0].evidence.stale:
+                m = deepcopy(cached[0])
+                self.header(m, 'map')
+                m.evidence = self.evidence('map', kind=2, session=m.evidence.session_id)
+                m.evidence.received_at = cached[0].evidence.received_at
+                m.evidence.reason = cached[0].evidence.reason
+                self.remember('map', m, self.pub_map)
+                response.snapshot = m.evidence
+                outcome.dispatch = 1; outcome.response = 1
+            else:
+                self.gap('map'); outcome.dispatch = 2; outcome.response = 3; outcome.error_code = 'OBSERVATION_GAP'
+                if cached: response.snapshot = cached[0].evidence
         outcome.finished_at = host_time(time.time()); response.outcome = outcome
         return response
 

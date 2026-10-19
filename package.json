@@ -13,7 +13,6 @@
     "dev:web": "vite --config apps/web/vite.config.ts",
     "mcp:local": "node apps/mcp/src/mcp-main.ts",
     "test": "node --test adapters/vendor/src/*.test.ts apps/mcp/src/*.test.ts apps/web/tests/*.test.ts",
-    "test:research": "node --test research/*.test.ts research/legacy-ts/*.test.ts",
     "typecheck": "tsc --noEmit && tsc --noEmit -p apps/web/tsconfig.json"
   },
   "devDependencies": {

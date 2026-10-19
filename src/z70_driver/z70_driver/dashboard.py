@@ -106,10 +106,9 @@ class Dashboard:
             ('Robot', 3 if not robot_fresh else 2 if state['error_code'] != 0 else 1 if state['battery'] < 20 else 0,
              state['state_name'] + ' / ' + state['error_name'], state),
             ('Arm estimate', 3 if not self.arm_received or now-self.arm_received >= 5 else 1 if arm['state'] == 'UNKNOWN' else 0,
-             arm['state'] + (' — ' + arm['unknown_reason'] if arm['unknown_reason'] else ''),
-             {**arm, 'source': 'dead-reckoned; no joint feedback', 'visual': 'UNKNOWN/IN_ROBOT is a folded placeholder'}),
+             arm['state'] + (' — ' + arm['unknown_reason'] if arm['unknown_reason'] else ''), arm),
             ('Last RC command', 3 if not self.commands_received else 1 if command['outcome'] not in ('sent/received', 'none/none', 'enum:1/enum:1', 'enum:0/enum:0') else 0,
-             command['method'] + ' / ' + command['outcome'], {**command, 'physical_completion': 'unverified', 'scope': 'recent app_rc_* only'}),
+             command['method'] + ' / ' + command['outcome'], command),
             ('Calibration', 3 if not self.cal_received else 0 if calibration['camera_x_ready'] else 1,
              'camera offset fit ready' if calibration['camera_x_ready'] else 'camera offset fit not ready', calibration),
             ('Visual odometry', 3 if not self.odom_received or now-self.odom_received >= 5 else 1 if calibration['vo_state'] == 'rejected' else 0,
@@ -126,7 +125,6 @@ class Dashboard:
     def publish(self, now=None):
         now = time.time() if now is None else now
         state, arm, command, calibration = self.values(now)
-        # Stale source values are diagnostic history, not live scalar observations.
         for prefix, values, received, ttl in [('/z70/', state, self.state_received, 5),
                         ('/z70/arm/', arm, self.arm_received, 5),
                         ('/z70/last_command/', command, self.commands_received, math.inf),
@@ -139,6 +137,6 @@ class Dashboard:
                     if key in ('connected', 'status_valid'): value = False
                     elif key == 'connection_state': value = 'unavailable'
                     elif key in ('cleaning','returning','charging'): continue
-                if kind == Bool and value is None: continue  # Unknown is not false.
+                if kind == Bool and value is None: continue
                 self.publishers[topic].publish(kind(data=value))
         self.diagnostics.publish(self.message(now))

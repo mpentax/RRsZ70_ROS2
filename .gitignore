@@ -1,16 +1,10 @@
 node_modules/
 .local/
-# Private V1 map bytes must never enter version control (including alternate state directories).
-**/maps/*.bin
-**/v1-*.bin
-.env
-.env.*
-*.log
-.DS_Store
 dist/
 *.tsbuildinfo
+.DS_Store
 
-# Local state, captured media, credentials, and experimental artifacts at any depth.
+# Local state, captured media, and credentials
 **/.local/
 **/.env
 **/.env.*
@@ -38,25 +32,17 @@ dist/
 **/*.png
 **/*.webp
 **/*.mp4
-**/device.json
-**/camera.json
 **/service-token
-**/motion-hold.json
 **/map-cache.json
-**/home.json
-**/arm-interlock.json
+**/pairing.json
 **/*credentials*.json
 **/*secret*.json
 **/*private-key*
 **/*camera-pin*
 **/id_rsa*
 **/id_ed25519*
-!adapters/vendor/src/credentials.ts
-!adapters/vendor/src/credentials.test.ts
-!adapters/vendor/src/secret-store.ts
-!adapters/vendor/src/secret-store.test.ts
 
-**/pairing.json
+# Python / ROS 2 / Pixi build artifacts
 __pycache__/
 .pytest_cache/
 **/.venv/
@@ -74,21 +60,4 @@ __pycache__/
 *.onnx
 *.pyc
 *.ply
-ros2/build/
-ros2/install/
-ros2/log/
-ros2/build-*/
-ros2/install-*/
-ros2/log-*/
-ros2/.pixi/
-ros2/COLCON_IGNORE
 opencode.json
-# Local calibration/trial runs and historical session archives.
-calibration/
-docs/validation/
-docs/archive/
-docs/claude-review/
-docs/migration/
-deploy/go2rtc-login-fix.md
-src/z70_bringup/foxglove/live-validation.json
-src/z70_bringup/foxglove/bringup-validation.log

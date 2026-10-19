@@ -8,20 +8,7 @@ import { jpegImageDimensions, CAMERA_NAMES, rosRoute } from "@rrsz70/http-contra
 
 let frameDirectory: string | undefined;
 let previousFrame: string | undefined;
-/** Operating doctrine every connected model receives, independent of the host's prompts or skills. */
-export const OPERATOR_INSTRUCTIONS = `You are operating a real Roborock Saros Z70 for Michael. Keep the task moving; be careful, not rigid.
-
-Stop motion only for: a robot error_code != 0, motion you did not command or much larger than commanded, a person/pet/obstacle entering the path, the robot starting to clean or dock unexpectedly, or Michael saying stop. Stopping means app_rc_stop (and app_rc_end when done) and telling Michael why.
-
-NOT reasons to stop or abort a task: a rejected or noisy odometry/VO measurement, a missing or slow camera frame, a single transport error, robot state 39 after RC (normal remote mode), or "release unverified". Record it, then continue with the next step.
-
-Ambiguous outcome (dispatch "unknown"): the command may have run. Resolve it by observing (odometry delta, a fresh camera frame, status), not by giving up. If it ran, count it and continue. If it clearly did not run, send it again. If you still can't tell, skip that step and continue. Never re-send a move blindly without looking first.
-
-Retries: reads, app_rc_stop/end/start are retried once by RoboClaw already. Retry them again yourself if needed. Moves: retry after you have observed that the previous attempt did not run.
-
-Calibration is ongoing: every RC move is paired with odometry by ROS to refine turn/forward gains and camera offset. Prefer many small natural moves over special trials. Use deterministic signals (odometry, status, estimates) first and vision for meaning or anomalies, not for every step.
-
-Never put credentials, tokens or PINs in arguments or chat.`;
+export const OPERATOR_INSTRUCTIONS = "Local MCP interface for the Roborock Saros Z70 via the ROS 2 web gateway. Never include credentials, tokens, or PINs in tool arguments or chat.";
 
 export async function privateMcpFrame(frame: Buffer): Promise<string> {
   if (!frameDirectory) {
@@ -37,8 +24,14 @@ export async function privateMcpFrame(frame: Buffer): Promise<string> {
 }
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { rpcSchema } from "./mcp-actions.ts";
 import { z } from "zod/v4";
+const rpcSchema = {
+  method: z.string().regex(/^[A-Za-z][A-Za-z0-9_]{0,127}$/),
+  params: z.any().optional(),
+  transport: z.enum(["local", "cloud"]).optional(),
+  timeoutMs: z.number().int().min(1).max(30000).optional(),
+  takeover: z.boolean().optional(),
+};
 const MAX_JSON = 16 * 1024 * 1024;
 const MAX_ERROR_JSON = 16 * 1024;
 const MAX_JPEG = 5 * 1024 * 1024;
@@ -190,7 +183,7 @@ const toolError = (error: unknown): CallToolResult => ({ isError: true, content:
 export function createRoboClawMcp(client: RoboClawMcpClient): McpServer {
   const server = new McpServer({ name: "roboclaw-local", version: "0.1.0" }, { instructions: OPERATOR_INSTRUCTIONS });
   server.registerTool("get_state", {
-    title: "Get ROS robot state", description: "Read shared ROS state, connection/battery, camera, arm estimate and typed chassis calibration. Preserves source evidence and stale flags; no extra robot RPC.",
+    title: "Get ROS robot state", description: "Read shared ROS robot state, battery, camera status, arm estimate, and chassis calibration.",
     annotations: READONLY,
   }, async () => {
     try {
@@ -198,26 +191,26 @@ export function createRoboClawMcp(client: RoboClawMcpClient): McpServer {
     } catch (error) { return toolError(error); }
   });
   server.registerTool("refresh_status", {
-    title: "Read shared status", description: "Read the driver-owned ROS observation cache; check evidence age and validity. Acquisition belongs to the ROS driver, not this tool.",
+    title: "Read shared status", description: "Read cached ROS robot status and telemetry.",
     annotations: READONLY,
   }, async () => {
     try { return textResult(await client.request("/api/ros/state")); } catch (error) { return toolError(error); }
   });
   server.registerTool("get_camera_diagnostics", {
-    title: "Read camera status", description: "Read shared ROS camera/connection evidence. Required account/PIN input and recovery belong in web setup; this never opens a diagnostic session.",
+    title: "Read camera status", description: "Read ROS camera and stream connection status.",
     inputSchema: {}, annotations: READONLY,
   }, async () => {
     try { return textResult(await client.request("/api/ros/state")); } catch (error) { return toolError(error); }
   });
   server.registerTool("select_camera", {
-    title: "Select shared camera", description: "Switch the shared active camera and leave it selected for all consumers. Confirms get_camera_status bit 15 even when app_change_camera never replies. Gripper needs pickup mode (app_pick_up_enter_exit {flag:2}) with the arm out; this tool does not enter pickup or move the arm.",
+    title: "Select shared camera", description: "Switch the active camera (`front` or `gripper`). Gripper camera requires pickup mode with the arm deployed.",
     inputSchema: { camera: z.enum(["front", "gripper"]) },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (payload) => {
     try { return textResult(await client.request("/api/ros/camera/select", 23000, payload)); } catch (error) { return toolError(error); }
   });
   server.registerTool("get_camera_frame", {
-    title: "Get shared camera frame", description: "Read latest paired ROS JPEG/metadata (maximum age 5 seconds), never opens a preview or selects a lens. Optional camera filters the shared cache; use select_camera explicitly to switch. Retains acquisition identity; receipt time is not exposure or physical lens verification.",
+    title: "Get shared camera frame", description: "Read the latest cached JPEG frame and metadata from the active or specified camera.",
     inputSchema: { camera: z.enum(CAMERA_NAMES).optional() },
     annotations: READONLY,
   }, async ({ camera }) => {
@@ -229,11 +222,11 @@ export function createRoboClawMcp(client: RoboClawMcpClient): McpServer {
       if (process.env.ROBOCLAW_MCP_IMAGE_HANDOFF === "private-file") {
         return textResult({ ...metadata,
           imagePath: await privateMcpFrame(frame), temporaryPrivateFile: true,
-          note: "Read imagePath with the local image reader. Receipt time is not exposure time; lens and arm pose remain unverified." });
+          note: "Read imagePath with the local image reader." });
       }
       return {
         content: [
-          { type: "text", text: JSON.stringify({ ...metadata, note: "Receipt time is not camera exposure time; lens identity and arm pose are unverified." }) },
+          { type: "text", text: JSON.stringify(metadata) },
           { type: "image", data: frame.toString("base64"), mimeType: "image/jpeg" },
         ],
       };
@@ -241,21 +234,21 @@ export function createRoboClawMcp(client: RoboClawMcpClient): McpServer {
   });
   server.registerTool("get_arm_estimate", {
     title: "Get arm pose estimate",
-    description: "Read ROS ArmEstimate: named joint radians, REP-103 wrist metres, explicit validity/source/uncertainty. Command-derived estimates are not sensed joints; UNKNOWN must not authorize planning.",
+    description: "Read ROS ArmEstimate (joint radians, REP-103 wrist coordinates, and validity).",
     inputSchema: {}, annotations: READONLY,
   }, async () => {
     try { const state = await client.request("/api/ros/state") as { arm: unknown }; return textResult(state.arm); } catch (error) { return toolError(error); }
   });
   server.registerTool("set_arm_anchor", {
     title: "Set arm anchor",
-    description: "Re-anchor the arm estimate after confirming the pose by looking (camera or operator): stowed, deployed (vendor working pose right after arm-out), or unknown. Does not move the robot.",
+    description: "Set the arm estimator anchor (`stowed`, `deployed`, or `unknown`) without moving the robot.",
     inputSchema: { anchor: z.enum(["stowed", "deployed", "unknown"]), reason: z.string().regex(/^[A-Za-z0-9 _.-]{0,64}$/).optional() },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (payload) => {
     try { return textResult(await client.request("/api/ros/arm/anchor", 5000, payload)); } catch (error) { return toolError(error); }
   });
   server.registerTool("robot_rpc", {
-    title: "Advanced robot RPC", description: `Advanced vendor method/params through the SAME ROS scheduler and estimator as web/actions. No task bypass, no gateway retries. Explicit takeover cancels/stops the old task before dispatch. Outcomes preserve command/attempt IDs and UNKNOWN dispatch; replies do not establish physical completion. Device selection and credentials belong in web setup.\n\nOPERATING RULES:\n${OPERATOR_INSTRUCTIONS}`,
+    title: "Advanced robot RPC", description: "Send a vendor RPC method and params through the ROS scheduler.",
     inputSchema: rpcSchema, annotations: ACTUATION,
   }, async (payload) => {
     try {
@@ -278,25 +271,25 @@ export function createRoboClawMcp(client: RoboClawMcpClient): McpServer {
     z.object({kind: z.literal('move_arm'), goal: z.object({m3_deg: z.number().min(90).max(270), m4_deg: z.number().min(35).max(170), m5_deg: z.number().min(0).max(155)}).strict()}).strict(),
     z.object({kind: z.literal('grasp_and_lift'), goal: z.object({lift_steps: z.number().int().min(0).max(10), verify_color: z.string().regex(/^[A-Za-z0-9_-]{0,32}$/)}).strict()}).strict(),
     z.object({kind: z.literal('release_and_stow'), goal: z.object({put_down: z.boolean()}).strict()}).strict()]);
-  server.registerTool('start_task', {title: 'Start bounded ROS action', description: 'Start Pick, DeliverGarment, PatrolCollect or one bounded primitive; returns the ROS goal UUID immediately. Garment drop coordinates are map metres and mean TEMPORARY_STAGING_DROP, not washing-machine confirmation. Towing is unqualified by default; skips and partial completion are explicit. Web and MCP share this ID, numeric phase, feedback and result. dry_run=true is observation-only. No motion is replayed after an uncertain response; get_task/list_tasks reconcile it.', inputSchema: {task: goalSchema}, annotations: ACTUATION}, async ({task}) => {
+  server.registerTool('start_task', {title: 'Start bounded ROS action', description: 'Start a ROS action or manipulation primitive and return its goal UUID.', inputSchema: {task: goalSchema}, annotations: ACTUATION}, async ({task}) => {
     try {return textResult(await client.request('/api/ros/tasks', 5000, task));} catch (error) {return toolError(error);}
   });
-  server.registerTool('list_tasks', {title:'List shared tasks', description:'Read shared ROS task handles including tasks started in web. UNKNOWN is not a completed or replayable task.', annotations:READONLY}, async () => {
+  server.registerTool('list_tasks', {title:'List shared tasks', description:'List active and recent ROS tasks.', annotations:READONLY}, async () => {
     try {return textResult(await client.request('/api/ros/tasks'));} catch (error) {return toolError(error);}
   });
-  server.registerTool('get_task', {title:'Get shared task', description:'Read the identical ROS goal ID/phase/result used by the web UI.', inputSchema:{id:idSchema}, annotations:READONLY}, async ({id}) => {
+  server.registerTool('get_task', {title:'Get shared task', description:'Read status, phase, and result for a ROS task UUID.', inputSchema:{id:idSchema}, annotations:READONLY}, async ({id}) => {
     try {return textResult(await client.request(`/api/ros/tasks/${id}`));} catch (error) {return toolError(error);}
   });
-  server.registerTool('cancel_task', {title:'Cancel ROS task', description:'Request standard action cancellation and bounded stop through ROS. Poll get_task for terminal result; cancellation/stop ACK does not prove motor cessation.', inputSchema:{id:idSchema}, annotations:ACTUATION}, async ({id}) => {
+  server.registerTool('cancel_task', {title:'Cancel ROS task', description:'Request cancellation of a ROS task by UUID.', inputSchema:{id:idSchema}, annotations:ACTUATION}, async ({id}) => {
     try {return textResult(await client.request(`/api/ros/tasks/${id}/cancel`, 5000, {}));} catch (error) {return toolError(error);}
   });
-  server.registerTool('stop', {title:'Priority stop', description:'ROS priority stop independent of long tasks and camera waits. Scope BASE=1 ARM=2 ALL=3. No automatic stow/open. Cessation remains unverified without independent observation.', inputSchema:{scope:z.number().int().min(1).max(3).default(3)}, annotations:ACTUATION}, async (payload) => {
+  server.registerTool('stop', {title:'Priority stop', description:'Send a priority stop through ROS (scope: 1=BASE, 2=ARM, 3=ALL).', inputSchema:{scope:z.number().int().min(1).max(3).default(3)}, annotations:ACTUATION}, async (payload) => {
     try {return textResult(await client.request('/api/ros/stop', 18000, payload));} catch (error) {return toolError(error);}
   });
-  server.registerTool('control_session', {title:'Stop or resume control and streams', description:'enabled=false stops motion, exits remote viewing and suspends shared acquisition until explicit enabled=true. Inspect streams_released and outcomes; cessation is not physically observed.', inputSchema:{enabled:z.boolean()}, annotations:ACTUATION}, async (payload) => {
+  server.registerTool('control_session', {title:'Stop or resume control and streams', description:'Enable or suspend robot control and shared streams.', inputSchema:{enabled:z.boolean()}, annotations:ACTUATION}, async (payload) => {
     try {return textResult(await client.request('/api/ros/control/session', 40000, payload));} catch (error) {return toolError(error);}
   });
-  server.registerTool('get_map', {title:'Read shared ROS map', description:'Read standard ROS OccupancyGrid. Cache receipt does not prove source freshness or current localisation.', annotations:READONLY}, async () => {
+  server.registerTool('get_map', {title:'Read shared ROS map', description:'Read the current ROS OccupancyGrid map.', annotations:READONLY}, async () => {
     try {return textResult(await client.request('/api/ros/map'));} catch (error) {return toolError(error);}
   });
   return server;

@@ -122,23 +122,3 @@ def test_restart_is_unreconciled_even_if_saved_stowed(tmp_path):
     assert ArmEstimator(path=path).snapshot()['restored']
     path.write_text('{broken');assert ArmEstimator(path=path).snapshot()['state']=='UNKNOWN'
 
-
-def test_recorded_rotation_and_status_replay():
-    fixture=Path(__file__).parent/'fixtures/phase3-arm-recorded.json';data=json.loads(fixture.read_text())
-    clock=[data['records'][0]['at']/1000-1];e=deployed(lambda:clock[0]);e.set_anchor(data['initial_anchor'])
-    count=0;max_sigma=0
-    for row in data['records']:
-        clock[0]=row['at']/1000
-        if 'status' in row:e.observe_status(row['status'],row['at'])
-        else:
-            e.observe(row['method'],row['params'],row['outcome']);count+=1
-        d=e.snapshot();max_sigma=max(max_sigma,d['sigmaDeg']['m3'])
-        if row.get('method')=='app_arm_in_compartment' and row['outcome']=='received':assert d['state']=='IN_ROBOT'
-        if d['state'] not in ('IN_ROBOT','UNKNOWN'):
-            assert d['wrist']['x']<=.367 and not d['restored']
-    assert len(data['records'])==78 and count>25 and max_sigma>0
-    assert e.snapshot()['state']=='IN_ROBOT' and e.snapshot()['wrist'] is None
-    # Sanitation/provenance contract: no original device IDs, images or arbitrary results.
-    assert all(set(r)<= {'at','method','params','outcome','status'} for r in data['records'])
-    root=Path(__file__).resolve().parents[3];source=root/data['source']
-    if source.is_file():assert hashlib.sha256(source.read_bytes()).hexdigest()==data['source_sha256']
