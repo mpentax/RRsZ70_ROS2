@@ -17,7 +17,7 @@ test("MCP exposes generic RPC and observation tools without challenges or prior 
   const [a, b] = InMemoryTransport.createLinkedPair();
   try {
     await server.connect(b); await client.connect(a);
-    assert.deepEqual((await client.listTools()).tools.map(t => t.name).sort(), ["cancel_task", "control_session", "get_arm_estimate", "get_camera_diagnostics", "get_camera_frame", "get_map", "get_state", "get_task", "list_tasks", "refresh_status", "robot_rpc", "select_camera", "set_arm_anchor", "start_task", "stop"]);
+    assert.deepEqual((await client.listTools()).tools.map(t => t.name).sort(), ["cancel_task", "control_session", "get_arm_estimate", "get_camera_diagnostics", "get_camera_frame", "get_map", "get_state", "get_task", "list_goals", "list_tasks", "refresh_status", "robot_rpc", "select_camera", "set_arm_anchor", "start_task", "stop"]);
     const params = { arbitrary: [1, false, { raw: "value" }] };
     for (const takeover of [false, true]) {
       const reply = await client.callTool({ name: "robot_rpc", arguments: { method: "any_vendor_method", params, transport: "cloud", timeoutMs: 3456, takeover } });

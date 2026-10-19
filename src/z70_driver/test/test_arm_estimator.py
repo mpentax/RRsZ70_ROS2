@@ -1,4 +1,4 @@
-"""Replay intended legacy semantics; no claim of measured joints or lift."""
+"""Unit tests for ArmEstimator command and status tracking."""
 import hashlib
 import json
 import math
@@ -22,7 +22,6 @@ def test_unknown_start_and_deploy_requires_unrestored_stow():
 
 
 def test_nominal_vendor_endpoint_is_not_the_cad_wrist():
-    # Independent source arithmetic avoids a self-referential estimator/FK test.
     a1, a2 = map(math.radians, (120, -15))
     x = .0475 + .1775*math.cos(a1) + .205*math.cos(a2)
     y = .14 + .1775*math.sin(a1) + .205*math.sin(a2)
@@ -31,7 +30,6 @@ def test_nominal_vendor_endpoint_is_not_the_cad_wrist():
     assert e.observe('app_arm_direction_move', {'direction': 3}, 'received')
     d = e.snapshot()
     assert d['wrist'] == pytest.approx(dict(x=x+.04, y=y))
-    # Decode joints independently back into the vendor endpoint after hand IK.
     j = d['joints']
     u, v = map(math.radians, (270-j['m3'], j['m4']-j['m3']+90))
     assert .0475+.1775*math.cos(u)+.205*math.cos(v) == pytest.approx(x+.04)
@@ -79,19 +77,25 @@ def test_unknown_jog_cannot_recover_without_stow_and_grip_never_lifts():
     assert e.snapshot()['state']=='UNKNOWN'
     assert not e.observe('app_arm_move',dict(m=[0,0,1]),'received')
     e.observe('app_arm_in_compartment',{},'received');assert e.snapshot()['state']=='IN_ROBOT'
+    e=deployed();wrist=e.snapshot()['wrist']
+    e.observe('app_pick_up_enter_exit',dict(flag=1),'received')
+    assert not e.observe('app_grip',dict(flag=0),'unknown')
+    assert e.snapshot()['state']=='WORKING_POS' and e.snapshot()['joints']['m6']==90
+    assert e.observe('app_grip',dict(flag=0),'received')
+    assert e.snapshot()['state']=='WORKING_POS' and e.snapshot()['joints']['m6']==0 and e.snapshot()['wrist']==wrist
     for outcome in ('received','unknown'):
         e=deployed();j=e.snapshot()['joints']
         e.observe('app_open_gripper',{},'unknown');assert e.snapshot()['state']=='WORKING_POS'
         e.observe('app_grip',{},outcome)
         assert e.snapshot()['state']=='UNKNOWN' and e.snapshot()['joints']==j and e.snapshot()['wrist'] is None
-        assert 'LIFT' not in e.snapshot()['unknownReason']
+        assert e.snapshot()['unknownReason']=='GRIP_POSE_UNVERIFIED'
 
 
 def test_program_priority_steps_and_autonomous_unknown():
     e=deployed();e.observe('app_start_program',dict(cmd_ids=[
-        dict(cmd_id='arm_joints',value=[0,1,1,0],step=2),dict(cmd_id='delay'),
+        dict(cmd_id='arm_joints',value=[0,1,1,2],step=2),dict(cmd_id='delay'),
         dict(cmd_id='arm_move',direction=1,step=1)]),'received')
-    d=e.snapshot();assert d['stepsSinceAnchor']==3 and d['joints']['m5']==0
+    d=e.snapshot();assert d['stepsSinceAnchor']==3 and d['joints']['m5']==20 and d['joints']['m6']==0
     assert d['wrist']['y']==pytest.approx(forward(150,65)[1][1]+.04)
     e.observe('app_start_program',dict(cmd_ids=[dict(cmd_id='arm_grasp')]),'received')
     assert e.snapshot()['state']=='UNKNOWN'
@@ -103,7 +107,6 @@ def test_status_old_requests_mode_exit_and_official_app_visibility_limits():
     clock=[100.];e=deployed(lambda:clock[0]);clock[0]+=1
     e.observe_status(dict(state=39,common_status=1<<10),101000)
     before=e.snapshot()
-    # Official-app joint movements have no joint feedback and are unobservable.
     e.observe_status(dict(state=39,common_status=1<<10),102000);assert e.snapshot()==before
     e.observe_status(dict(common_status=0),101500);assert e.snapshot()==before
     e.observe_status(dict(common_status=0),103000);assert e.snapshot()['state']=='UNKNOWN'

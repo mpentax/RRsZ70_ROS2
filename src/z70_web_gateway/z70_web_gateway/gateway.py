@@ -4,9 +4,11 @@ from copy import deepcopy
 from functools import partial
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import hmac
+import importlib.util
 import json
 import math
 import os
+from pathlib import Path
 import re
 import socket
 import stat
@@ -157,13 +159,13 @@ GOAL_SPECS = {
 }
 
 
-def goal_message(kind, payload):
-    if kind not in ACTIONS or not isinstance(payload, dict): raise ApiError(400, 'INVALID_INPUT')
-    fields, validate = GOAL_SPECS[kind]
+def goal_message(kind, payload, action_types=ACTIONS, goal_specs=GOAL_SPECS):
+    if kind not in action_types or kind not in goal_specs or not isinstance(payload, dict): raise ApiError(400, 'INVALID_INPUT')
+    fields, validate = goal_specs[kind]
     checked(payload, fields, fields)
     if not validate(payload): raise ApiError(400, 'INVALID_INPUT')
     try:
-        message = ACTIONS[kind][0].Goal()
+        message = action_types[kind][0].Goal()
         set_message_fields(message, payload)
         return message
     except (TypeError, ValueError, AssertionError, AttributeError, OverflowError):
@@ -184,7 +186,11 @@ class Gateway(Node):
         self.samples = {}; self.frames = {}; self.images = {}; self.metadata = {}
         self.tasks = OrderedDict(); self.handles = {}; self.disappeared = {}
         self.group = ReentrantCallbackGroup()
-        self.actions = {k: ActionClient(self, cls, path, callback_group=self.group) for k, (cls, path) in ACTIONS.items()}
+        self.action_types = dict(ACTIONS)
+        self.goal_specs = dict(GOAL_SPECS)
+        self.actions = {k: ActionClient(self, cls, path, callback_group=self.group) for k, (cls, path) in self.action_types.items()}
+        self.custom_goals_directory = Path(self.declare_parameter('custom_goals_directory', str(Path.cwd() / '.local' / 'goals')).value)
+        self._load_custom_goals(self.custom_goals_directory)
         self.ros_clients = {k: self.create_client(cls, path, callback_group=self.group) for k, cls, path in SERVICES}
         qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.subscriptions_owned = [
@@ -197,6 +203,42 @@ class Gateway(Node):
                 self.create_subscription(FrameMetadata, f'/camera/{camera}/metadata', partial(self.meta, camera), 2, callback_group=self.group),
             ]
         self.create_timer(1., self.check_tasks, callback_group=self.group)
+
+    def register_goal_spec(self, kind, action_cls, topic, fields, validator):
+        with self.lock:
+            if kind in self.actions:
+                self.actions[kind].destroy()
+            self.action_types[kind] = (action_cls, topic)
+            self.goal_specs[kind] = (tuple(fields), validator)
+            self.actions[kind] = ActionClient(self, action_cls, topic, callback_group=self.group)
+
+    def _load_custom_goals(self, directory: Path):
+        if not directory or not directory.is_dir():
+            return
+        for path in sorted(directory.glob('*.py')):
+            if path.name.startswith('_'):
+                continue
+            spec = importlib.util.spec_from_file_location(f'z70_gateway_goal_{path.stem}', path)
+            if spec is None or spec.loader is None:
+                continue
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            if hasattr(mod, 'GATEWAY_GOALS'):
+                gateway_goals = mod.GATEWAY_GOALS
+                if isinstance(gateway_goals, dict):
+                    for kind, (action_cls, topic, fields, validator) in gateway_goals.items():
+                        self.register_goal_spec(kind, action_cls, topic, fields, validator)
+                else:
+                    for item in gateway_goals:
+                        if isinstance(item, dict):
+                            self.register_goal_spec(item['kind'], item['action_cls'], item['topic'], item['fields'], item.get('validator', lambda _: True))
+                        else:
+                            kind, action_cls, topic, fields, validator = item
+                            self.register_goal_spec(kind, action_cls, topic, fields, validator)
+            elif hasattr(mod, 'GOAL_SPECS'):
+                for gs in mod.GOAL_SPECS:
+                    validator = getattr(gs, 'gateway_validator', lambda _: True)
+                    self.register_goal_spec(gs.name, gs.action_cls, gs.topic, gs.fields, validator)
 
     def sample(self, key, message):
         with self.lock: self.samples[key] = data(message)
@@ -294,8 +336,8 @@ class Gateway(Node):
     def goal_message(self, body):
         checked(body, ('kind', 'goal'), ('kind', 'goal'))
         kind = body['kind']
-        if not isinstance(kind, str): raise ApiError(400, 'INVALID_INPUT')
-        return kind, ACTIONS[kind][1], ACTIONS[kind][0], goal_message(kind, body['goal'])
+        if not isinstance(kind, str) or kind not in self.action_types: raise ApiError(400, 'INVALID_INPUT')
+        return kind, self.action_types[kind][1], self.action_types[kind][0], goal_message(kind, body['goal'], self.action_types, self.goal_specs)
 
     def validate(self, body):
         try:
@@ -356,7 +398,7 @@ class Gateway(Node):
             with self.lock: return 200, {'map':deepcopy(self.samples.get('map'))}, {}
         if method == 'GET' and path == '/api/ros/goals':
             return 200, {
-                'goals': [{'kind': kind, 'topic': ACTIONS[kind][1], 'action': ACTIONS[kind][0].__name__, 'fields': list(GOAL_SPECS[kind][0])} for kind in ACTIONS],
+                'goals': [{'kind': kind, 'topic': self.action_types[kind][1], 'action': self.action_types[kind][0].__name__, 'fields': list(self.goal_specs[kind][0])} for kind in self.action_types],
                 'context_primitives': list(GOAL_CONTEXT_PRIMITIVES),
             }, {}
         if method == 'POST' and path == '/api/ros/goals/validate':

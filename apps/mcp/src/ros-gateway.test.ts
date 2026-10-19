@@ -52,6 +52,12 @@ test("MCP start_task accepts custom goal kinds and supports validateOnly dry-run
     const path = new URL(String(url)).pathname;
     const payload = options?.body ? JSON.parse(String(options.body)) : undefined;
     calls.push({ path, payload });
+    if (path === "/api/ros/goals") {
+      return Response.json({
+        goals: [{ kind: "pick", topic: "/z70/pick", action: "Pick", fields: ["color", "dry_run"] }],
+        context_primitives: [{ name: "status", signature: "status() -> dict", summary: "Read robot status." }],
+      });
+    }
     if (path === "/api/ros/goals/validate") {
       return Response.json({ valid: true, kind: (payload as { kind: string }).kind, topic: "/z70/custom", action: "Custom" });
     }
@@ -64,6 +70,13 @@ test("MCP start_task accepts custom goal kinds and supports validateOnly dry-run
   try {
     await server.connect(b);
     await client.connect(a);
+
+    const listed = await client.callTool({ name: "list_goals", arguments: {} });
+    assert.notEqual(listed.isError, true);
+    assert.deepEqual(JSON.parse((listed.content as { text: string }[])[0]!.text), {
+      goals: [{ kind: "pick", topic: "/z70/pick", action: "Pick", fields: ["color", "dry_run"] }],
+      context_primitives: [{ name: "status", signature: "status() -> dict", summary: "Read robot status." }],
+    });
 
     const customTask = { kind: "custom_sweep", goal: { radius_m: 1.5, dry_run: true } };
     const validated = await client.callTool({ name: "start_task", arguments: { task: customTask, validateOnly: true } });
@@ -78,6 +91,7 @@ test("MCP start_task accepts custom goal kinds and supports validateOnly dry-run
     const dispatched = await client.callTool({ name: "start_task", arguments: { task: customTask } });
     assert.notEqual(dispatched.isError, true);
     assert.deepEqual(calls, [
+      { path: "/api/ros/goals", payload: undefined },
       { path: "/api/ros/goals/validate", payload: customTask },
       { path: "/api/ros/tasks", payload: customTask },
     ]);

@@ -1,4 +1,4 @@
-"""Sole ROS command/estimate and shared observation owner; private TS transport."""
+"""ROS 2 driver node for robot state, camera frames, maps, and arm estimates."""
 from copy import deepcopy
 import hashlib
 import json

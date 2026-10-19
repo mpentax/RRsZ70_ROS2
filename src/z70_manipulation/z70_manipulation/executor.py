@@ -930,9 +930,6 @@ class Executor:
             if not self.deployed:
                 self.pre_deploy_target = list(tower_spot)
                 self.deploy(settle=True)
-                # Base acquisition already established the front stream. A
-                # redundant selector can contend with the shared image reader;
-                # subsequent observations validate the actual frame tag.
                 self.log('camera_stream_retained', camera='front')
             for tier_idx, move_color in ((2, middle_color), (3, top_color)):
                 self.evidence_prefix = f'tier-{tier_idx}-attempt-1-'
@@ -943,15 +940,11 @@ class Executor:
                 self.log('tier_start', tier=tier_idx, color=move_color, plan=tier_plan)
                 target = self.align_front(move_color)
                 floor_spot = list(target['position'])
-                # Capture the current usable pose before manual opening. This
-                # validated release changes fingers, not wrist; the generic
-                # put_down estimator nevertheless invalidates its wrist record.
                 start_joints = self.current_arm_joints()
                 self.open_jaws()
                 descent = dict(planner.grasp_goal(floor_spot, (190, 65), OBJECT_SIZE_M))
                 self.log('model_descent', tier=tier_idx, **descent)
                 descent_state = [int(x) for x in list(descent['state'])]
-                # Never pass pre-grip labels after Cartesian lift/release moves.
                 self.move_arm((190, 65, 0), start_joints)
                 self.move_arm((descent_state[0], descent_state[1], 0), (190, 65, 0))
                 current = (descent_state[0], descent_state[1])
@@ -960,8 +953,6 @@ class Executor:
                 lift_res = self.grasp_and_lift(lift_steps=lift_steps, verify_color=move_color, floor_spot=floor_spot)
                 if not lift_res['verified']:
                     raise LookupError(f'tier {tier_idx} ({move_color}) lift verification unresolved')
-                # Reacquire only the bottom floor base. Placement aligns it to
-                # the measured held column, never the fixed floor-pick aim.
                 tower_spot = list(self.target('front', base_color)['position'])
                 support_color = base_color if tier_idx == 2 else middle_color
                 placed = self.supported_place(move_color, support_color, base_color, tower_spot, tier_idx)

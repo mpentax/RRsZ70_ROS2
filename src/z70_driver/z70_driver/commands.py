@@ -1,4 +1,4 @@
-"""ROS command surfaces; transport evidence remains backend-owned."""
+"""ROS 2 command action servers and RPC services for z70_driver."""
 from copy import deepcopy
 import json
 import math
@@ -24,7 +24,7 @@ def outcome_ok(outcome):
 
 
 def action_plan(kind, goal):
-    """Validate before scheduling; mappings are vendor directional selections."""
+    """Build the vendor RPC sequence and deadline budget for an action goal."""
     if kind is BasePulse:
         duration = goal.duration.sec + goal.duration.nanosec / 1e9
         if (not all(math.isfinite(x) for x in (goal.linear_mps, goal.angular_radps, duration))

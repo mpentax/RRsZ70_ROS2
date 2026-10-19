@@ -1,9 +1,4 @@
-"""Command-derived nominal vendor geometry, never encoder/visual feedback.
-
-Persistence is a versioned ROS-owned session. Restored joints are history only
-until an explicit anchor; official-app joint jogs are intrinsically unobservable.
-Measured physical transforms and folded display poses do not enter this model.
-"""
+"""Arm pose dead-reckoning estimator from vendor RPC commands and status."""
 from copy import deepcopy
 import json
 import math
@@ -48,7 +43,6 @@ class ArmEstimator:
                 self.data.update(d)
                 self.data['restored'] = True
                 self.data['unknownReason'] = 'RESTORED_UNRECONCILED'
-                # Do not trust serialized geometry; derive only from nominal joints.
                 self._wrist()
             except (OSError, ValueError, TypeError, KeyError):
                 pass
@@ -57,7 +51,6 @@ class ArmEstimator:
         return deepcopy(self.data)
 
     def _wrist(self):
-        # Legacy wire key "wrist": app end_pos, NOT the CAD arm_wrist_link TF.
         d = self.data
         if d['state'] in ('UNKNOWN', 'IN_ROBOT') or d['restored']:
             d['wrist'] = None
@@ -84,8 +77,6 @@ class ArmEstimator:
                 finally: os.close(directory)
                 d.pop('persistenceError',None)
             except OSError:
-                # A robot command may already have run. Do not lose its live
-                # outcome because storage failed or pretend a restart is safe.
                 d['persistenceError']=True
             finally:
                 if name and os.path.exists(name): os.unlink(name)
@@ -93,7 +84,6 @@ class ArmEstimator:
 
     def invalidate(self, reason='UNOBSERVED_MOTION'):
         self.data['state'] = 'UNKNOWN'
-        # Only bounded internal categories are retained, never caller exception text.
         self.data['unknownReason'] = reason if reason in {'STOP_UNVERIFIED','SESSION_CHANGED','COMMAND_STREAM_GAP','UNOBSERVED_MOTION','UNKNOWN_DISPATCH','MODE_EXIT','OPERATOR_ANCHOR','RESTORED_UNRECONCILED','GRIP_POSE_UNVERIFIED','PROGRAM_POSE_UNVERIFIED','INVALID_COMMAND'} else 'UNOBSERVED_MOTION'
         return self._commit('invalidate', self.data['unknownReason'])
 
@@ -115,7 +105,6 @@ class ArmEstimator:
     def _apply(self, joints, n, method):
         current = self.data['joints']
         new_x = vendor_forward(joints['m3'], joints['m4'])[1][0]
-        # Predictive firmware-limit model, not evidence that a particular jog ran.
         if new_x > .367 and new_x > vendor_forward(current['m3'], current['m4'])[1][0]: return False
         self.data.update(joints=joints, state='IN_PROCESS_POS', stepsSinceAnchor=self.data['stepsSinceAnchor']+n)
         fault = vendor_check(joints['m3'],joints['m4'],joints['m5'])
@@ -179,14 +168,19 @@ class ArmEstimator:
                 return False
             if method.startswith(('get_','app_get_','app_rc_')) or method == 'app_change_camera': return False
             if method in ('app_goto_target','stop_goto_target','app_charge','app_pause','app_stop','app_stop_grasp') and self.data['state']=='IN_ROBOT': return False
-            # Advanced unknown programs/operations cannot silently preserve a
-            # planning pose. This does not reject or retry the vendor command.
             return self.invalidate('UNOBSERVED_MOTION')
-        if method == 'app_grip': return self.invalidate('GRIP_POSE_UNVERIFIED') # close is NOT a lift
-        if outcome == 'unknown':
-            if method == 'app_open_gripper': return False # wrist unchanged; no finger certainty
-            return self.invalidate('UNKNOWN_DISPATCH')
         p = params[0] if isinstance(params,list) and len(params)==1 else params
+        if method == 'app_grip':
+            if self.grab_mode == 1 and isinstance(p,dict) and p.get('flag') == 0:
+                if outcome == 'unknown': return False
+                if not self._movable():
+                    if self.data['state'] != 'IN_ROBOT': self.data['joints']['m6'] = 0
+                    return False
+                self.data['joints']['m6'] = 0; return self._commit(method, 'GRIPPER_COMMAND_ONLY')
+            return self.invalidate('GRIP_POSE_UNVERIFIED')
+        if outcome == 'unknown':
+            if method == 'app_open_gripper': return False
+            return self.invalidate('UNKNOWN_DISPATCH')
         if method == 'app_arm_in_compartment': return self._anchor('IN_ROBOT',method)
         if method == 'app_arm_out_compartment':
             if self.data['state']=='IN_ROBOT' and not self.data['restored']:
@@ -217,10 +211,12 @@ class ArmEstimator:
                 elif cmd == 'arm_out' and self.data['state']=='IN_ROBOT' and not self.data['restored']: changed = self._anchor('WORKING_POS',method) or changed
                 elif cmd in ('arm_grasp','arm_putdown'): changed = self.invalidate('PROGRAM_POSE_UNVERIFIED') or changed
                 elif cmd == 'arm_joints':
-                    v=c.get('value',[]); idx=next((i for i,x in enumerate(v[:4]) if type(x) in (int,float) and x in (1,2)),None) if isinstance(v,list) else None
-                    if idx is not None and idx<3: changed = self._joints([v[idx] if i==idx else 0 for i in range(3)],n,method) or changed
-                    elif idx==3 and self._movable():
-                        self.data['joints']['m6']=90 if v[3]==1 else 0; changed=self._commit(method,'GRIPPER_COMMAND_ONLY') or changed
+                    v = c.get('value', [])
+                    if isinstance(v, list):
+                        if any(type(x) in (int, float) and x in (1, 2) for x in v[:3]):
+                            changed = self._joints(v[:3], n, method) or changed
+                        if len(v) >= 4 and type(v[3]) in (int, float) and v[3] in (1, 2) and self._movable():
+                            self.data['joints']['m6'] = 90 if v[3] == 1 else 0; changed = self._commit(method, 'GRIPPER_COMMAND_ONLY') or changed
                 elif cmd == 'arm_move': changed = self._hand(c.get('direction'),n,method) or changed
                 elif cmd not in ('delay','sound','chassis_move','chassis_rotate'): changed=self.invalidate('PROGRAM_POSE_UNVERIFIED') or changed
             return changed

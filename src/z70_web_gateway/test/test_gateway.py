@@ -192,6 +192,38 @@ def test_validation_token_and_closed_error_contract(system, tmp_path):
     with pytest.raises(OSError): read_token(link)
 
 
+def test_dynamic_custom_goal_registration_and_validation(system, tmp_path):
+    gateway = system['gateway']; request = system['request']
+    gateway.register_goal_spec(
+        'custom_pick',
+        Pick,
+        '/z70/custom_pick',
+        ('color', 'dry_run'),
+        lambda p: p['color'] in ('yellow', 'blue') and type(p['dry_run']) is bool,
+    )
+    plugin = tmp_path / 'plugin_goal.py'
+    plugin.write_text(
+        "from z70_interfaces.action import Pick\n"
+        "GATEWAY_GOALS = {'plugin_pick': (Pick, '/z70/plugin_pick', ('color', 'dry_run'), lambda p: p['color'] == 'yellow' and type(p['dry_run']) is bool)}\n"
+    )
+    gateway._load_custom_goals(tmp_path)
+    catalog = request('GET', '/api/ros/goals').json()
+    assert any(
+        g['kind'] == 'custom_pick' and g['topic'] == '/z70/custom_pick' and g['action'] == 'Pick' and g['fields'] == ['color', 'dry_run']
+        for g in catalog['goals']
+    )
+    assert any(
+        g['kind'] == 'plugin_pick' and g['topic'] == '/z70/plugin_pick' and g['action'] == 'Pick' and g['fields'] == ['color', 'dry_run']
+        for g in catalog['goals']
+    )
+    valid = request('POST', '/api/ros/goals/validate', {'kind': 'custom_pick', 'goal': {'color': 'yellow', 'dry_run': True}})
+    assert valid.status_code == 200 and valid.json() == {'valid': True, 'kind': 'custom_pick', 'topic': '/z70/custom_pick', 'action': 'Pick'}
+    invalid = request('POST', '/api/ros/goals/validate', {'kind': 'custom_pick', 'goal': {'color': 'purple', 'dry_run': True}})
+    assert invalid.status_code == 400 and invalid.json()['valid'] is False and invalid.json()['error'] == 'INVALID_INPUT'
+    plugin_valid = request('POST', '/api/ros/goals/validate', {'kind': 'plugin_pick', 'goal': {'color': 'yellow', 'dry_run': True}})
+    assert plugin_valid.status_code == 200 and plugin_valid.json() == {'valid': True, 'kind': 'plugin_pick', 'topic': '/z70/plugin_pick', 'action': 'Pick'}
+
+
 def test_end_control_session_stops_motion_and_blocks_reacquisition_until_resume(system):
     request = system['request']
     system['hang'] = True

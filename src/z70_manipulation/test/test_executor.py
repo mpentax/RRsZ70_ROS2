@@ -239,6 +239,7 @@ def test_curated_actions_compose_into_full_verified_pick(fake, tmp_path):
     assert 'app_open_gripper' not in methods and 'app_arm_move' in methods
     assert 'app_grip' in methods and methods.count('app_arm_direction_move') == 2
     assert 'app_put_down' in methods and 'app_arm_in_compartment' in methods
+    assert methods.index('app_grip') < methods.index('app_arm_direction_move') < methods.index('app_arm_in_compartment')
     rows = [json.loads(line) for line in (tmp_path / 'run/timeline.jsonl').read_text().splitlines()]
     assert all('fake-test-token' not in json.dumps(r) for r in rows)
 

@@ -298,6 +298,9 @@ export function createRoboClawMcp(client: RoboClawMcpClient): McpServer {
     z.object({kind: z.literal('release_and_stow'), goal: z.object({put_down: z.boolean()}).strict()}).strict(),
   ]).or(z.object({ kind: z.string().min(1) }).passthrough());
   const goalSchema = taskSchema;
+  server.registerTool('list_goals', {title: 'List ROS goals and GoalContext primitives', description: 'List all registered ROS 2 action goals, their required fields, and GoalContext authoring primitives.', annotations: READONLY}, async () => {
+    try {return textResult(await client.listGoals());} catch (error) {return toolError(error);}
+  });
   server.registerTool('start_task', {title: 'Start bounded ROS action', description: 'Start a ROS action or manipulation primitive and return its goal UUID.', inputSchema: {task: goalSchema, validateOnly: z.boolean().optional()}, annotations: ACTUATION}, async ({task, validateOnly}) => {
     try {return textResult(validateOnly === true ? await client.validateGoal(task) : await client.startTask(task));} catch (error) {return toolError(error);}
   });
