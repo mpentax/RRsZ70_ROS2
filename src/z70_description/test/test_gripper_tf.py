@@ -1,4 +1,4 @@
-"""CAD camera chain through real robot_state_publisher; no physical accuracy claim."""
+"""Gripper camera, TCP, and marker TF verification through robot_state_publisher."""
 import time
 import numpy as np
 import pytest

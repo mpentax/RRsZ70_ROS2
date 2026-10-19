@@ -1,4 +1,4 @@
-"""Passive ongoing RC/odom calibration. Never issues commands or stops a task."""
+"""Online RC/odometry chassis pulse gain and camera offset calibration."""
 from collections import deque
 import json
 import hashlib
@@ -71,7 +71,7 @@ class OnlineCalibration:
             if any(p.get('rejected',False) for p in points): self.skip('rejected odom'); continue
             offsets={p.get('camera_x_m') for p in points}
             if None in offsets and now<settled+5:
-                self.pending.append(command); continue  # Wait for stamp-matched status callback.
+                self.pending.append(command); continue
             if None in offsets or len(offsets)!=1: self.skip('unknown/changing odom camera offset'); continue
             interrupted=False
             for event in self.events:
@@ -121,7 +121,7 @@ class OnlineCalibration:
     def save(self):
         payload=dict(version=1,samples=self.samples,seen=self.seen,seeded=self.seeded,**self.summary())
         if payload==self._saved_payload:
-            return  # Restart/timer publication must not refresh historical fit evidence.
+            return
         updated_at=time.time()
         content=(json.dumps(dict(payload,updated_at=updated_at),indent=2,allow_nan=False)+'\n').encode()
         self.path.parent.mkdir(parents=True,exist_ok=True)
@@ -136,7 +136,6 @@ class OnlineCalibration:
         finally:
             if temporary is not None: temporary.unlink(missing_ok=True)
         self.updated_at=updated_at; self.calibration_id=hashlib.sha256(content).hexdigest()
-        # Roundtrip detaches lists which will continue mutating in memory.
         self._saved_payload=json.loads(content); self._saved_payload.pop('updated_at')
     def seed(self,root):
         root=Path(root)
@@ -154,11 +153,7 @@ class OnlineCalibration:
 
 
 class CommandStream:
-    """Join one dispatch-call start to one reply; never count finished/retry twice.
-
-    Dispatch-call time is an approximate command-time origin, not confirmed wire time.
-    Event gaps invalidate pending pairing instead of reconstructing missing history.
-    """
+    """Pair dispatch-start and reply CommandEvents by attempt_id."""
     def __init__(self, estimator):
         self.estimator=estimator; self.session=None; self.sequence=None; self.attempts={}
 

@@ -1,8 +1,8 @@
 /** Transport-free HTTP/media contracts shared by the vendor facade and MCP. */
 export const CAMERA_NAMES = ["front", "left", "right", "back", "gripper", "depth", "ir", "structured-light"] as const;
 const ID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
-const GET = new RegExp(`^/api/ros/(state|map|tasks(?:/${ID})?)$`);
-const POST = new RegExp(`^/api/ros/(frame|stop|control/session|rpc|camera/select|arm/anchor|tasks(?:/${ID}/cancel)?)$`);
+const GET = new RegExp(`^/api/ros/(state|map|goals|tasks(?:/${ID})?)$`);
+const POST = new RegExp(`^/api/ros/(frame|stop|control/session|rpc|camera/select|arm/anchor|goals/validate|tasks(?:/${ID}/cancel)?)$`);
 export function rosRoute(method: string, path: string): boolean {
   return (method === "GET" ? GET : method === "POST" ? POST : /$a/).test(path);
 }
@@ -10,7 +10,6 @@ export type ImageDimensions = Readonly<{ width: number; height: number }>;
 function requireValue(condition: boolean, message: string): asserts condition {
   if (!condition) throw new Error(`Camera observation: ${message}.`);
 }
-/** Header inspection only; does not prove image freshness or decode pixels. */
 export function jpegImageDimensions(jpeg: Uint8Array): ImageDimensions {
   requireValue(jpeg instanceof Uint8Array && jpeg.length >= 4 && jpeg[0] === 0xff && jpeg[1] === 0xd8 &&
     jpeg[jpeg.length - 2] === 0xff && jpeg[jpeg.length - 1] === 0xd9, "incomplete JPEG");

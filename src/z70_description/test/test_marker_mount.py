@@ -1,4 +1,4 @@
-"""ID68 CAD-face registration; not an independent anatomical calibration."""
+"""Pincher ArUco ID68 marker mount pose and rotation recovery tests."""
 from pathlib import Path
 import xml.etree.ElementTree as ET
 

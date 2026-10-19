@@ -1,4 +1,4 @@
-"""Actual robot_state_publisher TF of the CAD wrist; not physical metrology."""
+"""Wrist TF verification through robot_state_publisher."""
 import os
 from pathlib import Path
 import signal

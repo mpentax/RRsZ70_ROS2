@@ -28,7 +28,7 @@ interface RequestOptions {
 
 async function request<T>(path: string, options: RequestOptions,
   consume: (response: Response) => Promise<T>): Promise<T> {
-  const isAction = options.action ?? /^\/api\/(arm\/action|chassis\/(enable|input|stop|cancel-task))$/.test(path);
+  const isAction = options.action ?? false;
   if (options.signal?.aborted && isAction) {
     throw new ApiError("Request cancelled before dispatch; no command was sent.", 0, "rejected");
   }
@@ -100,16 +100,6 @@ export function json<T>(path: string, options: RequestOptions = {}): Promise<T> 
 export function deleteSession(signal?: AbortSignal): Promise<void> {
   return request("/api/session", { method: "DELETE", signal }, async (response) => {
     await response.body?.cancel();
-  });
-}
-
-export function cachedMapImage(signal: AbortSignal): Promise<Blob> {
-  return request("/api/map/cache/image", { method: "GET", signal }, async (response) => {
-    const format = response.headers.get("content-type")?.split(";")[0]?.trim();
-    if (format !== "image/png") throw new Error("The cached map returned an unexpected image format.");
-    const image = await response.blob();
-    if (!image.size || image.size > 10 * 1024 * 1024) throw new Error("The cached map image is empty or exceeds 10 MiB.");
-    return image;
   });
 }
 

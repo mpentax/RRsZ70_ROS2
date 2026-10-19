@@ -6,6 +6,19 @@ import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
 import { jpegImageDimensions, CAMERA_NAMES, rosRoute } from "@rrsz70/http-contracts";
 
+export type TaskInput = { kind: string; goal?: Record<string, unknown>; [key: string]: unknown };
+export interface GoalCatalogResponse {
+  goals: { kind: string; topic: string; action: string; fields: string[] }[];
+  context_primitives?: { name: string; signature: string; summary: string }[];
+}
+export interface GoalValidationResponse {
+  valid: boolean;
+  kind?: string;
+  topic?: string;
+  action?: string;
+  error?: string;
+}
+
 let frameDirectory: string | undefined;
 let previousFrame: string | undefined;
 export const OPERATOR_INSTRUCTIONS = "Local MCP interface for the Roborock Saros Z70 via the ROS 2 web gateway. Never include credentials, tokens, or PINs in tool arguments or chat.";
@@ -37,7 +50,7 @@ const MAX_ERROR_JSON = 16 * 1024;
 const MAX_JPEG = 5 * 1024 * 1024;
 const READONLY = { readOnlyHint: true, destructiveHint: false, openWorldHint: false } as const;
 const ACTUATION = { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false } as const;
-const GET_PATHS = new Set(["/api/ros/state", "/api/ros/map", "/api/ros/tasks"]);
+const GET_PATHS = new Set(["/api/ros/state", "/api/ros/map", "/api/ros/goals", "/api/ros/tasks"]);
 /** Refuse remote origins and injected URLs; the service credential must stay on this host. */
 export function mcpServiceOrigin(value: string): URL {
   let url: URL;
@@ -134,6 +147,18 @@ export class RoboClawMcpClient {
     if (contentType !== "application/json" || bytes.length > MAX_JSON) throw new Error("Invalid RoboClaw JSON response.");
     return JSON.parse(bytes.toString("utf8")) as unknown;
   }
+
+  listGoals(timeoutMs = 12000): Promise<GoalCatalogResponse> {
+    return this.request("/api/ros/goals", timeoutMs) as Promise<GoalCatalogResponse>;
+  }
+
+  validateGoal(task: TaskInput, timeoutMs = 5000): Promise<GoalValidationResponse> {
+    return this.request("/api/ros/goals/validate", timeoutMs, task) as Promise<GoalValidationResponse>;
+  }
+
+  startTask(task: TaskInput, timeoutMs = 5000): Promise<unknown> {
+    return this.request("/api/ros/tasks", timeoutMs, task);
+  }
 }
 
 export class RoboClawHttpError extends Error {
@@ -177,8 +202,8 @@ async function boundedErrorEvidence(response: Response): Promise<Record<string, 
 }
 const textResult = (value: unknown): CallToolResult => ({ content: [{ type: "text", text: JSON.stringify(value) }] });
 const toolError = (error: unknown): CallToolResult => ({ isError: true, content: [{ type: "text", text: JSON.stringify(
-  error instanceof RoboClawHttpError ? { status: error.status, ...(error.evidence ?? {}), physicalCompletion: "unverified" }
-    : { dispatch: "unknown", response: "transport_error", error: "Local service response unavailable; no automatic retry.", physicalCompletion: "unverified" }) }] });
+  error instanceof RoboClawHttpError ? { status: error.status, ...(error.evidence ?? {}) }
+    : { dispatch: "unknown", response: "transport_error", error: "Local service response unavailable." }) }] });
 
 export function createRoboClawMcp(client: RoboClawMcpClient): McpServer {
   const server = new McpServer({ name: "roboclaw-local", version: "0.1.0" }, { instructions: OPERATOR_INSTRUCTIONS });
@@ -256,7 +281,7 @@ export function createRoboClawMcp(client: RoboClawMcpClient): McpServer {
     } catch (error) { return toolError(error); }
   });
   const idSchema = z.string().uuid();
-  const goalSchema = z.discriminatedUnion('kind', [
+  const taskSchema = z.discriminatedUnion('kind', [
     z.object({kind: z.literal('deliver_garment'), goal: z.object({category: z.string().max(32), drop_x_m: z.number().min(-100).max(100), drop_y_m: z.number().min(-100).max(100), max_duration_s: z.number().min(1).max(3600), allow_towing: z.boolean(), dry_run: z.boolean()}).strict()}).strict(),
     z.object({kind: z.literal('patrol_collect'), goal: z.object({drop_x_m: z.number().min(-100).max(100), drop_y_m: z.number().min(-100).max(100), max_duration_s: z.number().min(1).max(3600), max_items: z.number().int().min(1).max(1000), allow_towing: z.boolean(), dry_run: z.boolean()}).strict()}).strict(),
     z.object({kind: z.literal('pin_and_go'), goal: z.object({target_x_m: z.number().min(-100).max(100), target_y_m: z.number().min(-100).max(100), max_duration_s: z.number().min(1).max(600), dry_run: z.boolean()}).strict()}).strict(),
@@ -270,9 +295,11 @@ export function createRoboClawMcp(client: RoboClawMcpClient): McpServer {
     z.object({kind: z.literal('align_target'), goal: z.object({color: z.string().regex(/^[A-Za-z0-9_-]{1,32}$/)}).strict()}).strict(),
     z.object({kind: z.literal('move_arm'), goal: z.object({m3_deg: z.number().min(90).max(270), m4_deg: z.number().min(35).max(170), m5_deg: z.number().min(0).max(155)}).strict()}).strict(),
     z.object({kind: z.literal('grasp_and_lift'), goal: z.object({lift_steps: z.number().int().min(0).max(10), verify_color: z.string().regex(/^[A-Za-z0-9_-]{0,32}$/)}).strict()}).strict(),
-    z.object({kind: z.literal('release_and_stow'), goal: z.object({put_down: z.boolean()}).strict()}).strict()]);
-  server.registerTool('start_task', {title: 'Start bounded ROS action', description: 'Start a ROS action or manipulation primitive and return its goal UUID.', inputSchema: {task: goalSchema}, annotations: ACTUATION}, async ({task}) => {
-    try {return textResult(await client.request('/api/ros/tasks', 5000, task));} catch (error) {return toolError(error);}
+    z.object({kind: z.literal('release_and_stow'), goal: z.object({put_down: z.boolean()}).strict()}).strict(),
+  ]).or(z.object({ kind: z.string().min(1) }).passthrough());
+  const goalSchema = taskSchema;
+  server.registerTool('start_task', {title: 'Start bounded ROS action', description: 'Start a ROS action or manipulation primitive and return its goal UUID.', inputSchema: {task: goalSchema, validateOnly: z.boolean().optional()}, annotations: ACTUATION}, async ({task, validateOnly}) => {
+    try {return textResult(validateOnly === true ? await client.validateGoal(task) : await client.startTask(task));} catch (error) {return toolError(error);}
   });
   server.registerTool('list_tasks', {title:'List shared tasks', description:'List active and recent ROS tasks.', annotations:READONLY}, async () => {
     try {return textResult(await client.request('/api/ros/tasks'));} catch (error) {return toolError(error);}

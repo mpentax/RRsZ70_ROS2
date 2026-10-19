@@ -168,8 +168,15 @@ def test_native_gateway_accepts_exact_docker_host_alias_without_weakening_auth()
 
 def test_validation_token_and_closed_error_contract(system, tmp_path):
     request = system['request']
-    goals = request('GET', '/api/ros/goals').json()['goals']
+    catalog = request('GET', '/api/ros/goals').json()
+    goals = catalog['goals']
     assert any(g['kind'] == 'pick' and g['topic'] == '/z70/pick' and g['action'] == 'Pick' and g['fields'] == ['color', 'dry_run'] for g in goals)
+    primitives = {p['name'] for p in catalog['context_primitives']}
+    assert {'status', 'arm', 'map_pose', 'safe_interior', 'objects', 'garments', 'navigate', 'deploy_arm', 'align_target', 'move_arm', 'grasp_and_lift', 'release_and_stow', 'pulse', 'rpc', 'feedback', 'outcome'} <= primitives
+    valid = request('POST', '/api/ros/goals/validate', {'kind': 'pick', 'goal': {'color': 'yellow', 'dry_run': True}})
+    assert valid.status_code == 200 and valid.json() == {'valid': True, 'kind': 'pick', 'topic': '/z70/pick', 'action': 'Pick'}
+    invalid = request('POST', '/api/ros/goals/validate', {'kind': 'pick', 'goal': {'color': 'yellow', 'dry_run': 1}})
+    assert invalid.status_code == 400 and invalid.json()['valid'] is False and invalid.json()['error'] == 'INVALID_INPUT'
     assert request('GET','/api/ros/state',token='wrong').status_code == 401
     assert request('POST','/api/ros/tasks',{'kind':'arm_step','goal':{'joint':3,'direction':True}}).status_code == 400
     assert request('POST','/api/ros/tasks',{'kind':'base_pulse','goal':{'linear_mps':.1,'angular_radps':.2,'duration':{'sec':0,'nanosec':100}}}).status_code == 400

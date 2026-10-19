@@ -1,4 +1,4 @@
-"""Floor odometry callbacks with real ROS messages and offline transports."""
+"""Floor odometry node tests."""
 from copy import deepcopy
 import math
 from types import SimpleNamespace
@@ -18,7 +18,6 @@ def stamp(ns):
 
 @pytest.fixture
 def odom(monkeypatch):
-    """Replace ROS transport/clock and image matcher, not node behavior."""
     pubs, timers, subscriptions = {}, [], []
     clock = SimpleNamespace(ns=100 * 10**9)
     clock.now = lambda: SimpleNamespace(nanoseconds=clock.ns, to_msg=lambda: stamp(clock.ns))
@@ -57,8 +56,7 @@ def odom(monkeypatch):
     return result
 
 
-def test_initial_odom_and_periodic_tf_without_images(odom):
-    # Either construction or the first heartbeat must publish the origin.
+def test_initial_odom_and_periodic_tf(odom):
     assert len(odom.test.timers) == 1
     period, heartbeat = odom.test.timers[0]
     assert period == .2
@@ -78,7 +76,6 @@ def test_initial_odom_and_periodic_tf_without_images(odom):
         assert tf.header.stamp == stamp(odom.test.clock.ns)
         assert (tf.transform.translation.x, tf.transform.translation.y) == (0., 0.)
         assert (tf.transform.rotation.z, tf.transform.rotation.w) == (0., 1.)
-    # TF heartbeats must not manufacture visual odometry measurements.
     assert len(odom.test.pubs['/odom'].messages) == 1
 
 
@@ -145,7 +142,7 @@ def motion(dx=.03, dy=-.01, angle=.1):
                            inliers=100, rms_m=.001)
 
 
-def test_accepted_vo_is_a_visual_measurement(odom):
+def test_accepted_vo(odom):
     odom.vo.estimate = lambda prev, current: motion()
     odom.on_image(image(odom))
     odom.on_command(command(1, 1))
@@ -175,10 +172,9 @@ def test_rejected_vo_falls_back_once_and_rebases_reference(odom, reject_before_r
     if not reject_before_reply:
         assert odom.x == 0.
         odom.on_image(image(odom, .6, value=1))
-        assert odom.prev is not None  # Rejected image becomes the new reference.
+        assert odom.prev is not None
     else:
         assert odom.prev is None
-        # The first image after immediate fallback only establishes a reference.
         odom.on_image(image(odom, .6, value=1))
     assert (odom.x, odom.y, odom.th) == pytest.approx((.12, 0., 0.))
     dead_reckoned = [m for m in odom.test.pubs['/z70/odom_status'].messages
@@ -187,7 +183,6 @@ def test_rejected_vo_falls_back_once_and_rebases_reference(odom, reject_before_r
     assert not dead_reckoned[0].pair_accepted and dead_reckoned[0].validity.value == 2
     model_odom = [m for m in odom.test.pubs['/odom'].messages if m.pose.pose.position.x == pytest.approx(.12)]
     assert model_odom[0].pose.covariance[0] == 1e6
-    # The next accepted pair measures only new motion, not the command again.
     odom.vo.estimate = lambda prev, current: motion(dx=.02, dy=0., angle=0.)
     odom.on_image(image(odom, .8))
     assert (odom.x, odom.y, odom.th) == pytest.approx((.14, 0., 0.))
@@ -232,7 +227,6 @@ def test_partial_vo_leaves_unobserved_pulse_tail(odom, reply_before_image, camer
     odom.on_image(image(odom))
     odom.on_command(command(1, 1, duration=.8, omega=0.))
     reply = command(2, 2, duration=.8, omega=0.)
-    # The RPC can acknowledge the pulse before or after its modeled motion window ends.
     reply.outcome.finished_at = stamp(finished_ns)
     if reply_before_image:
         odom.test.clock.ns = finished_ns
@@ -263,7 +257,7 @@ def test_partial_vo_leaves_unobserved_pulse_tail(odom, reply_before_image, camer
 
 @pytest.mark.parametrize('reply_ns', [100_050_000_000, 100_250_000_000])
 @pytest.mark.parametrize('initial_state', ['absent', 'stale', 'rejected'])
-def test_early_reply_with_absent_stale_or_rejected_reference_does_not_double_count_returning_vo(odom, initial_state, reply_ns):
+def test_early_reply_and_returning_vo(odom, initial_state, reply_ns):
     if initial_state == 'stale':
         odom.on_image(image(odom, -1.5))
     elif initial_state == 'rejected':
@@ -278,7 +272,6 @@ def test_early_reply_with_absent_stale_or_rejected_reference_does_not_double_cou
         odom.on_command(reply)
         assert odom.x == pytest.approx(0.)
         assert len(odom.pending) == 1
-    # Camera returns at 0.2s (re-anchoring after unmeasured first 0.2s = 0.04m), then VO measures [0.2s, 0.8s] = 0.12m.
     odom.vo.estimate = lambda prev, current: None if initial_state != 'absent' else motion(dx=.04, dy=0., angle=0.)
     odom.on_image(image(odom, .2))
     if reply_ns >= 100_200_000_000:
@@ -292,12 +285,11 @@ def test_early_reply_with_absent_stale_or_rejected_reference_does_not_double_cou
     assert not odom.pending
 
 
-def test_pending_pulses_are_applied_before_new_stale_camera_pulse(odom):
+def test_pending_pulses_applied_before_new_stale_camera_pulse(odom):
     odom.on_image(image(odom))
     odom.on_command(command(1, 1, velocity=0., omega=1., duration=.2))
     odom.test.clock.ns += 200_000_000
     odom.on_command(command(2, 2, velocity=0., omega=1., duration=.2))
-    # A second command finishes after the last image has become stale.
     odom.on_command(command(1, 3, start_ns=100_700_000_000, attempt=3, omega=0.))
     odom.test.clock.ns = 101_200_000_000
     odom.on_command(command(2, 4, start_ns=100_700_000_000, attempt=3, omega=0.))
@@ -323,7 +315,7 @@ def test_unusable_gains_restore_defaults(odom, value, known):
 @pytest.mark.parametrize('changes', [dict(dispatch=0), dict(dispatch=2), dict(response=2),
                                      dict(velocity=float('nan')), dict(omega=float('inf')),
                                      dict(duration=0.), dict(duration=-.5)])
-def test_unsent_uncertain_or_invalid_commands_do_not_move_pose(odom, changes):
+def test_invalid_commands_ignored(odom, changes):
     odom.on_command(command(1, 1))
     odom.on_command(command(2, 2, **changes))
     assert (odom.x, odom.y, odom.th) == (0., 0., 0.)
@@ -331,7 +323,7 @@ def test_unsent_uncertain_or_invalid_commands_do_not_move_pose(odom, changes):
 
 
 @pytest.mark.parametrize('missing', ['start', 'gap', 'clock', 'session', 'operation'])
-def test_unpaired_command_does_not_invent_motion(odom, missing):
+def test_unpaired_command_ignored(odom, missing):
     begin = command(1, 1)
     end = command(2, 2)
     if missing == 'gap':
@@ -348,7 +340,7 @@ def test_unpaired_command_does_not_invent_motion(odom, missing):
     assert (odom.x, odom.y, odom.th) == (0., 0., 0.)
 
 
-def test_old_completed_pulse_is_not_applied_on_late_rejection(odom):
+def test_old_completed_pulse_expired_on_late_rejection(odom):
     odom.vo.estimate = lambda prev, current: None
     odom.on_image(image(odom))
     odom.on_command(command(1, 1))
@@ -357,7 +349,7 @@ def test_old_completed_pulse_is_not_applied_on_late_rejection(odom):
     odom.on_image(image(odom, 3.))
     assert (odom.x, odom.y, odom.th) == (0., 0., 0.)
     assert odom.test.pubs['/z70/odom_status'].messages[-1].rejection == 'VO_REJECTED'
-    assert odom.prev_stamp_ns == 100_000_000_000  # Keep last overlapping reference.
+    assert odom.prev_stamp_ns == 100_000_000_000
 
 
 def test_vo_acceptance_consumes_pending_pulse(odom):

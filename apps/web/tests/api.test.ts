@@ -141,6 +141,6 @@ test("caller cancellation and timeout both abort the underlying fetch", async (c
   const pending = json("/api/state", { signal: controller.signal });
   controller.abort();
   await assert.rejects(pending, { name: "AbortError" });
-  await assert.rejects(json("/api/arm/action", { body: { action: "close" }, timeout: 5 }),
-    /Outcome unknown; the request may have executed/);
+  await assert.rejects(json("/api/ros/tasks", { body: { action: "close" }, action: true, timeout: 5 }),
+    /Outcome unknown\./);
 });

@@ -2,7 +2,7 @@
 import { createHash, randomInt, randomUUID } from "node:crypto";
 import { connectAsync, type IClientOptions } from "mqtt";
 import { localProtocolCodec } from "./local.ts";
-import { defaultRpcTimeoutMs, vendorCommandRpc, type VendorCommand } from "./vendor-commands.ts";
+import { defaultRpcTimeoutMs } from "./vendor-commands.ts";
 import { RpcError } from "./robot.ts";
 
 import { TransportError } from "./rpc-outcome.ts";
@@ -189,10 +189,6 @@ export class CloudControlClient {
     const remaining=Math.floor(deadline-performance.now());
     if (remaining<=0) throw new TransportError('Cloud RPC timed out before dispatch','not_sent');
     return this.#send(method, params, remaining);
-  }
-  command(command: VendorCommand): Promise<unknown> {
-    const { method, params } = vendorCommandRpc(command);
-    return this.rpc(method, params);
   }
 
   #send(method: string, params: unknown, timeoutMs: number): Promise<unknown> {

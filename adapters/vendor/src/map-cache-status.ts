@@ -1,6 +1,5 @@
 import { MAX_MAP_BYTES } from "./photo-protocol.ts";
 import type { Observation } from "./telemetry.ts";
-import type { MapStatusEvidence } from "./map-status-evidence.ts";
 
 export interface PrivateMapMetadata {
   version: 1;
@@ -32,12 +31,11 @@ export function validatedMapMetadata(value: unknown): PrivateMapMetadata {
   return item as unknown as PrivateMapMetadata;
 }
 export function publicMapStatus(metadata: PrivateMapMetadata | null, selectedId: string | null,
-  statusEvidence: Observation<MapStatusEvidence> = { value: null, observedAt: null, error: null }) {
+  statusEvidence: Observation<unknown> = { value: null, observedAt: null, error: null }) {
   const current = metadata && metadata.deviceId === selectedId ? metadata : null;
   return { cached: !!current, version: current?.version ?? null, provenance: current?.provenance ?? null,
     savedAt: current?.savedAt ?? null, bytes: current?.bytes ?? null,
     mapIndex: current?.mapIndex ?? null, mapSequence: current?.mapSequence ?? null,
     selectedDeviceBound: !!current, activeMapVerified: false, currentPoseVerified: false,
-    statusEvidence,
-    caveat: "Fresh get_status map bits are read-only, but their relationship to the saved V1 map index is unverified. Active map, current robot position, and capture-time semantics remain unverified." };
+    statusEvidence };
 }

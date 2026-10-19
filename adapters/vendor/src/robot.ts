@@ -7,7 +7,7 @@
 import { randomInt } from "node:crypto";
 import { isIP, Socket } from "node:net";
 import { localProtocolCodec } from "./local.ts";
-import { defaultRpcTimeoutMs, vendorCommandRpc, vendorResponseTimeout, type VendorCommand } from "./vendor-commands.ts";
+import { defaultRpcTimeoutMs } from "./vendor-commands.ts";
 import { TransportError } from "./rpc-outcome.ts";
 
 export interface RobotDiagnostic {
@@ -224,12 +224,6 @@ export class RobotClient {
       { endpoint: security.endpoint, nonce: Buffer.from(security.nonce) })
       .then((response) => ({ id, response }));
     return { requestId: id, result };
-  }
-
-  /** Compatibility mapper only; no supervision or preflight. */
-  command(command: VendorCommand): Promise<unknown> {
-    const { method, params } = vendorCommandRpc(command);
-    return this.rpc(method, params, vendorResponseTimeout(command));
   }
 
   async #enqueue(method: string, params: unknown, responseTimeoutMs = 5000,

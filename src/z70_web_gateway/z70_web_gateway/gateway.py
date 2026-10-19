@@ -33,6 +33,25 @@ from z70_interfaces.msg import RobotState, CameraState, ArmEstimate, Calibration
 from z70_interfaces.srv import RawRpc, Stop, SelectCamera, SetArmAnchor, SetControlSession
 from std_msgs.msg import Bool
 
+GOAL_CONTEXT_PRIMITIVES = (
+    {'name': 'status', 'signature': 'status() -> dict', 'summary': 'Read the latest robot status telemetry dict.'},
+    {'name': 'arm', 'signature': 'arm() -> dict', 'summary': 'Read the current arm joint and pose estimate dict.'},
+    {'name': 'map_pose', 'signature': "map_pose(source='base_footprint') -> tuple[float, float, float]", 'summary': 'Lookup (x_m, y_m, yaw_rad) of a frame in the map.'},
+    {'name': 'safe_interior', 'signature': 'safe_interior(refresh=False, deployed_arm_extension_m=0.)', 'summary': 'Return (map_snapshot, safe_interior_grid) for navigation and corridor planning.'},
+    {'name': 'objects', 'signature': "objects(camera='front', color=None) -> list[dict]", 'summary': 'Detect and project HSV objects in base_footprint from a fresh camera frame.'},
+    {'name': 'garments', 'signature': "garments(category='any', after=None) -> list", 'summary': 'Return verified reachable garments from the garment observation pipeline.'},
+    {'name': 'navigate', 'signature': 'navigate(target_x_m: float, target_y_m: float, max_duration_s: float = 60., dry_run: bool = False) -> dict', 'summary': 'Navigate the stowed chassis to (target_x_m, target_y_m) via PinAndGo.'},
+    {'name': 'deploy_arm', 'signature': 'deploy_arm(settle=True) -> dict', 'summary': 'Enter manual arm mode and unstow the arm to WORKING_POS.'},
+    {'name': 'align_target', 'signature': 'align_target(color: str) -> dict', 'summary': 'Visually servo the chassis toward a target color using front camera observations.'},
+    {'name': 'move_arm', 'signature': 'move_arm(m3_deg: float, m4_deg: float, m5_deg: float = 0.) -> dict', 'summary': 'Execute a collision-checked coordinated multi-axis arm trajectory.'},
+    {'name': 'grasp_and_lift', 'signature': "grasp_and_lift(lift_steps: int = 2, verify_color: str = '') -> dict", 'summary': 'Close the gripper jaws, step the hand upward, and verify grasp elevation.'},
+    {'name': 'release_and_stow', 'signature': 'release_and_stow(put_down: bool = True) -> dict', 'summary': 'Open jaws in place, stow the arm into the robot compartment, and anchor IN_ROBOT.'},
+    {'name': 'pulse', 'signature': 'pulse(velocity: float = 0., omega: float = 0., duration: int = 300)', 'summary': 'Send a bounded linear or angular chassis velocity pulse.'},
+    {'name': 'rpc', 'signature': 'rpc(method: str, params=None, timeout_ms: int = 5000) -> dict', 'summary': 'Invoke a raw vendor RPC method through the ROS driver scheduler.'},
+    {'name': 'feedback', 'signature': 'feedback(**fields)', 'summary': 'Publish ROS 2 action feedback with latest observation and outcome stamps.'},
+    {'name': 'outcome', 'signature': 'outcome(success: bool) -> CommandOutcome', 'summary': 'Build the terminal CommandOutcome for the goal result.'},
+)
+
 ACTIONS = {
     'deliver_garment': (DeliverGarment, '/z70/deliver_garment'),
     'patrol_collect': (PatrolCollect, '/z70/patrol_collect'),
@@ -272,11 +291,23 @@ class Gateway(Node):
                 handle.get_result_async().add_done_callback(partial(self.finished, ident))
             except Exception: row['status'] = 'unknown'
 
-    def start(self, body):
+    def goal_message(self, body):
         checked(body, ('kind', 'goal'), ('kind', 'goal'))
         kind = body['kind']
         if not isinstance(kind, str): raise ApiError(400, 'INVALID_INPUT')
-        message = goal_message(kind, body['goal']); client = self.actions[kind]
+        return kind, ACTIONS[kind][1], ACTIONS[kind][0], goal_message(kind, body['goal'])
+
+    def validate(self, body):
+        try:
+            kind, topic, cls, _ = self.goal_message(body)
+            return 200, {'valid': True, 'kind': kind, 'topic': topic, 'action': cls.__name__}, {}
+        except ApiError as e:
+            return e.status, {'valid': False, 'error': e.body['error'], **e.body}, {}
+        except Exception as e:
+            return 400, {'valid': False, 'error': str(e) or 'INVALID_INPUT', 'dispatch': 'not_sent', 'physicalCompletion': 'unverified'}, {}
+
+    def start(self, body):
+        kind, _, _, message = self.goal_message(body); client = self.actions[kind]
         if not client.server_is_ready(): raise ApiError(503, 'ROS_UNAVAILABLE')
         ident = str(uuid.uuid4())
         with self.lock:
@@ -324,7 +355,12 @@ class Gateway(Node):
         if method == 'GET' and path == '/api/ros/map':
             with self.lock: return 200, {'map':deepcopy(self.samples.get('map'))}, {}
         if method == 'GET' and path == '/api/ros/goals':
-            return 200, {'goals': [{'kind': kind, 'topic': ACTIONS[kind][1], 'action': ACTIONS[kind][0].__name__, 'fields': list(GOAL_SPECS[kind][0])} for kind in ACTIONS]}, {}
+            return 200, {
+                'goals': [{'kind': kind, 'topic': ACTIONS[kind][1], 'action': ACTIONS[kind][0].__name__, 'fields': list(GOAL_SPECS[kind][0])} for kind in ACTIONS],
+                'context_primitives': list(GOAL_CONTEXT_PRIMITIVES),
+            }, {}
+        if method == 'POST' and path == '/api/ros/goals/validate':
+            return self.validate(body)
         if path == '/api/ros/tasks':
             if method == 'GET':
                 with self.lock: return 200, {'tasks':deepcopy(list(self.tasks.values()))}, {}

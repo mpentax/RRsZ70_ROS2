@@ -1,4 +1,4 @@
-"""Expanded display geometry, not vendor FK or precision wrist metrology."""
+"""URDF visual link lengths and relative frame transforms."""
 from itertools import product
 import math
 from pathlib import Path

@@ -6,7 +6,7 @@ import { createRoboClawMcp, RoboClawMcpClient, mcpServiceOrigin } from "./mcp-se
 
 test("MCP exposes generic RPC and observation tools without challenges or prior latch", async () => {
   const calls: { path: string; payload: unknown }[] = [];
-  const outcome = { requestId: "r1", dispatch: "sent", response: "vendor_error", vendorCode: -1, result: { raw: true }, physicalCompletion: "unverified" };
+  const outcome = { requestId: "r1", dispatch: "sent", response: "vendor_error", vendorCode: -1, result: { raw: true } };
   const server = createRoboClawMcp(new RoboClawMcpClient(mcpServiceOrigin("http://127.0.0.1:57010"), "a".repeat(43), async (url, options) => {
     assert.equal(new Headers(options?.headers).get("authorization"), `Bearer ${"a".repeat(43)}`);
     assert.equal(options?.redirect, "error");

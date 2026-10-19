@@ -1,7 +1,4 @@
-"""Appearance-only metric floor mosaic; does not infer occupancy or free space.
-Rows increase odom y, columns increase odom x. Unknown pixels are black;
-count distinguishes unseen cells from observed black pixels.
-"""
+"""Metric floor mosaic in the odom frame (rows +y, columns +x)."""
 import math
 import cv2
 import numpy as np
@@ -36,13 +33,10 @@ class FloorMosaic:
         ok &= (uv[:,0]>=1)&(uv[:,0]<self.cam.W-2)&(uv[:,1]>=1)&(uv[:,1]<self.cam.H-2)
         ids=candidate[ok]; uv=uv[ok].astype(np.float32)
         sample=np.empty((len(ids),3),np.float32)
-        # OpenCV remap's destination dimension is limited to signed int16.
         for start in range(0,len(ids),30000):
             part=uv[start:start+30000]
             sample[start:start+len(part)]=cv2.remap(
                 image,part[:,0].reshape(-1,1),part[:,1].reshape(-1,1),cv2.INTER_LINEAR).reshape(-1,3)
-        # Treat exact-black samples as missing support (warp/camera borders).
-        # This also leaves truly all-black surface samples unknown in v0.
         supported=np.any(sample!=0,axis=1)
         ids,sample=ids[supported],sample[supported]
         count=self.count.ravel(); mean=self.mean.reshape(-1,3)

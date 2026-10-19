@@ -53,7 +53,7 @@ test("shared camera tool reports bounded observation gaps without opening a prev
     const reply = await client.callTool({ name: "get_camera_frame", arguments: {} });
     assert.equal(reply.isError, true);
     assert.deepEqual(JSON.parse((reply.content as { text: string }[])[0]!.text), {
-      status: 503, error:'OBSERVATION_GAP', dispatch:'not_sent', physicalCompletion: "unverified",
+      status: 503, error:'OBSERVATION_GAP', dispatch:'not_sent',
     });
   } finally { await client.close(); await server.close(); }
 });

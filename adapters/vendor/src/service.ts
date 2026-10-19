@@ -22,7 +22,6 @@ import { numericTelemetry } from "./telemetry.ts";
 import { jpegImageDimensions } from "@rrsz70/http-contracts";
 import { readSplitMap } from "./split-map-reader.ts";
 import { mapMetadataFromRead, publicMapStatus, validatedMapMetadata, type PrivateMapMetadata } from "./map-cache-status.ts";
-import { renderPrivateV1Map } from "./private-map-raster.ts";
 import { refreshRooms, selectedRooms } from "./home-account.ts";
 import { proxyRos, rosGatewayOrigin, rosRoute } from "./ros-gateway.ts";
 
@@ -381,11 +380,6 @@ export async function createService(options: ServiceOptions) {
         "Cache-Control": "no-store", "X-Map-Saved-At": String(source.metadata.savedAt),
         "X-Map-Index": String(source.metadata.mapIndex), "X-Map-Sequence": String(source.metadata.mapSequence) });
       res.end(source.raw); return;
-    }
-    if (path === "/api/map/cache/image" && req.method === "GET") {
-      const source = await store.loadMapRasterSource?.();
-      if (!source || source.metadata.deviceId !== device?.duid) return fail(404, "No selected-device map.");
-      const image = renderPrivateV1Map(source.raw); res.writeHead(200, { "Content-Type": "image/png", "Content-Length": image.length }); res.end(image); return;
     }
     if (path === "/api/map/cache/refresh" && req.method === "POST") {
       await readJson(req); if (!device || !camera) return fail(503, "Authenticated device/account required.");

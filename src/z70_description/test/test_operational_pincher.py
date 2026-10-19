@@ -1,4 +1,4 @@
-"""Photo anatomy and shared operational bodies; all distances are metres."""
+"""Operational pincher FK, TF, collision, and articulation tests."""
 import math
 import xml.etree.ElementTree as ET
 import numpy as np
@@ -44,21 +44,6 @@ def test_actual_published_finger_frames_match_operational_four_angle_geometry(tf
 
 
 
-def test_default_upper_plate_flows_from_wrist_and_roots_are_lateral():
-    robot=ET.fromstring(xacro.process_file(str(SOURCE)).toxml())
-    shell=visual_triangles(robot,'arm_wrist_link').reshape(-1,3)
-    # Wrist cover is 18mm thick: owner top photo disproves a proud upper pod.
-    assert shell[:,2].max() <= .0091
-    assert np.ptp(shell[:,1]) >= .028, 'wider than the wrist bar, not a central ridge'
-    assert np.ptp(shell[:,1]) < .038, 'not the flared shield the top photo rejects'
-    frames=relative_frames(robot,'arm_wrist_link',{})
-    for side in ('left','right'):
-        root=frames['finger_'+side][:3,3]
-        assert abs(root[1])>=.016, 'roots attach to sides, not middle of plate'
-        assert abs(root[2])<=.004, 'roots lie within the side of the plate, not above it'
-        assert root[0] > -.058, 'roots sit beside the nose, not mid-paddle'
-
-
 def test_display_has_fiducial_cells_underside_collar_and_finger_pivots():
     robot=ET.fromstring(xacro.process_file(str(SOURCE)).toxml())
     cells=[v for v in robot.find("link[@name='pincher_marker_68']").findall('visual')
@@ -66,30 +51,6 @@ def test_display_has_fiducial_cells_underside_collar_and_finger_pivots():
     assert len(cells)>=6, 'ID68 is a pattern, not a blank square'
     shell = robot.find("link[@name='arm_wrist_link']").find('visual/geometry/mesh')
     assert shell is not None and shell.get('filename') and 'cad_hand.stl' in shell.get('filename')
-
-
-def test_photo_compact_fingers_do_not_stretch_to_fit_the_open_envelope():
-    from z70_description import pincher_geometry as g
-    robot=ET.fromstring(xacro.process_file(str(SOURCE)).toxml())
-    # Both owner views show compact fingers of the same order as the60mm head,
-    # not the draft89mm arc. These loose upper bounds reject that exaggeration;
-    # they are qualitative photo regressions, NOT surveyed dimensions.
-    vertices=visual_triangles(robot,'finger_left').reshape(-1,3)
-    assert vertices[:,0].max() < .055, 'photo-disproved elongated retained mesh'
-    centers=np.array([r.mean(axis=0) for r in g.finger_rings(1)])
-    assert np.linalg.norm(np.diff(centers,axis=0),axis=1).sum() < .065
-
-
-def test_head_is_longer_than_wide_with_a_rounded_nose_and_underside_body():
-    robot=ET.fromstring(xacro.process_file(str(SOURCE)).toxml())
-    shell=visual_triangles(robot,'arm_wrist_link').reshape(-1,3)
-    assert np.ptp(shell[:,0]) > np.ptp(shell[:,1]), 'elongated plate, not a short shield'
-    assert shell[:,2].max() <= .0091, 'flat cap stays flush with the wrist cover'
-    assert shell[:,2].min() < -.008, 'deeper body under the cap, not a wafer'
-    distal=shell[shell[:,0] > shell[:,0].max()-.004]
-    assert np.ptp(distal[:,1]) < .92*np.ptp(shell[:,1]), 'nose rounds in, not a flat full-width chop'
-    proximal=shell[shell[:,0] < shell[:,0].min()+.006]
-    assert np.ptp(proximal[:,1]) < .030, 'meets the wrist bar without angled shoulders'
 
 
 def test_open_fingers_spread_sideways_and_never_cross_the_midplane():

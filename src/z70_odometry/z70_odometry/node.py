@@ -1,9 +1,6 @@
 """Floor VO node: /camera/front/image_raw -> /odom (nav_msgs/Odometry) + TF odom -> base_footprint.
 
-Reference-to-current floor odometry with a continuous 5 Hz TF heartbeat. Rejected frames keep
-an overlapping reference unless a successful RC pulse supplies command-model dead reckoning;
-model steps rebase the reference and are explicitly marked as non-visual measurements.
-Snapshots arrive at ~1 Hz, so motion between frames must stay within ~15 deg / ~6 cm (one RC pulse).
+Reference-to-current floor odometry with a 5 Hz TF heartbeat and command-model dead-reckoning fallback.
 """
 import math
 
@@ -92,7 +89,6 @@ class FloorOdomNode(Node):
         return stamp.sec * 10**9 + stamp.nanosec
 
     def on_command(self, msg: CommandEvent):
-        # Join dispatch attempts, not logical commands: replies/retries can repeat.
         session, sequence = bytes(msg.evidence.session_id.uuid), msg.evidence.sequence
         if self._command_session == session and self._command_sequence is not None and sequence <= self._command_sequence:
             return
@@ -119,7 +115,7 @@ class FloorOdomNode(Node):
         motion_end_ns = start_ns + int(round(duration_s * 1e9))
         end_ns = max(self._ns(msg.outcome.finished_at), motion_end_ns)
         if self.last_vo_accept_ns >= motion_end_ns:
-            return  # VO already measured the entire completed pulse.
+            return
         if start_ns < self.last_vo_accept_ns < motion_end_ns:
             duration_s = max(0.0, (motion_end_ns - self.last_vo_accept_ns) / 1e9)
             start_ns = self.last_vo_accept_ns
@@ -197,7 +193,6 @@ class FloorOdomNode(Node):
         self.y += distance * (s * arc_x + c * arc_y)
         self.th = math.atan2(math.sin(self.th + angle), math.cos(self.th + angle))
         if not keep_reference:
-            # Never compare a later image to a reference predating this model step.
             self.reset_reference()
         self.last_rejected = True
         self._pose_uncertain = True
@@ -233,7 +228,7 @@ class FloorOdomNode(Node):
             if self._apply_pending(stamp_ns, partial=True, stamp=msg.header.stamp):
                 self.prev = img.copy()
                 self.prev_stamp_ns = stamp_ns
-                return  # Keep COMMAND_DEAD_RECKONED status/covariance while establishing new reference.
+                return
         elif self.prev is not None:
             m = self.vo.estimate(self.prev, img)
             if m is None:
@@ -242,7 +237,7 @@ class FloorOdomNode(Node):
                 if self._apply_pending(stamp_ns, partial=True, stamp=msg.header.stamp):
                     self.prev = img.copy()
                     self.prev_stamp_ns = stamp_ns
-                    return  # Keep COMMAND_DEAD_RECKONED status/covariance, not VO.
+                    return
                 if any(s < stamp_ns for s in self._attempts.values()):
                     self.prev = img.copy()
                     self.prev_stamp_ns = stamp_ns
@@ -287,8 +282,6 @@ class FloorOdomNode(Node):
         o.header.stamp = stamp; o.header.frame_id = "odom"; o.child_frame_id = "base_footprint"
         o.pose.pose.position.x, o.pose.pose.position.y = self.x, self.y
         o.pose.pose.orientation.z, o.pose.pose.orientation.w = qz, qw
-        # Covariance on accepted poses is not calibrated (left zero). Large
-        # rejected-frame variance marks an unobserved current pose to consumers.
         if rejected:
             for index in [0, 7, 35]:
                 o.pose.covariance[index] = 1e6

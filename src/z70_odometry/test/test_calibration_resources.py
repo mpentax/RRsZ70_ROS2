@@ -1,4 +1,4 @@
-"""Pure-Python resource, persistence and typed-field mapping checks (no DDS)."""
+"""Calibration resource paths, persistence, and state mapping tests."""
 import hashlib
 import json
 from pathlib import Path
@@ -11,12 +11,10 @@ from z70_odometry import resources
 
 
 def message():
-    # Explicit test double for the pure mapper; generated message serialization
-    # is separately checked by the coordinated ROS/colcon suite.
     return NS(header=NS(stamp=NS()), evidence=NS(stale=False,session_id=NS()), validity=NS())
 
 
-def test_xdg_path_is_durable_not_cwd(monkeypatch,tmp_path):
+def test_runtime_calibration_path(monkeypatch,tmp_path):
     monkeypatch.setenv('XDG_DATA_HOME',str(tmp_path/'data'))
     first=resources.runtime_calibration_path()
     monkeypatch.chdir(tmp_path)
@@ -29,11 +27,11 @@ def test_xdg_path_is_durable_not_cwd(monkeypatch,tmp_path):
     assert resources.runtime_calibration_path()==Path.home()/'.local/share/RRsZ70_ROS2/calibration/chassis/online.json'
 
 
-def test_initial_offset_is_centralized_without_changing_legacy_value():
+def test_initial_camera_x_m():
     assert resources.initial_camera_x_m()==.16
 
 
-def test_atomic_save_retains_identity_on_restart_and_noop(tmp_path):
+def test_atomic_save_retains_identity(tmp_path):
     path=tmp_path/'data/online.json'; estimator=OnlineCalibration(path)
     estimator.seed(resources.seed_directory())
     assert estimator.summary()['n']>0
@@ -50,7 +48,7 @@ def test_atomic_save_retains_identity_on_restart_and_noop(tmp_path):
     assert path.stat().st_mode & 0o077==0
 
 
-def test_empty_state_uses_explicit_unknowns_and_retains_evidence(tmp_path):
+def test_empty_state_snapshot(tmp_path):
     estimator=OnlineCalibration(tmp_path/'online.json'); estimator.save()
     publication=CalibrationPublication()
     state=publication.snapshot(estimator,'initial receipt',message)
@@ -65,7 +63,7 @@ def test_empty_state_uses_explicit_unknowns_and_retains_evidence(tmp_path):
     assert state.calibration_id==hashlib.sha256(estimator.path.read_bytes()).hexdigest()
 
 
-def test_historical_seed_state_is_estimated_not_observed(tmp_path):
+def test_seeded_state_snapshot(tmp_path):
     estimator=OnlineCalibration(tmp_path/'online.json'); estimator.seed(resources.seed_directory())
     publication=CalibrationPublication(); state=publication.snapshot(estimator,'receipt',message)
     assert state.validity.value==1 and state.evidence.valid
@@ -79,7 +77,7 @@ def test_historical_seed_state_is_estimated_not_observed(tmp_path):
     assert gains_from_state(state)=={} and calibrated_camera_x(state) is None
 
 
-def test_missing_sigma_is_unknown_and_ready_gate_is_unchanged(tmp_path):
+def test_single_sample_sigma_and_ready_gate(tmp_path):
     estimator=OnlineCalibration(tmp_path/'online.json')
     estimator.add_measurement(dict(id='synthetic',command_yaw=.3,command_forward=0.,yaw=.2,
                                   camera_dx=.28*(np.cos(.2)-1),camera_dy=.28*np.sin(.2)))

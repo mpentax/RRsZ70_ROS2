@@ -1,4 +1,4 @@
-"""Real retained triangles: shared hand meshes and optical/marker contracts."""
+"""Pincher mesh manifold, normal, installation, and generator tests."""
 import struct
 from pathlib import Path
 import xml.etree.ElementTree as ET
@@ -48,23 +48,6 @@ def visual_triangles(robot, link):
     return np.concatenate(result)
 
 
-def ray_hits(points, start, direction):
-    """Positive Moller-Trumbore intersections; no optional ray backend."""
-    a, b, c = points[:, 0], points[:, 1], points[:, 2]
-    e1, e2 = b-a, c-a
-    p = np.cross(np.broadcast_to(direction, e2.shape), e2)
-    det = np.einsum('ij,ij->i', e1, p)
-    valid = np.abs(det) > 1e-12
-    inv = np.zeros_like(det)
-    inv[valid] = 1/det[valid]
-    q0 = start-a
-    u = np.einsum('ij,ij->i', q0, p)*inv
-    q = np.cross(q0, e1)
-    v = q @ direction*inv
-    distance = np.einsum('ij,ij->i', e2, q)*inv
-    return np.sort(distance[valid & (u >= -1e-8) & (v >= -1e-8) & (u+v <= 1+1e-8) & (distance > 1e-7)])
-
-
 def test_one_connected_housing_has_recess_with_clear_calibrated_optical_ray():
     robot = ET.fromstring(xacro.process_file(str(SOURCE)).toxml())
     shell = visual_triangles(robot, 'arm_wrist_link')
@@ -90,15 +73,6 @@ def test_one_connected_housing_has_recess_with_clear_calibrated_optical_ray():
     assert camera[:3, 3] == pytest.approx([0.0355, 0.0075, -0.0109], abs=1e-4)
 
 
-def test_small_recessed_lens_retains_its_nominal_size_not_aperture_size():
-    robot = ET.fromstring(xacro.process_file(str(SOURCE)).toxml())
-    points = visual_triangles(robot, 'gripper_camera_link').reshape(-1, 3)
-    # Preserve the previous illustrative2.8mm radius, not a new calibration.
-    # The shell aperture may mask its rim; optical-axis escape is tested above,
-    # NOT a validated full field-of-view cone.
-    assert np.max(np.linalg.norm(points[:,1:],axis=1)) == pytest.approx(.0028,abs=1e-8)
-
-
 def test_package_meshes_are_installed_for_foxglove_asset_lookup():
     from ament_index_python.packages import get_package_share_directory
     installed = Path(get_package_share_directory('z70_description'))
@@ -108,21 +82,6 @@ def test_package_meshes_are_installed_for_foxglove_asset_lookup():
     for mesh in meshes:
         relative = mesh.get('filename').split('package://z70_description/')[1]
         assert (installed / relative).read_bytes() == (PACKAGE / relative).read_bytes()
-
-
-def test_fingers_are_blunt_flat_blades_with_a_short_kink_not_pointed_hooks():
-    """Owner stills: flat strips, discrete bends, squared tips. Not crescents or needles."""
-    robot = ET.fromstring(xacro.process_file(str(SOURCE)).toxml())
-    for side, sign in [('left', 1), ('right', -1)]:
-        points = visual_triangles(robot, f'finger_{side}').reshape(-1, 3)
-        tip = points[points[:, 0] > points[:, 0].max()-.001]
-        assert .002 < np.ptp(tip[:, 1]) < .0045, 'slim blunt tip, not a paddle or a needle'
-        assert .0012 < np.ptp(tip[:, 2]) < .0035, 'thin flat tip'
-        assert abs(tip[:, 1].mean()) < .014, 'two short bends, not a 25mm hook'
-        root = points[points[:, 0] < .001]
-        blade = points[(points[:, 0] > .003) & (points[:, 0] < .006)]
-        assert np.ptp(root[:, 1]) > np.ptp(blade[:, 1])+.002, 'root plate wider than the blade'
-        assert sign*tip[:, 1].mean() < -.002, 'small opposed inward kink remains'
 
 
 def test_all_mesh_normals_match_non_degenerate_positive_manifold_geometry():

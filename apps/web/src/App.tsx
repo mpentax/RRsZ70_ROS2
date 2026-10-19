@@ -106,7 +106,7 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
       setState(previous => previous ? {...previous, session_enabled:result.enabled} : previous);
       if (enabled && !result.enabled) setError('Resume failed; control and streams remain stopped.');
       else if (!enabled && (!result.streams_released || result.outcomes.some(o => o.dispatch !== 1 || o.response !== 1 || o.error_code !== 'NONE')))
-        setError('Session release UNVERIFIED. Physically stop the robot if motion continues; inspect the outcomes before resuming.');
+        setError('Session release incomplete; check outcome details.');
     } catch { setError('Session stop/resume UNVERIFIED. Physically stop the robot if motion continues.'); }
     finally { setSessionBusy(false); }
   }
