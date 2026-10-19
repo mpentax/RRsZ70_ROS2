@@ -144,9 +144,14 @@ def test_generated_contract_and_input_validation():
         with pytest.raises(ValueError): action_plan(BasePulse, goal)
     for kind, goal in [(ArmStep, ArmStep.Goal(joint=2, direction=1)),
                        (HandStep, HandStep.Goal(direction=5)),
-                       (ArmOperation, ArmOperation.Goal(operation=0))]:
+                       (ArmOperation, ArmOperation.Goal(operation=0)),
+                       (ArmOperation, ArmOperation.Goal(operation=10))]:
         with pytest.raises(ValueError): action_plan(kind, goal)
     assert action_plan(ArmStep, ArmStep.Goal(joint=4, direction=-1))[0] == [('app_arm_move', {'m':[0,2,0]})]
+    assert action_plan(ArmOperation, ArmOperation.Goal(operation=6))[0] == [('app_pick_up_enter_exit', {'flag':1})]
+    assert action_plan(ArmOperation, ArmOperation.Goal(operation=7))[0] == [('app_pick_up_enter_exit', {'flag':2})]
+    assert action_plan(ArmOperation, ArmOperation.Goal(operation=8))[0] == [('app_pick_up_enter_exit', {'flag':0})]
+    assert action_plan(ArmOperation, ArmOperation.Goal(operation=9))[0] == [('app_arm_recover', {})]
 
 
 def test_action_result_backend_ids_and_no_duplicate_events(system):

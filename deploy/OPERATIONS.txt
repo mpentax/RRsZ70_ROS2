@@ -1,9 +1,8 @@
-RRsZ70_ROS2 operations
-=====================
-Run commands from the repository root. Supported native target: macOS ARM64
-(Pixi/RoboStack Jazzy), with Docker Desktop for private vendor transport/media.
+RRsZ70_ROS2 Operations
+======================
+Run commands from the repository root on macOS Apple Silicon (Pixi/RoboStack ROS 2 Jazzy + Docker Desktop).
 
-Build and start
+Build and Start
 ---------------
   npm ci
   npm run build
@@ -12,89 +11,28 @@ Build and start
   docker compose -f deploy/compose.yaml build app go2rtc
   docker compose -f deploy/compose.yaml up -d
 
-Open http://127.0.0.1:57010 and choose Start local setup when no PIN is saved.
-Account email code, region, device, LAN IP/protocol and camera PIN belong in that
-browser flow. Saving the PIN ends setup; sign in with that PIN. Setup authority
-is localhost-only, lasts up to 20 minutes and cannot access ROS/control/images.
-Configured users sign in with the saved camera PIN. Never paste a service token,
-PIN, account code or device key into chat, logs or command-line arguments.
-Roborock cloud authentication/signaling is used; only secret storage is local.
+Open http://127.0.0.1:57010. On first run, click Start local setup to enter your Roborock account login code, select your robot, set its LAN IP and protocol (L01 or 1.0), and save your camera PIN. Credentials are saved in .local/pairing.json (mode 0600).
+
+Start the ROS 2 stack and web/MCP gateway:
 
   pixi run bringup web_gateway:=true
-  # Optional idle manipulation servers:
+  # With manipulation and navigation action servers:
   pixi run bringup web_gateway:=true manipulation:=true
 
-Bringup reads live status/images/maps and may save estimates/calibration. It does
-not dispatch motion merely on launch. A live manipulation goal does. In a shared
-session, use only the authorized observation/motion scope and do not start a
-second controller or restart services underneath another operator.
+Stop ROS launch processes with Ctrl-C, and stop Docker sidecars with:
 
-Ctrl-C ends owned ROS launch processes. The web/MCP Stop control & streams action
-requests stop, exits viewing and suspends acquisition until explicit resume.
-Inspect streams_released and stop outcomes: an ACK is not observed cessation.
   docker compose -f deploy/compose.yaml stop
 
-Ports and network boundary
---------------------------
-127.0.0.1:57010 -> app:57000 (web/API)
-127.0.0.1:57012 TCP/UDP -> go2rtc:57002 (media, not HTTP)
-57001: private go2rtc admin, never publish/proxy wholesale
-127.0.0.1:57020: native ROS web gateway
-127.0.0.1:8765: Foxglove WebSocket
+Ports and Network Boundaries
+----------------------------
+  127.0.0.1:57010 -> app:57000 (Web UI & HTTP API)
+  127.0.0.1:57012 TCP/UDP -> go2rtc:57002 (WebRTC media)
+  57001 -> private go2rtc admin (container-internal)
+  127.0.0.1:57020 -> native ROS web gateway (z70_web_gateway)
+  127.0.0.1:8765  -> Foxglove WebSocket bridge
 
-Compose project/image names retain roboclaw for compatibility. Compose sets
-Z70_ROS_GATEWAY_ORIGIN=http://host.docker.internal:57020 for Docker Desktop.
-The native gateway remains loopback-bound; this arrangement is not a Linux
-networking guarantee. Default binds are local, not an authenticated LAN service.
-Changing publish host/origin/cookie settings requires an explicit network review.
-
-State and rollback
-------------------
-Compose defaults to ../.local relative to deploy/compose.yaml (repository .local),
-mounted at /data; ROBOCLAW_DATA_PATH can override it. Preserve this private state,
-including service-token and pairing.json. Pairing updates are atomic; legacy
-split documents can be loaded, with pairing.json preferred. Secret files are
-plaintext mode 0600, not encrypted at rest. No startup owner-delay gate requires
-chowning/clearing this bind. Never put secrets into build arguments or DDS.
-
-ROS mutable state is separate: $XDG_DATA_HOME/RRsZ70_ROS2, falling back to
-~/.local/share/RRsZ70_ROS2. Installed shares contain immutable calibration/model
-resources. Retained calibration originals are evidence, not runtime output files.
-
-Before an authorized deployment, privately back up state and retain prior image
-IDs plus matching source/MCP/web/gateway versions. Stop native clients before
-switching contracts. Roll back matching backend/client versions together, using
-compatible state. Do not reset/clean/stash unrelated work, delete calibration
-originals, clear estimates or use docker compose down -v/prune as recovery.
-
-Diagnostics and bounded operation
----------------------------------
-Use standard ros2 topic/action/service/param tools. ROS owns execution, estimation
-and shared acquisition; the sidecar owns transport/authentication. No direct
-vendor fallback from UI/MCP is supported. See docs/thin-api.md for scheduler
-BUSY/SESSION_STOPPED/STOP_UNVERIFIED and dispatch uncertainty.
-
-Nominal app_arm_move m=[a,b,c] selects M3/M4/M5: 0 none, 1 positive 10-degree
-step, 2 negative step (not -1). app_arm_direction_move direction 1..4 selects
-up/down/forward/back, nominal 40 mm; these are command units, not proof of travel.
-Resolve an uncertain motion by observation before any intentional retry, never
-blind replay or compensating motion. Missing images/VO/markers are data gaps;
-stop for actual hazards, unexpected motion/cleaning/docking, robot error or the
-operator's stop instruction. If stop and observation both fail, suspend motion
-and tell the operator to physically stop the robot.
-
-Record source/session/frame/command/attempt identities, receipt versus exposure
-time, requested motion, dispatch/reply and observed result separately. Use a new
-session evidence directory; retain originals and stationary noise/coverage data.
-Only an observation-backed known pose justifies an estimator anchor. End only
-processes you own and report observed final physical/session state, not just ACKs.
-
-Logging
--------
-The app rotates bounded local JSON logs. go2rtc uses logging driver none because
-upstream errors can contain credential URLs. Never attach/copy arbitrary upstream
-logs into docs/chat. Prefer closed numeric/enum diagnostic categories and sanitized
-state. See deploy/go2rtc-login-fix.md and docs/validation/camera-preview-start-rejection.md.
-Config-only go2rtc YAML changes require recreation/restart to take effect; building
-an image alone does not update a running service. Deployment is distinct from
-software-test success and must stay within the operator's live authorization.
+State Directories
+-----------------
+- .local/ (mounted at /data in the app container): holds service-token and pairing.json.
+- $XDG_DATA_HOME/RRsZ70_ROS2 (default ~/.local/share/RRsZ70_ROS2): holds mutable ROS runtime state (arm-estimate.json and calibration/chassis/online.json).
+- Installed package shares (install/z70_description/share/..., install/z70_odometry/share/...): hold immutable URDF/CAD meshes and calibrated camera/arm/floor configs.

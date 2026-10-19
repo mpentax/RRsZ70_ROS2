@@ -105,10 +105,11 @@ def test_bfs_safe_grid_and_negative_code_two():
     assert plan
     for step in plan:
         assert set(step['m'])<={0,1,2}
-        assert sum(code!=0 for code in step['m'])==1
+        assert 1 <= sum(code!=0 for code in step['m']) <= 2
         for a,b in zip(state,step['state']): assert abs(a-b) in (0,10)
         assert p.safe_edge(state,tuple(step['state']))
         state=tuple(step['state'])
+    assert any(sum(code!=0 for code in step['m']) == 2 for step in plan)
     assert state==goal
     reverse=p.joint_plan(goal,(150,45))
     assert any(2 in step['m'] for step in reverse)

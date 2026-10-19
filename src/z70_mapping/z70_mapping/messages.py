@@ -32,7 +32,20 @@ def grid_message(m, saved_at, load_at=None):
     return g
 
 
-def markers_message(m, labels, saved_at):
+def safe_grid_message(boundary_result, saved_at, load_at=None):
+    """Latched metric centreline grid: reachable interior=0, everything else=100."""
+    g = OccupancyGrid()
+    g.header.frame_id = 'map'; g.header.stamp = stamp(saved_at)
+    g.info.map_load_time = stamp(saved_at if load_at is None else load_at)
+    g.info.width, g.info.height = boundary_result.width, boundary_result.height
+    g.info.resolution = boundary_result.resolution
+    g.info.origin.position.x, g.info.origin.position.y = boundary_result.origin
+    g.info.origin.orientation.w = 1.
+    g.data = boundary_result.safe_grid.reshape(-1).tolist()
+    return g
+
+
+def markers_message(m, labels, saved_at, waypoints=None, boundary_result=None):
     result = MarkerArray()
     clear = Marker(); clear.action = Marker.DELETEALL
     clear.header.frame_id = 'map'; clear.header.stamp = stamp(saved_at)
@@ -95,4 +108,21 @@ def markers_message(m, labels, saved_at):
                     for x, y in contour.reshape(-1, 2)]
             for a, b in zip(poly, poly[1:] + poly[:1]):
                 lines.points.extend([Point(x=a[0], y=a[1], z=.015), Point(x=b[0], y=b[1], z=.015)])
+    if boundary_result is not None:
+        waypoints = boundary_result.waypoints if waypoints is None else waypoints
+        text = marker('boundary_contract', 0, Marker.TEXT_VIEW_FACING, (.2, 1., .6, 1.))
+        text.pose.position.x, text.pose.position.y = m.origin
+        text.pose.position.z = .4; text.scale.z = .16
+        text.text = (f'Interior: {int(boundary_result.reachable_mask.sum())} reachable cells; '
+                     f'clearance {boundary_result.config.clearance_m:.3f} m; '
+                     f'lost rooms {boundary_result.lost_rooms}; NOT firmware enforced')
+    for i, waypoint in enumerate(waypoints or []):
+        point = marker('patrol_waypoints', i, Marker.SPHERE, (.1, 1., .8, 1.))
+        point.pose.position.x, point.pose.position.y = waypoint['x'], waypoint['y']
+        point.pose.position.z = .08
+        point.scale.x = point.scale.y = point.scale.z = .12
+        label = marker('patrol_waypoint_labels', i, Marker.TEXT_VIEW_FACING, (.1, 1., .8, 1.))
+        label.pose.position.x, label.pose.position.y = waypoint['x'], waypoint['y']
+        label.pose.position.z = .22; label.scale.z = .12
+        label.text = f"{i + 1}: S{waypoint['segment_id']}"
     return result

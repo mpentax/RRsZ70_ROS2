@@ -51,6 +51,11 @@ def test_jog_direction_sigma_clamp_and_firmware_predictive_limit():
     for m in ([0,0,1],[0,0,1],[0,0,1],[0,0,2]):e.observe('app_arm_move',dict(m=m),'received')
     d=e.snapshot();assert d['joints']['m5']==20 and d['stepsSinceAnchor']==4
     assert d['sigmaDeg']['m5']==pytest.approx(5.)
+    assert e.observe('app_arm_move',dict(m=[0,0,2,0,0]),'received')
+    assert e.snapshot()['joints']['m5']==10
+    assert not e.observe('app_pick_up_enter_exit',dict(flag=1),'received')
+    assert e.observe('app_put_down',dict(flag=0),'received')
+    assert e.snapshot()['state']=='IN_PROCESS_POS' and e.snapshot()['joints']['m6']==90
     for _ in range(20):e.observe('app_arm_move',dict(m=[0,1,0]),'received')
     assert e.snapshot()['joints']['m4']==170
     e=deployed()

@@ -107,6 +107,27 @@ def system():
         assert not spin.is_alive() and not ht.is_alive()
 
 
+@pytest.mark.parametrize('field,value', [('target_x_m', True), ('target_y_m', float('nan')), ('max_duration_s', 0), ('dry_run', 1)])
+def test_pin_and_go_validation(field, value):
+    payload=dict(target_x_m=24.5,target_y_m=26.,max_duration_s=60.,dry_run=True)
+    message=goal_message('pin_and_go',payload)
+    assert message.target_x_m==24.5
+    with pytest.raises(ApiError): goal_message('pin_and_go',dict(payload,**{field:value}))
+    with pytest.raises(ApiError): goal_message('pin_and_go',dict(payload,extra=True))
+    with pytest.raises(ApiError): goal_message('pin_and_go',{})
+
+
+@pytest.mark.parametrize('kind', ['deliver_garment','patrol_collect'])
+def test_garment_goal_validation(kind):
+    goal=dict(drop_x_m=1.,drop_y_m=2.,max_duration_s=60.,allow_towing=False,dry_run=True)
+    goal.update(category='sock') if kind=='deliver_garment' else goal.update(max_items=10)
+    assert goal_message(kind,goal).dry_run
+    for field,value in [('drop_x_m',True),('drop_y_m',float('nan')),('allow_towing',1),('dry_run',0),('max_duration_s',0)]:
+        with pytest.raises(ApiError): goal_message(kind,dict(goal,**{field:value}))
+    with pytest.raises(ApiError): goal_message(kind,dict(goal,extra=True))
+    with pytest.raises(ApiError): goal_message(kind,{})
+
+
 def start(system, kind='arm_step', goal=None):
     r = system['request']('POST', '/api/ros/tasks', {'kind':kind,'goal':goal or {'joint':3,'direction':1}})
     assert r.status_code == 202, r.text
@@ -220,6 +241,18 @@ def test_session_cleanup_never_stops_another_owner_or_claims_unknown_release(sys
     assert 'stop_camera_preview' not in system['calls']
     assert stopped.json()['enabled'] is False
     assert stopped.json()['outcomes'][-1]['error_code'] == 'STREAM_RELEASE_UNVERIFIED'
+
+
+def test_native_navigation_stop_is_added_only_after_goto(system):
+    request=system['request']
+    reply=request('POST','/api/ros/rpc',{'method':'app_goto_target','params':[2000,1000]})
+    assert reply.status_code==200 and reply.json()['outcome']['response']==1
+    stopped=request('POST','/api/ros/stop',{'scope':3})
+    assert stopped.status_code==200
+    assert system['calls']==['app_goto_target','stop_goto_target','app_rc_stop','app_rc_end','app_stop_grasp']
+    system['calls'].clear()
+    request('POST','/api/ros/stop',{'scope':3})
+    assert system['calls']==['app_rc_stop','app_rc_end','app_stop_grasp']
 
 
 def test_shared_goal_uuid_feedback_and_unknown_failed_results(system):

@@ -103,22 +103,25 @@ def joint_plan(start,goal,allowed=None,m5=0,m6=90):
     if len(start)!=2 or len(goal)!=2:raise ValueError('joint_plan emits M3/M4 commands only; use safe_edge for four-angle geometry')
     geometry=lambda st: (st[0],st[1],m5,m6) if m5!=0 or m6!=90 else st
     if not safe(geometry(start)) or not safe(geometry(goal)): raise ValueError('unsafe joint endpoint')
-    near_goal=lambda st: sum(abs(a-b) for a,b in zip(st,goal))<=10   # last step onto the goal: object is right below
+    near_goal=lambda st: max(abs(a-b) for a,b in zip(st,goal))<=10   # last step onto the goal: object is right below
     ok=lambda st: st==goal or allowed is None or allowed(st) or (near_goal(st) and tip_height(st)>=.015)
-    queue=deque([start]); parent={start:None}
+    moves=(
+        ((10,10),[1,1,0]), ((-10,-10),[2,2,0]), ((10,-10),[1,2,0]), ((-10,10),[2,1,0]),
+        ((10,0),[1,0,0]), ((-10,0),[2,0,0]), ((0,10),[0,1,0]), ((0,-10),[0,2,0]),
+    )
+    queue=deque([start]); parent: dict[tuple[int, ...], tuple[tuple[int, ...], list[int]] | None] = {start: None}
     while queue:
         state=queue.popleft()
         if state==goal:
             steps=[]
-            while parent[state] is not None:
-                before,codes=parent[state]; steps.append(dict(m=codes,state=list(state))); state=before
+            while (entry := parent[state]) is not None:
+                before,codes=entry; steps.append(dict(m=codes,state=list(state))); state=before
             return steps[::-1]
-        for j in range(2):
-            for delta,code in [(10,1),(-10,2)]:
-                new=list(state); new[j]+=delta; new=tuple(new)
-                if (new in parent or not safe(geometry(new))
-                        or not safe_edge(geometry(state),geometry(new)) or not ok(new)): continue
-                codes=[0,0,0]; codes[j]=code; parent[new]=(state,codes); queue.append(new)
+        for (d3,d4),codes in moves:
+            new=(state[0]+d3, state[1]+d4)
+            if (new in parent or not safe(geometry(new))
+                    or not safe_edge(geometry(state),geometry(new)) or not ok(new)): continue
+            parent[new]=(state,list(codes)); queue.append(new)
     raise ValueError('no safe 10-degree joint path')
 
 _LENS=gripper_camera_info()

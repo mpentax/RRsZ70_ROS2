@@ -113,7 +113,9 @@ def test_first_snapshot_aligns_before_any_odometry_and_publishes_spatial_context
     assert t.transform.rotation.z == pytest.approx(2**-.5)
     publisher = pubs['/z70/map/spatial_context']
     assert publisher.qos.durability == DurabilityPolicy.TRANSIENT_LOCAL
-    assert json.loads(publisher.publish.call_args.args[0].data) == spatial_context(
+    payload = json.loads(publisher.publish.call_args.args[0].data)
+    assert payload.pop('boundary_contract')['frame_id'] == 'map'
+    assert payload == spatial_context(
         node.current[0], {2: 'Kitchen'})
 
 
@@ -134,7 +136,9 @@ def test_spatial_context_tracks_transformed_odometry(mapping_node):
     node.publish()
     assert node.anchor == anchor
     assert tf.sendTransform.call_count == 2
-    assert json.loads(pubs['/z70/map/spatial_context'].publish.call_args.args[0].data) == spatial_context(
+    payload = json.loads(pubs['/z70/map/spatial_context'].publish.call_args.args[0].data)
+    assert payload.pop('boundary_contract')['frame_id'] == 'map'
+    assert payload == spatial_context(
         node.current[0], {2: 'Kitchen'}, transform_pose(anchor, node.odom))
 
 

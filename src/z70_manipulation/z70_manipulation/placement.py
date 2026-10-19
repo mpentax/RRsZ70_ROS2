@@ -64,10 +64,12 @@ def descent_step(sample, joints):
         else:
             local = planner.hand.grasp_reference()
         start = T[:3,:3]@local+T[:3,3]
-        for j in range(2):
-            for delta,code in ((10,1),(-10,2)):
-                goal = list(current); goal[j] += delta
-                if not planner.safe_edge(current, goal):
+        for (d3, c3) in ((0, 0), (10, 1), (-10, 2)):
+            for (d4, c4) in ((0, 0), (10, 1), (-10, 2)):
+                if c3 == 0 and c4 == 0:
+                    continue
+                goal = list(current); goal[0] += d3; goal[1] += d4
+                if not planner.safe(goal) or not planner.safe_edge(current, goal):
                     continue
                 path = [planner.hand.hand_pose([a+(b-a)*i/20 for a,b in zip(current,goal)]) for i in range(21)]
                 offsets = np.array([p[:3,:3]@local+p[:3,3]-start for p in path])
@@ -76,7 +78,7 @@ def descent_step(sample, joints):
                     continue
                 if float(np.linalg.norm(offsets[:,:2],axis=1).max()) > .030:
                     continue
-                m=[0,0,0];m[j]=code
+                m=[c3,c4,0]
                 choices.append((gap-descent, dict(method='app_arm_move', params={'m':m}, descent_m=descent)))
     if gap >= .04 + max(.005,sample.get('uncertainty_m',.015)):
         choices.append((gap-.04, dict(method='app_arm_direction_move', params={'direction':2}, descent_m=.04)))

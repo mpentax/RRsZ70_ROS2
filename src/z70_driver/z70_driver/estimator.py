@@ -18,7 +18,7 @@ from z70_description.arm_model import (
 
 ARM_METHODS = {'app_arm_out_compartment', 'app_arm_in_compartment', 'app_open_gripper',
     'app_grip', 'app_arm_move', 'app_arm_direction_move', 'app_start_program',
-    'app_pick_up', 'app_put_down', 'app_stop_grasp', 'app_stop'}
+    'app_pick_up', 'app_put_down', 'app_stop_grasp', 'app_stop', 'app_arm_recover'}
 STATES = {'IN_ROBOT', 'WORKING_POS', 'TRANSFER_POS', 'IN_PROCESS_POS', 'UNKNOWN'}
 
 
@@ -172,7 +172,12 @@ class ArmEstimator:
             if len(self.seen)>4096: self.seen = {command_id}
         if outcome in ('not_sent','vendor_error'): return False
         if method not in ARM_METHODS:
-            if method.startswith(('get_','app_get_','app_rc_')) or method in {'app_change_camera','app_pick_up_enter_exit'}: return False
+            if method == 'app_pick_up_enter_exit':
+                p = params[0] if isinstance(params,list) and len(params)==1 else params
+                if outcome == 'received' and isinstance(p,dict) and type(p.get('flag')) is int and p['flag'] in (0,1,2):
+                    self.grab_mode = p['flag']
+                return False
+            if method.startswith(('get_','app_get_','app_rc_')) or method == 'app_change_camera': return False
             # Advanced unknown programs/operations cannot silently preserve a
             # planning pose. This does not reject or retry the vendor command.
             return self.invalidate('UNOBSERVED_MOTION')
@@ -190,9 +195,14 @@ class ArmEstimator:
         if method == 'app_open_gripper':
             if not self._movable(): return False
             self.data['joints']['m6']=90; return self._commit(method,'GRIPPER_COMMAND_ONLY')
+        if method == 'app_put_down' and self.grab_mode == 1 and isinstance(p,dict) and p.get('flag') == 0:
+            if not self._movable():
+                if self.data['state'] != 'IN_ROBOT': self.data['joints']['m6'] = 90
+                return False
+            self.data['joints']['m6']=90; return self._commit(method,'GRIPPER_COMMAND_ONLY')
         if method == 'app_arm_move':
-            if not isinstance(p,dict) or not isinstance(p.get('m'),list) or len(p['m'])!=3: return self.invalidate('INVALID_COMMAND')
-            return self._joints(p['m'],1,method)
+            if not isinstance(p,dict) or not isinstance(p.get('m'),list) or len(p['m']) not in (3,5): return self.invalidate('INVALID_COMMAND')
+            return self._joints(p['m'][:3],1,method)
         if method == 'app_arm_direction_move':
             return self._hand(p.get('direction'),1,method) if isinstance(p,dict) else self.invalidate('INVALID_COMMAND')
         if method == 'app_start_program':

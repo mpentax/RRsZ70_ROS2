@@ -1,0 +1,23 @@
+string<=32 category
+float64 drop_x_m
+float64 drop_y_m
+float64 max_duration_s
+bool allow_towing
+bool dry_run
+---
+z70_interfaces/CommandOutcome outcome
+string<=32 status_code
+bool delivered
+bool stowed
+bool dry_run_valid
+unique_identifier_msgs/UUID track_id
+float64[2] final_position_m
+string<=256 evidence_uri
+string<=128 detail
+---
+uint8 phase
+string<=64 stage
+string<=64 reason
+float64[2] current_position_m
+z70_interfaces/CommandOutcome latest_outcome
+z70_interfaces/EvidenceStamp latest_observation

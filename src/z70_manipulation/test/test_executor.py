@@ -249,7 +249,7 @@ def test_move_arm_uses_kinematic_model_and_rpc_without_camera_frames(fake, tmp_p
     ex = Executor(client, lambda *_: [], tmp_path / 'move-arm', sleep=lambda _: None)
     res = ex.move_arm((190, 65, 20))
     assert res['state'] == [190, 65, 20]
-    assert res['steps_executed'] == 8  # 4 M3 + 2 M4 + 2 M5
+    assert res['steps_executed'] == 4  # 2 coordinated [1,1,1] + 2 [1,0,0]
     assert state['joints'] == [190, 65, 20]
     # No camera frames were requested during MoveArm
     assert not any(e[1] == '/api/camera/frame' for e in events)

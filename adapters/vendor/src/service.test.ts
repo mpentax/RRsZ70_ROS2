@@ -129,6 +129,14 @@ test("repeat-safe commands retry once; a move that may have run is never re-sent
   assert.deepEqual(calls.map(c => c.method), ["app_rc_stop", "app_rc_stop", "app_rc_move", "app_rc_move", "app_rc_move"]);
 });
 
+test('native goto is never replayed, even on not_sent; native stop is repeatable', async t => {
+  const {calls,post}=await fixture(t,()=>{throw new TransportError('timeout','not_sent');});
+  await post('/api/driver/rpc',{method:'app_goto_target',params:[24500,26000]});
+  assert.deepEqual(calls.map(c=>c.method),['app_goto_target']);
+  await post('/api/driver/rpc',{method:'stop_goto_target',params:[]});
+  assert.deepEqual(calls.map(c=>c.method),['app_goto_target','stop_goto_target','stop_goto_target']);
+});
+
 test('stop-cancelled queued intent is NOT an unsent retry opportunity',async t=>{
   const {calls,post}=await fixture(t,()=>{throw new TransportError('Command cancelled by priority stop','not_sent','cancelled');});
   const response=await post('/api/driver/rpc',{method:'app_arm_move',params:{m:[1,0,0]}});

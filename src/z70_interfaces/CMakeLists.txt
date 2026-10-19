@@ -21,6 +21,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/MapSnapshot.msg"
   "msg/ObjectObservation.msg"
   "msg/ObjectObservations.msg"
+  "msg/GarmentObservation.msg"
+  "msg/GarmentObservations.msg"
   "msg/CommandOutcome.msg"
   "msg/CommandEvent.msg"
   "msg/CalibrationState.msg"
@@ -40,6 +42,9 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "action/MoveArm.action"
   "action/GraspAndLift.action"
   "action/ReleaseAndStow.action"
+  "action/PinAndGo.action"
+  "action/DeliverGarment.action"
+  "action/PatrolCollect.action"
   "action/Pick.action"
   "action/Stack.action"
   DEPENDENCIES std_msgs builtin_interfaces unique_identifier_msgs sensor_msgs geometry_msgs nav_msgs action_msgs)

@@ -163,11 +163,12 @@ function handshake(peer: Peer, type: number): void {
   if (type === 0) peer.send(control(peer, 1, 0, word(0)));
 }
 
-test('priority stop bypasses four hanging reads and cancels queued actuator intent', async t => {
+for (const stopMethod of ['app_rc_stop','stop_goto_target']) {
+test(`${stopMethod} bypasses four hanging reads and cancels queued actuator intent`, async t => {
   let stopReplied=false;
   const {client,peers}=fixture(t,(peer,type)=>{
     handshake(peer,type);
-    const stop=peer.rpcs.find(r=>r.method==='app_rc_stop');
+    const stop=peer.rpcs.find(r=>r.method===stopMethod);
     if (stop && !stopReplied) { stopReplied=true;peer.send(reply(peer,{id:stop.id,result:['ok']})); }
   });
   await client.connect();
@@ -175,13 +176,14 @@ test('priority stop bypasses four hanging reads and cancels queued actuator inte
   await drain();assert.equal(peers[0].rpcs.length,4);
   const queued=client.rpc('app_arm_move',{m:[1,0,0]},10000).catch(e=>e);
   await drain();assert.equal(peers[0].rpcs.length,4);
-  assert.deepEqual(await client.rpc('app_rc_stop',[],1000),['ok']);
+  assert.deepEqual(await client.rpc(stopMethod,[],1000),['ok']);
   const cancellation=await queued;
   assert.ok(cancellation instanceof TransportError);
   assert.equal(cancellation.dispatch,'not_sent');assert.equal(cancellation.reason,'cancelled');
-  assert.deepEqual(peers[0].rpcs.map(r=>r.method),['get_hanging_0','get_hanging_1','get_hanging_2','get_hanging_3','app_rc_stop']);
+  assert.deepEqual(peers[0].rpcs.map(r=>r.method),['get_hanging_0','get_hanging_1','get_hanging_2','get_hanging_3',stopMethod]);
   client.close();await Promise.all(reads);
 });
+}
 
 for (const version of ["1.0", "L01"] as const) {
   test(`${version}: shared handshake, independent IDs and sequences, out-of-order replies`, async (t) => {

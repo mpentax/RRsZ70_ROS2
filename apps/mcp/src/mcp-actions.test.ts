@@ -30,11 +30,18 @@ test("MCP exposes generic RPC and observation tools without challenges or prior 
       assert.deepEqual(calls.at(-1), {path:'/api/ros/control/session', payload:{enabled}});
     }
     for (const task of [
+      { kind: "deliver_garment", goal: { category: "sock", drop_x_m: 1, drop_y_m: 2, max_duration_s: 60, allow_towing: false, dry_run: true } },
+      { kind: "patrol_collect", goal: { drop_x_m: 1, drop_y_m: 2, max_duration_s: 600, max_items: 10, allow_towing: false, dry_run: true } },
+      { kind: "pin_and_go", goal: { target_x_m: 24.5, target_y_m: 26.0, max_duration_s: 60, dry_run: true } },
       { kind: "deploy_arm", goal: { settle: true } },
       { kind: "align_target", goal: { color: "yellow" } },
       { kind: "move_arm", goal: { m3_deg: 190, m4_deg: 65, m5_deg: 0 } },
       { kind: "grasp_and_lift", goal: { lift_steps: 2, verify_color: "yellow" } },
       { kind: "release_and_stow", goal: { put_down: true } },
+      { kind: "arm_operation", goal: { operation: 6 } },
+      { kind: "arm_operation", goal: { operation: 7 } },
+      { kind: "arm_operation", goal: { operation: 8 } },
+      { kind: "arm_operation", goal: { operation: 9 } },
       { kind: "stack", goal: { base_color: "yellow", middle_color: "blue", top_color: "purple", dry_run: true } },
     ] as const) {
       const reply = await client.callTool({ name: "start_task", arguments: { task } });

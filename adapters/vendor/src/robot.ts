@@ -71,7 +71,7 @@ type Session = {
 const MAX_FRAME = 23 + 0xffff;
 const MAX_PENDING = 32;
 const MAX_INFLIGHT = 4;
-const PRIORITY_STOPS = new Set(['app_rc_stop', 'app_rc_end', 'app_stop_grasp', 'app_stop']);
+const PRIORITY_STOPS = new Set(['app_rc_stop', 'app_rc_end', 'app_stop_grasp', 'app_stop', 'stop_goto_target']);
 
 class ProtocolError extends Error {}
 

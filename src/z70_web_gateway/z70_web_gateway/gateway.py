@@ -26,12 +26,12 @@ from rosidl_runtime_py.set_message import set_message_fields
 from sensor_msgs.msg import CompressedImage
 from nav_msgs.msg import OccupancyGrid
 from unique_identifier_msgs.msg import UUID
-from z70_interfaces.action import BasePulse, ArmStep, HandStep, ArmOperation, Pick, Stack, DeployArm, AlignToTarget, MoveArm, GraspAndLift, ReleaseAndStow
+from z70_interfaces.action import DeliverGarment, PatrolCollect, PinAndGo, BasePulse, ArmStep, HandStep, ArmOperation, Pick, Stack, DeployArm, AlignToTarget, MoveArm, GraspAndLift, ReleaseAndStow
 from z70_interfaces.msg import RobotState, CameraState, ArmEstimate, CalibrationState, FrameMetadata
 from z70_interfaces.srv import RawRpc, Stop, SelectCamera, SetArmAnchor, SetControlSession
 from std_msgs.msg import Bool
 
-ACTIONS = {'pick': (Pick, '/z70/pick'), 'stack': (Stack, '/z70/stack'), 'base_pulse': (BasePulse, '/z70/base/pulse'),
+ACTIONS = {'deliver_garment': (DeliverGarment, '/z70/deliver_garment'), 'patrol_collect': (PatrolCollect, '/z70/patrol_collect'), 'pin_and_go': (PinAndGo, '/z70/nav/pin_and_go'), 'pick': (Pick, '/z70/pick'), 'stack': (Stack, '/z70/stack'), 'base_pulse': (BasePulse, '/z70/base/pulse'),
            'arm_step': (ArmStep, '/z70/arm/step'), 'hand_step': (HandStep, '/z70/arm/hand_step'),
            'arm_operation': (ArmOperation, '/z70/arm/operation'),
            'deploy_arm': (DeployArm, '/z70/arm/deploy'), 'align_target': (AlignToTarget, '/z70/align_target'),
@@ -67,7 +67,19 @@ def number(value, low, high):
 
 def goal_message(kind, payload):
     if kind not in ACTIONS or not isinstance(payload, dict): raise ApiError(400, 'INVALID_INPUT')
-    if kind == 'pick':
+    if kind in ('deliver_garment','patrol_collect'):
+        fields = ('drop_x_m','drop_y_m','max_duration_s','allow_towing','dry_run') + (('category',) if kind=='deliver_garment' else ('max_items',))
+        checked(payload, fields, fields)
+        valid = (number(payload['drop_x_m'],-100.,100.) and number(payload['drop_y_m'],-100.,100.)
+                 and number(payload['max_duration_s'],1.,3600.) and type(payload['allow_towing']) is bool
+                 and type(payload['dry_run']) is bool)
+        valid = valid and (isinstance(payload['category'],str) and len(payload['category'])<=32 if kind=='deliver_garment' else integer(payload['max_items'],1,1000))
+    elif kind == 'pin_and_go':
+        fields = ('target_x_m', 'target_y_m', 'max_duration_s', 'dry_run')
+        checked(payload, fields, fields)
+        valid = (number(payload['target_x_m'], -100., 100.) and number(payload['target_y_m'], -100., 100.)
+                 and number(payload['max_duration_s'], 1., 600.) and type(payload['dry_run']) is bool)
+    elif kind == 'pick':
         checked(payload, ('color', 'dry_run'), ('color', 'dry_run'))
         valid = isinstance(payload['color'], str) and bool(re.fullmatch(r'[a-zA-Z0-9_-]{1,32}', payload['color'])) and type(payload['dry_run']) is bool
     elif kind == 'stack':
@@ -83,11 +95,11 @@ def goal_message(kind, payload):
                  and not (payload['linear_mps'] and payload['angular_radps']))
     elif kind == 'arm_step':
         checked(payload, ('joint', 'direction'), ('joint', 'direction'))
-        valid = integer(payload['joint'], 3, 5) and type(payload['direction']) is int and payload['direction'] in (-1, 1)
+        valid = type(payload['joint']) is int and payload['joint'] in (3, 4, 5, 34, 43) and type(payload['direction']) is int and payload['direction'] in (-1, 1)
     elif kind == 'hand_step':
         checked(payload, ('direction',), ('direction',)); valid = integer(payload['direction'], 1, 4)
     elif kind == 'arm_operation':
-        checked(payload, ('operation',), ('operation',)); valid = integer(payload['operation'], 1, 5)
+        checked(payload, ('operation',), ('operation',)); valid = integer(payload['operation'], 1, 9)
     elif kind == 'deploy_arm':
         checked(payload, ('settle',), ('settle',)); valid = type(payload['settle']) is bool
     elif kind == 'align_target':

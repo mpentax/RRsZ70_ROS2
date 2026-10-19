@@ -1,21 +1,13 @@
-# Documentation
+# Documentation Index
 
-Start with the [project quickstart](../README.md).
-
-- [ROS 2: launch, interfaces, resources and optional depth](ros2.md)
-- [Shared web/MCP API and private transport contract](thin-api.md)
-- [Deployment and private state](../deploy/OPERATIONS.txt)
-- [Arm geometry and command conventions](z70-arm-model.md)
-- [Manipulation](../src/z70_manipulation/README.md),
-  [mapping/depth](../src/z70_mapping/README.md),
-  [odometry/mosaic](../src/z70_odometry/README.md),
-  [Foxglove](../src/z70_bringup/foxglove/README.md)
-- Reusable checks: [shared cameras](validation/shared-camera-mode.md),
-  [camera throughput](validation/camera-throughput.md),
-  [passive chassis calibration](validation/chassis-odometry-trial.md)
-- [Camera preview-rejection incident](validation/camera-preview-start-rejection.md)
-
-Dated session briefs, migration records and `archive/` are historical evidence,
-not current setup instructions or standing authorization for hardware access.
-Calibration originals remain under `../calibration/`; installed package resources
-are runtime defaults. Source and generated ROS interfaces define the implementation.
+- [Project quickstart](../README.md)
+- [ROS 2 launch, topics, services, and optional depth](ros2.md)
+- [Arm geometry, kinematics, and manual control protocol](z70-arm-model.md)
+- [Shared Web/MCP HTTP gateway and transport contract](thin-api.md)
+- [Deployment and local operations](../deploy/OPERATIONS.txt)
+- Package guides:
+  - [Manipulation and navigation actions](../src/z70_manipulation/README.md)
+  - [LiDAR mapping, safe interior grid, and depth](../src/z70_mapping/README.md)
+  - [Floor visual odometry, chassis calibration, and mosaic](../src/z70_odometry/README.md)
+  - [Foxglove Studio dashboard](../src/z70_bringup/foxglove/README.md)
+  - [CAD meshes and URDF stations](../src/z70_description/meshes/cad/README.md)

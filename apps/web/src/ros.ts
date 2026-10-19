@@ -3,7 +3,7 @@ import { json } from './api.ts';
 export type Task = { id: string; kind: string; status: string; phase: number; feedback: unknown; result: unknown };
 export type RosState = { available: boolean; session_enabled?: boolean | null; state: { connected: boolean; battery_known: boolean; battery_fraction: number; evidence: { valid: boolean; stale: boolean } } | null; camera: unknown; arm: unknown; calibration: unknown };
 export type Setup = { device: { id: string; name: string; model: string; host: string; localProtocol: string } | null; accountConfigured: boolean; pinConfigured: boolean };
-export type TaskRequest = { kind: 'pick' | 'stack' | 'base_pulse' | 'arm_step' | 'hand_step' | 'arm_operation' | 'deploy_arm' | 'align_target' | 'move_arm' | 'grasp_and_lift' | 'release_and_stow'; goal: Record<string, unknown> };
+export type TaskRequest = { kind: 'deliver_garment' | 'patrol_collect' | 'pin_and_go' | 'pick' | 'stack' | 'base_pulse' | 'arm_step' | 'hand_step' | 'arm_operation' | 'deploy_arm' | 'align_target' | 'move_arm' | 'grasp_and_lift' | 'release_and_stow'; goal: Record<string, unknown> };
 export const terminal = (task: Task) => ['succeeded', 'failed', 'cancelled', 'rejected'].includes(task.status);
 export const taskPath = (id: string) => {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)) throw new Error('Invalid task ID.');

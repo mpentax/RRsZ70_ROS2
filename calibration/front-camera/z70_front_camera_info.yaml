@@ -1,9 +1,0 @@
-# ROS camera_info (plumb_bob). Generated from front_camera.json (floor-plane fit), see README.
-image_width: 1600
-image_height: 1200
-camera_name: z70_front
-camera_matrix: {rows: 3, cols: 3, data: [822.829, 0.0, 777.066, 0.0, 822.829, 598.417, 0.0, 0.0, 1.0]}
-distortion_model: plumb_bob
-distortion_coefficients: {rows: 1, cols: 5, data: [-0.073619, -0.008760, 0.0, 0.0, 0.0]}
-rectification_matrix: {rows: 3, cols: 3, data: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]}
-projection_matrix: {rows: 3, cols: 4, data: [822.829, 0.0, 777.066, 0.0, 0.0, 822.829, 598.417, 0.0, 0.0, 0.0, 1.0, 0.0]}

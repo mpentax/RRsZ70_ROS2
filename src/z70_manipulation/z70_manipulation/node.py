@@ -24,7 +24,7 @@ import yaml
 from z70_description.arm_model import check as check_arm_limits
 from . import perception, planner
 from .executor import Client, Executor, log_directory
-from z70_interfaces.action import Pick, Stack, DeployArm, AlignToTarget, MoveArm, GraspAndLift, ReleaseAndStow
+from z70_interfaces.action import DeliverGarment, PatrolCollect, PinAndGo, Pick, Stack, DeployArm, AlignToTarget, MoveArm, GraspAndLift, ReleaseAndStow
 from z70_interfaces.msg import ArmEstimate, CalibrationState, CommandOutcome
 from z70_odometry.calibration_state import gains_from_state
 from .observations import Observations, LATCHED
@@ -137,6 +137,7 @@ class PickServer(Perception):
         self.odom_at = 0.
         self.lock = threading.Lock()
         self.active_handle = None
+        self.navigation_active = False
         self.monitor = None
         self.client = None
         self.gains = {}
@@ -155,6 +156,19 @@ class PickServer(Perception):
                                    cancel_callback=self.cancel, callback_group=self.group)
         self.stack_action = ActionServer(self, Stack, '/z70/stack', execute_callback=self.execute_stack,
                                          goal_callback=self.goal_stack, cancel_callback=self.cancel, callback_group=self.group)
+        from z70_mapping.boundary import BoundaryConfig
+        self.navigation_config = BoundaryConfig(allowed_segments=tuple(
+            self.declare_parameter('pin_and_go_allowed_segments', [1,2,3,4,5,6]).value))
+        self.pin_and_go_action = ActionServer(self, PinAndGo, '/z70/nav/pin_and_go',
+            execute_callback=self.execute_pin_and_go, goal_callback=self.goal_pin_and_go,
+            cancel_callback=self.cancel, callback_group=self.group)
+        self.patrol_directory = Path(self.declare_parameter('patrol_ledger_directory', str(self.repo / 'calibration/patrol')).value)
+        self.deliver_garment_action = ActionServer(self, DeliverGarment, '/z70/deliver_garment',
+            execute_callback=self.execute_deliver_garment, goal_callback=self.goal_garment,
+            cancel_callback=self.cancel, callback_group=self.group)
+        self.patrol_collect_action = ActionServer(self, PatrolCollect, '/z70/patrol_collect',
+            execute_callback=self.execute_patrol_collect, goal_callback=self.goal_garment,
+            cancel_callback=self.cancel, callback_group=self.group)
         self.curated_actions = [
             ActionServer(self, DeployArm, '/z70/arm/deploy', execute_callback=self.execute_deploy,
                          goal_callback=self.goal_deploy, cancel_callback=self.cancel, callback_group=self.group),
@@ -172,7 +186,9 @@ class PickServer(Perception):
         self.gains = gains_from_state(msg)
 
     def watchdog(self):
-        if self.deadline is not None and time.monotonic() >= self.deadline and self.client and self.client.commands and not self.client.commands.cancelled.is_set():
+        expired=self.deadline is not None and time.monotonic() >= self.deadline
+        navigation_hazard=self.navigation_active and self.safety_stop
+        if (expired or navigation_hazard) and self.client and self.client.commands and not self.client.commands.cancelled.is_set():
             self.client.commands.cancelled.set()
             threading.Thread(target=self.client.commands.stop, daemon=True).start()
 
@@ -222,6 +238,123 @@ class PickServer(Perception):
         if len(set(colors)) != 3 or any(c not in self.thresholds for c in colors) or not self.lock.acquire(blocking=False):
             return GoalResponse.REJECT
         return GoalResponse.ACCEPT
+
+    def goal_pin_and_go(self, request):
+        valid = (all(math.isfinite(v) and -100 <= v <= 100 for v in (request.target_x_m,request.target_y_m))
+                 and math.isfinite(request.max_duration_s) and 1 <= request.max_duration_s <= 600)
+        if not valid or not self.lock.acquire(blocking=False): return GoalResponse.REJECT
+        return GoalResponse.ACCEPT
+
+    def execute_pin_and_go(self, handle):
+        from .navigation import PinAndGoNavigator
+        client = None
+        self.active_handle = handle
+        self.navigation_active = True
+        try:
+            client = Client('', None, read_only=handle.request.dry_run, observations=self.observations)
+            self.client = client
+            if client.commands: client.commands.begin()
+            self.deadline = time.monotonic()+handle.request.max_duration_s
+            def feedback(**fields):
+                msg = PinAndGo.Feedback(**fields)
+                if client.commands and client.commands.latest_outcome is not None:
+                    msg.latest_outcome = client.commands.latest_outcome
+                if navigator.latest_observation is not None: msg.latest_observation = navigator.latest_observation
+                handle.publish_feedback(msg)
+            navigator = PinAndGoNavigator(self.observations,client.commands,boundary_config=self.navigation_config,
+                cancelled=lambda:handle.is_cancel_requested or bool(client.commands and client.commands.cancelled.is_set()),
+                hazard=lambda:self.safety_stop, odom=self.odom, feedback=feedback)
+            result = PinAndGo.Result(**navigator.execute(handle.request))
+            if client.commands and client.commands.latest_outcome is not None:
+                result.outcome = client.commands.latest_outcome
+            if handle.is_cancel_requested: handle.canceled()
+            elif result.arrived or result.dry_run_valid: handle.succeed()
+            else: handle.abort()
+            return result
+        except Exception:
+            if client and client.commands:
+                try: client.commands.stop()
+                except (LookupError,TimeoutError): pass
+            if handle.is_cancel_requested: handle.canceled()
+            else: handle.abort()
+            return PinAndGo.Result(status_code='OBSERVATION_GAP',detail='Shared driver observation or command unavailable')
+        finally:
+            if client:
+                if client.commands:
+                    try: client.commands.end()
+                    except (LookupError,TimeoutError,InterruptedError): pass
+                client.close()
+            self.navigation_active = False
+            self.active_handle = None; self.client = None; self.deadline = None
+            self.lock.release()
+
+    def goal_garment(self, request):
+        valid = (all(math.isfinite(v) and -100 <= v <= 100 for v in (request.drop_x_m,request.drop_y_m))
+                 and math.isfinite(request.max_duration_s) and 1 <= request.max_duration_s <= 3600
+                 and (not hasattr(request,'max_items') or 1 <= request.max_items <= 1000))
+        return GoalResponse.ACCEPT if valid and self.lock.acquire(blocking=False) else GoalResponse.REJECT
+
+    def map_pose(self, source='base_footprint'):
+        tr = self.tf.lookup_transform('map',source,Time(),timeout=Duration(seconds=.5))
+        age=(self.get_clock().now().nanoseconds-Time.from_msg(tr.header.stamp).nanoseconds)/1e9
+        if not 0 <= age <= 2.: raise LookupError('stale map -> odom -> base TF')
+        p=tr.transform.translation; q=tr.transform.rotation
+        return (p.x,p.y,math.atan2(2*(q.w*q.z+q.x*q.y),1-2*(q.y*q.y+q.z*q.z)))
+
+    def _execute_garment_task(self, handle, action_cls, patrol=False):
+        from .garment_delivery import GarmentDeliverer
+        from .patrol import PatrolCollector, PatrolLedger
+        client=None
+        self.active_handle=handle; self.navigation_active=True
+        try:
+            client=Client('',None,read_only=handle.request.dry_run,observations=self.observations)
+            self.client=client; self.deadline=time.monotonic()+handle.request.max_duration_s
+            directory=(Path(self.log_root) if self.log_root else log_directory(self.repo))
+            executor=None if handle.request.dry_run else Executor(client,lambda *_:[],directory,
+                hazard=self.hazard,odom=self.odom,calibration=self.gains)
+            if client.commands: client.commands.begin()
+            def feedback(**fields):
+                msg=action_cls.Feedback(**fields)
+                if runner.latest_observation is not None: msg.latest_observation=runner.latest_observation
+                if client.commands and client.commands.latest_outcome is not None: msg.latest_outcome=client.commands.latest_outcome
+                handle.publish_feedback(msg)
+            if patrol:
+                runner=PatrolCollector(self.observations,executor,PatrolLedger(self.patrol_directory),
+                    boundary_config=self.navigation_config,pose=lambda:self.map_pose(),
+                    map_odom=lambda:self.map_pose('odom'),feedback=feedback)
+            else:
+                runner=GarmentDeliverer(self.observations,executor,boundary_config=self.navigation_config,
+                    pose=lambda:self.map_pose(),map_odom=lambda:self.map_pose('odom'),feedback=feedback)
+            data=runner.execute(handle.request)
+            success=(data.get('delivered',False) or data.get('completed',False) or data.get('dry_run_valid',False)
+                     or data.get('status_code')=='PARTIAL_COMPLETION_SMALL_ITEMS_ONLY')
+            result=action_cls.Result(**data)
+            result.outcome=(deepcopy(client.commands.latest_outcome) if client.commands and client.commands.latest_outcome is not None
+                            else CommandOutcome(error_code='NONE' if success else 'OBSERVATION_GAP'))
+            if handle.is_cancel_requested: handle.canceled()
+            elif success: handle.succeed()
+            else: handle.abort()
+            return result
+        except Exception as exc:
+            self.get_logger().warning('garment task failed: '+type(exc).__name__)
+            if handle.is_cancel_requested: handle.canceled()
+            else: handle.abort()
+            return action_cls.Result(status_code='OBSERVATION_GAP',detail='ROS context, observation or execution unavailable',
+                                     outcome=CommandOutcome(error_code='OBSERVATION_GAP'))
+        finally:
+            if client:
+                if client.commands:
+                    try: client.commands.end()
+                    except (LookupError,TimeoutError,InterruptedError): pass
+                client.close()
+            self.navigation_active=False; self.active_handle=None; self.client=None; self.deadline=None
+            self.lock.release()
+
+    def execute_deliver_garment(self, handle):
+        return self._execute_garment_task(handle,DeliverGarment)
+
+    def execute_patrol_collect(self, handle):
+        return self._execute_garment_task(handle,PatrolCollect,patrol=True)
 
     def goal_deploy(self, request):
         return GoalResponse.ACCEPT if self.lock.acquire(blocking=False) else GoalResponse.REJECT

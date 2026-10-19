@@ -1,0 +1,31 @@
+float64 drop_x_m
+float64 drop_y_m
+float64 max_duration_s
+uint32 max_items
+bool allow_towing
+bool dry_run
+---
+z70_interfaces/CommandOutcome outcome
+string<=64 status_code
+bool completed
+bool partial_completion
+bool dry_run_valid
+uint32 waypoints_visited
+uint32 waypoints_cleared
+uint32 waypoints_deferred
+uint32 items_attempted
+uint32 items_delivered
+uint32 items_skipped
+uint32 items_failed
+string<=256 ledger_uri
+string<=128 detail
+---
+uint8 phase
+string<=64 state
+string<=64 reason
+uint32 waypoints_visited
+uint32 items_delivered
+uint32 items_skipped
+float64[2] current_position_m
+z70_interfaces/CommandOutcome latest_outcome
+z70_interfaces/EvidenceStamp latest_observation

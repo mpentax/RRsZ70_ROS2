@@ -83,9 +83,12 @@ ros2/log-*/
 ros2/.pixi/
 ros2/COLCON_IGNORE
 opencode.json
-# Private home-map/point-cloud validation captures (public method/results in package README).
-calibration/mapping/
-
-calibration/pickup/**/*.jpg
-calibration/pickup/**/*.png
-calibration/arm-calibration/**/*.jpg
+# Local calibration/trial runs and historical session archives.
+calibration/
+docs/validation/
+docs/archive/
+docs/claude-review/
+docs/migration/
+deploy/go2rtc-login-fix.md
+src/z70_bringup/foxglove/live-validation.json
+src/z70_bringup/foxglove/bringup-validation.log

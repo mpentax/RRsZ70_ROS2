@@ -265,7 +265,7 @@ export async function createService(options: ServiceOptions) {
       try { result = await send(target); }
       catch (first) {
         // One automatic retry when repeating cannot cause extra motion: reads/stop/end/start, or a command that never left us.
-        const repeatable = /^(get_|app_rc_(stop|end|start)$)/.test(input.method) || (first instanceof TransportError && first.dispatch === "not_sent");
+        const repeatable = input.method !== "app_goto_target" && (/^(get_|stop_goto_target$|app_rc_(stop|end|start)$)/.test(input.method) || (first instanceof TransportError && first.dispatch === "not_sent"));
         if (first instanceof RpcError || (first instanceof TransportError && first.reason === 'cancelled') || !repeatable || (deadline !== null && performance.now() >= deadline)) throw first;
         retried = 1; result = await send(target);
       }

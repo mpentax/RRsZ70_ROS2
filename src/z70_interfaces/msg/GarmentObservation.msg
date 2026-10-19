@@ -1,0 +1,26 @@
+# Lower-contour floor hypothesis, NOT verified mass or towing suitability.
+uint8 SUITABILITY_UNKNOWN=0
+uint8 SMALL_LIFT_CANDIDATE=1
+uint8 TOW_CANDIDATE_UNVERIFIED=2
+uint8 UNSUPPORTED=3
+std_msgs/Header header
+z70_interfaces/EvidenceStamp evidence
+unique_identifier_msgs/UUID track_id
+string<=32 category
+float32 confidence
+uint32[4] bbox_px
+float64[2] contact_px
+float64[2] grasp_px
+geometry_msgs/Point floor_contact_m
+geometry_msgs/Point grasp_point_m
+bool contact_valid
+bool grasp_valid
+float32 footprint_width_m
+float32 footprint_depth_m
+float32 position_uncertainty_m
+bool inside_geofence
+bool geofence_verified
+bool reachable_for_grasp
+uint8 transport_suitability
+string<=64 suitability_reason
+string<=128 calibration_id

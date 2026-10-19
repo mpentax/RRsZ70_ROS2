@@ -264,18 +264,21 @@ export function createRoboClawMcp(client: RoboClawMcpClient): McpServer {
   });
   const idSchema = z.string().uuid();
   const goalSchema = z.discriminatedUnion('kind', [
+    z.object({kind: z.literal('deliver_garment'), goal: z.object({category: z.string().max(32), drop_x_m: z.number().min(-100).max(100), drop_y_m: z.number().min(-100).max(100), max_duration_s: z.number().min(1).max(3600), allow_towing: z.boolean(), dry_run: z.boolean()}).strict()}).strict(),
+    z.object({kind: z.literal('patrol_collect'), goal: z.object({drop_x_m: z.number().min(-100).max(100), drop_y_m: z.number().min(-100).max(100), max_duration_s: z.number().min(1).max(3600), max_items: z.number().int().min(1).max(1000), allow_towing: z.boolean(), dry_run: z.boolean()}).strict()}).strict(),
+    z.object({kind: z.literal('pin_and_go'), goal: z.object({target_x_m: z.number().min(-100).max(100), target_y_m: z.number().min(-100).max(100), max_duration_s: z.number().min(1).max(600), dry_run: z.boolean()}).strict()}).strict(),
     z.object({kind: z.literal('pick'), goal: z.object({color: z.string().regex(/^[A-Za-z0-9_-]{1,32}$/), dry_run: z.boolean()}).strict()}).strict(),
     z.object({kind: z.literal('stack'), goal: z.object({base_color: z.string().regex(/^[A-Za-z0-9_-]{1,32}$/), middle_color: z.string().regex(/^[A-Za-z0-9_-]{1,32}$/), top_color: z.string().regex(/^[A-Za-z0-9_-]{1,32}$/), dry_run: z.boolean()}).strict()}).strict(),
     z.object({kind: z.literal('base_pulse'), goal: z.object({linear_mps: z.number().min(-.1).max(.1), angular_radps: z.number().min(-.5).max(.5), duration: z.object({sec: z.literal(0), nanosec: z.number().int().min(1).max(800000000)}).strict()}).strict()}).strict(),
-    z.object({kind: z.literal('arm_step'), goal: z.object({joint: z.union([z.literal(3), z.literal(4), z.literal(5)]), direction: z.union([z.literal(-1), z.literal(1)])}).strict()}).strict(),
+    z.object({kind: z.literal('arm_step'), goal: z.object({joint: z.union([z.literal(3), z.literal(4), z.literal(5), z.literal(34), z.literal(43)]), direction: z.union([z.literal(-1), z.literal(1)])}).strict()}).strict(),
     z.object({kind: z.literal('hand_step'), goal: z.object({direction: z.number().int().min(1).max(4)}).strict()}).strict(),
-    z.object({kind: z.literal('arm_operation'), goal: z.object({operation: z.number().int().min(1).max(5)}).strict()}).strict(),
+    z.object({kind: z.literal('arm_operation'), goal: z.object({operation: z.number().int().min(1).max(9)}).strict()}).strict(),
     z.object({kind: z.literal('deploy_arm'), goal: z.object({settle: z.boolean()}).strict()}).strict(),
     z.object({kind: z.literal('align_target'), goal: z.object({color: z.string().regex(/^[A-Za-z0-9_-]{1,32}$/)}).strict()}).strict(),
     z.object({kind: z.literal('move_arm'), goal: z.object({m3_deg: z.number().min(90).max(270), m4_deg: z.number().min(35).max(170), m5_deg: z.number().min(0).max(155)}).strict()}).strict(),
     z.object({kind: z.literal('grasp_and_lift'), goal: z.object({lift_steps: z.number().int().min(0).max(10), verify_color: z.string().regex(/^[A-Za-z0-9_-]{0,32}$/)}).strict()}).strict(),
     z.object({kind: z.literal('release_and_stow'), goal: z.object({put_down: z.boolean()}).strict()}).strict()]);
-  server.registerTool('start_task', {title: 'Start bounded ROS action', description: 'Start Pick or one bounded primitive; returns the ROS goal UUID immediately. Web and MCP share this ID, numeric phase, feedback and result. Pick dry_run=true is observation-only. No motion is replayed after an uncertain response; get_task/list_tasks reconcile it.', inputSchema: {task: goalSchema}, annotations: ACTUATION}, async ({task}) => {
+  server.registerTool('start_task', {title: 'Start bounded ROS action', description: 'Start Pick, DeliverGarment, PatrolCollect or one bounded primitive; returns the ROS goal UUID immediately. Garment drop coordinates are map metres and mean TEMPORARY_STAGING_DROP, not washing-machine confirmation. Towing is unqualified by default; skips and partial completion are explicit. Web and MCP share this ID, numeric phase, feedback and result. dry_run=true is observation-only. No motion is replayed after an uncertain response; get_task/list_tasks reconcile it.', inputSchema: {task: goalSchema}, annotations: ACTUATION}, async ({task}) => {
     try {return textResult(await client.request('/api/ros/tasks', 5000, task));} catch (error) {return toolError(error);}
   });
   server.registerTool('list_tasks', {title:'List shared tasks', description:'Read shared ROS task handles including tasks started in web. UNKNOWN is not a completed or replayable task.', annotations:READONLY}, async () => {

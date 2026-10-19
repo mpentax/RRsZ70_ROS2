@@ -8,17 +8,31 @@ import { record } from './helpers.ts';
 
 const COLORS = ['yellow', 'orange', 'red', 'green', 'blue'] as const;
 const ARM_STATES: Record<number, string> = { 0: 'UNKNOWN', 1: 'IN_ROBOT', 2: 'IN_PROCESS_POS', 3: 'WORKING_POS', 4: 'TRANSFER_POS' };
+const GRAB_MODES: Record<number, string> = { 0: 'OFF', 1: 'MANUAL (flag=1)', 2: 'REMOTE_PICKUP (flag=2)' };
+const GRAB_ACTIONS: Record<number, string> = {
+  0: 'STOWED', 1: 'DEPLOYING', 2: 'STOWING', 3: 'WAITING', 4: 'GRASPING',
+  5: 'PUTTING_DOWN', 7: 'CONTINUE', 8: 'MODE_CHANGING', 9: 'CONTINUE_GRAB', 10: 'CONTINUE_PUT_DOWN',
+};
 const ROBOT_STATES: Record<number, string> = {
   1: 'STARTING', 2: 'CHARGER_DISCONNECTED', 3: 'IDLE', 4: 'REMOTE_CONTROL_ACTIVE',
   5: 'CLEANING', 6: 'RETURNING_HOME', 7: 'MANUAL_MODE', 8: 'CHARGING',
   9: 'CHARGING_PROBLEM', 10: 'PAUSED', 11: 'SPOT_CLEANING', 12: 'ERROR',
   15: 'DOCKING', 16: 'GOING_TO_TARGET', 17: 'ZONED_CLEANING', 18: 'SEGMENT_CLEANING',
   26: 'GOING_TO_WASH_THE_MOP', 29: 'WASHING_THE_MOP', 32: 'PATROL',
-  40: 'PROGRAM_MODE', 41: 'ARM_RESETTING', 42: 'REMOTE_PICKUP', 100: 'CHARGING_COMPLETE',
+  39: 'REMOTE_MANUAL', 40: 'PROGRAM_MODE', 41: 'ARM_RESETTING', 42: 'REMOTE_PICKUP', 100: 'CHARGING_COMPLETE',
 };
 
 function fmtDeg(val: unknown): string {
   return typeof val === 'number' && Number.isFinite(val) ? `${ (val * 180 / Math.PI).toFixed(0) }°` : '—';
+}
+
+function urdfToVendorDeg(urdfRad: unknown[]): [string, string, string] {
+  if (urdfRad.length < 3) return ['—', '—', '—'];
+  const [r3, r4, r5] = urdfRad;
+  const m3 = typeof r3 === 'number' && Number.isFinite(r3) ? `${Math.round(r3 * 180 / Math.PI + 270)}°` : '—';
+  const m4 = typeof r4 === 'number' && Number.isFinite(r4) ? `${Math.round(180 - r4 * 180 / Math.PI)}°` : '—';
+  const m5 = typeof r5 === 'number' && Number.isFinite(r5) ? `${Math.round(-r5 * 180 / Math.PI)}°` : '—';
+  return [m3, m4, m5];
 }
 
 export function App({ session }: { session: Promise<SessionStatus> }) {
@@ -48,9 +62,39 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
   const [autoStream, setAutoStream] = useState(false);
   const [sessionStopped, setSessionStopped] = useState(false);
   const [sessionBusy, setSessionBusy] = useState(false);
+  const [holdToJog, setHoldToJog] = useState(false);
+  const holdTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const holdActiveRef = useRef(false);
   const imageGeneration = useRef(0);
   const mapCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const controlStopped = sessionStopped || state?.session_enabled === false;
+
+  function stopHoldJog(sendStop = true) {
+    if (holdTimerRef.current !== null) {
+      clearInterval(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+    if (holdActiveRef.current) {
+      holdActiveRef.current = false;
+      if (sendStop && !controlStopped) {
+        void robotRpc({ method: 'app_stop_grasp', params: [], timeoutMs: 4000 }).then(setOutcome).catch(() => {});
+      }
+    }
+  }
+
+  function startHoldJog(command: { method: string; params: Record<string, unknown> }) {
+    if (!holdToJog || busy || controlStopped) return;
+    stopHoldJog(false);
+    holdActiveRef.current = true;
+    const fire = () => {
+      if (!holdActiveRef.current || controlStopped) return;
+      void robotRpc({ ...command, ...(transport ? { transport } : {}), timeoutMs: 5000 }).then(setOutcome).catch(() => {});
+    };
+    fire();
+    holdTimerRef.current = setInterval(fire, 650);
+  }
+
+  useEffect(() => () => stopHoldJog(false), []);
 
   async function controlSession(enabled: boolean) {
     setSessionBusy(true); setError('');
@@ -247,10 +291,28 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
   const calState = record(state?.calibration);
   const batteryPct = state?.state?.battery_known ? Math.round(state.state.battery_fraction * 100) : null;
   const selectedCam = cameraState.selected_camera === 2 ? 'gripper' : cameraState.selected_camera === 1 ? 'front' : null;
-  const armStateLabel = typeof armState.state === 'number' ? (ARM_STATES[armState.state] ?? `STATE_${armState.state}`) : 'UNAVAILABLE';
+  const armValidity = record(armState.validity);
+  const armJointsMsg = record(armState.joints);
+  const armJointPositions = Array.isArray(armJointsMsg.position) ? armJointsMsg.position : [];
   const armPositions = Array.isArray(armState.position_rad) ? armState.position_rad : [];
-  const robotStateCode = typeof robotState.state_code === 'number' ? robotState.state_code : null;
+  const armStateLabel = typeof armState.state === 'number'
+    ? (ARM_STATES[armState.state] ?? `STATE_${armState.state}`)
+    : armValidity.value === 1 ? 'DEPLOYED (DEAD-RECKONED)'
+    : armValidity.value === 3 ? 'IN_ROBOT (STOWED)'
+    : typeof armValidity.reason === 'string' && armValidity.reason ? armValidity.reason : 'UNAVAILABLE';
+  const [vendorM3, vendorM4, vendorM5] = armJointPositions.length >= 3
+    ? urdfToVendorDeg(armJointPositions)
+    : [fmtDeg(armPositions[0]), fmtDeg(armPositions[1]), fmtDeg(armPositions[2])];
+  const rawStateCode = typeof robotState.robot_state === 'number' ? robotState.robot_state : typeof robotState.state_code === 'number' ? robotState.state_code : null;
+  const robotStateCode = rawStateCode;
   const robotStateName = robotStateCode !== null ? (ROBOT_STATES[robotStateCode] ?? `CODE_${robotStateCode}`) : 'UNKNOWN';
+  const commonStatus = typeof robotState.common_status === 'number' ? robotState.common_status : null;
+  const grabModeCode = commonStatus !== null ? ((commonStatus >> 10) & 3) : null;
+  const grabActionCode = typeof robotState.grab_status === 'number' && robotState.grab_status_known
+    ? robotState.grab_status
+    : commonStatus !== null ? ((commonStatus >> 6) & 15) : null;
+  const grabModeLabel = grabModeCode !== null ? (GRAB_MODES[grabModeCode] ?? `MODE_${grabModeCode}`) : '—';
+  const grabActionLabel = grabActionCode !== null ? (GRAB_ACTIONS[grabActionCode] ?? `ACT_${grabActionCode}`) : '—';
   const activeTasks = tasks.filter(t => !terminal(t)).length;
 
   return <main className="app-shell">
@@ -339,9 +401,10 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
           <span className="eyebrow">ARM ESTIMATE</span>
           <strong>{armStateLabel}</strong>
           <small>
-            {armPositions.length >= 3
-              ? `M3 ${fmtDeg(armPositions[0])} · M4 ${fmtDeg(armPositions[1])} · M5 ${fmtDeg(armPositions[2])}`
+            {(armJointPositions.length >= 3 || armPositions.length >= 3)
+              ? `M3 ${vendorM3} · M4 ${vendorM4} · M5 ${vendorM5}`
               : String(armState.unknown_reason || 'Stowed / unanchored')}
+            {grabModeCode !== null ? ` · Grab ${grabModeLabel} (${grabActionLabel})` : ''}
           </small>
         </div>
         <div className="stat-tile">
@@ -509,19 +572,97 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
           </div>
 
           <div className="task-panel-box">
-            <h3>Joint Steps &amp; Pincher Controls</h3>
-            <div className="joint-grid">
-              {[3,4,5].map(joint => [-1,1].map(direction => (
-                <button key={`${joint}/${direction}`} className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'arm_step',goal:{joint,direction}})); })}>
-                  M{joint} {direction > 0 ? '+' : '−'} nominal step
-                </button>
-              )))}
+            <h3>Manual Mode Lifecycle &amp; Gripper (<code>/z70/arm/operation</code>)</h3>
+            <p className="caption" style={{marginBottom: 8}}>
+              Active grab mode: <strong>{grabModeLabel}</strong> · Action: <strong>{grabActionLabel}</strong>
+            </p>
+            <div className="button-row" style={{margin: '6px 0 0'}}>
+              <button type="button" className={grabModeCode === 1 ? 'primary' : 'quiet'} disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'arm_operation',goal:{operation:6}})); })}>Enter Manual Mode (flag=1)</button>
+              <button type="button" className={grabModeCode === 2 ? 'primary' : 'quiet'} disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'arm_operation',goal:{operation:7}})); })}>Remote Pickup Mode (flag=2)</button>
+              <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'arm_operation',goal:{operation:8}})); })}>Exit Arm Mode (flag=0)</button>
+              <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'arm_operation',goal:{operation:1}})); })}>Unstow Arm</button>
+              <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'arm_operation',goal:{operation:2}})); })}>Stow Arm</button>
+              <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'arm_operation',goal:{operation:9}})); })}>Recover Arm</button>
+            </div>
+            <div className="button-row" style={{margin: '8px 0 0'}}>
+              <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'arm_operation',goal:{operation:4}})); })}>Close Gripper (Grip)</button>
+              <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'arm_operation',goal:{operation:5}})); })}>Release Jaws In-Place (Put Down)</button>
+              <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'arm_operation',goal:{operation:3}})); })}>Open Gripper (Recovery)</button>
+              <button type="button" className="danger" disabled={controlStopped} onClick={() => { stopHoldJog(false); void robotRpc({method:'app_stop_grasp',params:[],timeoutMs:5000}).then(setOutcome).catch(() => {}); }}>Stop Arm (app_stop_grasp)</button>
+            </div>
+          </div>
+
+          <div className="task-panel-box">
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap'}}>
+              <h3 style={{margin:0}}>Joint Steps, Coordinated Multi-Axis &amp; Cartesian IK Jog</h3>
+              <label className="checkbox-row" style={{margin:0}}>
+                <input type="checkbox" checked={holdToJog} onChange={e => { setHoldToJog(e.target.checked); if (!e.target.checked) stopHoldJog(false); }} />
+                <span>Hold-to-Jog (continuous press &amp; hold, stop on release)</span>
+              </label>
+            </div>
+            <div className="joint-grid" style={{marginTop:10}}>
+              {[3,4,5].map(joint => [-1,1].map(direction => {
+                const m = [0, 0, 0];
+                m[joint - 3] = direction === 1 ? 1 : 2;
+                return (
+                  <button
+                    key={`${joint}/${direction}`}
+                    className="quiet"
+                    disabled={busy || controlStopped}
+                    onPointerDown={() => startHoldJog({ method: 'app_arm_move', params: { m } })}
+                    onPointerUp={() => stopHoldJog(true)}
+                    onPointerLeave={() => stopHoldJog(true)}
+                    onPointerCancel={() => stopHoldJog(true)}
+                    onClick={() => { if (!holdToJog) void run(async () => { setOutcome(await startTask({kind:'arm_step',goal:{joint,direction}})); }); }}
+                  >
+                    M{joint} {direction > 0 ? '+' : '−'} nominal step
+                  </button>
+                );
+              }))}
             </div>
             <div className="button-row" style={{margin: '10px 0 0'}}>
-              <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'hand_step',goal:{direction:3}})); })}>Open Gripper Step</button>
-              <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'hand_step',goal:{direction:4}})); })}>Close Gripper Step</button>
-              <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'hand_step',goal:{direction:1}})); })}>Wrist Roll +</button>
-              <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'hand_step',goal:{direction:2}})); })}>Wrist Roll −</button>
+              {([
+                ['M3+ & M4+ Down-Out', 34, 1, [1, 1, 0]],
+                ['M3− & M4− Up-In', 34, -1, [2, 2, 0]],
+                ['M3+ & M4− Reach-Level', 43, 1, [1, 2, 0]],
+                ['M3− & M4+ Retract-Level', 43, -1, [2, 1, 0]],
+              ] as const).map(([label, joint, direction, m]) => (
+                <button
+                  key={label}
+                  type="button"
+                  className="quiet"
+                  disabled={busy || controlStopped}
+                  onPointerDown={() => startHoldJog({ method: 'app_arm_move', params: { m: [...m] } })}
+                  onPointerUp={() => stopHoldJog(true)}
+                  onPointerLeave={() => stopHoldJog(true)}
+                  onPointerCancel={() => stopHoldJog(true)}
+                  onClick={() => { if (!holdToJog) void run(async () => { setOutcome(await startTask({kind:'arm_step',goal:{joint,direction}})); }); }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="button-row" style={{margin: '10px 0 0'}}>
+              {([
+                [1, 'Hand Up +40mm (IK)'],
+                [2, 'Hand Down −40mm (IK)'],
+                [3, 'Hand Forward +40mm (IK)'],
+                [4, 'Hand Back −40mm (IK)'],
+              ] as const).map(([dir, label]) => (
+                <button
+                  key={dir}
+                  type="button"
+                  className="quiet"
+                  disabled={busy || controlStopped}
+                  onPointerDown={() => startHoldJog({ method: 'app_arm_direction_move', params: { direction: dir } })}
+                  onPointerUp={() => stopHoldJog(true)}
+                  onPointerLeave={() => stopHoldJog(true)}
+                  onPointerCancel={() => stopHoldJog(true)}
+                  onClick={() => { if (!holdToJog) void run(async () => { setOutcome(await startTask({kind:'hand_step',goal:{direction:dir}})); }); }}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
 

@@ -1,9 +1,0 @@
-{
-  "pilot_files": [
-    "039-pair25065-Fbefore",
-    "040-pair25065-Fpilot"
-  ],
-  "max_translation_m": 0.003,
-  "max_orientation_deg": 12.779567131728307,
-  "principle": "both translation and orientation required; unchanged across later pairs"
-}

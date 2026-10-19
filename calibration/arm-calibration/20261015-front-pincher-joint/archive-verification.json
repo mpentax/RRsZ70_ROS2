@@ -1,9 +1,0 @@
-{
-  "snapshot_files": 1267,
-  "changed": [],
-  "legacy_baseline_verified": 410,
-  "legacy_mismatches": [],
-  "originals_verified": 92,
-  "original_manifest_mismatches": [],
-  "scope": "SHA256 before/after every preserved source file; legacy410 comparison; all92 originals verified against original manifest"
-}

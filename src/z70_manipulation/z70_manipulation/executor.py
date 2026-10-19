@@ -344,11 +344,11 @@ class Executor:
         reply = self.command('app_arm_move', {'m': step['m']})
         if reply is None:
             raise LookupError('arm step outcome unknown; observe before continuing')
-        self.sleep(1.5)
+        self.sleep(0.85)
         self.log('arm_jog', state=step['state'], m=step['m'])
 
     def move_arm(self, goal_joints, start_joints=None):
-        """Plan and execute 10-degree M3/M4/M5 steps within the legal kinematic envelope."""
+        """Plan and execute coordinated 10-degree M3/M4/M5 steps within the legal kinematic envelope."""
         if len(goal_joints) == 2:
             goal_m3, goal_m4, goal_m5 = round(goal_joints[0]), round(goal_joints[1]), 0
         else:
@@ -389,18 +389,43 @@ class Executor:
             return [dict(m=step['m'], state=[*step['state'], m5])
                     for step in planner.joint_plan((start_m3, start_m4), (goal_m3, goal_m4), m5=m5)]
 
+        def _coordinated_steps():
+            base = planner.joint_plan((start_m3, start_m4), (goal_m3, goal_m4), m5=start_m5)
+            cur_m3, cur_m4, cur_m5 = start_m3, start_m4, start_m5
+            combined = []
+            for step in base:
+                next_m3, next_m4 = step['state']
+                m = list(step['m'])
+                next_m5 = cur_m5
+                if cur_m5 != goal_m5:
+                    delta = 10 if goal_m5 > cur_m5 else -10
+                    cand_m5 = cur_m5 + delta
+                    if (planner.safe((next_m3, next_m4, cand_m5, 90))
+                            and planner.safe_edge((cur_m3, cur_m4, cur_m5, 90), (next_m3, next_m4, cand_m5, 90))):
+                        m[2] = 1 if delta > 0 else 2
+                        next_m5 = cand_m5
+                if (not planner.safe((next_m3, next_m4, next_m5, 90))
+                        or not planner.safe_edge((cur_m3, cur_m4, cur_m5, 90), (next_m3, next_m4, next_m5, 90))):
+                    raise ValueError('unsafe coordinated 3-axis step')
+                combined.append(dict(m=m, state=[next_m3, next_m4, next_m5]))
+                cur_m3, cur_m4, cur_m5 = next_m3, next_m4, next_m5
+            return combined + _m5_steps(cur_m3, cur_m4, cur_m5, goal_m5)
+
         try:
-            steps = _joint_steps(start_m5) + _m5_steps(goal_m3, goal_m4, start_m5, goal_m5)
+            steps = _coordinated_steps() if start_m5 != goal_m5 else _joint_steps(start_m5)
         except ValueError:
-            if start_m5 == goal_m5:
-                raise
             try:
-                steps = _m5_steps(start_m3, start_m4, start_m5, goal_m5) + _joint_steps(goal_m5)
+                steps = _joint_steps(start_m5) + _m5_steps(goal_m3, goal_m4, start_m5, goal_m5)
             except ValueError:
-                if 0 in (start_m5, goal_m5):
+                if start_m5 == goal_m5:
                     raise
-                steps = (_m5_steps(start_m3, start_m4, start_m5, 0) + _joint_steps(0)
-                         + _m5_steps(goal_m3, goal_m4, 0, goal_m5))
+                try:
+                    steps = _m5_steps(start_m3, start_m4, start_m5, goal_m5) + _joint_steps(goal_m5)
+                except ValueError:
+                    if 0 in (start_m5, goal_m5):
+                        raise
+                    steps = (_m5_steps(start_m3, start_m4, start_m5, 0) + _joint_steps(0)
+                             + _m5_steps(goal_m3, goal_m4, 0, goal_m5))
 
         for step in steps:
             self.jog(step)
@@ -464,12 +489,12 @@ class Executor:
                 floor_spot = self.predict(floor_spot)
                 continue
             choices = []
-            for joint in range(2):
-                for delta, code in ((10, 1), (-10, 2)):
-                    st = list(current)
-                    st[joint] += delta
-                    st = tuple(st)
-                    if not planner.safe_edge(current, st):
+            for (d3, c3) in ((0, 0), (10, 1), (-10, 2)):
+                for (d4, c4) in ((0, 0), (10, 1), (-10, 2)):
+                    if c3 == 0 and c4 == 0:
+                        continue
+                    st = (current[0] + d3, current[1] + d4)
+                    if not planner.safe(st) or not planner.safe_edge(current, st):
                         continue
                     candidate = jaw + np.array(planner.operational_point(st)) - np.array(planner.operational_point(current))
                     if candidate[2] - .015 < .015:
@@ -477,9 +502,7 @@ class Executor:
                     err = float(np.linalg.norm(equator - candidate))
                     if err >= distance - .003:
                         continue
-                    m = [0, 0, 0]
-                    m[joint] = code
-                    choices.append((err, st, m))
+                    choices.append((err, st, [c3, c4, 0]))
             if not choices:
                 self.end_rc()
                 return blob, current, floor_spot
@@ -795,11 +818,11 @@ class Executor:
             target = self.post_deploy_align(color)
             floor_spot = list(target['position'])
             self.open_jaws()
-            descent = planner.grasp_goal(floor_spot, (190, 65), size)
+            descent = dict(planner.grasp_goal(floor_spot, (150, 45), size))
             self.log('model_descent', **descent)
-            self.move_arm((190, 65, 0), (150, 45, 0))
-            self.move_arm((descent['state'][0], descent['state'][1], 0), (190, 65, 0))
-            current = tuple(descent['state'])
+            descent_state = [int(x) for x in list(descent['state'])]
+            self.move_arm((descent_state[0], descent_state[1], 0), (150, 45, 0))
+            current = (descent_state[0], descent_state[1])
             _, current, floor_spot = self.front_servo(color, current, floor_spot)
             if self.pregrip_jaw is None:
                 self.pregrip_jaw = planner.measured_point(current, planner._CALIBRATION['effective_jaw_from_elbow_m'])

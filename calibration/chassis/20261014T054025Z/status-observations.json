@@ -1,8 +1,0 @@
-{
-  "authorization": "Michael confirmed presence, stowed arm, flat board 0.15–0.8 m ahead, ~1 m clearance, undocking/RC acceptance; said robot already off dock.",
-  "initial": {"observedAt":1791956407396,"value":{"battery":100,"state":3,"error_code":0,"in_cleaning":0,"in_returning":0}},
-  "arm": {"state":"IN_ROBOT","source":"dead-reckoning","restored":true,"updatedAt":1791898379171,"physicalStow":"Michael confirmed"},
-  "post_end": {"observedAt":1791956693398,"value":{"battery":99,"state":39,"error_code":0,"in_cleaning":0,"in_returning":0}},
-  "post_end_second": {"observedAt":1791956728848,"value":{"battery":99,"state":39,"error_code":0,"in_cleaning":0,"in_returning":0}},
-  "release": "UNVERIFIED: stop and end acknowledged, after images settled, but post-end state remains 39, not initial state 3. No arm commands issued."
-}

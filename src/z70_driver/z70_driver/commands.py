@@ -35,9 +35,15 @@ def action_plan(kind, goal):
         return [('app_rc_start', []), ('app_rc_move', [dict(velocity=goal.linear_mps,
             omega=goal.angular_radps, duration=max(1, round(duration*1000)), seqnum=1)])], 15.
     if kind is ArmStep:
-        if goal.joint not in (3, 4, 5) or goal.direction not in (-1, 1):
+        if goal.joint not in (3, 4, 5, 34, 43) or goal.direction not in (-1, 1):
             raise ValueError('INVALID_INPUT')
-        m = [0, 0, 0]; m[goal.joint-3] = 1 if goal.direction == 1 else 2
+        pos, neg = (1, 2) if goal.direction == 1 else (2, 1)
+        if goal.joint == 34:
+            m = [pos, pos, 0]
+        elif goal.joint == 43:
+            m = [pos, neg, 0]
+        else:
+            m = [0, 0, 0]; m[goal.joint-3] = pos
         return [('app_arm_move', {'m': m})], 35.
     if kind is HandStep:
         if goal.direction not in (1, 2, 3, 4):
@@ -45,7 +51,9 @@ def action_plan(kind, goal):
         return [('app_arm_direction_move', {'direction': goal.direction})], 35.
     if kind is ArmOperation:
         mapping = {1: ('app_arm_out_compartment', {}), 2: ('app_arm_in_compartment', {}),
-            3: ('app_open_gripper', {}), 4: ('app_grip', {}), 5: ('app_put_down', {'flag': 0})}
+            3: ('app_open_gripper', {}), 4: ('app_grip', {}), 5: ('app_put_down', {'flag': 0}),
+            6: ('app_pick_up_enter_exit', {'flag': 1}), 7: ('app_pick_up_enter_exit', {'flag': 2}),
+            8: ('app_pick_up_enter_exit', {'flag': 0}), 9: ('app_arm_recover', {})}
         if goal.operation not in mapping:
             raise ValueError('INVALID_INPUT')
         return [mapping[goal.operation]], 60.
@@ -73,6 +81,7 @@ class CommandSurfaces:
         self.action_tickets = {}
         self.reserved_goals = {}
         self.action_servers = []
+        self.goto_active = False
         self.rc_sequence = 0
         self.command_transport = 0 # LOCAL=0, CLOUD=1; stop uses the latest actuator path
         for kind, name in [(BasePulse, '/z70/base/pulse'), (ArmStep, '/z70/arm/step'),
@@ -111,6 +120,7 @@ class CommandSurfaces:
             return self.local_outcome('CANCELLED'), None
         if ticket is not None and not method.startswith(('get_','app_get_')):
             self.command_transport=transport
+        if method == 'app_goto_target': self.goto_active = True
         command_id=uuid.uuid4()
         from .driver import host_time
         requested_at=host_time(time.time())
@@ -156,6 +166,8 @@ class CommandSurfaces:
     def priority_stop(self, scope):
         methods = {1: ['app_rc_stop', 'app_rc_end'], 2: ['app_stop_grasp'],
                    3: ['app_rc_stop', 'app_rc_end', 'app_stop_grasp']}[scope]
+        if scope in (1, 3) and getattr(self, 'goto_active', False):
+            methods = ['stop_goto_target'] + methods
         if scope in (2, 3):
             with self.estimator_lock:
                 self.estimator.invalidate('STOP_UNVERIFIED')
@@ -171,6 +183,7 @@ class CommandSurfaces:
             o = outcome[0]
             if not outcome_ok(o): o.error_code = 'STOP_UNVERIFIED'
             outcomes.append(o)
+            if method == 'stop_goto_target' and outcome_ok(o): self.goto_active = False
         if any(not outcome_ok(o) for o in outcomes):
             self.diagnostic('stop', 'STOP_UNVERIFIED', 2)
         return outcomes
@@ -267,6 +280,14 @@ class CommandSurfaces:
             if request.transport not in (0,1): raise ValueError()
         except (ValueError, TypeError):
             response.outcome = self.local_outcome('INVALID_INPUT'); return response
+        # Native navigation stop must bypass the occupied/cancelled task lane.
+        if request.method == 'stop_goto_target':
+            if params != []:
+                response.outcome = self.local_outcome('INVALID_INPUT'); return response
+            response.outcome, _ = self.driver_rpc('stop_goto_target', [], request.timeout_ms, transport=request.transport)
+            if outcome_ok(response.outcome): self.goto_active = False
+            response.result_json = 'null'
+            return response
         ticket = (self.dispatcher.takeover() if request.takeover else
                   self.dispatcher.reserve(bytes(request.task_id.uuid)))
         if ticket is None:

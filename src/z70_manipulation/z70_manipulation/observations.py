@@ -4,6 +4,7 @@ No camera acquisition or HTTP. An unchanged latched sample is not made fresh by 
 The one image slot is shared by all reads; each caller waits for a newer acquisition.
 """
 from copy import deepcopy
+from types import SimpleNamespace
 import math
 import threading
 import time
@@ -15,8 +16,9 @@ from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.qos import QoSProfile, DurabilityPolicy, ReliabilityPolicy
 from sensor_msgs.msg import CompressedImage
-from z70_interfaces.msg import RobotState, ArmEstimate, FrameMetadata
-from z70_interfaces.srv import SelectCamera
+from nav_msgs.msg import OccupancyGrid
+from z70_interfaces.msg import RobotState, ArmEstimate, FrameMetadata, MapSnapshot, GarmentObservations
+from z70_interfaces.srv import SelectCamera, RefreshMap
 
 LATCHED = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
                      durability=DurabilityPolicy.TRANSIENT_LOCAL)
@@ -37,11 +39,17 @@ class Observations:
         self.cancelled = lambda: False
         self.condition = threading.Condition()
         self.state = None; self.arm = None; self.image = None; self.used = None
+        self.map_snapshot = None; self.safe_grid = None; self.garments = None
         self.frames = {}; self.metadata = {}
         self.group = ReentrantCallbackGroup()
         self.subscriptions = [
             self.node.create_subscription(RobotState, '/z70/state', self.on_state, LATCHED, callback_group=self.group),
             self.node.create_subscription(ArmEstimate, '/z70/arm_estimate', self.on_arm, LATCHED, callback_group=self.group)]
+        self.subscriptions.extend([
+            self.node.create_subscription(GarmentObservations, '/z70/garments/observations', self.on_garments, LATCHED, callback_group=self.group),
+            self.node.create_subscription(MapSnapshot, '/z70/driver/map_snapshot', self.on_map, LATCHED, callback_group=self.group),
+            self.node.create_subscription(OccupancyGrid, '/z70/map/safe_grid', self.on_safe_grid, LATCHED, callback_group=self.group)])
+        self.map_refresher = self.node.create_client(RefreshMap, '/z70/map/refresh', callback_group=self.group)
         for camera in ('front','gripper'):
             self.subscriptions.extend([
                 self.node.create_subscription(CompressedImage, f'/camera/{camera}/image_raw/compressed',
@@ -53,6 +61,82 @@ class Observations:
             self.executor = SingleThreadedExecutor(); self.executor.add_node(self.node)
             self.thread = threading.Thread(target=self.executor.spin, name='pickup_observations')
             self.thread.start()
+
+    @staticmethod
+    def evidence_id(evidence):
+        return (bytes(evidence.session_id.uuid), evidence.sequence)
+
+    def on_garments(self, msg):
+        with self.condition: self.garments = msg; self.condition.notify_all()
+
+    def garment_barrier(self):
+        with self.condition:
+            meta = self.metadata.get('front')
+            return dict(garment=self.evidence_id(self.garments.evidence) if self.garments else None,
+                        image=self.evidence_id(meta.evidence) if meta else None)
+
+    def garment_snapshot(self, after=None, max_age_s=3.):
+        prior = after.get('garment') if isinstance(after,dict) else after
+        def ready():
+            m = self.garments
+            return (m is not None and self.fresh(m.evidence,max_age_s)
+                    and (prior is None or self.evidence_id(m.evidence)!=prior))
+        self.wait(ready)
+        with self.condition: message = deepcopy(self.garments)
+        if not message.model_available: raise LookupError('GARMENT_MODEL_UNAVAILABLE')
+        return message
+
+    def garment_frame(self, after=None):
+        prior = after.get('image') if isinstance(after,dict) else after
+        def ready():
+            meta=self.metadata.get('front'); frame=self.frames.get('front')
+            return (meta is not None and frame is not None and self.key(meta)==self.key(frame)
+                    and self.fresh(meta.evidence,3.) and self.evidence_id(meta.evidence)!=prior
+                    and self.evidence_id(meta.evidence)!=self.used)
+        self.wait(ready)
+        with self.condition:
+            frame=deepcopy(self.frames['front']); meta=deepcopy(self.metadata['front'])
+            self.used=self.evidence_id(meta.evidence)
+        image=cv2.imdecode(np.frombuffer(frame.data,np.uint8),cv2.IMREAD_COLOR)
+        if image is None: raise LookupError('invalid garment evidence frame')
+        visible = (image.shape[:2]==(meta.height,meta.width) and float(image.mean())>8.
+                   and float(np.percentile(image,95)-np.percentile(image,5))>12.)
+        return dict(image=image,source_id=(bytes(meta.evidence.session_id.uuid).hex(),meta.evidence.sequence),
+                    evidence=meta.evidence,coverage_valid=visible,valid_empty_view=False)
+
+    def on_map(self, msg):
+        with self.condition: self.map_snapshot = msg; self.condition.notify_all()
+
+    def on_safe_grid(self, msg):
+        with self.condition: self.safe_grid = msg; self.condition.notify_all()
+
+    def navigation_snapshot(self, refresh=False, max_age_s=5.):
+        from z70_mapping.decoder import decode_map
+        expected = None
+        if refresh:
+            if not self.map_refresher.wait_for_service(timeout_sec=1.): raise LookupError('MAP_REFRESH_UNAVAILABLE')
+            future = self.map_refresher.call_async(RefreshMap.Request())
+            done = threading.Event(); future.add_done_callback(lambda _:done.set())
+            deadline = time.monotonic()+35.
+            while not done.wait(.02):
+                if self.cancelled(): raise InterruptedError('CANCELLED')
+                if time.monotonic() >= deadline: raise TimeoutError('MAP_REFRESH_TIMEOUT')
+            response = future.result()
+            if response.outcome.error_code != 'NONE' or not response.snapshot.valid or response.snapshot.stale:
+                raise LookupError('MAP_REFRESH_FAILED')
+            expected = response.snapshot
+        def ready():
+            m=self.map_snapshot
+            return (m is not None and self.fresh(m.evidence,max_age_s)
+                    and (expected is None or (m.evidence.session_id == expected.session_id
+                         and m.evidence.sequence >= expected.sequence)))
+        self.wait(ready)
+        with self.condition: m=deepcopy(self.map_snapshot)
+        return SimpleNamespace(map=decode_map(bytes(m.raw)), labels={r.segment_id:r.name for r in m.rooms},
+            sequence=m.evidence.sequence, map_index=m.map_index, map_sequence=m.map_sequence,
+            session_id=bytes(m.evidence.session_id.uuid),
+            active_floor_verified=m.active_floor_verified, current_pose_verified=m.current_pose_verified,
+            cache_age_s=time.time()-stamp_seconds(m.evidence.received_at), evidence=m.evidence)
 
     def on_state(self, msg):
         with self.condition: self.state = msg; self.condition.notify_all()
@@ -160,3 +244,4 @@ class Observations:
         else:
             for sub in self.subscriptions: self.node.destroy_subscription(sub)
             self.node.destroy_client(self.selector)
+            self.node.destroy_client(self.map_refresher)

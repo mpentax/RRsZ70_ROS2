@@ -16,7 +16,8 @@ from visualization_msgs.msg import MarkerArray
 from tf2_ros import TransformBroadcaster
 from .decoder import decode_map
 from .geometry import alignment, spatial_context, transform_pose
-from .messages import grid_message, markers_message, pose_message
+from .boundary import BoundaryConfig, compute_safe_interior
+from .messages import grid_message, safe_grid_message, markers_message, pose_message
 
 
 class MappingNode(Node):
@@ -24,9 +25,19 @@ class MappingNode(Node):
         super().__init__('z70_mapping')
         self.realign = self.declare_parameter('realign_on_refresh', True).value
         self.last_sequence = None
+        defaults = BoundaryConfig()
+        values = {}
+        for name in defaults.__dataclass_fields__:
+            default = getattr(defaults, name)
+            value = self.declare_parameter('boundary.' + name,
+                                           list(default) if isinstance(default, tuple) else default).value
+            values[name] = tuple(value) if name == 'allowed_segments' else value
+        self.boundary_config = BoundaryConfig(**values)
+        self.boundary = None
         qos = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL,
                          reliability=ReliabilityPolicy.RELIABLE)
         self.pub_map = self.create_publisher(OccupancyGrid, '/map', qos)
+        self.pub_safe_grid = self.create_publisher(OccupancyGrid, '/z70/map/safe_grid', qos)
         self.pub_pose = self.create_publisher(PoseStamped, '/z70/map/robot_pose', qos)
         self.pub_dock = self.create_publisher(PoseStamped, '/z70/map/dock_pose', qos)
         self.pub_markers = self.create_publisher(MarkerArray, '/z70/map/markers', qos)
@@ -90,21 +101,26 @@ class MappingNode(Node):
             t.transform.rotation.z = math.sin(self.anchor[2] / 2)
             t.transform.rotation.w = math.cos(self.anchor[2] / 2)
             self.tf.sendTransform(t)
+        robot_map = transform_pose(self.anchor, self.odom) if self.anchor is not None else m.robot
         now_mono = time.monotonic()
         if new or now_mono - self._last_viz_at >= 2.0:
+            self.boundary = compute_safe_interior(m, labels, self.boundary_config, robot_map)
             self._last_viz_at = now_mono
             saved_at = status['saved_at_ms']
             now_ms = int(now_msg.sec * 1000 + now_msg.nanosec // 1_000_000)
             self.pub_map.publish(grid_message(m, now_ms, load_at=saved_at))
-            self.pub_markers.publish(markers_message(m, labels, now_ms))
+            self.pub_safe_grid.publish(safe_grid_message(self.boundary, now_ms, load_at=saved_at))
+            self.pub_markers.publish(markers_message(m, labels, now_ms, boundary_result=self.boundary))
             if m.robot:
                 self.pub_pose.publish(pose_message(m.robot, now_ms))
             if m.dock:
                 self.pub_dock.publish(pose_message(m.dock, now_ms))
-        robot_map = transform_pose(self.anchor, self.odom) if self.anchor is not None else m.robot
+        contract = self.boundary.summary()
         ctx = spatial_context(m, labels, robot_map)
+        ctx['boundary_contract'] = contract
         self.pub_spatial.publish(String(data=json.dumps(ctx)))
-        diagnostic = dict(status, cache_age_s=time.time() - status['saved_at_ms']/1000.,
+        diagnostic = dict(status, boundary_contract=contract,
+                          cache_age_s=time.time() - status['saved_at_ms']/1000.,
                           alignment_method=('single-pose SE2; re-anchor on new sequence, broadcast 5 Hz'
                                             if self.realign else
                                             'startup single-pose SE2; frozen offset, broadcast 5 Hz'),

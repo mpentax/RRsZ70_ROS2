@@ -1,108 +1,124 @@
-# Z70 arm geometry and command model
+# Z70 Arm Geometry, Kinematics, and Control Protocol
 
-The ROS model uses copied CAD structure, retained optical registration and separate
-photo-estimated contact/collision proxies. The recovered app endpoint is a fourth,
-nominal command coordinate—not the CAD wrist.
+The Z70 arm stack uses two distinct kinematic models:
+1. **Physical CAD & Optical Model (`src/z70_description/`):** Used for the ROS URDF/TF tree, 3D visualization, camera projection, and collision/swept-volume planning.
+2. **Vendor Predictive Model (`z70_description.arm_model`):** Recovered from the Roborock Android plugin (`index.android.hasm`, Function `#32735`, app 4.74.08). Used to predict firmware command admission, 40 mm Cartesian IK steps, and the 0.367 m reach clamp.
 
-## Sources and consumers
+---
 
-Paths below are relative to `src/z70_description/` unless otherwise stated.
+## 1. Geometry and Configuration Sources
 
-| Source | Current meaning and consumers |
-|---|---|
-| [`config/cad_arm.yaml`](../src/z70_description/config/cad_arm.yaml) and [`meshes/cad/`](../src/z70_description/meshes/cad/README.md) | CAD M3→M4 **0.1772 m**, M4→M5 **0.1157 m**; shoulder in `base_footprint` **[0.1429, -0.0117, 0.1266] m**. Supplies URDF structure/visuals, `pincher_geometry.hand_pose()` and planner physical points/camera. |
-| [`config/mount_calibration.yaml`](../src/z70_description/config/mount_calibration.yaml) | Retained front-camera floor registration, arm-frame yaw/origin and M3 offset; older optical marker registration and terminal-region surrogate remain active. Its historical geometry/status strings and null physical-L2/M5 fields describe that optical fit, not absence of the current CAD model. |
-| [`config/pincher_geometry.yaml`](../src/z70_description/config/pincher_geometry.yaml) | Photo-estimated housing/finger proxies, grasp aim, **15 mm** anatomy allowance and nominal `opening_ratio=2/3`. Used by planner body/floor/contact queries and URDF collision tags—not copied CAD contact anatomy. |
-| [`z70_description/arm_model.py`](../src/z70_description/z70_description/arm_model.py) | `vendor_forward()`, `vendor_inverse()`, `vendor_check()` reproduce the app endpoint geometry and checks. Compatibility names `forward/inverse/check` have the same vendor meaning; `L1/L2` remain CAD constants for compatibility, not inputs to these vendor functions. |
+Paths below are relative to `src/z70_description/`.
 
-The front camera is registered at x **0.275 m**, z **0.058233433935542395 m**;
-roll/pitch and the arm-frame alignment are in `mount_calibration.yaml`. The retained
-`measured_shoulder_base_m` is an older optical gauge, distinct from the CAD shoulder.
+| Source | Geometry and Role |
+| :--- | :--- |
+| [`config/cad_arm.yaml`](../src/z70_description/config/cad_arm.yaml) & [`meshes/cad/`](../src/z70_description/meshes/cad/README.md) | CAD link lengths `L1 = 0.1772 m` (`M3 -> M4`), `L2 = 0.1157 m` (`M4 -> M5`); shoulder pivot `[0.1429, -0.0117, 0.1266] m` in `base_footprint`; wrist camera offset `[0.0355, 0.0075, -0.0109] m`. Drives URDF visual/structural links, `pincher_geometry.hand_pose()`, and `planner` physical points. |
+| [`config/mount_calibration.yaml`](../src/z70_description/config/mount_calibration.yaml) | Front camera mount (`x = 0.275 m`, `z = 0.0582 m`), arm-frame yaw/origin alignment, `M3` angular offset, and underside `ID68` marker transform used by `perception.front_jaw()`. |
+| [`config/pincher_geometry.yaml`](../src/z70_description/config/pincher_geometry.yaml) | Housing and finger collision boxes, grasp reference point, 15 mm clearance margin, and jaw `opening_ratio = 2/3`. |
+| [`z70_description/arm_model.py`](../src/z70_description/z70_description/arm_model.py) | `vendor_forward()`, `vendor_inverse()`, and `vendor_check()` implementing the app's 2-D sagittal model (`SHOULDER = (0.0475, 0.14) m`, `VENDOR_L1 = 0.1775 m`, `VENDOR_L2 = 0.205 m`). |
 
-## Frames and endpoint conventions
+---
 
-Physical poses use REP-103 `base_footprint` (+x forward, +y left, +z up).
-`arm_wrist_link` is the CAD M5 station, 0.1157 m beyond the elbow. Its +x follows
-the forearm, +z is the unrolled cover normal. Positive app M5 rolls the hand/camera
-about physical +x. The optical frame uses +z forward, +x right, +y down.
+## 2. Joint Conventions and URDF Mapping
 
-The app's planar `end_pos` uses x forward, y up, metres, shoulder **(0.0475, 0.14)**
-and links **0.1775 / 0.205 m**. It is not an anatomical M5 position or a ROS base
-point. `vendor_forward(150,45)` gives approximately **(0.156765, 0.240662) m**.
-The estimator's legacy JSON key `wrist` and planner compatibility function `wrist()`
-mean this app endpoint; new planner code uses `vendor_endpoint()` explicitly.
-Physical hand, camera, collision and planning TF remain CAD-backed.
+Physical poses use REP-103 `base_footprint` (`+x` forward, `+y` left, `+z` up). `arm_wrist_link` sits at the CAD `M5` station (`0.1157 m` from `M4`), with `+x` along the forearm and `+z` along the unrolled top cover normal. Camera optical frames use `+z` forward, `+x` right, `+y` down.
 
-App-to-URDF conversion is in `z70_driver.driver.app_to_urdf()`:
+`z70_driver.driver.app_to_urdf()` converts vendor joint angles (degrees) to URDF joint coordinates (radians):
 
-- `m3_joint = rad(M3 - 270)`; link1 app direction is `270 - M3`, with retained M3 registration.
-- `m4_joint = rad(180 - M4)`; link2 app direction is `M4 - M3 + 90`.
-- `m5_joint = -rad(M5)` about URDF axis -x.
-- M6 drive joints use `rad(M6)/2`; separate collision fingers and visible CAD jaws
-  mimic them with `2*opening_ratio`. M6=0/90 means nominal closed/open, not feedback.
+| Joint | Role | Vendor Range | URDF Conversion | Notes |
+| :--- | :--- | :--- | :--- | :--- |
+| **M3** | Shoulder pitch | `90° .. 270°` | `rad(M3 - 270)` | Sagittal link 1 angle is `270° - M3` (from `+x` toward `+z`). |
+| **M4** | Elbow pitch | `35° .. 170°` | `rad(180 - M4)` | Sagittal link 2 angle is `M4 - M3 + 90°`. Holding `M4 - M3` constant keeps forearm pitch level. |
+| **M5** | Wrist roll | `0° .. 155°` | `-rad(M5)` (axis `-x`) | Positive vendor `M5` rolls the hand and gripper camera positively about forearm `+x`. |
+| **M6** | Gripper jaws | `0°` (closed), `90°` (open) | `rad(M6) / 2` | Collision fingers and CAD jaws mimic the drive joints with multiplier `2 * opening_ratio`. |
 
-The shoulder housing visual is on `shoulder_yaw_link` below display lift/yaw joints.
-The planning shoulder `arm_shoulder_link` is fixed under `arm_vendor_frame`; it does
-not depend on display-only joints.
+---
 
-## Camera, marker and contact registrations
+## 3. Manual Arm Control Protocol and Firmware Behavior
 
-The URDF and `planner.camera_pose()` use CAD camera-from-wrist
-**[0.0355, 0.0075, -0.0109] m**, full `camera_rpy` and M5 roll. Camera projection
-uses retained calibrated gripper intrinsics/distortion. The published ID68 TF uses
-`cad_arm.yaml`'s owner-adjusted CAD-face placement; see the
-[placement record](../calibration/physical-measurements/20261018-marker68-placement/README.md).
+### Session Modes and `common_status` Bitfield
 
-Front-marker reconstruction (`perception.front_jaw()` and
-`pincher_geometry.marker_hand_pose()`) still uses the older optical marker transform.
-`gripper_tcp` and `planner.tip_height()` retain the terminal-pad-region surrogate,
-not an exact contact-seam centre. Visible CAD jaws have different hinge roots/shapes
-from the photo-estimated collision fingers. These are separate active consumers;
-CAD display/TF consistency does not validate optical registration, linkage or contact.
+Arm control requires entering an active pickup session via `app_pick_up_enter_exit: {"flag": 0 | 1 | 2}` (exposed on `/z70/arm/operation` as operations `6`, `7`, and `8`).
 
-## Nominal command and estimate semantics
+The robot's `get_status` response reports arm session and action state inside `common_status`:
+- **`grab_mode = (common_status >> 10) & 0x3`:**
+  - `0`: Off (`robot_state = 3` Idle / `8` Charging)
+  - `1`: **Manual Arm Mode** (`flag: 1`, `robot_state = 39`). Enables manual joint/IK jogging and in-place jaw release.
+  - `2`: **Video Remote-Pickup Mode** (`flag: 2`). Required by the gripper camera stream (`stream_type = 1`); in this mode `app_put_down` triggers an autonomous lowering/chassis-turning macro.
+  - Switching between `flag: 1` and `flag: 2` while the arm is deployed preserves the physical arm pose without movement.
+- **`grab_status = (common_status >> 6) & 0xf`:**
+  - `0`: Stowed in compartment
+  - `1`: Leaving compartment (deploying)
+  - `2`: Entering compartment (stowing)
+  - `3`: Deployed and waiting for command
+  - `4`: Grasping (`app_grip`)
+  - `5`: Putting down (`app_put_down`)
+  - `7`: Continuing action
+  - `8`: Switching mode
+  - `9`: Continuing grasp
+  - `10`: Continuing put-down
 
-Joint selectors are 0=no step, 1=+10°, 2=−10°; −1 is not a negative jog.
-`app_arm_move {m:[M3,M4,M5]}` applies those selectors. Program `arm_joints` records
-use `value:[M3,M4,M5,M6]`, `step:n`, with the first nonzero joint taking priority.
-Hand direction codes 1/2/3/4 are up/down/front/back; prediction adds **0.04 m** to
-app endpoint y or x and solves vendor IK near the current branch. This is not a
-40 mm CAD-wrist displacement guarantee.
+### Arm Lifecycle and Gripper RPCs (`/z70/arm/operation`)
 
-`ArmEstimator` owns command/status dead reckoning, not encoder or visual fusion.
-It uses vendor endpoint FK/IK/checks and retains the **0.367 m** increasing-reach
-refusal prediction. Fault labels are predictions; `lastFault` is not a measured
-rejection or itself a planning-validity transition. The planner combines recovered
-vendor checks with its retained reach bound and CAD-backed physical/proxy floor and
-obstacle checks. Neither an RPC receipt nor a passing model proves motion completed.
+| `ArmOperation` | Wire RPC | Behavior |
+| :--- | :--- | :--- |
+| `1` | `app_arm_out_compartment: {}` | Unstows the arm to `WORKING_POS` `(150°, 45°, 0°, 90°)`. Firmware may rotate the chassis during its obstruction check. |
+| `2` | `app_arm_in_compartment: {}` | Stows the arm into the chassis compartment (`IN_ROBOT`). |
+| `3` | `app_open_gripper: {}` | Fault-recovery jaw open (used by the abnormal-arm recovery wizard). |
+| `4` | `app_grip: {}` | Closes the gripper jaws in place without lifting the arm. |
+| `5` | `app_put_down: {"flag": 0}` | Mode-dependent release: in Manual Mode (`grab_mode == 1`), opens the jaws in place while preserving arm pose (`IN_PROCESS_POS`, `M6 = 90°`). In Remote-Pickup Mode (`grab_mode == 2`), runs the autonomous floor put-down sequence. |
+| `6` | `app_pick_up_enter_exit: {"flag": 1}` | Enters Manual Arm Mode (`grab_mode = 1`). |
+| `7` | `app_pick_up_enter_exit: {"flag": 2}` | Enters Video Remote-Pickup Mode (`grab_mode = 2`). |
+| `8` | `app_pick_up_enter_exit: {"flag": 0}` | Exits arm control mode (`grab_mode = 0`); stows the arm if deployed. |
+| `9` | `app_arm_recover: {}` | Runs the firmware arm break/fault recovery sequence. |
 
-`WORKING_POS` is nominal (150,45,0,90). `TRANSFER_POS` (150,75,0,0) and `ArmState`'s
-grasp/putdown transitions are historical app simulation, not observed ROS behavior.
-Current `app_grip` closes only and invalidates planning pose; lifting is explicit.
-Autonomous grasp/putdown program records also invalidate pose. Unknown delivery,
-restart reconciliation and unobserved motion remain distinct from usable planning
-state. Fresh visualization `/joint_states` can retain an UNKNOWN pose; consumers
-must use typed `ArmEstimate` validity, not infer validity from available TF.
+### Joint Steps, Simultaneous Multi-Axis Moves, and Cartesian IK Steps
 
-## Recovered app provenance
+- **Direct & Coordinated Joint Steps (`app_arm_move: {"m": [m3, m4, m5]}`, `/z70/arm/step`):**
+  - Each slot in `m[0..2]` selects the directional step for `M3`, `M4`, and `M5`: `0` = hold, `1` = `+10°` nominal, `2` = `−10°` nominal. Values outside `{1, 2}` (such as `-1` or `10`) are ignored by the firmware. If a 5-element array is passed (`remoteManualArmPickUp`), the firmware reads `m[0..2]` and ignores `m[3..4]`.
+  - **Simultaneous multi-axis execution:** Setting multiple slots in `m[0..2]` to `1` or `2` actuates those joints simultaneously in a single step:
+    - `[1, 1, 0]` (`ArmStep.joint = 34, direction = 1`) and `[2, 2, 0]` (`joint = 34, direction = -1`) rotate `M3` and `M4` together in the same direction, translating the hand down-out or up-in while keeping the forearm world pitch angle (`M4 - M3 + 90°`) constant.
+    - `[1, 2, 0]` (`joint = 43, direction = 1`) and `[2, 1, 0]` (`joint = 43, direction = -1`) rotate `M3` and `M4` in opposite directions to extend or retract reach.
+    - `m[2]` (`1` or `2`) can be combined with `m[0..1]` for simultaneous 3-axis `M3/M4/M5` steps.
+  - **Step atomicity & continuous jogging:** A single 10° step is atomic once dispatched (`app_stop_grasp: []` does not halt a 10° step mid-rotation). Continuous manual jogging is achieved by repeating step RPCs while a control is held and sending `app_stop_grasp: []` on release.
+- **Cartesian IK Hand Steps (`app_arm_direction_move: {"direction": 1..4}`, `/z70/arm/hand_step`):**
+  - `1` = Up (`+y`), `2` = Down (`−y`), `3` = Forward (`+x`), `4` = Back (`−x`).
+  - Displaces the vendor planar endpoint by `0.04 m` along the requested axis and solves 2-link IK (`vendor_inverse`) on the current elbow branch.
+- **Program Mode (`app_start_program`, `app_save_program`, `app_get_program`):**
+  - Blockly editor blocks `arm_m3..arm_m6` compile to `{"cmd_id": "arm_joints", "value": [M3, M4, M5, M6], "step": N}`, where `step` is the count of 10° increments (`1..20`) and the first non-zero slot in `M3 -> M4 -> M5 -> M6` takes priority.
+- **Joint Telemetry (`app_get_arm_joints_data: {}`):**
+  - Returns `{"data": [0, 0, 0]}` across stowed, manual (`flag: 1`), and remote-pickup (`flag: 2`) modes. Because the firmware does not report live joint encoder angles on this RPC, `z70_driver` tracks joint state via `ArmEstimator` dead reckoning anchored on stow/unstow events and explicit visual anchors (`/z70/arm/anchor`).
 
-Roborock app **4.74.08**, plugin `targeted-plugin/index.android.hasm` on the retained
-`GOLD16` source volume, arm-checker **Function #32735**, lines approximately
-1428440–1429890. Exports include `ForwardKinematics`, `InverseKinematics`,
-`checkArmInvalidAction`, `RecordRealPos`, `GetMaxStep`; FK/IK are #32739/#32740,
-initial shoulder #32741, state transitions #32742/#32743, checks #32744 and steps #32745.
-This is recovered app prediction, not a firmware source dump or encoder model.
+---
 
-Recovered checks, in order: M3 **90–270°**, M4 **35–170°**, M5 **0–155°**;
-endpoint y>0.37 → height fault; |x|<0.24 with y<0.14 → body collision;
-otherwise y<0.01 → ground collision, then |x|>0.37 → projection fault;
-finally `M4-M3+90>15°` → A4 angle fault. App program preview checks repetitions
-and reports the first failure/valid-step count; that does not prove manual execution.
+## 4. Vendor Predictive Model (`arm_model.py`)
 
-[Local M3/M4 observations](../calibration/arm-validation/M3_M4_RESULTS.md) and
-[direct M5 camera-roll evidence](../calibration/arm-calibration/20261014T144906Z/RESULTS.md)
-support local rotation direction/increments. The nominal 40 mm hand displacement
-remains unvalidated. CAD supplies represented structural stations; physical-to-CAD
-registration, joint zeros/coupling and true pad contact still require independent
-calibration. Retained optical results and historical measurements are not rewritten
-by adopting that structural source.
+Recovered from `index.android.hasm` Function `#32735` (`ForwardKinematics` `#32739`, `InverseKinematics` `#32740`, `checkArmInvalidAction` `#32744`, `RecordRealPos` `#32742`, `GetMaxStep` `#32745`):
+
+### Sagittal Geometry (`x` forward, `y` up, metres)
+
+| Parameter | Value | Source |
+| :--- | :--- | :--- |
+| Shoulder pivot `SHOULDER` (`m2_pos`) | `(0.0475, 0.14) m` | `#32741` |
+| Upper arm `VENDOR_L1` (`M3 -> M4`) | `0.1775 m` | `#32739`, `#32740` |
+| Forearm `VENDOR_L2` (`M4 -> end_pos`) | `0.205 m` | `#32739`, `#32740` |
+| Reach refusal threshold | `x <= 0.367 m` | Observed firmware forward-reach limit enforced in `ArmEstimator` and `planner` |
+
+### Validity Checks (`vendor_check`, `#32744`)
+
+Evaluated in order:
+1. `M3 in [90°, 270°]`, `M4 in [35°, 170°]`, `M5 in [0°, 155°]` -> `FAULT_JOINT_LIMIT`
+2. `end.y > 0.37 m` -> `FAULT_ARM_HEIGHT`
+3. `|end.x| < 0.24 m` and `end.y < 0.14 m` -> `FAULT_ROBOT_COLLISION`
+4. `end.y < 0.01 m` -> `FAULT_GROUND_COLLISION`
+5. `|end.x| > 0.37 m` -> `FAULT_PROJECTION`
+6. `M4 - M3 + 90° > 15°` -> `FAULT_A4_ANGLE` (forearm cannot pitch more than 15° above horizontal)
+
+### Named Poses (`POSES`, `#32743`)
+
+| State | `M3` | `M4` | `M5` | `M6` | Vendor `end_pos (x, y)` | Transition |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `IN_ROBOT` | `0°` | `0°` | `0°` | `0°` | `None` (stowed) | Initial state, `app_arm_in_compartment` |
+| `WORKING_POS` | `150°` | `45°` | `0°` | `90°` | `(0.1568, 0.2407) m` | `app_arm_out_compartment` |
+| `TRANSFER_POS` | `150°` | `75°` | kept | `0°` | `(0.1568, 0.3468) m` | App preview state for autonomous `arm_grasp` |
+| `IN_PROCESS_POS` | accumulated | accumulated | accumulated | `0° / 90°` | `vendor_forward(M3, M4)` | Any `app_arm_move`, `app_arm_direction_move`, or manual in-place `app_put_down` |

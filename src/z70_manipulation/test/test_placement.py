@@ -88,8 +88,11 @@ def test_descent_never_substitutes_40mm_for_20mm_gap():
     step = placement.descent_step(sample, [210.,75.,0.])
     assert step is not None and step['method'] == 'app_arm_move'
     assert .002 < step['descent_m'] <= .030
-    assert step['params']['m'] in ([1,0,0], [2,0,0], [0,1,0], [0,2,0])
+    assert set(step['params']['m']) <= {0, 1, 2} and step['params']['m'][2] == 0 and any(step['params']['m'][:2])
     sample['gap_m'] = .025
+    coord_step = placement.descent_step(sample, [210.,75.,0.])
+    assert coord_step is not None and coord_step['params']['m'] == [1, 1, 0]
+    sample['gap_m'] = .022
     assert placement.descent_step(sample, [210.,75.,0.]) is None  # 10..12deg observed-step spread
     sample['gap_m'] = .050
     sample['uncertainty_m'] = .015

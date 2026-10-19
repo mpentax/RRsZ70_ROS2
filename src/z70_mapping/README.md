@@ -1,142 +1,73 @@
-# z70_mapping — vendor SLAM and optional local depth
+# z70_mapping — Vendor SLAM Decoder and Optional Monocular Depth
 
-A read-only ROS interpretation layer, not navigation. `z70_driver` acquires the
-vendor map/rooms and camera frames; this package consumes typed
-`/z70/driver/map_snapshot` and shared images, not another HTTP/vendor client.
-The driver schedules commands; its private sidecar transports them. Neither this
-observer nor the depth worker sends cleaning, mode or motion RPCs.
+Decodes the robot's native `v1` LiDAR map into ROS 2 `OccupancyGrid` and marker topics, computes eroded safe interior grids and patrol waypoints, and runs an optional Apple Silicon MPS monocular depth worker.
 
-## Run and topics
+## Run and Topics
 
-From the repository root, within authorized live observation:
+From the repository root:
 
 ```sh
 pixi run bringup                    # mapping:=true, depth:=true
-pixi run bringup depth:=false       # no monocular cloud
-pixi run bringup mapping:=false     # no vendor map interpreter
+pixi run bringup depth:=false       # disable monocular depth worker
+pixi run bringup mapping:=false     # disable vendor map node
 ```
 
-Use [Foxglove](../z70_bringup/foxglove/README.md) on ws://127.0.0.1:8765. Import the
-installed/repository dashboard; Overview uses map-fixed visualization. Depth is
-an independent approximate local overlay, not fused into vendor `/map`.
+| Topic | Type / Description |
+| :--- | :--- |
+| `/map` | `nav_msgs/msg/OccupancyGrid` (`0.05 m/cell`, `RELIABLE + TRANSIENT_LOCAL`) |
+| `/z70/map/safe_grid` | `nav_msgs/msg/OccupancyGrid` — reachable eroded allowlisted interior (`0` = free, `100` = excluded) |
+| `/z70/map/robot_pose`, `/z70/map/dock_pose` | `geometry_msgs/msg/PoseStamped` from the vendor map snapshot |
+| `/z70/map/markers` | `visualization_msgs/msg/MarkerArray` — room boundaries/labels, dock, paths, virtual walls, zones, carpet, and patrol waypoints |
+| `/z70/map/spatial_context` | `std_msgs/msg/String` (JSON) — current room, 8-sector clearance raycasts, and `boundary_contract` |
+| `/z70/map/status` | `std_msgs/msg/String` (JSON) — map cache age, sequence, block counts, and alignment metadata |
+| `/tf` | `map -> odom` transform (`5 Hz`) |
+| `/camera/front/depth/points` | `sensor_msgs/msg/PointCloud2` — metric `xyz` `float32` cloud in `camera_optical_frame` |
+| `/z70/depth/status` | `std_msgs/msg/String` (JSON) — depth worker health and floor-scale fit telemetry |
 
-| Topic | Meaning |
-|---|---|
-| `/map` | OccupancyGrid in map, RELIABLE + TRANSIENT_LOCAL depth 1 |
-| `/z70/map/robot_pose`, `/z70/map/dock_pose` | Vendor snapshot references, not live localization or a docking goal |
-| `/z70/map/markers` | Room boundaries/labels, dock, paths, virtual walls, zones and carpet contours; latched |
-| `/z70/map/spatial_context` | JSON room/relative bearing/distance and eight-sector raster raycasts; latched, 5 Hz |
-| `/z70/map/status` | Cache age/sequence, blocks/counts, freshness/alignment evidence; latched, 5 Hz |
-| `/tf` | map → odom visual alignment, 5 Hz |
-| `/camera/front/depth/points` | Optional xyz float32 cloud, metres, camera_optical_frame, input image stamp |
-| `/z70/depth/status` | Worker availability, floor-fit/inference quality; latched |
+---
 
-Visualization map/markers/poses are stamped with **current ROS time**, republished
-on updates and about every two seconds for late viewers' TF buffers. Original
-cache receipt is retained in `OccupancyGrid.info.map_load_time` and status
-`saved_at_ms`; source capture time is unknown. A new sequence is a new reply, not
-proof of active floor or current localization. Driver refresh defaults to 60 s;
-`/z70/map/refresh` requests a read. Failed refresh retains last geometry with age/
-error evidence rather than manufacturing freshness.
+## Map Binary Format (`z70_mapping/decoder.py`)
 
-## Acquisition and decoder contract
+- Validates the `rr` magic header (20 bytes), declared payload size (`<= 32 MiB`), and trailing SHA-1 digest (block `1024`).
+- Little-endian block headers `(uint16 type, uint16 header_size, uint32 data_size)`:
+  - Block `1`: charger/dock pose (signed mm)
+  - Block `2`: occupancy grid `(top, left, height, width)` at `0.05 m/cell`, bottom row first (`pixel & 7 == 1` occupied `100`; `255` or `pixel & 7 == 7` free `0`; `segment_id = pixel >> 3`)
+  - Block `3` / `9`: path polylines
+  - Block `8`: robot pose `(x_mm, y_mm, heading_deg)`
+  - Block `10`: virtual walls
+  - Block `17`: carpet mask
+  - Blocks `18` / `19` / `47` / `53`: forbidden and cleaning zones
+- Segment IDs are joined to named rooms via `get_room_mapping`.
 
-Private bearer APIs (`/api/map/cache`, `/raw`, `/image`, `/refresh`, room caches
-and `get_room_mapping`) are driver acquisition details, not public UI/MCP routes.
-Raw bytes are device-bound, integrity-checked and never logged/public fixtures.
-The driver joins segment IDs to account room IDs through explicit
-`get_room_mapping`, never room ordering. Unnamed segments remain `Segment N`.
-Bounded unknown extensions are skipped, not interpreted as absent obstacles.
+---
 
-`z70_mapping/decoder.py` validates:
+## Safe Interior Grid and Patrol Waypoints (`z70_mapping/boundary.py`)
 
-- `rr` magic, 20-byte header, declared length and trailing SHA-1 digest block 1024;
-  maximum 32 MiB, bounded block count/extents and grid dimensions.
-- Little-endian block header `(uint16 type,uint16 header_size,uint32 data_size)`.
-  Block 2's final header fields are `(top,left,height,width)`.
-- Raw raster is row-major **bottom row first** at 0.05 m/cell. ROS origin is
-  `(left*0.05,top*0.05,0)` with identity orientation. Do not flip OccupancyGrid;
-  only display images are flipped.
-- Low pixel bits `1` are occupied 100; `255` or low bits `7` are free 0; others
-  unknown -1. Segment ID is `pixel >> 3` for segmented free cells, excluding 7/255.
-- Dock/robot blocks 1/8 use signed millimetres; optional signed heading is interpreted
-  as degrees CCW in raw xy, not physically validated. Missing heading prevents SE(2)
-  alignment. Missing obstacle records do not establish an obstacle-free room.
-- Paths 3/9, walls 10 and zones 18/19/47/53 use unsigned mm coordinates. Extended
-  zones include two metadata uint16s before corners. Malformed optional records
-  are ignored. Carpet block 17 is a same-dimension bottom-first nonzero mask.
-- Room boundaries retain disconnected contours/holes and represent cell centres,
-  not surveyed edges; labels use segment centroids.
+`boundary.compute_safe_interior(m, labels, BoundaryConfig(...), robot_pose_map=None)` computes the reachable interior mask:
+1. Unions allowlisted room segments (`boundary.allowed_segments`, default `[1, 2, 3, 4, 5, 6]`) and excludes occupied/unknown cells, forbidden polygons, and supercover virtual-wall lines.
+2. Applies `cv2.distanceTransform(DIST_L2, DIST_MASK_PRECISE)` and erodes by `chassis_radius_m + deployed_arm_extension_m + localization_uncertainty_m + stopping_distance_m`.
+3. Selects the 4-connected component containing the robot pose and publishes it on `/z70/map/safe_grid`.
+4. `generate_patrol_waypoints(result)` seeds each reachable room's highest-clearance cell, adds dispersed observation points (`waypoint_spacing_m = 0.90 m`, `waypoint_clearance_m = 0.25 m`), and orders a nearest-neighbor tour.
+5. `check_corridor_containment(safe_grid_or_result, start_xy, end_xy, radius_m)` tests whether the continuous swept capsule along a straight segment stays inside the safe interior.
 
-## Alignment and spatial context
+| Parameter | Default | Meaning |
+| :--- | :--- | :--- |
+| `boundary.allowed_segments` | `[1, 2, 3, 4, 5, 6]` | Allowlisted room segment IDs |
+| `boundary.chassis_radius_m` | `0.199` | Half of the Z70's `39.8 cm` chassis diameter |
+| `boundary.deployed_arm_extension_m` | `0.0` | Additional clearance when the arm is deployed (`0.10 m` during loaded garment transit) |
+| `boundary.localization_uncertainty_m` | `0.0` | Extra localization margin |
+| `boundary.stopping_distance_m` | `0.0` | Extra stopping-distance margin |
+| `boundary.waypoint_clearance_m` | `0.25` | Preferred wall clearance for patrol waypoints |
+| `boundary.waypoint_spacing_m` | `0.90` | Minimum spacing between patrol waypoints |
 
-Given vendor snapshot V and odometry O, yaw=`wrap(V.yaw-O.yaw)` and
-translation=`V.xy-R(yaw)*O.xy`. Before first odometry, O=(0,0,0), so a valid headed
-snapshot immediately anchors the overlay. `realign_on_refresh=true` resets on a
-new map sequence; duplicate sequence does not. False freezes the startup offset.
-This single-pose visual alignment is not synchronized fusion, drift correction
-or relocalization and can jump when a stale snapshot reanchors it.
+---
 
-Spatial context uses aligned odometry when available, otherwise snapshot pose.
-Room lookup uses the cell under the robot; unsegmented free floor can fall back
-to a centroid within 1.5 m. Occupied/unknown/out-of-bounds cells cannot. Missing
-pose/yaw leaves relative quantities/bearings null. Eight robot-relative rays use
-half-cell steps up to 5 m, stopping on occupancy/bounds; **unknown is traversed**.
-These are stale-raster distances, not live obstacle clearance or traversability.
+## Monocular Depth (`z70_mapping/depth_node.py`)
 
-## Depth architecture and geometry
+Runs Depth Anything V2 Metric Indoor Small in `~/.venvs/roboclaw-depth` ([setup instructions](../../docs/ros2.md#optional-depth)) at `depth_hz = 0.2` (`400 x 300` inference resolution). Fits a robust floor-plane scale factor over `0.15..1.2 m` floor rays and publishes `0.05..4.0 m` 3D points on `/camera/front/depth/points`.
 
-The persistent external worker (`~/.venvs/roboclaw-depth/bin/python`, override
-`depth_python`) consumes existing compressed front images. It loads pinned cached
-Depth Anything V2 Metric Indoor Small weights once, default device MPS, with
-`local_files_only=True`. [Environment/cache setup](../../docs/ros2.md#optional-depth)
-is separate from ROS startup; no second camera session or Pixi Torch dependency.
-Missing interpreter/weights reports unavailable. One inference is in flight,
-stale frames drop, per-frame failures are reported, worker EOF/shutdown is reaped.
-
-Default `depth_hz=0.2`. At 400×300 inference resolution, rays use original
-calibration pixel centres and installed lens distortion/floor rotation/height.
-The current `calibration` input, not an old fixed floor height, defines geometry.
-Robust scale-only floor agreement uses 0.15–1.2 m candidates excluding the bottom
-bumper strip; insufficient agreement leaves explicit uncorrected network depth.
-Only finite optical-z points 0.05–4 m enter the cloud. `floor_aligned` is not
-independent off-floor metric validation. Clutter/ramps can fool the floor fit;
-network smear, optical registration and map/odom alignment affect placement.
-This is not collision avoidance, Nav2, LiDAR replacement or multiview fusion.
-
-## Verification and retained evidence
+## Tests
 
 ```sh
 pixi run bash -c 'source install/setup.bash && pytest src/z70_mapping/test -q'
 ```
-
-Offline tests cover integrity/axes, room joins, optional records, serialization,
-alignment, refresh and depth rays/filtering. Fake snapshots cannot establish
-physical localization, metric object accuracy or delivered live throughput.
-The retained `test/live_check.py` is a live acquisition harness, not an offline
-test. It writes under `calibration/mapping/`; use a fresh evidence destination and
-test-owned XDG state, and inspect the harness before any authorized run.
-
-Historical measurements/home-specific output remain evidence, not current setup:
-
-<details>
-<summary>Original integrated/live observation receipt (pre-cutover)</summary>
-
-Historical integrated/live results below predate these feature changes:
-
-- Final integrated rerun (including the other agents' concurrent changes): **TypeScript compile clean, 358 service/web tests pass, 44 ROS tests pass, including 11 z70_mapping tests**.
-- TypeScript compile succeeded and complete service suite passed **348 tests** immediately after the raw-map route change (other concurrent agents may add tests afterwards).
-- Native pixi package build succeeded; package tests include integrity/extent fixtures, row/origin/position conversion, explicit empty obstacle counts, SE(2) alignment/missing heading, room joins, ROS grid/pose/markers, calibrated depth rays/floor correction and invalid depth filtering.
-- Read-only isolated-domain full bringup ran **90 seconds**, then **35 seconds** after cleanup/obstacle diagnostics changes. No robot motion/mode/cleaning/arm commands.
-- Actual ROS map: **365×296 at 0.05 m**, **18.25×14.8 m canvas**; **12,894 free**, **859 occupied**, **94,287 unknown** cells. Six room segments, three named rooms. Canvas includes unmapped margins; free-pixel area is not the home's surveyed area.
-- **17 markers**, **1,944 boundary points**. Robot/dock poses published; actual `map -> odom` TF observed, 5-Hz map diagnostics, odometry around 2.5–2.8 Hz during these runs.
-- A subscriber created **15 seconds after startup** received the latched map before the next scheduled refresh: transient-local late join demonstrated, not merely configured.
-- Optional cloud: **120,000 finite xyz points**, optical frame, 12 bytes/point; **~0.197 Hz** delivered. Warm inference ~0.07 s (the remaining interval is deliberate rate limiting). In this scene optical-z extent ~0.08–0.95 m: a local view fan, not whole-home depth.
-- Copilot vision checked both the original vendor PNG and a render from the actual ROS map/markers: coherent apartment-like regions, robot centre on free floor; dock near occupied boundary. Geographic mirroring/heading cannot be resolved from shape alone. Actual ROS depth render showed a small local fan, not accurate object-shape proof.
-- First test's group + launcher double SIGINT interrupted shutdown. Own mapping/depth cleanup was fixed (ignore duplicate interrupt during cleanup, worker exits on EOF); both nodes subsequently exited cleanly, no depth worker/owned validation process survived. Other pre-existing bridge/VO/mosaic/calibrator nodes still print duplicate-interrupt cleanup traces in this harness; not modified here.
-- RoboClaw app rebuilt/recreated once for the route and verified **RestartCount=0**. Other agents' ROS processes were not killed.
-
-Local evidence (git-ignored/private): `calibration/mapping/` holds `v1-live.bin`, `vendor-map.png`, `ros-map.png`, `ros-depth-topdown.png`, `cloud-optical.npy`, `live-results.json`, `bringup.log`. No private map fixture is checked in.
-
-
-</details>

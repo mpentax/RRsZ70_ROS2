@@ -264,6 +264,9 @@ class Driver(CommandSurfaces, Node):
                         v = values.get(source)
                         if isinstance(v, int) and not isinstance(v, bool) and 0 <= v <= 0xffffffff:
                             setattr(m, field, v); setattr(m, field+'_known', True)
+                    if m.common_status_known and not m.grab_status_known:
+                        m.grab_status = (m.common_status >> 6) & 0xf
+                        m.grab_status_known = True
                     battery = values.get('battery')
                     if isinstance(battery, (float, int)) and 0 <= battery <= 100:
                         m.battery_known = True; m.battery_fraction = float(battery/100)

@@ -2,6 +2,8 @@ import { MANUAL_JOINT_CONTROLS, type ManualJointControl } from "./arm-joint-prot
 export type { ManualJointControl } from "./arm-joint-protocol.ts";
 
 export type VendorCommand =
+  | { kind: "goto-target"; xMm: number; yMm: number }
+  | { kind: "goto-stop" }
   | { kind: "chassis-start" | "chassis-stop" | "chassis-end" | "cancel-cleaning" | "return-dock" }
   | { kind: "chassis-move"; velocity: number; omega: number; durationMs: number; sequence: number }
   | { kind: "arm-mode"; enabled: boolean }
@@ -31,6 +33,10 @@ export function defaultRpcTimeoutMs(method: string): number {
 /** Wire mappings only. Inputs are vendor values, not calibrated SI units. */
 export function vendorCommandRpc(command: VendorCommand): { method: string; params: unknown } {
   switch (command.kind) {
+    case "goto-target":
+      if (!Number.isSafeInteger(command.xMm) || !Number.isSafeInteger(command.yMm)) throw new Error("Invalid goto target.");
+      return { method: "app_goto_target", params: [command.xMm, command.yMm] };
+    case "goto-stop": return { method: "stop_goto_target", params: [] };
     case "chassis-start": return { method: "app_rc_start", params: [] };
     case "chassis-stop": return { method: "app_rc_stop", params: [] };
     case "chassis-end": return { method: "app_rc_end", params: [] };

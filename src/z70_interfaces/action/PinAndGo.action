@@ -1,0 +1,19 @@
+float64 target_x_m
+float64 target_y_m
+float64 max_duration_s
+bool dry_run
+---
+z70_interfaces/CommandOutcome outcome
+string<=32 status_code
+bool arrived
+bool dry_run_valid
+float64[2] final_position_m
+float64 position_error_m
+string<=128 detail
+---
+uint8 phase
+string<=64 reason
+float64[2] current_position_m
+float64 remaining_distance_m
+z70_interfaces/CommandOutcome latest_outcome
+z70_interfaces/EvidenceStamp latest_observation

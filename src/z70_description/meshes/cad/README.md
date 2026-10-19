@@ -1,54 +1,26 @@
-# Copied CAD assets
+# CAD Meshes and URDF Stations
 
-These package-owned STL bytes and [`../../config/cad_arm.yaml`](../../config/cad_arm.yaml)
-are the runtime CAD representation. `setup.py` installs them in the ament package
-share; URDF `package://z70_description/...` references do not import an original
-Max/GLB/FBX file. Runtime coordinates are metres (URDF mesh scale is identity).
-This establishes the exported coordinate convention, not original authoring units.
+Package-installed STL meshes and [`../../config/cad_arm.yaml`](../../config/cad_arm.yaml) define the structural URDF geometry for `z70_description`. Mesh coordinates are in metres (identity scale in `z70.urdf.xacro`).
 
-## Geometry and ownership
+## Links and Parameters
 
-| Assets / values | Runtime frame and consumer |
-|---|---|
-| `cad_body`, `cad_wheels`, `cad_mops`, `cad_spinners`, `cad_lenses` | Visuals on `base_link`; white body, dark mechanisms. |
-| `cad_bumper_front`, `cad_bumper_rear`, `cad_lid_base`, `cad_lid` | Separate visual links; lid has its own hinge. |
-| `cad_shoulder_mount` | Visual on `shoulder_yaw_link`, under display `shoulder_lift`/`shoulder_yaw`; not a static body visual or upper-arm mesh. |
-| `cad_link1`, `cad_link2`, `cad_hand` | `arm_link1`, `arm_link2`, `arm_wrist_link` visuals. The planning shoulder is separately fixed under `arm_vendor_frame`. |
-| `cad_jaw_left`, `cad_jaw_right` | Visible jaws; wrist-relative hinge origins `[0.0515,0.0106,0.0041]` / `[0.0515,-0.0101,0.0041]` m. |
-| `L1_m=0.1772`, `L2_m=0.1157` | M3→M4 and M4→M5 CAD stations; URDF, physical hand geometry and planner. The app's 0.205 m endpoint is separate. |
-| `shoulder_in_base_m=[0.1429,-0.0117,0.1266]` | CAD shoulder in `base_footprint`. `shoulder_in_vendor_m` re-expresses it through retained arm-origin/yaw registration for the URDF parent frame. |
-| `camera_from_wrist_m=[0.0355,0.0075,-0.0109]`, `camera_rpy=[0,0,0]` | CAD camera pocket in the unrolled wrist frame (+x forward, +z cover up); URDF and planner camera projection. |
-| `marker_from_wrist_m`, `marker_rpy` | Owner-adjusted, photo-oriented CAD-face ID68 placement, not original CAD marker provenance; [retained placement record](../../../../calibration/physical-measurements/20261018-marker68-placement/README.md). |
+| Asset / Parameter | URDF Link / Consumer |
+| :--- | :--- |
+| `cad_body`, `cad_wheels`, `cad_mops`, `cad_spinners`, `cad_lenses` | Chassis and underbody visuals on `base_link`. |
+| `cad_bumper_front`, `cad_bumper_rear`, `cad_lid_base`, `cad_lid` | Bumper and hinged top-lid links. |
+| `cad_shoulder_mount` | Shoulder turret visual on `shoulder_yaw_link` (under display `shoulder_lift` / `shoulder_yaw`). |
+| `cad_link1`, `cad_link2`, `cad_hand` | `arm_link1`, `arm_link2`, and `arm_wrist_link` visuals. |
+| `cad_jaw_left`, `cad_jaw_right` | Gripper jaw visuals; wrist-relative hinge origins `[0.0515, 0.0106, 0.0041] m` and `[0.0515, -0.0101, 0.0041] m`. |
+| `L1_m = 0.1772`, `L2_m = 0.1157` | CAD `M3 -> M4` and `M4 -> M5` link lengths used by the URDF, `pincher_geometry.hand_pose()`, and `planner`. |
+| `shoulder_in_base_m = [0.1429, -0.0117, 0.1266]` | Shoulder pivot in `base_footprint`. |
+| `camera_from_wrist_m = [0.0355, 0.0075, -0.0109]`, `camera_rpy = [0, 0, 0]` | Gripper camera pocket in the unrolled wrist frame (`+x` forward, `+z` top cover normal). |
+| `marker_from_wrist_m`, `marker_rpy` | Underside `DICT_4X4_1000` `ID68` marker placement on the wrist housing. |
 
-Visible jaws and operational collision fingers have different roots/shapes. Collision
-meshes/boxes and planner contact bounds remain photo-estimated proxies from
-`pincher_geometry.yaml`, with 15 mm allowance and nominal opening ratio 2/3.
-M6=0/90 is nominal closed/open; the URDF mimic multiplier is `2*opening_ratio`
-against M6/2 drive coordinates. This is articulation, not validated linkage/force physics.
+Collision boxes and finger swept-volume bounds come from [`../../config/pincher_geometry.yaml`](../../config/pincher_geometry.yaml) (`15 mm` clearance margin, `opening_ratio = 2/3`). See [`docs/z70-arm-model.md`](../../../../docs/z70-arm-model.md) for joint conventions and kinematics.
 
-The CAD camera/published marker TF is not the older optical marker-to-hand
-reconstruction or legacy terminal-region TCP. The [arm reference](../../../../docs/z70-arm-model.md)
-identifies those active consumers and the independent recovered-app APIs.
+## Exported STL SHA-256 Digests
 
-## Asset provenance
-
-The table above describes the installed geometry; hashes below identify its STL
-exports. Re-exporting requires the original asset/version, authoring units,
-node/pivot mapping and export transforms, which are not included in this package.
-
-`cad_arm.yaml` also retains
-`c3b3e6b4b733e022541b29cdb81c915d0bce597ef74535ed245edb0f9347a127`
-with no recorded target; it is not an identified source or combined-export hash.
-`resources_provenance.json` covers calibration copies, not CAD lineage.
-
-Original CAD attribution and redistribution terms still need to be recorded;
-the project's license alone does not establish rights to third-party assets.
-
-### Exported STL SHA-256
-
-These identify the retained exports, not export fidelity or physical accuracy.
-From the repository root, reproduce with
-`shasum -a 256 src/z70_description/meshes/cad/*.stl`.
+Reproduce from the repository root with `shasum -a 256 src/z70_description/meshes/cad/*.stl`:
 
 ```text
 e5ffce9fb51ccee3d8140cab6116a69ece36f93d53a1ddbf034faa198439eaa5  cad_body.stl
