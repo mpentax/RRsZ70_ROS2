@@ -27,7 +27,7 @@ class SafetyStop(RuntimeError):
 
 
 class Client:
-    def __init__(self, origin, token_file, read_only=False, observations=None):
+    def __init__(self, origin='', token_file='', read_only=False, observations=None):
         self.origin = origin.rstrip('/')
         self.read_only = read_only
         from .observations import Observations

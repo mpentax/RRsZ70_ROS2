@@ -1,4 +1,4 @@
-"""HSV components and calibrated floor projections; no learned models."""
+"""HSV color segmentation, floor projection, and ArUco ID68 wrist pose estimation."""
 from functools import lru_cache
 import cv2
 import numpy as np
@@ -16,7 +16,7 @@ def front_camera():
 
 @lru_cache(maxsize=1)
 def gripper_camera_info():
-    """One adopted lens source for planner, pixel projection and ROS fallback."""
+    """Load gripper camera intrinsics and distortion parameters."""
     return description_config('z70_gripper_camera_info.yaml')
 
 @lru_cache(maxsize=1)
@@ -36,10 +36,9 @@ def detect(image,thresholds=None,min_area=70,keep_masks=False):
             if area<min_area: continue
             x,y,w,h=cv2.boundingRect(contour)
             hull_area=cv2.contourArea(cv2.convexHull(contour))
-            if w/h>3 or area/max(hull_area,1)<.5: continue   # tall merges are trimmed by geometry in front_objects
+            if w/h>3 or area/max(hull_area,1)<.5: continue
             moments=cv2.moments(contour)
             cx=moments['m10']/moments['m00']; cy=moments['m01']/moments['m00']
-            # Dense contour samples avoid JPEG corner-count bias at the contact row.
             dense=np.zeros((h,w),np.uint8)
             local=contour.copy();local[:,:,0]-=x;local[:,:,1]-=y
             cv2.drawContours(dense,[local],-1,255,-1)
@@ -59,15 +58,11 @@ def front_objects(image,thresholds=None):
         mask=b.pop('_mask')
         u,v=b['contact_px']; point=cam.pixel_to_floor(u*sx,v*sy)
         if point is None or not 0<point['forward_mm']<3000: continue
-        # A dodecahedron is about as tall as it is wide. A much taller blob is the object merged with its glossy-floor
-        # reflection (extra below) or with same-coloured background such as a wooden leg (extra above). Keep the
-        # width-sized window (top or bottom) that is more saturated; the reflection and the wood are duller.
+        # Trim merged reflections or background regions using high-saturation windows.
         x,y,w,h=b['bbox']
         sat_patch=hsv[y:y+h,x:x+w,1]
         core=cv2.morphologyEx(((mask>0)&(sat_patch>=165)).astype(np.uint8)*255,cv2.MORPH_OPEN,np.ones((5,5),np.uint8))
         core_cnts,_=cv2.findContours(core,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
-        # Warm wood can merge with yellow/orange; this refinement must not
-        # replace real pale purple/blue/green facets with a bright sub-face.
         if core_cnts and b['color'] in ('yellow', 'orange'):
             best_c=max(core_cnts,key=cv2.contourArea)
             if cv2.contourArea(best_c)>=70:
@@ -85,7 +80,6 @@ def front_objects(image,thresholds=None):
                     u,v=b['contact_px']; point=cam.pixel_to_floor(u*sx,v*sy)
                     if point is None or not 0<point['forward_mm']<3000: continue
         if w>1.4*h:
-            # Wide merge (object + neighbouring same-hue patch): keep the most saturated object-sized column window.
             keepw=int(round(1.1*h)); satw=hsv[y:y+h,x:x+w,1].astype(float)
             def scorew(c0): m=mask[:,c0:c0+keepw]>0; return float(satw[:,c0:c0+keepw][m].mean()) if m.any() else -1
             starts=range(0,w-keepw+1,max(1,keepw//8)); c0=max(starts,key=scorew)
@@ -115,7 +109,6 @@ def front_objects(image,thresholds=None):
         right=cam.pixel_to_floor((u+b['bbox'][2]/2)*sx,v*sy)
         if not left or not right: continue
         size_m=abs(left['left_mm']-right['left_mm'])/1000
-        # Reject, never clamp, implausible physical objects and squat coloured labels.
         limits=(thresholds or colors())[b['color']].get('size_m',[.018,.085])
         aspect=max(b['bbox'][2]/b['bbox'][3],b['bbox'][3]/b['bbox'][2])
         if not limits[0]<=size_m<=limits[1] or aspect>(thresholds or colors())[b['color']].get('max_aspect',1.8): continue
@@ -124,13 +117,7 @@ def front_objects(image,thresholds=None):
     return result
 
 def front_jaw(image):
-    """Observed ID68 pose plus shared provisional grasp aim, never nominal FK.
-
-    ``position`` is the PHOTO-ESTIMATED operational aim derived from full marker
-    pose and shared finger geometry; ``legacy_surrogate_position`` preserves the
-    registered terminal-region evidence separately. Neither is an exact seam.
-    Floor-board ID68 is rejected by elevation; uncertainty remains >=15mm.
-    """
+    """Estimate elevated ArUco ID68 wrist pose and grasp reference in base_footprint."""
     cam=front_camera();cfg=calibration()
     if image.shape[:2]!=(cam.height,cam.width): raise LookupError('front frame dimensions')
     K=np.array([[cam.f,0,cam.cx],[0,cam.f,cam.cy],[0,0,1.]])
@@ -150,18 +137,13 @@ def front_jaw(image):
         marker=C+cam.R.T@t.ravel()
         rms=float(np.sqrt(np.mean(np.sum((cv2.projectPoints(obj,r,t,K,D)[0].reshape(4,2)-px)**2,axis=1))))
         if marker[2]<.025 or rms>2. or not .035<marker[0]<.45: continue
-        jaw=C+cam.R.T@(t.ravel()+R@np.array(cfg['jaw_region_in_marker_m']))
-        jaw[0]+=cfg['front_camera_x_m'];marker[0]+=cfg['front_camera_x_m']
-        # Optional registered residual, currently zero: do not double-count a
-        # correction after updating the effective closing-point/marker transform.
-        jaw[2]+=cfg.get('jaw_z_correction_m',0.)
+        marker[0]+=cfg['front_camera_x_m']
         from z70_description import pincher_geometry as hand
         marker_pose=np.eye(4);marker_pose[:3,:3]=cam.R.T@R;marker_pose[:3,3]=marker
         hand_pose=hand.marker_hand_pose(marker_pose)
         operational=hand_pose[:3,:3]@hand.grasp_reference()+hand_pose[:3,3]
-        candidates.append(dict(position=operational.tolist(),legacy_surrogate_position=jaw.tolist(),
+        candidates.append(dict(position=operational.tolist(),
                                marker_pose_base=marker_pose.tolist(),hand_pose_base=hand_pose.tolist(),
-                               reference_status='PHOTO-ESTIMATED grasp aim; legacy terminal surrogate retained separately',
                                marker_position=marker.tolist(),marker_id=68,marker_corners=px.tolist(),rms_px=rms,
                                uncertainty_bound_m=max(hand.CONFIG['uncertainty_m'],cfg.get('jaw_uncertainty_bound_m',.015))))
     if len(candidates)!=1: raise LookupError('elevated wrist marker 68 missing or ambiguous')

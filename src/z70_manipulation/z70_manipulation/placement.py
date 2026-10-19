@@ -1,9 +1,4 @@
-"""Same-exposure supported-placement geometry, not a force/contact sensor.
-
-Elevated colours are NEVER floor projected. Their depth is conditional on the
-observed bottom-base column / retained object-to-hand transform. Metric bounds
-include provisional jaw geometry; silhouette gap is relative visual evidence.
-"""
+"""Supported-placement geometry and descent step selection from front-camera observations."""
 import math
 import cv2
 import numpy as np
@@ -14,11 +9,7 @@ LATERAL_TOL_M = .010
 
 
 def observed_joints(hand_pose):
-    """Invert this exposure's hand pose, never anchor the ROS estimator.
-
-    This is a conditional fit to provisional anatomy, NOT joint feedback. Refuse
-    a pose that the model cannot explain; callers must remeasure after one step.
-    """
+    """Fit [M3, M4, M5] joint angles to an observed 4x4 hand pose."""
     T = np.asarray(hand_pose, float)
     if T.shape != (4,4) or not np.isfinite(T).all():
         return None
@@ -46,11 +37,7 @@ def observed_joints(hand_pose):
 
 
 def descent_step(sample, joints):
-    """Choose ONE real step whose sampled path cannot cross measured support.
-
-    Reserve 2mm beyond the predicted descent. Missing precision is unresolved,
-    not permission to use a 40mm command for a 20mm visual gap.
-    """
+    """Select a single safe descent step within the measured vertical gap and lateral tolerance."""
     gap = sample['gap_m']
     if gap <= CONTACT_GAP_M or np.linalg.norm(sample['lateral_error_m']) > LATERAL_TOL_M:
         return None
@@ -112,8 +99,6 @@ def measure(image, held_color, support_color, base_color, tower_spot,
             raise LookupError('placement ray/depth invalid')
         return C + ray * ((depth-C[0])/ray[0])
 
-    # Retain pale real facets. An interior high-saturation patch is not the
-    # object's lower contour and can invent centimetres of apparent clearance.
     thresholds = perception.colors()
     blobs = perception.detect(image, thresholds, keep_masks=True)
 
@@ -145,7 +130,6 @@ def measure(image, held_color, support_color, base_color, tower_spot,
             raise LookupError('placement contour association ambiguous: '+color)
         return choices[0][1:]
 
-    # Elevation expectation is only an association prior, not measured height.
     support_expected = [support_depth, base['position'][1], .033 if support_color==base_color else .099]
     support_center, support_top, _, support_box = component(support_color, support_depth, support_expected)
     held_expected = [held_depth, support_center[1], support_top[2]+.033] if released else jaw['position']
@@ -157,5 +141,4 @@ def measure(image, held_color, support_color, base_color, tower_spot,
                 jaw_separation_m=float(np.linalg.norm(center-np.asarray(jaw['position']))),
                 held_bbox=held_box, support_bbox=support_box, depth_source=source,
                 support_depth_source='bottom_base_floor_column_assumption',
-                uncertainty_m=max(.015, jaw['uncertainty_bound_m']),
-                contact_evidence='relative high-saturation silhouettes; no force feedback')
+                uncertainty_m=max(.015, jaw['uncertainty_bound_m']))

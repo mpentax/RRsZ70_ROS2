@@ -1,4 +1,4 @@
-"""Offline geometry tests; synthetic images are not hardware accuracy evidence."""
+"""Unit tests for supported-placement geometry and descent step selection."""
 import cv2
 import numpy as np
 import pytest
@@ -8,7 +8,7 @@ from z70_manipulation import perception, planner
 def scene(monkeypatch, gap=.020, elevated=False):
     from z70_manipulation import placement
     image = np.zeros((400, 600, 3), np.uint8)
-    # Orthographic-like pinhole fixture: x-depth 0.5, y=(300-u)*.001, z=(350-v)*.001.
+    # Synthetic pinhole camera fixture: x=0.5, y=(300-u)*0.001, z=(350-v)*0.001.
     class Camera:
         width, height, h = 600, 400, 350
         def pixel_to_ray(self, u, v):
@@ -22,7 +22,6 @@ def scene(monkeypatch, gap=.020, elevated=False):
         cv2.rectangle(image, (275, ytop), (325, 283), (200, 0, 200), -1)
     bottom = round(350-(support_top+gap)*1000)
     cv2.rectangle(image, (275, bottom-60), (325, bottom), (0, 200, 0), -1)
-    # Floor projector only supplies yellow bottom base, never elevated purple/green.
     monkeypatch.setattr(perception, 'front_objects', lambda _: [dict(color='yellow', position=[.5,0.,0.])])
     T = np.eye(4); T[:3, 3] = [.5, 0., support_top+gap+.03]
     jaw = dict(position=T[:3,3].tolist(), hand_pose_base=T.tolist(), uncertainty_bound_m=.015)
@@ -83,7 +82,6 @@ def test_descent_never_substitutes_40mm_for_20mm_gap():
     assert placement.descent_step(sample, None) is None
     sample['gap_m'] = .060
     assert placement.descent_step(sample, None) == dict(method='app_arm_direction_move', params={'direction':2}, descent_m=.04)
-    # A conditional recovered current pose admits smaller actual ten-degree steps.
     sample['gap_m'] = .030
     step = placement.descent_step(sample, [210.,75.,0.])
     assert step is not None and step['method'] == 'app_arm_move'
@@ -93,7 +91,7 @@ def test_descent_never_substitutes_40mm_for_20mm_gap():
     coord_step = placement.descent_step(sample, [210.,75.,0.])
     assert coord_step is not None and coord_step['params']['m'] == [1, 1, 0]
     sample['gap_m'] = .022
-    assert placement.descent_step(sample, [210.,75.,0.]) is None  # 10..12deg observed-step spread
+    assert placement.descent_step(sample, [210.,75.,0.]) is None
     sample['gap_m'] = .050
     sample['uncertainty_m'] = .015
     assert placement.descent_step(sample, None) is None

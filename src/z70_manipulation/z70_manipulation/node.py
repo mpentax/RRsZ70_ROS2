@@ -312,7 +312,7 @@ class PickServer(Perception):
         client = None
         try:
             req = handle.request
-            client = Client('', None, read_only=spec.read_only(req), observations=self.observations)
+            client = Client(read_only=spec.read_only(req), observations=self.observations)
             self.client = client
             timeout = spec.timeout_s(req) if callable(spec.timeout_s) else float(spec.timeout_s)
             self.deadline = time.monotonic() + timeout

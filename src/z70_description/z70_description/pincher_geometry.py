@@ -1,9 +1,4 @@
-"""Shared photo-estimated hand anatomy, in metres (elbow/link2-zero gauge).
-
-No STL parsing on planning paths. Small cached OBBs conservatively bound each
-loft segment; the housing proxy intentionally FILLS the optical recess.
-M6 coupling is nominal, not feedback, force/contact physics or surveyed CAD.
-"""
+"""Pincher housing, finger rings, and OBB collision bodies in metres (elbow/link2-zero gauge)."""
 from dataclasses import dataclass
 from functools import lru_cache
 from .resources import config_path
@@ -48,8 +43,7 @@ def rounded_rectangle(half_y,half_z,radius):
 
 
 def _underside_surround(ring, x):
-    """Scoop the nose recess into the body. Side edges stay down, so the side
-    silhouette does not grow a hanging pod. The marker span is left flat."""
+    """Apply the underside nose recess contour around the optical pocket."""
     if not 0.148 <= x <= 0.164:
         return ring
     axial = math.exp(-((x-0.156)/0.006)**2)
@@ -82,9 +76,6 @@ def finger_rings(sign):
         radius = min(w, h)* (0.92 if t > 0.9 else 0.42)
         yz=rounded_rectangle(w,h,radius)
         rings.append(np.column_stack([np.full(N,t),yz[:,0]-sign*bend,yz[:,1]]))
-    # Anatomy is independent of assumed drive coupling. Solving an exact open
-    # envelope by1/cos(angle) made the draft fingers unbounded near90deg.
-    # The rough owner envelope is only an uncertain external cross-check.
     length=CONFIG['finger_forward_reach_m']
     for ring in rings: ring[:,0]*=length
     return tuple(rings)
@@ -183,18 +174,13 @@ def lowest(bodies):
 
 
 def grasp_reference():
-    # PHOTO-ESTIMATED grasp-centre aim just ahead of the opposed closed pads,
-    # not a replacement calibrated TCP. Legacy gripper_tcp remains unchanged.
+    """Grasp reference point ahead of the closed finger pads in the hand frame."""
     tip=np.mean(finger_rings(1)[-1],axis=0)+root(1)
     return np.array([tip[0]+CONFIG['grasp_aim_ahead_of_tip_m'],0,CONFIG['root_z_m']])
 
 
 def articulated_geometry(state):
-    """Nominal per-finger poses, terminal points, contact regions and gap.
-
-    Gap is terminal-surface separation in the hand frame, not a measured
-    parallel-jaw opening or a claim that an object of that diameter fits.
-    """
+    """Per-finger poses, terminal points, pad regions, OBBs, and terminal gap."""
     st=validate_state(state);T=hand_pose(st)
     frames={};tips={};inside=[]
     for side,sign in (('left',1),('right',-1)):

@@ -1,11 +1,9 @@
-"""Z70 arm kinematic model, as hard-coded in the Roborock Android plugin.
+"""Z70 sagittal 2-link arm kinematic model from the Roborock Android plugin.
 
-Source: Roborock 4.74.08 plugin `index.android.hasm` (Hermes bytecode disassembly), arm-checker module
-Function #32735 (exports ForwardKinematics/InverseKinematics/checkArmInvalidAction), lines ~1428440-1429890.
-These are the VENDOR APP'S PREDICTIVE CONSTANTS, not measured on this robot. See docs/z70-arm-model.md.
+Source: Roborock 4.74.08 plugin `index.android.hasm` Function #32735
+(`ForwardKinematics`, `InverseKinematics`, `checkArmInvalidAction`).
 
 Frame (app 2-D, sagittal plane): x forward, y up, metres.
-The app end_pos is not the CAD M5 wrist; physical FK is pincher_geometry.hand_pose.
 y ~ 0 is the floor (ground-collision check y < 0.01); the robot body occupies |x| < 0.24, y < 0.14.
 """
 import math
@@ -14,11 +12,10 @@ import yaml
 from .resources import config_path
 
 SHOULDER = (0.0475, 0.14)       # m2_pos: shoulder pivot (M3)           #32735 / W #32741
-# Independent app endpoint geometry; never substitute the CAD wrist station.
 VENDOR_L1, VENDOR_L2 = 0.1775, 0.205
 _CAD = yaml.safe_load(config_path("cad_arm.yaml").read_text())
-L1 = float(_CAD["L1_m"])        # shoulder (M3) -> elbow (M4), copied model
-L2 = float(_CAD["L2_m"])        # elbow (M4) -> wrist roll (M5), copied model
+L1 = float(_CAD["L1_m"])        # shoulder (M3) -> elbow (M4), CAD link length
+L2 = float(_CAD["L2_m"])        # elbow (M4) -> wrist roll (M5), CAD link length
 LIMITS = {"m3": (90, 270), "m4": (35, 170), "m5": (0, 155)}            # #32735 arrays
 JOINT_STEP_DEG = 10             # arm_joints: +-10 deg per repetition    q #32745
 HAND_STEP_M = 0.04              # arm_move: end point +-0.04 m in x or y, then IK   q #32745
@@ -40,7 +37,7 @@ POSES = {
 
 
 def vendor_forward(m3, m4):
-    """Recovered app FK: (elbow_xy, end_pos_xy), not physical wrist TF."""
+    """Sagittal 2-link forward kinematics returning (elbow_xy, end_pos_xy)."""
     a1 = math.radians(270 - m3)
     elbow = (SHOULDER[0] + VENDOR_L1 * math.cos(a1), SHOULDER[1] + VENDOR_L1 * math.sin(a1))
     a2 = math.radians(m4 - m3 + 90)
@@ -49,7 +46,7 @@ def vendor_forward(m3, m4):
 
 
 def vendor_inverse(x, y, prefer_current=None):
-    """IK of app end_pos; nearest requested branch, or None if unreachable."""
+    """Sagittal 2-link inverse kinematics for (x, y); returns (m3, m4) or None if unreachable."""
     L1, L2 = VENDOR_L1, VENDOR_L2
     dx, dy = x - SHOULDER[0], y - SHOULDER[1]
     d2 = dx * dx + dy * dy
@@ -70,14 +67,12 @@ def vendor_inverse(x, y, prefer_current=None):
     return sols[0]
 
 
-# Compatibility API: these functions have always promised the recovered app model.
-# L1/L2 remain CAD constants for existing physical consumers, not FK inputs.
 forward = vendor_forward
 inverse = vendor_inverse
 
 
 def vendor_check(m3, m4, m5):
-    """Replicates checkArmInvalidAction's geometric checks (j #32744). Returns fault name or 'SUCCESS'."""
+    """Evaluate `checkArmInvalidAction` workspace and joint limits; returns fault code or 'SUCCESS'."""
     for k, v in (("m3", m3), ("m4", m4), ("m5", m5)):
         lo, hi = LIMITS[k]
         if v < lo or v > hi:

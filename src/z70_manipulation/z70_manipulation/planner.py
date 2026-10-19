@@ -1,4 +1,4 @@
-"""Provisional articulated grid planner; retained firmware and floor limits."""
+"""Articulated 10-degree grid planner and camera projection helpers."""
 from collections import deque
 import math
 import cv2
@@ -10,31 +10,25 @@ CAD_L1, CAD_L2, _CAD = hand.L1, hand.L2, hand.CAD
 CAD_MOUNT=(np.array(_CAD['camera_from_wrist_m'],float), np.array(_CAD['camera_rpy'],float))
 from .perception import calibration, gripper_camera_info
 
-GRASP=(250,95)  # retained historical successful nominal preset, NOT retuned/validated on this provisional geometry
-MIN_TIP=.010  # retained bound; ~43mm at250/95 was a terminal-region surrogate, NOT exact pad anatomy
-# Jaw ray inferred from metric multi-view seam; pads remain provisional/partly above image.
-JAW_V_BAND=(-130.,140.)
-REACH_LIMIT=.375  # 240/115 vendor-x=.3691 executed and front marker confirmed; refusals remain image-checked
+GRASP=(250,95)
+MIN_TIP=.010
+REACH_LIMIT=.375
 _CALIBRATION=calibration()
 MOUNT=tuple(_CALIBRATION['arm_origin_'+axis+'_m'] for axis in ('x','y','z'))
 YAW=math.radians(_CALIBRATION['arm_yaw_deg'])
 
 def vendor_endpoint(state):
-    """App planar end_pos for firmware checks, not the CAD wrist in base TF."""
+    """Return app planar (x, z) endpoint for firmware range checks."""
     return vendor_forward(*state[:2])[1]
 
 
-wrist = vendor_endpoint  # Historical public name; never use for physical hand TF.
+wrist = vendor_endpoint
 
 def base_point(x,z):
     return [MOUNT[0]+x*math.cos(YAW),MOUNT[1]+x*math.sin(YAW),MOUNT[2]+z]
 
 def measured_point(state,endpoint):
-    """Link2-zero point in the CAD chain with retained yaw/M3 registration.
-
-    Historical name: endpoint may be a legacy optical/contact surrogate, not
-    necessarily a CAD landmark or an independently measured physical point.
-    """
+    """Transform a Link2-relative point into base_footprint coordinates."""
     a1=math.radians(270-state[0]+_CALIBRATION['measured_M3_offset_deg'])
     a2=math.radians(state[1]-state[0]+90)
     shoulder=tuple(_CAD['shoulder_in_base_m']); length=CAD_L1
@@ -44,14 +38,13 @@ def measured_point(state,endpoint):
             shoulder[1]+x*math.sin(YAW)+endpoint[1]*math.cos(YAW),shoulder[2]+z]
 
 def operational_point(state):
-    """Photo-estimated grasp aim; historical measured surrogate stays distinct."""
+    """Return grasp reference point in base_footprint coordinates."""
     T=hand.hand_pose(state)
     return (T[:3,:3]@hand.grasp_reference()+T[:3,3]).tolist()
 
 
 def grasp_point(state=(240,95)):
-    # Initial approach aim from a floor-safe model equator pose, NOT a newly
-    # hardware-validated preset. Actual descent selects a reachable grid goal.
+    """Project operational point onto the floor plane (z=0)."""
     return operational_point(state)[:2]+[0.]
 
 
@@ -72,11 +65,7 @@ def body_floor_bound(state):
 
 
 def safe(state,obstacles=()):
-    """Firmware checks PLUS full housing/finger floor bounds.
-
-    Two angles imply M5=0/M6=90 (open approach). Optional world AABBs are
-    conservative per-piece broad-phase refusals, not a mapped scene model.
-    """
+    """Check firmware reach limits, floor clearance, and optional AABB obstacles."""
     try: st=hand.validate_state(state)
     except ValueError:return False
     x,_=vendor_endpoint(st)
@@ -93,7 +82,6 @@ def safe_edge(a,b,obstacles=()):
     if len(a)!=len(b):raise ValueError('edge states must have matching dimensions')
     try: hand.validate_state(a);hand.validate_state(b)
     except ValueError:return False
-    # <=0.5deg nominal samples, including endpoints and M5/M6 interpolation.
     samples=max(20,math.ceil(max(abs(x-y) for x,y in zip(a,b))*2))
     return all(safe(tuple(x+(y-x)*i/samples for x,y in zip(a,b)),obstacles) for i in range(samples+1))
 
@@ -103,7 +91,7 @@ def joint_plan(start,goal,allowed=None,m5=0,m6=90):
     if len(start)!=2 or len(goal)!=2:raise ValueError('joint_plan emits M3/M4 commands only; use safe_edge for four-angle geometry')
     geometry=lambda st: (st[0],st[1],m5,m6) if m5!=0 or m6!=90 else st
     if not safe(geometry(start)) or not safe(geometry(goal)): raise ValueError('unsafe joint endpoint')
-    near_goal=lambda st: max(abs(a-b) for a,b in zip(st,goal))<=10   # last step onto the goal: object is right below
+    near_goal=lambda st: max(abs(a-b) for a,b in zip(st,goal))<=10
     ok=lambda st: st==goal or allowed is None or allowed(st) or (near_goal(st) and tip_height(st)>=.015)
     moves=(
         ((10,10),[1,1,0]), ((-10,-10),[2,2,0]), ((10,-10),[1,2,0]), ((-10,10),[2,1,0]),
@@ -127,12 +115,11 @@ def joint_plan(start,goal,allowed=None,m5=0,m6=90):
 _LENS=gripper_camera_info()
 GRIPPER_MATRIX=np.array(_LENS['camera_matrix']['data']).reshape(3,3)
 GRIPPER_D=np.array(_LENS['distortion_coefficients']['data'])
-# Compact sizing tuple retained for callers; projections use independent fx/fy.
 GRIPPER_K=(GRIPPER_MATRIX[0,0],GRIPPER_MATRIX[0,2],GRIPPER_MATRIX[1,2],
            _LENS['image_width'],_LENS['image_height'])
 
 def camera_pose(state):
-    """Base to optical frame. The mount is the copied camera, not the old gauge."""
+    """Return gripper camera translation and optical frame rotation in base_footprint."""
     a=math.radians(state[1]-state[0]+90);cy,sy=math.cos(YAW),math.sin(YAW)
     ca,sa=math.cos(a),math.sin(a)
     R=np.array([[cy*ca,-sy,-cy*sa],[sy*ca,cy,-sy*sa],[sa,0,ca]])
@@ -146,45 +133,26 @@ def camera_pose(state):
     return (elbow+R@point, R@Q@mount@optical)
 
 def pincher_camera_height_and_direction(state):
-    """Pincher camera height above floor (m) and optical view direction (+Z unit vector in base_footprint)."""
+    """Return gripper camera position, height (m), and optical +Z direction in base_footprint."""
     C,R=camera_pose(state)
     return dict(position_m=C.tolist(),height_m=float(C[2]),direction=R[:,2].tolist())
 
 def gripper_pixel(state,point):
-    """Project using the CAD camera mount and retained calibrated lens distortion."""
+    """Project a 3D base_footprint point into the gripper camera image."""
     C,R=camera_pose(state); optical=R.T@(np.array(point)-C)
     if optical[2]<.01: return None
     uv=cv2.projectPoints(optical[None,:],np.zeros(3),np.zeros(3),GRIPPER_MATRIX,GRIPPER_D)[0].reshape(2)
     return float(uv[0]),float(uv[1]),float(optical[2])
 
-def hover_plan(start=(150,45),target=None):
-    """Hover where the calibrated camera model puts the target in the lower-middle of the pincher image."""
-    target=target or grasp_point(); choices=[]; f,cx,cy,w,h=GRIPPER_K
-    for a in range(90,271,10):
-        for b in range(35,171,10):
-            state=(a,b)
-            if not safe(state): continue
-            px=gripper_pixel(state,target)
-            if px is None: continue
-            u,v,depth=px
-            if not (.3*w<=u<=.7*w and .35*h<=v<=.85*h): continue
-            try: steps=joint_plan(start,state)
-            except ValueError: continue
-            choices.append((abs(v/h-.6)+abs(u/w-.5)+len(steps)*.002,state,steps,u,v,depth))
-    if not choices: raise ValueError('no safe hover pose that sees the target')
-    _,state,steps,u,v,depth=min(choices)
-    return dict(state=list(state),steps=steps,predicted_pixel=[u,v],camera_distance_m=depth)
-
 def tip_height(state):
-    # Optional residual is zero for the owner tape-informed closing-point registration.
     return measured_point(state,_CALIBRATION['effective_jaw_from_elbow_m'])[2]+_CALIBRATION.get('jaw_z_correction_m',0.)
 
 def tip_floor_bound(state):
-    """Conservative provisional contact-region bound; not a pad-centre guarantee."""
+    """Return jaw tip height minus vertical calibration uncertainty."""
     return tip_height(state)-_CALIBRATION['jaw_uncertainty_bound_m']
 
 def descent_plan(start,target=None,goal=GRASP,min_tip=.015,equator_height=.033):
-    """Keep both floor contact and object equator observable during descent."""
+    """Plan a joint path keeping floor contact and object equator within the gripper FOV."""
     target=target or grasp_point(); f,cx,cy,w,h=GRIPPER_K
     def visible(st):
         px=gripper_pixel(st,target)
@@ -195,7 +163,7 @@ def descent_plan(start,target=None,goal=GRASP,min_tip=.015,equator_height=.033):
     return joint_plan(start,goal,visible)
 
 def grasp_goal(object_xy,start,size_m=.066):
-    """Contact at the equator, not at a hard-coded low wrist pose."""
+    """Find the closest reachable grid state placing the grasp reference at the object equator."""
     best=None
     for a in range(90,271,10):
         for b in range(35,171,10):
@@ -258,27 +226,3 @@ def approach(position,target=None):
     yaw=math.atan2(y,x)-math.asin(gy/radius)
     forward_distance=math.sqrt(radius*radius-gy*gy)-gx
     return dict(yaw=yaw,forward=forward_distance,bearing_error_deg=math.degrees(yaw),range_error_m=forward_distance,grasp_point=target)
-
-def expected_size_px(size_m,distance_m,focal=GRIPPER_K[0]):
-    return focal*size_m/max(distance_m,.025)
-
-def grasp_criterion(blob,size_m,camera_distance_m,state=None):
-    """Only a reconstructed equator at the contact ray can authorize closing.
-
-    A cropped lower contour cannot localize the floor contact. Top cropping is
-    allowed: at v~110 a 6.6 cm object may extend above the frame, so its HSV
-    centroid is NOT its equator. Project contact-derived position at size/2.
-    """
-    w,h=blob['image_size']
-    if state is None: return False  # no pose / floor geometry => no demonstrated straddle
-    if 'position' not in blob or 'contact_px' not in blob: return False
-    if not 4<=blob['contact_px'][1]<=h-5: return False
-    px=gripper_pixel(state,list(blob['position'][:2])+[size_m/2])
-    if px is None: return False
-    u,v,depth=px
-    width=blob.get('bbox',[0,0,blob['size_px'],0])[2]
-    ratio=width/expected_size_px(size_m,depth,GRIPPER_K[0]*w/1600)
-    return (abs(u/1600-.5)<=.08 and JAW_V_BAND[0]<=v<=JAW_V_BAND[1]
-            and .6<=ratio<=1.5 and safe(state)
-            and abs(tip_height(state)-size_m/2)<=.012
-            and math.dist(grasp_point(state)[:2],blob['position'][:2])<=.02)

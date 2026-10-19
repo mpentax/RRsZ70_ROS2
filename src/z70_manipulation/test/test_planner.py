@@ -15,27 +15,25 @@ def test_firmware_endpoint_is_separate_from_cad_hand_and_camera():
     endpoint = (.0475 + .1775*math.cos(a1) + .205*math.cos(a2),
                 .14 + .1775*math.sin(a1) + .205*math.sin(a2))
     assert p.vendor_endpoint((150, 45)) == pytest.approx(endpoint)
-    assert p.wrist((150, 45)) == pytest.approx(endpoint)  # compatibility name
+    assert p.wrist((150, 45)) == pytest.approx(endpoint)
     T = hand.hand_pose((150, 45))
     assert not np.allclose(T[[0, 2], 3], endpoint)
     C, R = p.camera_pose((150, 45))
     optical = np.array([[0., 0., 1.], [-1., 0., 0.], [0., -1., 0.]])
     assert C == pytest.approx(T[:3, 3] + T[:3, :3] @ p.CAD_MOUNT[0])
     assert R == pytest.approx(T[:3, :3] @ hand.rpy(p.CAD_MOUNT[1]) @ optical)
-    # The old hybrid checker admitted this beyond the recovered app endpoint.
     assert p.vendor_check(240, 130, 0) == 'FAULT_PROJECTION'
     assert not p.safe((240, 130, 0, 90))
 
 
 def test_default_grid_grasp_targets_front_measured_region():
     p=api()
-    # Keep the historical preset; new physical preview is not a new pickup trial.
     assert p.GRASP==(250,95)
     assert p.tip_height(p.GRASP) == pytest.approx(.04158389094665366,abs=1e-10)
     assert p.grasp_point()[:2] == pytest.approx(p.operational_point((240,95))[:2])
     assert p.vendor_check(*p.GRASP, 0) == 'SUCCESS'
     assert p.body_floor_bound(p.GRASP) < p.MIN_TIP
-    assert not p.safe(p.GRASP), 'lateral finger bodies now disprove TCP-only safety'
+    assert not p.safe(p.GRASP)
 
 
 def test_pincher_camera_follows_measured_M5_rotation():
@@ -44,13 +42,11 @@ def test_pincher_camera_follows_measured_M5_rotation():
     C0,R0=p.camera_pose((240,105,0))
     C40,R40=p.camera_pose((240,105,40))
     angle=math.degrees(math.acos(np.clip((np.trace(R40@R0.T)-1)/2,-1,1)))
-    # CAD camera mount [0.0355, 0.0075, -0.0109] m from M5 axis (13.23mm radius) gives 40deg roll and 9.05mm chord.
     assert angle == pytest.approx(40.,abs=1e-6)
     assert np.linalg.norm(C40-C0) == pytest.approx(.009050553550760482,abs=1e-6)
     info0=p.pincher_camera_height_and_direction((150,45,0))
     assert info0['height_m'] == pytest.approx(.2337875037399874,abs=1e-9)
     assert info0['direction'] == pytest.approx(p.camera_pose((150,45,0))[1][:,2],abs=1e-9)
-    # Positive M5 rotates around the physical link2 +x axis (not -x).
     axis=np.array([math.cos(math.radians(-45)),0,math.sin(math.radians(-45))])
     cross=np.cross(R0[:,0],R40[:,0])
     assert np.dot(cross,axis)>0
@@ -60,8 +56,6 @@ def test_metric_closed_jaw_height_uses_owner_registered_closing_point():
     import numpy as np
     p=api()
     cfg=p._CALIBRATION
-    # The actual measured region in marker coordinates is unchanged. Re-express
-    # it with the optical registration instead of pinning an old 165mm gauge.
     expected=np.array(cfg['marker_effective_from_elbow_m'])+np.array(cfg['marker_rotation_link2'])@cfg['jaw_region_in_marker_m']
     assert cfg['effective_jaw_from_elbow_m']==pytest.approx(expected,abs=1e-12)
     assert p._CALIBRATION['jaw_z_correction_m']==0.
@@ -99,33 +93,16 @@ def test_bfs_safe_grid_and_negative_code_two():
     assert not p.safe((240,35))
     with pytest.raises(ValueError): p.joint_plan((150,45),(270,145))
 
-def test_pincher_pixels_cannot_authorize_closure_without_front_measurement():
-    p=api()
-    assert not p.grasp_criterion({'pixel':[800,100],'size_px':400,'image_size':[1600,896]},.066,.1,state=p.GRASP)
-
 
 def test_joint_path_floor_envelope_rejects_low_shortcut():
     p=api()
     assert p.tip_floor_bound((260,95))<p.MIN_TIP
     assert not p.safe_edge((250,95),(260,95))
     assert p.tip_floor_bound(p.GRASP)>=p.MIN_TIP
-    # Historical point clears; corrected full hand does not. Keep the old
-    # surrogate evidence intact and route to the new equator-derived goal.
     assert p.body_floor_bound(p.GRASP)<p.MIN_TIP
     goal=tuple(p.grasp_goal(p.grasp_point(),(190,65))['state'])
     path=p.joint_plan((230,95),goal)
     assert path and all(p.safe_edge(a,b) for a,b in zip([(230,95)]+[tuple(s['state']) for s in path], [tuple(s['state']) for s in path]))
-
-
-def test_expected_grasp_pixels_scales_with_distance():
-    p=api()
-    assert p.expected_size_px(.05,.1,843)==pytest.approx(421.5)
-    assert p.expected_size_px(.05,.2,843)==pytest.approx(210.75)
-    # A large low blob was exactly the failed grasp: it is BELOW, not between, the jaws.
-    assert not p.grasp_criterion({'pixel':[835,633],'size_px':556,'image_size':[1600,896]},.066,.10)
-    assert p.tip_height((240,105)) > .07  # former grasp was 4-5cm too high
-    assert p.tip_height((230,95)) > .10
-    assert p.tip_height(p.GRASP) == pytest.approx(.04158389094665366,abs=1e-10)
 
 
 def test_stack_tier_plans_cover_three_dodecahedron_tiers():

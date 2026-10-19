@@ -1,16 +1,7 @@
-"""Pixel <-> floor geometry for the Z70 front camera (numpy only, no OpenCV).
-
-Load the calibration produced by fit.py / export.py:
-
-    from floor_geometry import FrontCamera
-    cam = FrontCamera.load("front_camera.json")
-    cam.pixel_to_floor(800, 900)   # -> dict(forward_mm, left_mm, range_mm, bearing_deg)
-    cam.floor_to_pixel(500, 0)     # -> (u, v)
+"""Pixel <-> floor plane projection for the Z70 front camera.
 
 Floor frame: origin on the floor directly below the camera centre, x forward
-(optical axis projected onto the floor), y to the left, z up. Valid only for
-points on the floor plane; anything above the floor (furniture, a cat) will be
-reported as farther away than it is.
+(optical axis projected onto the floor), y to the left, z up.
 """
 import json
 import math

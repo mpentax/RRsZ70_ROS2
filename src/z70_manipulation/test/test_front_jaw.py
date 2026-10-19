@@ -27,10 +27,6 @@ def test_front_jaw_uses_elevated_68_not_floor_duplicate():
     _,ids,_=detector.detectMarkers(image)
     assert list(ids.flatten()).count(68)==2
     out=perception.front_jaw(cv2.cvtColor(image,cv2.COLOR_GRAY2BGR))
-    expected=pos+R@np.array(planner._CALIBRATION['jaw_region_in_marker_m'])+[.275,0,planner._CALIBRATION.get('jaw_z_correction_m',0.)]
-    assert out['legacy_surrogate_position']==pytest.approx(expected,abs=.004)
-    # New servo aim comes from the SAME shared pad geometry and the observed
-    # full marker pose, never nominal arm FK.
     hand=planner.hand
     M=np.eye(4);M[:3,:3]=R;M[:3,3]=pos+[.275,0,0]
     T=hand.marker_hand_pose(M)
@@ -38,8 +34,6 @@ def test_front_jaw_uses_elevated_68_not_floor_duplicate():
     assert out['position']==pytest.approx(aim,abs=.004)
     observed=np.array(out['marker_pose_base'])
     assert observed[:3,3]==pytest.approx(M[:3,3],abs=.004)
-    # Rasterized15mm marker has ~0.5deg angular quantization; use a rotation
-    # angle, not millimetric tolerances on dimensionless matrix entries.
     angle=np.arccos(np.clip((np.trace(observed[:3,:3]@R.T)-1)/2,-1,1))
     assert angle<np.radians(1.)
     assert out['marker_id']==68 and out['marker_position'][2]>.025

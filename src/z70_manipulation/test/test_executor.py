@@ -1,7 +1,6 @@
 import math
 import importlib.util
 import json
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import threading
 import cv2
@@ -17,155 +16,127 @@ def fake(tmp_path, monkeypatch):
     events = []
     state = {'camera': 'front', 'gripped': False, 'error': 0, 'joints': [150, 45, 0], 'arm_state': 'IN_PROCESS_POS', 'floor_point': planner.grasp_point()}
 
-    class Handler(BaseHTTPRequestHandler):
-        def log_message(self, *a):
-            pass
+    def handle_get(path):
+        events.append(('GET', path))
+        if path == '/api/state':
+            action = 3 if state.get('deployed') else 0
+            return {'telemetry': {'status': {'value': {'error_code': state['error'], 'state': 39, 'common_status': (action << 6) | (state.get('grab_mode', 0) << 10)}}}}
+        j = state['joints']
+        m5 = j[2] if len(j) > 2 else 0
+        return {'state': state['arm_state'], 'joints': {'m3': j[0], 'm4': j[1], 'm5': m5, 'm6': 90}}
 
-        def send(self, obj, status=200):
-            body = json.dumps(obj).encode()
-            self.send_response(status)
-            self.send_header('Content-Type', 'application/json')
-            self.end_headers()
-            self.wfile.write(body)
-
-        def do_GET(self):
-            events.append(('GET', self.path))
-            if self.path == '/api/state':
-                action = 3 if state.get('deployed') else 0
-                self.send({'telemetry': {'status': {'value': {'error_code': state['error'], 'state': 39, 'common_status': (action << 6) | (state.get('grab_mode', 0) << 10)}}}})
+    def handle_frame():
+        events.append(('POST', '/api/camera/frame', {}))
+        image = np.full((1200 if state['camera'] == 'front' else 896, 1600, 3), 200, np.uint8)
+        if state['camera'] == 'gripper':
+            if state['gripped']:
+                u, v, radius = state['held_projection']
             else:
-                j = state['joints']
-                m5 = j[2] if len(j) > 2 else 0
-                self.send({'state': state['arm_state'], 'joints': {'m3': j[0], 'm4': j[1], 'm5': m5, 'm6': 90}})
+                point = state['floor_point']
+                px = planner.gripper_pixel(state['joints'][:2], point[:2] + [.033])
+                if px is None:
+                    px = (800, 450, .3)
+                u, v, depth = px
+                radius = max(25, round(843 * .066 / depth / 2))
+                state['held_projection'] = (u, v, radius)
+            cv2.circle(image, (state.get('gripper_u', round(u)), round(v)), radius, (0, 160, 240), -1)
+        elif not state['gripped'] or state.get('missed_grip'):
+            g = state['floor_point']
+            u, v = map(round, perception.front_camera().floor_to_pixel((g[0] - .275) * 1000, g[1] * 1000))
+            half = max(10, round(822 * .066 / (g[0] - .275) / 2))
+            height = round(half * 1.6)
+            cv2.rectangle(image, (u - half, v - height), (u + half, v), (0, 160, 240), -1)
+        if state.get('deployed'):
+            cam = perception.front_camera()
+            cfg = planner._CALIBRATION
+            a = math.radians(state['joints'][1] - state['joints'][0] + 90)
+            cy, sy = math.cos(planner.YAW), math.sin(planner.YAW)
+            B = np.array([[cy * math.cos(a), -sy, -cy * math.sin(a)], [sy * math.cos(a), cy, -sy * math.sin(a)], [math.sin(a), 0, math.cos(a)]])
+            R = B @ np.array(cfg['marker_rotation_link2'])
+            P = np.array(planner.measured_point(state['joints'][:2], cfg['marker_effective_from_elbow_m']))
+            P[2] += state.get('lift', 0.)
+            if not state.get('hide_marker'):
+                K = np.array([[cam.f, 0, cam.cx], [0, cam.f, cam.cy], [0, 0, 1.]])
+                C = np.array([.275, 0, cam.h / 1000])
+                obj = np.array([[-.0075, .0075, 0], [.0075, .0075, 0], [.0075, -.0075, 0], [-.0075, -.0075, 0]])
+                r = cv2.Rodrigues(cam.R @ R)[0]
+                t = cam.R @ (P - C)
+                if t[2] > .03:
+                    px = cv2.projectPoints(obj, r, t, K, np.array([cam.k1, cam.k2, 0, 0, 0]))[0].reshape(4, 2)
+                    marker = cv2.aruco.generateImageMarker(cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_1000), 68, 200)
+                    H = cv2.getPerspectiveTransform(np.array([[0, 0], [199, 0], [199, 199], [0, 199]], np.float32), px.astype(np.float32))
+                    warped = cv2.warpPerspective(marker, H, (1600, 1200), borderValue=255)
+                    image[warped < 128] = 0
+            if state['gripped'] and state.get('lift') and not state.get('missed_grip'):
+                J = P + B @ np.array(cfg['marker_rotation_link2']) @ np.array(cfg['jaw_region_in_marker_m'])
+                uv = cam.floor_to_pixel((J[0] - .275) * 1000, J[1] * 1000, J[2] * 1000)
+                if uv:
+                    radius = round(cam.f * .033 / (J[0] - .275))
+                    cv2.circle(image, tuple(map(round, uv)), radius, (0, 160, 240), -1)
+        return image, state['camera']
 
-        def do_POST(self):
-            d = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
-            events.append(('POST', self.path, d))
-            if self.path == '/api/camera/select':
-                state['camera'] = d['camera']
-                self.send({'camera': d['camera']})
-                return
-            if self.path == '/api/camera/frame':
-                image = np.full((1200 if state['camera'] == 'front' else 896, 1600, 3), 200, np.uint8)
-                if state['camera'] == 'gripper':
-                    if state['gripped']:
-                        u, v, radius = state['held_projection']
-                    else:
-                        point = state['floor_point']
-                        px = planner.gripper_pixel(state['joints'][:2], point[:2] + [.033])
-                        if px is None:
-                            px = (800, 450, .3)
-                        u, v, depth = px
-                        radius = max(25, round(843 * .066 / depth / 2))
-                        state['held_projection'] = (u, v, radius)
-                    cv2.circle(image, (state.get('gripper_u', round(u)), round(v)), radius, (0, 160, 240), -1)
-                elif not state['gripped'] or state.get('missed_grip'):
-                    g = state['floor_point']
-                    u, v = map(round, perception.front_camera().floor_to_pixel((g[0] - .275) * 1000, g[1] * 1000))
-                    half = max(10, round(822 * .066 / (g[0] - .275) / 2))
-                    height = round(half * 1.6)
-                    cv2.rectangle(image, (u - half, v - height), (u + half, v), (0, 160, 240), -1)
-                if state.get('deployed'):
-                    cam = perception.front_camera()
-                    cfg = planner._CALIBRATION
-                    a = math.radians(state['joints'][1] - state['joints'][0] + 90)
-                    cy, sy = math.cos(planner.YAW), math.sin(planner.YAW)
-                    B = np.array([[cy * math.cos(a), -sy, -cy * math.sin(a)], [sy * math.cos(a), cy, -sy * math.sin(a)], [math.sin(a), 0, math.cos(a)]])
-                    R = B @ np.array(cfg['marker_rotation_link2'])
-                    P = np.array(planner.measured_point(state['joints'][:2], cfg['marker_effective_from_elbow_m']))
-                    P[2] += state.get('lift', 0.)
-                    if not state.get('hide_marker'):
-                        K = np.array([[cam.f, 0, cam.cx], [0, cam.f, cam.cy], [0, 0, 1.]])
-                        C = np.array([.275, 0, cam.h / 1000])
-                        obj = np.array([[-.0075, .0075, 0], [.0075, .0075, 0], [.0075, -.0075, 0], [-.0075, -.0075, 0]])
-                        r = cv2.Rodrigues(cam.R @ R)[0]
-                        t = cam.R @ (P - C)
-                        if t[2] > .03:
-                            px = cv2.projectPoints(obj, r, t, K, np.array([cam.k1, cam.k2, 0, 0, 0]))[0].reshape(4, 2)
-                            marker = cv2.aruco.generateImageMarker(cv2.aruco.getPredefinedDictionary(cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_1000) if False else cv2.aruco.DICT_4X4_1000), 68, 200)
-                            H = cv2.getPerspectiveTransform(np.array([[0, 0], [199, 0], [199, 199], [0, 199]], np.float32), px.astype(np.float32))
-                            warped = cv2.warpPerspective(marker, H, (1600, 1200), borderValue=255)
-                            image[warped < 128] = 0
-                    if state['gripped'] and state.get('lift') and not state.get('missed_grip'):
-                        J = P + B @ np.array(cfg['marker_rotation_link2']) @ np.array(cfg['jaw_region_in_marker_m'])
-                        uv = cam.floor_to_pixel((J[0] - .275) * 1000, J[1] * 1000, J[2] * 1000)
-                        if uv:
-                            radius = round(cam.f * .033 / (J[0] - .275))
-                            cv2.circle(image, tuple(map(round, uv)), radius, (0, 160, 240), -1)
-                data = cv2.imencode('.jpg', image)[1].tobytes()
-                self.send_response(200)
-                self.send_header('Content-Type', 'image/jpeg')
-                self.send_header('X-Roboclaw-Camera', state['camera'])
-                self.end_headers()
-                self.wfile.write(data)
-                return
-            method = d['method']
-            result = ['ok']
-            if method == 'get_status':
-                action = 3 if state.get('deployed') else 0
-                result = [{'common_status': (action << 6) | (state.get('grab_mode', 0) << 10), 'error_code': state['error']}]
-            if method == 'app_pick_up_enter_exit':
-                state['grab_mode'] = d['params']['flag']
-            if method == 'app_arm_move':
-                while len(state['joints']) < 3:
-                    state['joints'].append(0)
-                for i, c in enumerate(d['params']['m'][:3]):
-                    state['joints'][i] += 10 if c == 1 else -10 if c == 2 else 0
-                state['arm_state'] = 'IN_PROCESS_POS'
-            if method == 'app_rc_move':
-                if not (isinstance(d['params'], list) and len(d['params']) == 1):
-                    return self.send(dict(dispatch='sent', response='vendor_error', vendorCode=-10007))
-                p = d['params'][0]
-                yaw = p['omega'] * .68 * p['duration'] / 1000
-                distance = p['velocity'] * .65 * p['duration'] / 1000
-                x, y, _ = state['floor_point']
-                state['floor_point'] = [math.cos(yaw) * x + math.sin(yaw) * y - distance, -math.sin(yaw) * x + math.cos(yaw) * y, 0.]
-            if method == 'app_grip':
-                state['gripped'] = True
-                state['arm_state'] = 'UNKNOWN'
-            if method == 'app_arm_in_compartment':
-                state.update(arm_state='IN_ROBOT', deployed=False)
-            if method == 'app_arm_out_compartment':
-                state.update(arm_state='WORKING_POS', deployed=True, joints=[150, 45, 0], lift=0.)
-                yaw = state.get('deploy_yaw', 0.)
-                x, y, _ = state['floor_point']
-                state['floor_point'] = [math.cos(yaw) * x + math.sin(yaw) * y, -math.sin(yaw) * x + math.cos(yaw) * y, 0.]
-                if 'pose' in state:
-                    state['pose']['yaw'] += yaw
-            if method == 'app_arm_direction_move':
-                state['lift'] = state.get('lift', 0.) + .04
-            if method == 'app_put_down':
-                state['gripped'] = False
-            if method in ['app_grip', 'app_open_gripper']:
-                reason = state.get('grip_failure', 'timeout') if method == 'app_grip' else 'timeout'
-                self.send({'dispatch': 'unknown', 'response': 'transport_error', 'transportReason': reason}, 502)
-                return
-            self.send({'dispatch': 'sent', 'response': 'received', 'result': result})
+    def handle_rpc(d):
+        events.append(('POST', '/api/v1/rpc', d))
+        method = d['method']
+        result = ['ok']
+        if method == 'get_status':
+            action = 3 if state.get('deployed') else 0
+            result = [{'common_status': (action << 6) | (state.get('grab_mode', 0) << 10), 'error_code': state['error']}]
+        if method == 'app_pick_up_enter_exit':
+            state['grab_mode'] = d['params']['flag']
+        if method == 'app_arm_move':
+            while len(state['joints']) < 3:
+                state['joints'].append(0)
+            for i, c in enumerate(d['params']['m'][:3]):
+                state['joints'][i] += 10 if c == 1 else -10 if c == 2 else 0
+            state['arm_state'] = 'IN_PROCESS_POS'
+        if method == 'app_rc_move':
+            if not (isinstance(d['params'], list) and len(d['params']) == 1):
+                return {'dispatch': 'sent', 'response': 'vendor_error', 'vendorCode': -10007}
+            p = d['params'][0]
+            yaw = p['omega'] * .68 * p['duration'] / 1000
+            distance = p['velocity'] * .65 * p['duration'] / 1000
+            x, y, _ = state['floor_point']
+            state['floor_point'] = [math.cos(yaw) * x + math.sin(yaw) * y - distance, -math.sin(yaw) * x + math.cos(yaw) * y, 0.]
+        if method == 'app_grip':
+            state['gripped'] = True
+            state['arm_state'] = 'UNKNOWN'
+        if method == 'app_arm_in_compartment':
+            state.update(arm_state='IN_ROBOT', deployed=False)
+        if method == 'app_arm_out_compartment':
+            state.update(arm_state='WORKING_POS', deployed=True, joints=[150, 45, 0], lift=0.)
+            yaw = state.get('deploy_yaw', 0.)
+            x, y, _ = state['floor_point']
+            state['floor_point'] = [math.cos(yaw) * x + math.sin(yaw) * y, -math.sin(yaw) * x + math.cos(yaw) * y, 0.]
+            if 'pose' in state:
+                state['pose']['yaw'] += yaw
+        if method == 'app_arm_direction_move':
+            state['lift'] = state.get('lift', 0.) + .04
+        if method == 'app_put_down':
+            state['gripped'] = False
+        if method in ['app_grip', 'app_open_gripper']:
+            reason = state.get('grip_failure', 'timeout') if method == 'app_grip' else 'timeout'
+            return {'dispatch': 'unknown', 'response': 'transport_error', 'transportReason': reason}
+        return {'dispatch': 'sent', 'response': 'received', 'result': result}
 
-    server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
-    thread = threading.Thread(target=server.serve_forever)
-    thread.start()
     token = tmp_path / 'token'
     token.write_text('fake-test-token')
-    import requests
-    origin = f'http://127.0.0.1:{server.server_port}'
+    origin = 'http://127.0.0.1:0'
 
     class FakeObservations:
         def __init__(self, *a, **kw):
             pass
 
         def get(self, path):
-            r = requests.get(origin + path, timeout=2)
-            r.raise_for_status()
-            return r.json()
+            return handle_get(path)
 
         def frame(self):
-            r = requests.post(origin + '/api/camera/frame', json={}, timeout=2)
-            r.raise_for_status()
-            return cv2.imdecode(np.frombuffer(r.content, np.uint8), cv2.IMREAD_COLOR), r.headers['X-Roboclaw-Camera']
+            return handle_frame()
 
         def select(self, camera):
-            return requests.post(origin + '/api/camera/select', json={'camera': camera}, timeout=2).json()
+            events.append(('POST', '/api/camera/select', {'camera': camera}))
+            state['camera'] = camera
+            return {'camera': camera}
 
         def close(self):
             pass
@@ -179,7 +150,7 @@ def fake(tmp_path, monkeypatch):
             self.latest_outcome = None
 
         def rpc(self, method, params, timeout_ms):
-            return requests.post(origin + '/api/v1/rpc', json=dict(method=method, params=params), timeout=2).json()
+            return handle_rpc(dict(method=method, params=params))
 
         def stop(self):
             for method in ('app_rc_stop', 'app_rc_end', 'app_stop_grasp'):
@@ -195,12 +166,7 @@ def fake(tmp_path, monkeypatch):
             pass
 
     monkeypatch.setattr('z70_manipulation.commands.Commands', FakeCommands)
-    try:
-        yield f'http://127.0.0.1:{server.server_port}', token, events, state
-    finally:
-        server.shutdown()
-        server.server_close()
-        thread.join()
+    yield origin, token, events, state
 
 
 def api():
