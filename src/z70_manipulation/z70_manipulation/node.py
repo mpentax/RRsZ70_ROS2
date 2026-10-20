@@ -184,7 +184,10 @@ class PickServer(Perception):
 
     def destroy_node(self):
         for server in self.action_servers:
-            server.destroy()
+            try:
+                server.destroy()
+            except ValueError:
+                pass
         self.action_servers.clear()
         return super().destroy_node()
 

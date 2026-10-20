@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ApiError, deleteSession, initialSession, json, snapshot } from "../src/api.ts";
+import { actionOutcome, outcomeMessage } from "../src/outcomes.ts";
+import { listGoals, robotRpc, validateGoal } from "../src/ros.ts";
 
 test("JSON requests use same-origin credentials and POST JSON without CSRF or bearer headers", async (context) => {
   context.mock.method(globalThis, "fetch", async (path: string, options: RequestInit) => {
@@ -143,4 +145,87 @@ test("caller cancellation and timeout both abort the underlying fetch", async (c
   await assert.rejects(pending, { name: "AbortError" });
   await assert.rejects(json("/api/ros/tasks", { body: { action: "close" }, action: true, timeout: 5 }),
     /Outcome unknown\./);
+});
+
+test("actionOutcome maps explicit outcome envelopes and state flags", () => {
+  for (const value of [{}, { stopped: true }, { acknowledged: false }, { state: { phase: "ready", active: false } }]) {
+    assert.equal(actionOutcome(value), "unknown");
+  }
+  assert.equal(actionOutcome({ acknowledged: true }), "acknowledged");
+  assert.equal(actionOutcome({ outcome: { dispatch: 1, response: 2 } }), "acknowledged");
+  assert.equal(actionOutcome({ outcome: { dispatch: 2, response: 1 } }), "rejected");
+  assert.equal(actionOutcome({ outcome: { dispatch: 1, response: 4 } }), "failed");
+  assert.equal(actionOutcome({ outcome: { dispatch: 1, response: 1 } }), "accepted");
+  assert.equal(actionOutcome({ status: "accepted", kind: "pick" }), "accepted");
+  assert.equal(actionOutcome({ status: "executing", kind: "pick" }), "in-progress");
+  assert.equal(actionOutcome({ status: "succeeded", kind: "pick" }), "acknowledged");
+  assert.equal(actionOutcome({ status: "failed", kind: "pick" }), "failed");
+  assert.equal(actionOutcome({ error: "INVALID_INPUT", dispatch: "not_sent" }), "rejected");
+  assert.equal(actionOutcome({ state: { busy: true } }), "in-progress");
+  for (const kind of ["accepted", "acknowledged", "in-progress", "rejected", "failed", "unknown"] as const) {
+    assert.equal(actionOutcome({ actionOutcome: { outcome: kind } }), kind);
+    assert.ok(outcomeMessage(kind).length > 0);
+  }
+});
+
+test("HTTP errors distinguish explicit rejection from ambiguous action errors without retries", async (t) => {
+  const fetch = t.mock.method(globalThis, "fetch", async () => Response.json({ error: "Busy" }, { status: 409 }));
+  await assert.rejects(json("/api/ros/tasks", { body: { action: "deploy" }, action: true }), (error: unknown) => {
+    assert.ok(error instanceof ApiError); assert.equal(error.outcome, "unknown");
+    assert.match(error.message, /Outcome unknown\./); return true;
+  });
+  fetch.mock.mockImplementation(async () => Response.json({ error: "Not allowed", actionOutcome: { outcome: "rejected" } }, { status: 403 }));
+  await assert.rejects(json("/api/ros/tasks", { body: {}, action: true }), (error: unknown) => {
+    assert.ok(error instanceof ApiError); assert.equal(error.outcome, "rejected"); return true;
+  });
+  assert.equal(fetch.mock.callCount(), 2);
+});
+
+test("network loss, malformed responses and post-dispatch aborts are ambiguous", async (t) => {
+  const fetch = t.mock.method(globalThis, "fetch", async () => { throw new TypeError("Network lost"); });
+  await assert.rejects(json("/api/ros/tasks", { body: {}, action: true }), /Outcome unknown\./);
+  fetch.mock.mockImplementation(async () => new Response("{", { headers: { "Content-Type": "application/json" } }));
+  await assert.rejects(json("/api/ros/tasks", { body: {}, action: true }), /Outcome unknown\./);
+  fetch.mock.mockImplementation((_path, options) => new Promise((_resolve, reject) => {
+    options?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+  }));
+  const controller = new AbortController();
+  const request = json("/api/ros/tasks", { body: {}, action: true, signal: controller.signal });
+  controller.abort();
+  await assert.rejects(request, /Outcome unknown\./);
+  assert.equal(fetch.mock.callCount(), 3);
+});
+
+test("pre-dispatch abort does not send an actuation request", async (t) => {
+  const fetch = t.mock.method(globalThis, "fetch", async () => { assert.fail("must not send"); });
+  const controller = new AbortController(); controller.abort();
+  await assert.rejects(json("/api/ros/tasks", { body: {}, action: true, signal: controller.signal }), /before dispatch/);
+  assert.equal(fetch.mock.callCount(), 0);
+});
+
+test("browser RPC uses canonical route, session cookie and unchanged raw outcome", async context => {
+  const input = { method: "custom", params: [1, { x: true }], transport: "local" as const, timeoutMs: 1000 };
+  const outcome = { requestId: "1", dispatch: "unknown", response: "transport_error", error: "timeout" };
+  const paths: string[] = [];
+  context.mock.method(globalThis, "fetch", async (path: string, options: RequestInit) => {
+    paths.push(path); assert.equal(options.method, "POST"); assert.equal(options.credentials, "same-origin");
+    assert.deepEqual(JSON.parse(String(options.body)), input); return Response.json(outcome);
+  });
+  assert.deepEqual(await robotRpc(input), outcome);
+  assert.deepEqual(paths, ["/api/ros/rpc"]);
+});
+
+test("listGoals and validateGoal use canonical ROS goal endpoints", async context => {
+  const calls: { path: string; method?: string; body?: unknown }[] = [];
+  context.mock.method(globalThis, "fetch", async (path: string, options: RequestInit) => {
+    calls.push({ path, method: options.method, body: options.body ? JSON.parse(String(options.body)) : undefined });
+    if (path === "/api/ros/goals") return Response.json({ goals: [{ kind: "pick" }], context_primitives: [{ name: "status", signature: "status() -> dict", summary: "Read robot status." }] });
+    return Response.json({ valid: true, kind: "pick", simulated: { ok: true, result: { verified_hold: true } } });
+  });
+  const catalog = await listGoals();
+  assert.equal(catalog.goals[0].kind, "pick");
+  assert.equal(catalog.context_primitives[0].summary, "Read robot status.");
+  const validated = await validateGoal({ kind: "pick", goal: { color: "yellow", dry_run: true }, simulate: true }) as { valid: boolean };
+  assert.equal(validated.valid, true);
+  assert.deepEqual(calls.map(c => [c.method, c.path]), [["GET", "/api/ros/goals"], ["POST", "/api/ros/goals/validate"]]);
 });

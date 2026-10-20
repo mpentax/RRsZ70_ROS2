@@ -4,8 +4,7 @@ import { lstat, mkdtemp, readFile, readdir, realpath, rm, symlink, unlink, write
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { syntheticV1Image } from "./map-raster-fixture.ts";
-import { mapMetadataFromRead, savePrivateV1Map, summarizeV1Map, validatedMapMetadata } from "./private-map-cache.ts";
+import { mapMetadataFromRead, savePrivateV1Map, summarizeV1Map, syntheticV1Image, validatedMapMetadata } from "./private-map-cache.ts";
 import { SecretStore } from "./secret-store.ts";
 
 function block(type: number, headerSize: number, data: Buffer, image = false): Buffer {
