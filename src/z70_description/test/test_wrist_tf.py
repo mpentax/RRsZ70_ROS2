@@ -6,7 +6,6 @@ import subprocess
 import time
 
 import pytest
-import numpy as np
 import rclpy
 from ament_index_python.packages import get_package_prefix, get_package_share_directory
 from rclpy.time import Time
@@ -17,6 +16,7 @@ import yaml
 
 from z70_driver.driver import app_to_urdf
 from z70_manipulation import planner
+from z70_manipulation.node import rotation as quat_matrix
 
 
 @pytest.fixture(scope="module")
@@ -46,13 +46,6 @@ def tf_robot(tmp_path_factory):
             process.kill()
             process.wait()
         log.close()
-
-
-def quat_matrix(q):
-    x, y, z, w = q.x, q.y, q.z, q.w
-    return np.array([[1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
-                     [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
-                     [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)]])
 
 
 def publish_and_lookup(tf_robot, angles, *frames):

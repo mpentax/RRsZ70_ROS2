@@ -5,6 +5,7 @@ import argparse
 import contextlib
 import io
 import json
+from pathlib import Path
 import struct
 import sys
 import signal
@@ -31,7 +32,7 @@ def main():
     parser.add_argument('--model', default='depth-anything/Depth-Anything-V2-Metric-Indoor-Small-hf')
     parser.add_argument('--revision', default='8078d68a9c75a972131914f6afd0c1723be0da7f')
     args = parser.parse_args()
-    cal = json.loads(open(args.calibration).read())
+    cal = json.loads(Path(args.calibration).read_text())
     # The ROS parent owns shutdown; avoid launch + process-group double SIGINT.
     signal.signal(signal.SIGINT, signal.SIG_IGN)
     output = sys.stdout.buffer

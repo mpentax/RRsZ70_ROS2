@@ -5,6 +5,7 @@ Floor frame: origin on the floor directly below the camera centre, x forward
 """
 import json
 import math
+from pathlib import Path
 
 import numpy as np
 
@@ -19,7 +20,7 @@ class FrontCamera:
 
     @classmethod
     def load(cls, path):
-        d = json.loads(open(path).read())
+        d = json.loads(Path(path).read_text())
         return cls(d["f_px"], d["cx"], d["cy"], d["k1"], d["k2"], d["R_floor_to_cam"],
                    d["camera_height_mm"], d["width"], d["height"])
 
