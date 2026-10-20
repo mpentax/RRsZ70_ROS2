@@ -49,6 +49,33 @@ export interface CloudRpcSecurity {
   nonce: Buffer;
 }
 
+export function encodeV1MqttFrame(localKey: string, protocol: number, plain: Buffer, timestamp: number, sequence = 0, random = 0): Buffer {
+  const encrypted = localProtocolCodec.encryptPayload(plain, {
+    version: "1.0", localKey, timestamp, sequence, random, connectNonce: 0, ackNonce: 0,
+  });
+  const frame = Buffer.alloc(23 + encrypted.length);
+  frame.write("1.0");
+  frame.writeUInt32BE(sequence, 3); frame.writeUInt32BE(random, 7); frame.writeUInt32BE(timestamp, 11);
+  frame.writeUInt16BE(protocol, 15); frame.writeUInt16BE(encrypted.length, 17); encrypted.copy(frame, 19);
+  frame.writeUInt32BE(localProtocolCodec.crc32(frame.subarray(0, -4)), frame.length - 4);
+  return frame;
+}
+
+export function validV1MqttFrame(frame: Buffer, maxBytes = 65558): boolean {
+  return Buffer.isBuffer(frame) && frame.length >= 23 && frame.length <= maxBytes &&
+    frame.toString("ascii", 0, 3) === "1.0" &&
+    frame.readUInt16BE(17) + 23 === frame.length &&
+    localProtocolCodec.crc32(frame.subarray(0, -4)) === frame.readUInt32BE(frame.length - 4);
+}
+
+export function decryptV1MqttPayload(frame: Buffer, localKey: string): Buffer {
+  return localProtocolCodec.decryptPayload(frame.subarray(19, -4), {
+    version: "1.0", localKey, timestamp: frame.readUInt32BE(11),
+    sequence: frame.readUInt32BE(3), random: frame.readUInt32BE(7),
+    connectNonce: 0, ackNonce: 0,
+  });
+}
+
 /** Optional security data is only for V1 binary-response reads such as get_map_v1. */
 export function encodeCloudRpc(
   localKey: string, id: number, method: string, params: unknown, timestamp: number, security?: CloudRpcSecurity,
@@ -62,29 +89,14 @@ export function encodeCloudRpc(
     : {}) };
   const plain = Buffer.from(JSON.stringify({ dps: { "101": JSON.stringify(request) }, t: timestamp }));
   if (plain.length > 16000) throw new Error("Cloud RPC payload is too large.");
-  const encrypted = localProtocolCodec.encryptPayload(plain, {
-    version: "1.0", localKey, timestamp, sequence: id, random: timestamp, connectNonce: 0, ackNonce: 0,
-  });
-  const frame = Buffer.alloc(23 + encrypted.length);
-  frame.write("1.0");
-  frame.writeUInt32BE(id, 3); frame.writeUInt32BE(timestamp, 7); frame.writeUInt32BE(timestamp, 11);
-  frame.writeUInt16BE(101, 15); frame.writeUInt16BE(encrypted.length, 17); encrypted.copy(frame, 19);
-  frame.writeUInt32BE(localProtocolCodec.crc32(frame.subarray(0, -4)), frame.length - 4);
-  return frame;
+  return encodeV1MqttFrame(localKey, 101, plain, timestamp, id, timestamp);
 }
 
 export function decodeCloudRpc(localKey: string, frame: Buffer): { id: number; result: unknown; errorCode?: number } | undefined {
-  if (frame.length < 23 || frame.length > 65558 || frame.toString("ascii", 0, 3) !== "1.0" ||
-    frame.readUInt16BE(17) + 23 !== frame.length ||
-    localProtocolCodec.crc32(frame.subarray(0, -4)) !== frame.readUInt32BE(frame.length - 4)) {
-    throw new Error("Invalid cloud response frame.");
-  }
+  if (!validV1MqttFrame(frame)) throw new Error("Invalid cloud response frame.");
   if (frame.readUInt16BE(15) !== 102) return undefined;
   try {
-    const plain = localProtocolCodec.decryptPayload(frame.subarray(19, -4), {
-      version: "1.0", localKey, timestamp: frame.readUInt32BE(11), sequence: frame.readUInt32BE(3),
-      random: frame.readUInt32BE(7), connectNonce: 0, ackNonce: 0,
-    });
+    const plain = decryptV1MqttPayload(frame, localKey);
     const outer: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(plain));
     if (!record(outer) || !record(outer.dps) || typeof outer.dps["102"] !== "string") return undefined;
     const inner: unknown = JSON.parse(outer.dps["102"]);

@@ -1,22 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { localProtocolCodec } from "./local.ts";
+import { encodeV1MqttFrame } from "./cloud-control.ts";
 import { decodeCloudMapResponse, inspectMapFrame, MAX_CLOUD_MAP_FRAME_BYTES } from "./cloud-map-v1.ts";
 import { createBlobSecurity } from "./photo-protocol.ts";
 import { encodeMapResponse } from "./map-raster-fixture.ts";
 
 const LOCAL_KEY = "0123456789abcdef";
 function response(data: Buffer, security = createBlobSecurity("map-test-key"), requestId = 20009): Buffer {
-  const payload = encodeMapResponse(data, security, requestId);
-  const frame = Buffer.alloc(23 + Math.ceil((payload.length + 1) / 16) * 16);
-  frame.write("1.0"); frame.writeUInt32BE(1753606905, 11); frame.writeUInt16BE(301, 15);
-  const encrypted = localProtocolCodec.encryptPayload(payload, {
-    version: "1.0", localKey: LOCAL_KEY, timestamp: 1753606905,
-    sequence: 0, random: 0, connectNonce: 0, ackNonce: 0,
-  });
-  frame.writeUInt16BE(encrypted.length, 17);
-  encrypted.copy(frame, 19); frame.writeUInt32BE(localProtocolCodec.crc32(frame.subarray(0, -4)), frame.length - 4);
-  return frame;
+  return encodeV1MqttFrame(LOCAL_KEY, 301, encodeMapResponse(data, security, requestId), 1753606905);
 }
 
 test("cloud map probe accepts only a CRC-verified protocol-301 response bound to its nonce and request", () => {
@@ -35,7 +27,6 @@ test("cloud map probe refuses malformed and oversize outer frames before parsing
   assert.throws(() => decodeCloudMapResponse(Buffer.alloc(22), LOCAL_KEY, security, 1), /Invalid cloud map/);
   assert.throws(() => decodeCloudMapResponse(Buffer.alloc(MAX_CLOUD_MAP_FRAME_BYTES + 1), LOCAL_KEY, security, 1), /Invalid cloud map/);
 });
-
 
 test("map-frame inspection never calls an opaque 301 frame correlated", () => {
   const security = createBlobSecurity("synthetic-map-key");
