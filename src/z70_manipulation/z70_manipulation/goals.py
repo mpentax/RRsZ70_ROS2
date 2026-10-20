@@ -121,12 +121,19 @@ class GoalSpec:
             self.description = GOAL_DESCRIPTIONS.get(self.name, '')
 
     def describe(self) -> dict:
+        goal_cls = getattr(self.action_cls, 'Goal', None)
+        result_cls = getattr(self.action_cls, 'Result', None)
+        raw_types = dict(goal_cls.get_fields_and_field_types()) if hasattr(goal_cls, 'get_fields_and_field_types') else {}
+        field_types = {k: raw_types[k] for k in self.fields if k in raw_types} if self.fields else raw_types
+        result_fields = list(result_cls.get_fields_and_field_types().keys()) if hasattr(result_cls, 'get_fields_and_field_types') else []
         return {
             'kind': self.name,
             'name': self.name,
             'topic': self.topic,
             'action': self.action_cls.__name__,
             'fields': list(self.fields),
+            'field_types': field_types,
+            'result_fields': result_fields,
             'navigation': self.navigation,
             'description': self.description,
         }
@@ -726,12 +733,54 @@ def _valid_pulse_payload(p: dict) -> bool:
             and not (p['linear_mps'] and p['angular_radps']))
 
 
+def _run_driver_arm_step(ctx: 'GoalContext | SimpleNamespace', r):
+    c = 1 if r.direction > 0 else 2
+    if r.joint == 34:
+        m3, m4, m5 = c, c, 0
+    elif r.joint == 43:
+        m3, m4, m5 = c, 3 - c, 0
+    else:
+        m3, m4, m5 = (c if r.joint == 3 else 0), (c if r.joint == 4 else 0), (c if r.joint == 5 else 0)
+    return ctx.arm_step(m3, m4, m5)
+
+
+def _run_driver_arm_op(ctx: 'GoalContext | SimpleNamespace', r):
+    op = int(r.operation)
+    if op == 1:
+        return ctx.deploy_arm(settle=False)
+    if op == 2:
+        return ctx.release_and_stow(put_down=False)
+    if op == 3:
+        ctx.open_jaws(); return {'ok': True}
+    rpc_map = {
+        4: ('app_grip', {}),
+        5: ('app_put_down', {'flag': 0}),
+        6: ('app_pick_up_enter_exit', {'flag': 1}),
+        7: ('app_pick_up_enter_exit', {'flag': 2}),
+        8: ('app_pick_up_enter_exit', {'flag': 0}),
+        9: ('app_arm_recover', {}),
+    }
+    method, params = rpc_map[op]
+    return ctx.rpc(method, params)
+
+
 DRIVER_GOALS: dict[str, GoalSpec] = {
     spec.name: spec for spec in (
         GoalSpec(
             'base_pulse', BasePulse, '/z70/base/pulse', 5.,
             lambda _s, _r: True,
-            lambda ctx, r: (True, BasePulse.Result(outcome=ctx.outcome(True))),
+            lambda ctx, r: _goal_curated(
+                ctx,
+                lambda c: c.pulse(
+                    velocity=r.linear_mps,
+                    omega=r.angular_radps,
+                    duration=round(
+                        (r.duration['sec'] if isinstance(r.duration, dict) else r.duration.sec) * 1000
+                        + (r.duration['nanosec'] if isinstance(r.duration, dict) else r.duration.nanosec) / 1_000_000
+                    ),
+                ),
+                lambda outcome, _ok, _d: BasePulse.Result(outcome=outcome),
+            ),
             read_only=lambda _: False,
             fields=('linear_mps', 'angular_radps', 'duration'),
             validate_payload=_valid_pulse_payload,
@@ -739,7 +788,10 @@ DRIVER_GOALS: dict[str, GoalSpec] = {
         GoalSpec(
             'arm_step', ArmStep, '/z70/arm/step', 5.,
             lambda _s, r: r.joint in (3, 4, 5, 34, 43) and r.direction in (-1, 1),
-            lambda ctx, _r: (True, ArmStep.Result(outcome=ctx.outcome(True), estimate=ctx.arm_msg())),
+            lambda ctx, r: _goal_curated(
+                ctx, lambda c: _run_driver_arm_step(c, r),
+                lambda outcome, _ok, _d: ArmStep.Result(outcome=outcome, estimate=ctx.arm_msg()),
+            ),
             read_only=lambda _: False,
             fields=('joint', 'direction'),
             validate_payload=lambda p: (type(p['joint']) is int and p['joint'] in (3, 4, 5, 34, 43)
@@ -748,7 +800,10 @@ DRIVER_GOALS: dict[str, GoalSpec] = {
         GoalSpec(
             'hand_step', HandStep, '/z70/arm/hand_step', 5.,
             lambda _s, r: 1 <= r.direction <= 4,
-            lambda ctx, _r: (True, HandStep.Result(outcome=ctx.outcome(True), estimate=ctx.arm_msg())),
+            lambda ctx, r: _goal_curated(
+                ctx, lambda c: c.hand_step(r.direction),
+                lambda outcome, _ok, _d: HandStep.Result(outcome=outcome, estimate=ctx.arm_msg()),
+            ),
             read_only=lambda _: False,
             fields=('direction',),
             validate_payload=lambda p: _int_in(p['direction'], 1, 4),
@@ -756,7 +811,10 @@ DRIVER_GOALS: dict[str, GoalSpec] = {
         GoalSpec(
             'arm_operation', ArmOperation, '/z70/arm/operation', 15.,
             lambda _s, r: 1 <= r.operation <= 9,
-            lambda ctx, _r: (True, ArmOperation.Result(outcome=ctx.outcome(True), estimate=ctx.arm_msg())),
+            lambda ctx, r: _goal_curated(
+                ctx, lambda c: _run_driver_arm_op(c, r),
+                lambda outcome, _ok, _d: ArmOperation.Result(outcome=outcome, estimate=ctx.arm_msg()),
+            ),
             read_only=lambda _: False,
             fields=('operation',),
             validate_payload=lambda p: _int_in(p['operation'], 1, 9),

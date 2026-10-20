@@ -11,7 +11,7 @@ import { jpegImageDimensions, CAMERA_NAMES, rosRoute } from "@rrsz70/http-contra
 
 export type TaskInput = { kind: string; goal?: Record<string, unknown>; [key: string]: unknown };
 export interface GoalCatalogResponse {
-  goals: { kind: string; topic: string; action: string; fields: string[]; description?: string }[];
+  goals: { kind: string; topic: string; action: string; fields: string[]; field_types?: Record<string, string>; result_fields?: string[]; description?: string }[];
   context_primitives?: { name: string; signature: string; summary: string }[];
 }
 export interface GoalValidationResponse {

@@ -172,7 +172,17 @@ def test_validation_token_and_closed_error_contract(system, tmp_path):
     request = system['request']
     catalog = request('GET', '/api/ros/goals').json()
     goals = catalog['goals']
-    assert any(g['kind'] == 'pick' and g['topic'] == '/z70/pick' and g['action'] == 'Pick' and g['fields'] == ['color', 'dry_run'] for g in goals)
+    assert any(
+        g['kind'] == 'pick' and g['topic'] == '/z70/pick' and g['action'] == 'Pick'
+        and g['fields'] == ['color', 'dry_run']
+        and g['field_types'] == {'color': 'string<32>', 'dry_run': 'boolean'}
+        and 'verified_hold' in g['result_fields']
+        for g in goals
+    )
+    sim_step = request('POST', '/api/ros/goals/validate', {
+        'kind': 'arm_step', 'goal': {'joint': 34, 'direction': 1}, 'simulate': True,
+    })
+    assert sim_step.status_code == 200 and sim_step.json()['simulated']['ok'] is True
     primitives = {p['name'] for p in catalog['context_primitives']}
     assert {'status', 'arm', 'map_pose', 'safe_interior', 'objects', 'garments', 'world_objects', 'update_world_object', 'mark_obstacle', 'clear_world', 'navigate', 'deploy_arm', 'align_target', 'move_arm', 'grasp_and_lift', 'release_and_stow', 'pulse', 'rpc', 'feedback', 'outcome'} <= primitives
     world_pub = system['peer'].create_publisher(String, '/z70/world/objects', LATCHED)
