@@ -38,8 +38,8 @@ from z70_description.arm_model import (
 )
 from z70_driver.driver import app_to_urdf
 from z70_manipulation import perception, planner
+from z70_manipulation.executor import OBJECT_SIZE_M
 
-OBJECT_SIZE_M = 0.066
 # RGB values rendered under ambient=0.82 + directional=0.22 light so OpenCV HSV falls inside config/colors.yaml
 COLOR_RGBA = {
     'yellow': (1.0, 0.72, 0.0, 1.0),

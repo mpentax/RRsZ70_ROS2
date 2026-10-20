@@ -403,13 +403,16 @@ class SessionWorldMap:
                 best, best_d = entry, d
         return best
 
+    def _resolve(self, x: float, y: float, track_id: str = '', radius_m: float | None = None) -> WorldObject | None:
+        return self.entries.get(track_id) if track_id and track_id in self.entries else self._find_near(x, y, radius_m)
+
     def upsert_object(self, x: float, y: float, *, category: str = 'object', mobility: str = 'pickupable',
                       relevance: str = 'objective', width_m: float = 0.08, depth_m: float = 0.08,
                       radius_m: float | None = None, track_id: str = '', detail: str = '',
                       confirmed: bool = True) -> WorldObject | None:
         if not (math.isfinite(x) and math.isfinite(y)):
             return None
-        existing = self.entries.get(track_id) if track_id and track_id in self.entries else self._find_near(x, y, radius_m)
+        existing = self._resolve(x, y, track_id, radius_m)
         rad = float(radius_m if radius_m is not None else max(0.06, min(0.35, 0.5 * max(width_m, depth_m, 0.12))))
         now = time.time()
         if existing is not None:
@@ -495,7 +498,7 @@ class SessionWorldMap:
 
     def mark_completed(self, x: float, y: float, *, track_id: str = '', category: str = 'object',
                        mobility: str = 'pickupable', radius_m: float = 0.12, detail: str = 'COMPLETED') -> WorldObject:
-        existing = self.entries.get(track_id) if track_id and track_id in self.entries else self._find_near(x, y)
+        existing = self._resolve(x, y, track_id)
         mob = existing.mobility if existing is not None else (mobility if mobility in MOBILITY_CLASSES else 'pickupable')
         entry = self.upsert_object(x, y, category=category, mobility=mob, relevance='completed',
                                    radius_m=max(0.08, float(radius_m)), track_id=track_id, detail=detail, confirmed=True)
@@ -503,7 +506,7 @@ class SessionWorldMap:
         return entry
 
     def mark_attempt_failed(self, x: float, y: float, *, track_id: str = '', detail: str = 'FAILED') -> WorldObject | None:
-        entry = self.entries.get(track_id) if track_id and track_id in self.entries else self._find_near(x, y)
+        entry = self._resolve(x, y, track_id)
         if entry is None:
             return None
         entry.attempts += 1
@@ -518,10 +521,14 @@ class SessionWorldMap:
         action = payload.get('action')
         if action == 'clear':
             self.clear(); return True
-        if action == 'upsert':
+        if action in ('upsert', 'objective'):
+            mob = str(payload.get('mobility') or (
+                mobility_from_suitability(int(payload['transport_suitability']))
+                if 'transport_suitability' in payload else 'pickupable'
+            ))
             self.upsert_object(
                 float(payload['x']), float(payload['y']), category=str(payload.get('category', 'object')),
-                mobility=str(payload.get('mobility', 'pickupable')), relevance=str(payload.get('relevance', 'objective')),
+                mobility=mob, relevance=str(payload.get('relevance', 'objective')),
                 width_m=float(payload.get('width_m', 0.08)), depth_m=float(payload.get('depth_m', 0.08)),
                 radius_m=float(payload['radius_m']) if 'radius_m' in payload and payload['radius_m'] is not None else None,
                 track_id=str(payload.get('track_id', '')), detail=str(payload.get('detail', '')), confirmed=True,
@@ -545,15 +552,6 @@ class SessionWorldMap:
         if action == 'failed':
             self.mark_attempt_failed(float(payload['x']), float(payload['y']),
                                      track_id=str(payload.get('track_id', '')), detail=str(payload.get('detail', 'FAILED')))
-            return True
-        if action == 'objective':
-            mob = str(payload.get('mobility') or mobility_from_suitability(int(payload.get('transport_suitability', 1))))
-            self.upsert_object(
-                float(payload['x']), float(payload['y']), category=str(payload.get('category', 'object')),
-                mobility=mob, relevance=str(payload.get('relevance', 'objective')),
-                width_m=float(payload.get('width_m', 0.08)), depth_m=float(payload.get('depth_m', 0.08)),
-                track_id=str(payload.get('track_id', '')), confirmed=True,
-            )
             return True
         return False
 
