@@ -22,7 +22,7 @@ from z70_interfaces.action import (
 )
 from z70_interfaces.msg import CommandOutcome
 from z70_mapping.boundary import compute_safe_interior
-from . import planner
+from . import placement, planner
 from .executor import Executor
 from .navigation import PinAndGoNavigator
 
@@ -50,6 +50,7 @@ GOAL_CONTEXT_PRIMITIVES: tuple[dict[str, str], ...] = (
     {'name': 'plan_route', 'signature': 'plan_route(target_x_m: float, target_y_m: float, deployed_arm_extension_m: float = 0., refresh: bool = False) -> list[tuple[float, float]] | None', 'summary': 'Plan a collision-checked A* route on the eroded safe interior from the current robot pose to (target_x_m, target_y_m).'},
     {'name': 'objects', 'signature': "objects(camera='front', color=None) -> list[dict]", 'summary': 'Detect and project HSV objects in base_footprint from a fresh camera frame.'},
     {'name': 'wrist_pose', 'signature': 'wrist_pose() -> dict | None', 'summary': 'Estimate the elevated ArUco ID68 wrist/jaw pose and grasp reference in base_footprint from the front camera.'},
+    {'name': 'fit_wrist_joints', 'signature': 'fit_wrist_joints() -> dict | None', 'summary': 'Fit [M3, M4, M5] joint angles (degrees) to the front-camera ArUco ID68 wrist marker pose.'},
     {'name': 'garments', 'signature': "garments(category='any', after=None) -> list", 'summary': 'Return verified reachable garments from the garment observation pipeline.'},
     {'name': 'navigate', 'signature': 'navigate(target_x_m: float, target_y_m: float, max_duration_s: float = 60., dry_run: bool = False) -> dict', 'summary': 'Navigate the stowed chassis to (target_x_m, target_y_m) via PinAndGo.'},
     {'name': 'pick', 'signature': 'pick(color: str, dry_run: bool = False) -> dict', 'summary': 'Execute a full autonomous object pickup by HSV color.'},
@@ -137,6 +138,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         plan_route=lambda target_x_m, target_y_m, deployed_arm_extension_m=0., refresh=False: [(float(target_x_m), float(target_y_m))],
         objects=lambda camera='front', color=None: [],
         wrist_pose=lambda: {'position': [0.35, 0., 0.08], 'marker_id': 68},
+        fit_wrist_joints=lambda: {'joints': [190., 65., 0.], 'residual_m': 0., 'residual_deg': 0., 'uncertainty_m': 0.015},
         observe_color=lambda camera, color: [],
         garments=lambda category='any', after=None: [],
         navigate=lambda target_x_m, target_y_m, max_duration_s=60., dry_run=False: {
@@ -278,6 +280,10 @@ class GoalContext:
             return perception.front_jaw(image)
         except LookupError:
             return None
+
+    def fit_wrist_joints(self) -> dict | None:
+        jaw = self.wrist_pose()
+        return placement.observed_joints(jaw['hand_pose_base']) if jaw and 'hand_pose_base' in jaw else None
 
     def garments(self, category='any', after=None) -> list:
         batch = self.observations.garment_snapshot(after=after)

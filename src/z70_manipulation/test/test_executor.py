@@ -674,6 +674,7 @@ def test_simulate_goal_exercises_all_builtin_goals():
                   lambda ctx, r: (ctx.plan_route(r.target_x_m, r.target_y_m) == [(1., 2.)]
                                   and 'rooms' in ctx.spatial_context()
                                   and ctx.wrist_pose()['marker_id'] == 68
+                                  and ctx.fit_wrist_joints()['joints'] == [190., 65., 0.]
                                   and ctx.arm_safe(150., 45., 0., 90.) is True
                                   and ctx.plan_grasp(.43, 0.)['state'] == [250, 95]
                                   and ctx.arm_step(1, 2, 0) == {'m3': 1, 'm4': 2, 'm5': 0}

@@ -36,8 +36,6 @@ def test_measures_held_bottom_to_elevated_support_without_floor_projection(monke
     assert sample['held_bottom_m'][2] == pytest.approx(.152, abs=.001)
     assert sample['support_top_m'][2] == pytest.approx(.132, abs=.001)
     assert sample['lateral_error_m'] == pytest.approx([0.,0.], abs=.001)
-    assert sample['depth_source'] == 'current_marker_retained_object_in_hand'
-    assert sample['support_depth_source'] == 'bottom_base_floor_column_assumption'
     assert sample['uncertainty_m'] >= .015
 
 
@@ -71,7 +69,6 @@ def test_observation_recovers_local_pose_not_stale_pregrip_angles():
     observed = planner.hand.hand_pose(current)
     recovered = placement.observed_joints(observed)
     assert recovered['joints'] == pytest.approx(current)
-    assert recovered['source'] == 'observed_hand_conditional_model_fit'
     bad = observed.copy(); bad[1,3] += .05
     assert placement.observed_joints(bad) is None
 

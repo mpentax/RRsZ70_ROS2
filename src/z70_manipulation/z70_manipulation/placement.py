@@ -32,8 +32,7 @@ def observed_joints(hand_pose):
     angle = math.degrees(math.acos(float(np.clip((np.trace(fitted[:3,:3].T@T[:3,:3])-1)/2,-1,1))))
     if residual > .010 or angle > 3.:
         return None
-    return dict(joints=joints, source='observed_hand_conditional_model_fit',
-                residual_m=residual, residual_deg=angle, uncertainty_m=max(.015,residual))
+    return dict(joints=joints, residual_m=residual, residual_deg=angle, uncertainty_m=max(.015,residual))
 
 
 def descent_step(sample, joints):
@@ -87,10 +86,8 @@ def measure(image, held_color, support_color, base_color, tower_spot,
     support_depth = float(base['position'][0])
     if object_in_hand is not None and not released:
         held_depth = float((T[:3,:3] @ np.asarray(object_in_hand) + T[:3,3])[0])
-        source = 'current_marker_retained_object_in_hand'
     else:
         held_depth = support_depth if released else float(jaw['position'][0])
-        source = 'bottom_base_column_assumption' if released else 'current_marker_jaw_depth_assumption'
     C = np.array([perception.calibration()['front_camera_x_m'], 0., cam.h/1000])
 
     def at_depth(pixel, depth):
@@ -139,6 +136,5 @@ def measure(image, held_color, support_color, base_color, tower_spot,
                 gap_m=float(bottom[2]-support_top[2]),
                 lateral_error_m=(bottom[:2]-support_top[:2]).tolist(),
                 jaw_separation_m=float(np.linalg.norm(center-np.asarray(jaw['position']))),
-                held_bbox=held_box, support_bbox=support_box, depth_source=source,
-                support_depth_source='bottom_base_floor_column_assumption',
+                held_bbox=held_box, support_bbox=support_box,
                 uncertainty_m=max(.015, jaw['uncertainty_bound_m']))
