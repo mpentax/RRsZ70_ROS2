@@ -45,10 +45,6 @@ def host_time(seconds):
     return Time(sec=ns // 10**9, nanosec=ns % 10**9)
 
 
-def seconds(stamp):
-    return stamp.sec + stamp.nanosec / 1e9
-
-
 def host_ms(milliseconds):
     # Date.now() is integer milliseconds. Avoid float seconds -> nanoseconds
     # roundoff changing identity or inventing sub-millisecond source precision.
@@ -216,13 +212,22 @@ class Driver(CommandSurfaces, Node):
                 pub.publish(msg)
         self.diagnostic(name, 'OBSERVATION_GAP')
 
-    def check_stale(self):
+    def _publish_display(self, sample=None):
         with self.sample_lock:
-            if self.display_sample is not None:
+            if sample is not None:
+                self.display_sample = sample
+                fresh = sample
+            elif self.display_sample is not None:
                 fresh = deepcopy(self.display_sample)
                 fresh.header.stamp = self.get_clock().now().to_msg()
-                self.pub_js.publish(fresh)
-                self.pub_display.publish(fresh)
+            else:
+                return
+        self.pub_js.publish(fresh)
+        self.pub_display.publish(fresh)
+
+    def check_stale(self):
+        self._publish_display()
+        with self.sample_lock:
             for name in list(self.samples):
                 limit = self.camera_stale if name == 'camera' else self.state_stale
                 if name == 'map':
@@ -324,11 +329,7 @@ class Driver(CommandSurfaces, Node):
             if same_update and old[0].evidence.valid and not old[0].evidence.stale:
                 # Polling an unchanged estimate must not mint a new update stamp/identity.
                 self.good_at['arm'] = time.monotonic()
-                if self.display_sample is not None:
-                    fresh = deepcopy(self.display_sample)
-                    fresh.header.stamp = self.get_clock().now().to_msg()
-                    self.pub_js.publish(fresh)
-                    self.pub_display.publish(fresh)
+                self._publish_display()
                 return
         m = ArmEstimate(source=self.estimate_source, model_id='vendor-app', restored=bool(d.get('restored')))
         self.header(m, 'vendor_arm_planar'); m.evidence = self.evidence('arm', updated, 3)
@@ -354,10 +355,7 @@ class Driver(CommandSurfaces, Node):
             if all(isinstance(sigma.get(j), (int,float)) and math.isfinite(sigma[j]) and sigma[j]>=0 for j in ('m3','m4','m5')):
                 m.joint_uncertainty_known = True
                 m.joint_sigma_rad = [math.radians(sigma[j]) for j in ('m3','m4','m5')]
-        with self.sample_lock:
-            self.display_sample = display
-        self.pub_js.publish(display)
-        self.pub_display.publish(display)
+        self._publish_display(display)
         m.steps_since_anchor = int(d.get('stepsSinceAnchor', 0))
         if d.get('anchoredAt') is not None:
             m.anchor_time_known = True; m.anchored_at = host_ms(d['anchoredAt'])
@@ -543,15 +541,7 @@ class Driver(CommandSurfaces, Node):
         msg = CommandEvent(operation=row['operation'])
         msg.evidence = self.evidence('events', source_ms=row.get('attemptedAt'), session=uid(session), sequence=sequence)
         msg.phase = {'accepted':0,'dispatched':1,'replied':2,'finished':4}[row['phase']]
-        o = CommandOutcome(command_id=uid(row['commandId']), attempt_id=uid(row['attemptId']),
-                           attempt_index=int(row['attemptIndex']), requested_at=host_ms(row['requestedAt']),
-                           dispatch={'not_sent':0,'sent':1,'unknown':2}[row['dispatch']],
-                           response={'none':0,'received':1,'vendor_error':2,'transport_error':3}[row['response']])
-        if row.get('finishedAt') is not None: o.finished_at = host_ms(row['finishedAt'])
-        # attemptedAt is dispatch-call start, never confirmed wire write_at.
-        o.error_code = row.get('errorCode', 'NONE')
-        if isinstance(row.get('vendorCode'), int): o.vendor_code_known = True; o.vendor_code = row['vendorCode']
-        msg.outcome = o
+        msg.outcome = self.backend_outcome(row)
         p = row.get('params')
         if p and row['operation'] == 'app_rc_move':
             msg.requested_twist.linear.x = float(p['velocity']); msg.requested_twist.angular.z = float(p['omega'])

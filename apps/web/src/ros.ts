@@ -11,14 +11,7 @@ export const taskPath = (id: string) => {
 };
 export const startTask = (task: TaskRequest) => json<Task>('/api/ros/tasks', { body: task, action: true, timeout: 5000 });
 export const listTasks = (signal?: AbortSignal) => json<{tasks:Task[]}>('/api/ros/tasks', {signal});
-export const getTask = (id: string) => json<Task>(taskPath(id));
 export const cancelTask = (id: string) => json<{id:string;cancel_requested:boolean}>(`${taskPath(id)}/cancel`, {body:{}, action:true, timeout:5000});
 export const stopRobot = () => json('/api/ros/stop', {body:{scope:3}, action:true, timeout:18000});
 export type ControlSession = {enabled:boolean;streams_released:boolean;cessation_observed:boolean;outcomes:{dispatch:number;response:number;error_code:string}[]};
 export const setControlSession = (enabled:boolean) => json<ControlSession>('/api/ros/control/session', {body:{enabled},action:true,timeout:38000});
-
-export function setupError(error: unknown): string {
-  // api.ts only exposes fixed local service messages, never upstream exception text.
-  if (error instanceof Error) return error.message;
-  return 'Setup request failed. Check the selected region, account, device IP and camera pattern in this form.';
-}
