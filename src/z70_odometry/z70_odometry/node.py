@@ -25,8 +25,9 @@ from sensor_msgs.msg import CameraInfo, Image
 from std_msgs.msg import String
 from tf2_ros import TransformBroadcaster
 from z70_description.arm_model import config_path, package_root
-from z70_driver.driver import MatchedFrames
+from z70_driver.driver import LATCHED, MatchedFrames
 from z70_interfaces.msg import CalibrationState, CommandEvent, OdometryStatus
+from z70_mapping.node import quat_yaw
 
 _FALLBACK_ROOT = Path(__file__).resolve().parent.parent
 
@@ -148,10 +149,6 @@ def local_delta(a, b):
     return (math.cos(th) * dx + math.sin(th) * dy,
             -math.sin(th) * dx + math.cos(th) * dy,
             math.atan2(math.sin(b['yaw'] - th), math.cos(b['yaw'] - th)))
-
-
-def quat_yaw(q) -> float:
-    return math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z))
 
 
 def stamp_ns(stamp) -> int:
@@ -547,9 +544,8 @@ class FloorOdomNode(Node):
         self.pub = self.create_publisher(Odometry, "/odom", 10)
         self.pub_status = self.create_publisher(OdometryStatus, "/z70/odom_status", 10)
         self.tf = TransformBroadcaster(self)
-        self.frames=MatchedFrames(self,'front',self.on_image,on_session=self.reset_reference)
-        self.create_subscription(CalibrationState,'/z70/chassis_calibration',self.on_calibration,
-                                 QoSProfile(depth=1,durability=DurabilityPolicy.TRANSIENT_LOCAL))
+        self.frames = MatchedFrames(self, 'front', self.on_image, on_session=self.reset_reference)
+        self.create_subscription(CalibrationState, '/z70/chassis_calibration', self.on_calibration, LATCHED)
         self.create_subscription(CommandEvent, '/z70/commands', self.on_command, 256)
         self.create_timer(0.2, self.broadcast_tf)
 
@@ -780,15 +776,22 @@ class FloorOdomNode(Node):
         self._send_tf(stamp)
 
 
-def main():
+def _spin(node_cls, on_exit=None):
     rclpy.init()
-    node = FloorOdomNode()
+    node = node_cls()
     try:
         rclpy.spin(node)
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
-        node.destroy_node(); rclpy.try_shutdown()
+        if on_exit:
+            on_exit(node)
+        node.destroy_node()
+        rclpy.try_shutdown()
+
+
+def main():
+    _spin(FloorOdomNode)
 
 
 class FloorMosaic:
@@ -849,14 +852,13 @@ class FloorMosaicNode(Node):
                   [('resolution', .005), ('size_m', 4.), ('max_range', 1.2), ('camera_x_m', initial_camera_x_m())]}
         self.mosaic = FloorMosaic(cam, **params)
         self.images = OrderedDict(); self.odoms = OrderedDict()
-        qos = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
-        self.pub = self.create_publisher(Image, '/z70/floor_mosaic', qos)
-        self.mask_pub = self.create_publisher(Image, '/z70/floor_mosaic_mask', qos)
-        self.info_pub = self.create_publisher(CameraInfo, '/z70/camera_info', qos)
+        self.pub = self.create_publisher(Image, '/z70/floor_mosaic', LATCHED)
+        self.mask_pub = self.create_publisher(Image, '/z70/floor_mosaic_mask', LATCHED)
+        self.info_pub = self.create_publisher(CameraInfo, '/z70/camera_info', LATCHED)
         self.status_pub = self.create_publisher(String, '/z70/floor_mosaic_status', 10)
         self.frames = MatchedFrames(self, 'front', lambda m: self.add(self.images, m))
         self.create_subscription(Odometry, '/odom', lambda m: self.add(self.odoms, m), 10)
-        self.create_subscription(CalibrationState, '/z70/chassis_calibration', self.on_calibration, qos)
+        self.create_subscription(CalibrationState, '/z70/chassis_calibration', self.on_calibration, LATCHED)
         self._publish_outputs(self.get_clock().now().to_msg())
 
     def _camera_info(self, stamp):
@@ -901,10 +903,7 @@ class FloorMosaicNode(Node):
 
 
 def mosaic_main():
-    rclpy.init(); node = FloorMosaicNode()
-    try: rclpy.spin(node)
-    except (KeyboardInterrupt, ExternalShutdownException): pass
-    finally: node.destroy_node(); rclpy.try_shutdown()
+    _spin(FloorMosaicNode)
 
 
 def calibrator_main():
@@ -926,7 +925,7 @@ def calibrator_main():
             self.publication = CalibrationPublication()
             self.command_stream = CommandStream(self.estimator)
             self.status = {}
-            self.pub = self.create_publisher(CalibrationState, '/z70/chassis_calibration', QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL))
+            self.pub = self.create_publisher(CalibrationState, '/z70/chassis_calibration', LATCHED)
             self.create_subscription(CommandEvent, '/z70/commands', self.commands, 256)
             self.create_subscription(Odometry, '/odom', self.odom, 100)
             self.create_subscription(OdometryStatus, '/z70/odom_status', self.quality, 100)
@@ -962,13 +961,7 @@ def calibrator_main():
             self.estimator.save()
             self.pub.publish(self.publication.snapshot(self.estimator, self.get_clock().now().to_msg()))
 
-    rclpy.init(); node = Calibrator()
-    try:
-        rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        node.estimator.save(); node.destroy_node(); rclpy.try_shutdown()
+    _spin(Calibrator, lambda n: n.estimator.save())
 
 
 if __name__ == '__main__':
