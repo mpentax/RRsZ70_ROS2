@@ -7,7 +7,7 @@ HSV object perception, CAD-backed coordinated multi-axis arm planning, and ROS 2
 From the repository root:
 
 ```sh
-pixi run bringup web_gateway:=true manipulation:=true
+pixi run bringup
 
 # Separate terminal (dry-run validates state, observations, and plans without motion):
 pixi run pick yellow --dry-run
@@ -87,10 +87,10 @@ ros2 action send_goal /z70/patrol_collect z70_interfaces/action/PatrolCollect \
 
 ## Authoring ROS 2 Goals (`z70_manipulation/goals.py`)
 
-All action servers on `PickServer` (`z70_manipulation/node.py`) are registered declaratively via `GoalSpec` and executed through a shared `GoalContext` (`ctx`) that manages single-owner locking, `TaskSession` (`begin()` / `end()`), deadline watchdogs, task-local cancellation, and `CommandOutcome` reporting:
+All manipulation and navigation action servers are defined in `BUILTIN_GOALS` inside `src/z70_manipulation/z70_manipulation/goals.py`. Both `PickServer` (`z70_manipulation/node.py`) and `Gateway` (`z70_web_gateway/gateway.py`) consume `BUILTIN_GOALS` directly, so adding or updating a `GoalSpec` in `BUILTIN_GOALS` registers both the ROS 2 `ActionServer` and the HTTP/MCP validation schema in one place:
 
 ```python
-from z70_manipulation.goals import GoalContext, GoalSpec, simulate_goal
+from z70_manipulation.goals import BUILTIN_GOALS, GoalContext, GoalSpec, simulate_goal
 
 spec = GoalSpec(
     name='my_goal',
@@ -98,21 +98,21 @@ spec = GoalSpec(
     topic='/z70/my_goal',
     timeout_s=lambda req: req.max_duration_s,
     validate=lambda server, req: req.max_duration_s > 0,
-    run=self._goal_my_goal,
+    run=_goal_my_goal,
     fields=('max_duration_s', 'dry_run'),
     description='Custom ROS 2 action goal.',
+    validate_payload=lambda p: isinstance(p['max_duration_s'], (int, float)) and isinstance(p['dry_run'], bool),
 )
-self.register_goal(spec)
 ```
 
-- **Runtime Goal Catalog (`GET /api/ros/goals`, `GOAL_CONTEXT_PRIMITIVES` & `GoalSpec.describe()`):** `z70_web_gateway` exposes `GET /api/ros/goals` returning `{goals: [{kind, topic, action, fields}, ...], context_primitives: [{name, signature, summary}, ...]}` (`GOAL_CONTEXT_PRIMITIVES` in `goals.py`) for all registered gateway actions and `GoalContext` primitives, and `PickServer.goal_specs[name].describe()` returns `{name, topic, action, fields, navigation, description}` for each manipulation/navigation `GoalSpec`.
-- **Dry-Run Goal Validation (`POST /api/ros/goals/validate` & MCP `validateOnly: true`):** `POST /api/ros/goals/validate` validates a `{kind, goal}` request payload against the gateway's ROS action goal schema without dispatching it to the robot, returning `200 {valid: true, kind, topic, action}` or `400 {valid: false, error}`. In MCP, `start_task` accepts `validateOnly: true` (as well as custom `{kind, goal}` schemas) to invoke `POST /api/ros/goals/validate` before live execution.
-- **Pure-Python Goal Simulation (`simulate_goal(spec, request, **overrides)`):** `simulate_goal()` constructs a lightweight in-memory mock `GoalContext` with sensible defaults for all `GOAL_CONTEXT_PRIMITIVES` (overridable via keyword arguments) and invokes `spec.run(ctx, request)` so `GoalSpec` handlers authored in `z70_manipulation` can be unit-tested offline without spinning up DDS or hardware.
+- **Runtime Goal Catalog (`GET /api/ros/goals`, `GOAL_CONTEXT_PRIMITIVES` & `GoalSpec.describe()`):** `z70_web_gateway` exposes `GET /api/ros/goals` (and MCP `list_goals`) returning `{goals: [{kind, topic, action, fields, description}, ...], context_primitives: [{name, signature, summary}, ...]}` (`GOAL_CONTEXT_PRIMITIVES` in `goals.py`).
+- **Dry-Run Goal Validation (`POST /api/ros/goals/validate` & MCP `validateOnly: true`):** `POST /api/ros/goals/validate` validates a `{kind, goal}` request payload against `GoalSpec.validate_payload` and the ROS message schema without dispatching to hardware.
+- **Pure-Python Goal Simulation (`simulate_goal(spec, request, **overrides)`):** `simulate_goal()` constructs an in-memory mock `GoalContext` with defaults for all `GOAL_CONTEXT_PRIMITIVES` (overridable via keyword arguments) and invokes `spec.run(ctx, request)` so `GoalSpec` handlers can be unit-tested offline without spinning up DDS or hardware.
 
-Inside a goal handler `def _goal_my_goal(self, ctx: GoalContext, req) -> tuple[bool, MyGoal.Result]`, `ctx` provides:
+Inside a goal handler `def _goal_my_goal(ctx: GoalContext, req) -> tuple[bool, MyGoal.Result]`, `ctx` provides:
 - **State & Perception:** `ctx.status()`, `ctx.arm()`, `ctx.arm_msg()`, `ctx.odom()`, `ctx.map_pose()`, `ctx.map_snapshot(refresh=False)`, `ctx.safe_interior(refresh=False, deployed_arm_extension_m=0.0)`, `ctx.objects(camera='front', color=None)`, `ctx.garments(category='any')`, `ctx.frame()`
-- **Motion & Manipulation:** `ctx.navigate(x_m, y_m, max_duration_s=60.0, dry_run=False)`, `ctx.deploy_arm(settle=True)`, `ctx.align_target(color)`, `ctx.move_arm(m3_deg, m4_deg, m5_deg=0.0)`, `ctx.grasp_and_lift(lift_steps=2, verify_color='')`, `ctx.release_and_stow(put_down=True)`, `ctx.pulse(velocity=0.0, omega=0.0, duration=300)`, `ctx.rpc(method, params, timeout_ms=5000)`, `ctx.stop()`
-- **Lifecycle & Feedback:** `ctx.sleep(seconds)`, `ctx.hazard()`, `ctx.is_cancelled()`, `ctx.feedback(**fields)`, `ctx.outcome(success)`
+- **Motion & Manipulation:** `ctx.navigate(x_m, y_m, max_duration_s=60.0, dry_run=False)`, `ctx.pick(color, dry_run=False)`, `ctx.stack(base_color, middle_color, top_color, dry_run=False)`, `ctx.deliver_garment(...)`, `ctx.patrol_collect(...)`, `ctx.deploy_arm(settle=True)`, `ctx.align_target(color)`, `ctx.move_arm(m3_deg, m4_deg, m5_deg=0.0)`, `ctx.grasp_and_lift(lift_steps=2, verify_color='')`, `ctx.release_and_stow(put_down=True)`, `ctx.pulse(velocity=0.0, omega=0.0, duration=300)`, `ctx.rpc(method, params, timeout_ms=5000)`, `ctx.stop()`
+- **Lifecycle & Feedback:** `ctx.sleep(seconds)`, `ctx.hazard()`, `ctx.is_cancelled()`, `ctx.log(stage, **fields)`, `ctx.feedback(**fields)`, `ctx.outcome(success)`
 
 ---
 
