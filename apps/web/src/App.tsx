@@ -914,11 +914,31 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
               setOutcome(res);
             })}>Load goal catalog</button>
             {catalog?.goals?.map(g => (
-              <button key={g.kind} type="button" className={`chip ${simKind === g.kind ? 'active' : ''}`} onClick={() => setSimKind(g.kind)}>
+              <button key={g.kind} type="button" className={`chip ${simKind === g.kind ? 'active' : ''}`} onClick={() => {
+                setSimKind(g.kind);
+                const defaults: Record<string, unknown> = {
+                  color: 'yellow', base_color: 'yellow', middle_color: 'purple', top_color: 'blue',
+                  category: 'any', dry_run: true, settle: true, put_down: true, allow_towing: false,
+                  max_duration_s: 60, max_items: 5, m3_deg: 150, m4_deg: 45, m5_deg: 0,
+                  joint: 34, direction: 1, operation: 1, lift_steps: 2, verify_color: '',
+                  duration: { sec: 0, nanosec: 300000000 },
+                };
+                const tmpl: Record<string, unknown> = {};
+                for (const f of g.fields ?? []) tmpl[f] = defaults[f] ?? (g.field_types?.[f] === 'boolean' ? false : g.field_types?.[f]?.startsWith('string') ? '' : 0);
+                setSimGoalJson(JSON.stringify(tmpl));
+              }}>
                 {g.kind}
               </button>
             ))}
           </div>
+          {(() => {
+            const activeGoal = catalog?.goals?.find(g => g.kind === simKind);
+            return activeGoal ? (
+              <p className="caption" style={{ marginBottom: 10 }}>
+                <code>{activeGoal.topic}</code> ({activeGoal.action}{activeGoal.timeout_s != null ? ` · ${activeGoal.timeout_s}s` : ''}) — {activeGoal.description}
+              </p>
+            ) : null;
+          })()}
           <div className="form-grid">
             <label>Goal kind<input value={simKind} onChange={e => setSimKind(e.target.value)} /></label>
             <label>Goal JSON<input value={simGoalJson} onChange={e => setSimGoalJson(e.target.value)} /></label>
@@ -934,11 +954,7 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
               });
               setOutcome(res);
             })}>Simulate Goal</button>
-            <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => {
-              const task = await startTask({ kind: simKind, goal: record(JSON.parse(simGoalJson)) });
-              setOutcome(task);
-              setTasks((await listTasks()).tasks);
-            })}>Dispatch Custom Goal</button>
+            <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => launchTask({ kind: simKind, goal: record(JSON.parse(simGoalJson)) })}>Dispatch Custom Goal</button>
           </div>
         </details>
 
