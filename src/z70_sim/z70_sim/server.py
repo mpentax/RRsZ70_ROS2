@@ -166,19 +166,20 @@ class SimServer:
         base = dict(requestId=cid, commandId=cid, attemptId=aid, attemptIndex=0,
                     startedAt=started_at, finishedAt=finished_at, deviceId='sim-z70-duid', transport=transport)
 
-        if kind == 'ok':
+        def finish(dispatch: str, response: str, error_code: str = 'NONE', vendor_code: int | None = None) -> None:
             for phase in ('replied', 'finished'):
-                emit(phase, 'sent', 'received')
+                emit(phase, dispatch, response, error_code, vendor_code)
+
+        if kind == 'ok':
+            finish('sent', 'received')
             return dict(base, dispatch='sent', response='received', result=val)
 
         if kind == 'vendor_error':
             vcode = int(val) if isinstance(val, int) else -10007
-            for phase in ('replied', 'finished'):
-                emit(phase, 'sent', 'vendor_error', 'VENDOR_REJECTED', vcode)
+            finish('sent', 'vendor_error', 'VENDOR_REJECTED', vcode)
             return dict(base, dispatch='sent', response='vendor_error', vendorCode=vcode, error='Robot rejected RPC')
 
-        for phase in ('replied', 'finished'):
-            emit(phase, 'unknown', 'transport_error', 'TIMEOUT')
+        finish('unknown', 'transport_error', 'TIMEOUT')
         return dict(base, dispatch='unknown', response='transport_error',
                     transportReason='timeout', error='Device transport failed')
 
@@ -198,15 +199,17 @@ class SimServer:
                 self._json(403, {'error': 'Private driver bearer authentication required.', 'dispatch': 'not_sent'})
                 return False
 
-            def _json(self, status: int, body: Any, headers: dict[str, str] | None = None) -> None:
-                payload = json.dumps(body).encode('utf-8')
+            def _send(self, status: int, content_type: str, payload: bytes, headers: dict[str, Any] | None = None) -> None:
                 self.send_response(status)
-                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.send_header('Content-Type', content_type)
                 self.send_header('Content-Length', str(len(payload)))
                 for k, v in (headers or {}).items():
                     self.send_header(k, str(v))
                 self.end_headers()
                 self.wfile.write(payload)
+
+            def _json(self, status: int, body: Any, headers: dict[str, Any] | None = None) -> None:
+                self._send(status, 'application/json; charset=utf-8', json.dumps(body).encode('utf-8'), headers)
 
             def _read_json(self) -> dict[str, Any]:
                 length = int(self.headers.get('Content-Length', '0'))
@@ -229,21 +232,13 @@ class SimServer:
                 )
                 try:
                     with urllib.request.urlopen(req, timeout=35.0) as resp:
-                        body = resp.read()
-                        self.send_response(resp.status)
-                        for k, v in resp.headers.items():
-                            if k.lower() not in ('transfer-encoding', 'connection', 'content-length'):
-                                self.send_header(k, v)
-                        self.send_header('Content-Length', str(len(body)))
-                        self.end_headers()
-                        self.wfile.write(body)
+                        forwarded = {
+                            k: v for k, v in resp.headers.items()
+                            if k.lower() not in ('transfer-encoding', 'connection', 'content-length', 'content-type')
+                        }
+                        self._send(resp.status, resp.headers.get('Content-Type', 'application/json'), resp.read(), forwarded)
                 except urllib.error.HTTPError as e:
-                    body = e.read()
-                    self.send_response(e.code)
-                    self.send_header('Content-Type', e.headers.get('Content-Type', 'application/json'))
-                    self.send_header('Content-Length', str(len(body)))
-                    self.end_headers()
-                    self.wfile.write(body)
+                    self._send(e.code, e.headers.get('Content-Type', 'application/json'), e.read())
                 except Exception:
                     self._json(503, {'error': 'ROS_UNAVAILABLE', 'dispatch': 'not_sent'})
 
@@ -333,15 +328,17 @@ class SimServer:
 
                 if self.path == '/api/map/cache/raw':
                     raw, seq, saved_at = sim.world.raw_map(refresh=False)
-                    self.send_response(200)
-                    self.send_header('Content-Type', 'application/octet-stream')
-                    self.send_header('Content-Length', str(len(raw)))
-                    self.send_header('X-Roboclaw-Observation-Session', sim.observation_session)
-                    self.send_header('X-Map-Saved-At', str(saved_at))
-                    self.send_header('X-Map-Index', '0')
-                    self.send_header('X-Map-Sequence', str(seq))
-                    self.end_headers()
-                    self.wfile.write(raw)
+                    self._send(
+                        200,
+                        'application/octet-stream',
+                        raw,
+                        {
+                            'X-Roboclaw-Observation-Session': sim.observation_session,
+                            'X-Map-Saved-At': saved_at,
+                            'X-Map-Index': 0,
+                            'X-Map-Sequence': seq,
+                        },
+                    )
                     return
 
                 self._json(404, {'error': 'Not found.'})
@@ -377,19 +374,20 @@ class SimServer:
                         self._json(409, {'error': 'SESSION_STOPPED', 'dispatch': 'not_sent'})
                         return
                     jpeg, active, w, h = sim.world.render_jpeg()
-                    now = int(time.time() * 1000)
-                    self.send_response(200)
-                    self.send_header('Content-Type', 'image/jpeg')
-                    self.send_header('Content-Length', str(len(jpeg)))
-                    self.send_header('X-Roboclaw-Frame-Id', str(uuid.uuid4()))
-                    self.send_header('X-Roboclaw-Camera-Session', sim.observation_session)
-                    self.send_header('X-Roboclaw-Received-At', str(now))
-                    self.send_header('X-Roboclaw-Camera', active)
-                    self.send_header('X-Roboclaw-Size-Camera', active)
-                    self.send_header('X-Roboclaw-Image-Width', str(w))
-                    self.send_header('X-Roboclaw-Image-Height', str(h))
-                    self.end_headers()
-                    self.wfile.write(jpeg)
+                    self._send(
+                        200,
+                        'image/jpeg',
+                        jpeg,
+                        {
+                            'X-Roboclaw-Frame-Id': uuid.uuid4(),
+                            'X-Roboclaw-Camera-Session': sim.observation_session,
+                            'X-Roboclaw-Received-At': int(time.time() * 1000),
+                            'X-Roboclaw-Camera': active,
+                            'X-Roboclaw-Size-Camera': active,
+                            'X-Roboclaw-Image-Width': w,
+                            'X-Roboclaw-Image-Height': h,
+                        },
+                    )
                     return
 
                 if self.path == '/api/driver/camera/select':
