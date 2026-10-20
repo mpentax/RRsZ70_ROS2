@@ -39,6 +39,47 @@ def wait_for(predicate, seconds: float = 5.0) -> None:
     assert predicate(), 'condition deadline'
 
 
+class DirectSimClient:
+    def __init__(self, w: SimWorld, obs_adapter=None):
+        from types import SimpleNamespace as NS
+
+        self.w = w
+        self.observations = obs_adapter
+        self.commands = (
+            NS(rpc=self.rpc, stop=lambda: None, cancelled=NS(is_set=lambda: False))
+            if obs_adapter is not None
+            else None
+        )
+        self.frame_received_at = 0.0
+        self.frame_exposure_known = False
+
+    def status(self):
+        return self.w.status_dict()
+
+    def arm_estimate(self):
+        if self.observations is not None:
+            return self.observations.arm_estimate()
+        return {
+            'state': 'WORKING_POS' if self.w.deployed else 'IN_ROBOT',
+            'joints': dict(self.w.joints),
+        }
+
+    def frame(self):
+        jpeg, cam, _, _ = self.w.render_jpeg()
+        self.frame_received_at = time.time()
+        return cv2.imdecode(np.frombuffer(jpeg, np.uint8), cv2.IMREAD_COLOR), cam
+
+    def select(self, camera: str):
+        self.w.camera = camera
+        return {'camera': camera}
+
+    def rpc(self, method: str, params, timeout_ms: int = 5000):
+        kind, val = self.w.handle_rpc(method, params)
+        if kind == 'ok':
+            return {'dispatch': 'sent', 'response': 'received', 'result': val}
+        return {'dispatch': 'unknown', 'response': 'transport_error', 'transportReason': 'timeout'}
+
+
 def test_mujoco_cameras_marker_68_floor_vo_and_v1_map():
     world = SimWorld()
 
@@ -98,39 +139,6 @@ def test_mujoco_cameras_marker_68_floor_vo_and_v1_map():
 
 def test_closed_loop_pick_against_mujoco_world(tmp_path: Path):
     world = SimWorld()
-
-    class DirectSimClient:
-        def __init__(self, w: SimWorld):
-            self.w = w
-            self.commands = None
-            self.frame_received_at = 0.0
-            self.frame_exposure_known = False
-
-        def status(self):
-            return self.w.status_dict()
-
-        def arm_estimate(self):
-            return {
-                'state': 'WORKING_POS' if self.w.deployed else 'IN_ROBOT',
-                'joints': dict(self.w.joints),
-            }
-
-        def frame(self):
-            jpeg, cam, _, _ = self.w.render_jpeg()
-            self.frame_received_at = time.time()
-            img = cv2.imdecode(np.frombuffer(jpeg, np.uint8), cv2.IMREAD_COLOR)
-            return img, cam
-
-        def select(self, camera: str):
-            self.w.camera = camera
-            return {'camera': camera}
-
-        def rpc(self, method: str, params, timeout_ms: int = 5000):
-            kind, val = self.w.handle_rpc(method, params)
-            if kind == 'ok':
-                return {'dispatch': 'sent', 'response': 'received', 'result': val}
-            return {'dispatch': 'unknown', 'response': 'transport_error', 'transportReason': 'timeout'}
-
     client = DirectSimClient(world)
 
     def observe(camera: str, color: str):
@@ -248,13 +256,6 @@ def test_patrol_collect_and_drag_garments_to_washing_machine_in_sim(tmp_path: Pa
                 joints=dict(self.w.joints),
             )
 
-        def get(self, path: str):
-            if path == '/api/state':
-                return {'telemetry': {'status': {'value': self.status()}}}
-            if path == '/api/arm/estimate':
-                return self.arm_estimate()
-            raise ValueError(path)
-
         def navigation_snapshot(self, refresh: bool = False, max_age_s: float = 5.0):
             raw, mseq, _ = self.w.raw_map(refresh=refresh)
             return NS(
@@ -362,42 +363,6 @@ def test_patrol_collect_and_drag_garments_to_washing_machine_in_sim(tmp_path: Pa
                 evidence=msg.evidence,
                 coverage_valid=visible,
             )
-
-    class DirectSimClient:
-        def __init__(self, w: SimWorld, obs_adapter: SimGarmentObservations):
-            self.w = w
-            self.observations = obs_adapter
-            self.commands = NS(
-                rpc=self.rpc,
-                stop=lambda: None,
-                cancelled=NS(is_set=lambda: False),
-            )
-            self.frame_received_at = 0.0
-            self.frame_exposure_known = False
-
-        def status(self):
-            return self.w.status_dict()
-
-        def arm_estimate(self):
-            return self.observations.arm_estimate()
-
-        def get(self, path: str):
-            return self.observations.get(path)
-
-        def frame(self):
-            jpeg, cam, _, _ = self.w.render_jpeg()
-            self.frame_received_at = time.time()
-            return cv2.imdecode(np.frombuffer(jpeg, np.uint8), cv2.IMREAD_COLOR), cam
-
-        def select(self, camera: str):
-            self.w.camera = camera
-            return {'camera': camera}
-
-        def rpc(self, method: str, params, timeout_ms: int = 5000):
-            kind, val = self.w.handle_rpc(method, params)
-            if kind == 'ok':
-                return {'dispatch': 'sent', 'response': 'received', 'result': val}
-            return {'dispatch': 'unknown', 'response': 'transport_error', 'transportReason': 'timeout'}
 
     obs = SimGarmentObservations(world)
     client = DirectSimClient(world, obs)
