@@ -19,7 +19,7 @@ import numpy as np
 
 
 class FloorCamera:
-    """Vectorised pixel <-> floor mapping (same model as calibration/front-camera/floor_geometry.py)."""
+    """Vectorised pixel <-> floor mapping (same model as z70_description.floor_geometry)."""
 
     def __init__(self, cal: dict):
         self.f, self.cx, self.cy = cal["f_px"], cal["cx"], cal["cy"]

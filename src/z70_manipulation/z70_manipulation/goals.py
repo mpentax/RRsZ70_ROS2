@@ -61,6 +61,7 @@ GOAL_CONTEXT_PRIMITIVES: tuple[dict[str, str], ...] = (
     {'name': 'deploy_arm', 'signature': 'deploy_arm(settle=True) -> dict', 'summary': 'Enter manual arm mode and unstow the arm to WORKING_POS.'},
     {'name': 'align_target', 'signature': 'align_target(color: str) -> dict', 'summary': 'Visually servo the chassis toward a target color using front camera observations.'},
     {'name': 'arm_safe', 'signature': 'arm_safe(m3_deg: float, m4_deg: float, m5_deg: float = 0., m6_deg: float = 90.) -> bool', 'summary': 'Check whether an arm joint state (m3, m4, m5, m6) satisfies firmware limits and CAD floor/body collision bounds.'},
+    {'name': 'plan_approach', 'signature': 'plan_approach(x_m: float, y_m: float) -> dict | None', 'summary': 'Compute the chassis yaw (rad) and forward distance (m) needed to align a base_footprint floor point (x_m, y_m) to the arm grasp point.'},
     {'name': 'plan_grasp', 'signature': 'plan_grasp(x_m: float, y_m: float, size_m: float = 0.066) -> dict | None', 'summary': 'Compute the closest reachable (M3, M4) grasp state and coordinated descent steps for a floor point (x_m, y_m) in base_footprint.'},
     {'name': 'move_arm', 'signature': 'move_arm(m3_deg: float, m4_deg: float, m5_deg: float = 0.) -> dict', 'summary': 'Execute a collision-checked coordinated multi-axis arm trajectory.'},
     {'name': 'arm_step', 'signature': 'arm_step(m3: int = 0, m4: int = 0, m5: int = 0) -> dict', 'summary': 'Execute a single 10-degree multi-axis joint step [m3, m4, m5] (0=hold, 1=+10deg, 2=-10deg).'},
@@ -167,6 +168,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         deploy_arm=lambda settle=True: {'ready': True},
         align_target=lambda color: {'position': [0.35, 0., 0.04], 'bearing_error_deg': 0., 'range_error_m': 0.},
         arm_safe=lambda m3_deg, m4_deg, m5_deg=0., m6_deg=90.: planner.safe((m3_deg, m4_deg, m5_deg, m6_deg)),
+        plan_approach=lambda x_m, y_m: planner.approach([float(x_m), float(y_m), 0.]),
         plan_grasp=lambda x_m, y_m, size_m=.066: {'state': [250, 95], 'error_m': 0., 'steps': []},
         move_arm=lambda m3_deg, m4_deg, m5_deg=0.: {'steps_executed': 1},
         arm_step=lambda m3=0, m4=0, m5=0: {'m3': int(m3), 'm4': int(m4), 'm5': int(m5)},
@@ -384,6 +386,12 @@ class GoalContext:
 
     def arm_safe(self, m3_deg: float, m4_deg: float, m5_deg: float = 0., m6_deg: float = 90.) -> bool:
         return planner.safe((float(m3_deg), float(m4_deg), float(m5_deg), float(m6_deg)))
+
+    def plan_approach(self, x_m: float, y_m: float) -> dict | None:
+        try:
+            return planner.approach([float(x_m), float(y_m), 0.])
+        except ValueError:
+            return None
 
     def plan_grasp(self, x_m: float, y_m: float, size_m: float = .066) -> dict | None:
         joints = self.arm().get('joints') or {}
