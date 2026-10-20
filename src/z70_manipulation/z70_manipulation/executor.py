@@ -821,6 +821,19 @@ class Executor:
             self.put_down()
         return self.stow()
 
+    def _emergency_stop(self, reason, **extra):
+        self.stopped = True
+        self.log('stop', reason=str(reason), **extra)
+        commands = getattr(self.client, 'commands', None)
+        if commands is not None:
+            commands.stop()
+        else:
+            self.command('app_rc_stop')
+            self.command('app_rc_end')
+            if self.deployed:
+                self.command('app_stop_grasp')
+        self.rc = False
+
     def pick(self, color, dry_run=False):
         self.log('start', color=color, dry_run=dry_run)
         if dry_run:
@@ -867,17 +880,7 @@ class Executor:
             self.log('complete', verified=verified, odom=self.odom())
             return dict(verified=verified, log_dir=str(self.directory))
         except BaseException as e:
-            self.stopped = True
-            self.log('stop', reason=str(e))
-            commands = getattr(self.client, 'commands', None)
-            if commands is not None:
-                commands.stop()
-            else:
-                self.command('app_rc_stop')
-                self.command('app_rc_end')
-                if self.deployed:
-                    self.command('app_stop_grasp')
-            self.rc = False
+            self._emergency_stop(e)
             raise
         finally:
             if not self.stopped:
@@ -930,6 +933,12 @@ class Executor:
             self.log('stack_dry_run', **result)
             return result
         tiers_completed = 0
+        def stack_incomplete(**extra):
+            result = dict(tiers_completed=tiers_completed, stack_verified=False,
+                          reason='supported-placement-unresolved', holding=self.gripped,
+                          log_dir=str(self.directory), **extra)
+            self.log('stack_incomplete', **result)
+            return result
         try:
             self.safety()
             base_target = self.target('front', base_color)
@@ -967,33 +976,15 @@ class Executor:
                 support_color = base_color if tier_idx == 2 else middle_color
                 placed = self.supported_place(move_color, support_color, base_color, tower_spot, tier_idx)
                 if not placed['verified']:
-                    result = dict(tiers_completed=tiers_completed, stack_verified=False,
-                                  reason='supported-placement-unresolved', placement=placed,
-                                  holding=self.gripped, log_dir=str(self.directory))
-                    self.log('stack_incomplete', **result)
-                    return result
+                    return stack_incomplete(placement=placed)
                 tiers_completed = tier_idx
             self.stow()
             self.log('stack_complete', tiers_completed=tiers_completed, stack_verified=tiers_completed == 3, odom=self.odom())
             return dict(tiers_completed=tiers_completed, stack_verified=tiers_completed == 3, log_dir=str(self.directory))
         except (LookupError, ValueError, UncertainMotion, requests.RequestException) as e:
-            result = dict(tiers_completed=tiers_completed, stack_verified=False,
-                          reason='supported-placement-unresolved', detail=str(e),
-                          holding=self.gripped, log_dir=str(self.directory))
-            self.log('stack_incomplete', **result)
-            return result
+            return stack_incomplete(detail=str(e))
         except BaseException as e:
-            self.stopped = True
-            self.log('stop', reason=str(e), tiers_completed=tiers_completed)
-            commands = getattr(self.client, 'commands', None)
-            if commands is not None:
-                commands.stop()
-            else:
-                self.command('app_rc_stop')
-                self.command('app_rc_end')
-                if self.deployed:
-                    self.command('app_stop_grasp')
-            self.rc = False
+            self._emergency_stop(e, tiers_completed=tiers_completed)
             raise
         finally:
             if not self.stopped:
