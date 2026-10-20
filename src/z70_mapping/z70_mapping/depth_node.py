@@ -4,8 +4,6 @@ No independent camera session/robot calls. Inference worker dies with this node.
 import io
 import json
 import signal
-import os
-import select
 import struct
 import subprocess
 import threading
@@ -18,7 +16,7 @@ from rclpy.qos import QoSProfile, DurabilityPolicy, ReliabilityPolicy
 from rclpy.executors import ExternalShutdownException
 from sensor_msgs.msg import CompressedImage, PointCloud2, PointField
 from std_msgs.msg import String
-from z70_driver.frame_subscription import MatchedFrames
+from z70_driver.frame_subscription import MatchedFrames, read_pipe_exact, stop_worker_process, worker_env
 
 
 class DepthNode(Node):
@@ -34,10 +32,7 @@ class DepthNode(Node):
         self.status = self.create_publisher(String, '/z70/depth/status', qos)
         self.latest = None; self.result = None; self.last_stamp = None
         self.lock = threading.Lock(); self.stop_event = threading.Event()
-        # Separate env is deliberately not allowed to inherit pixi Python paths/libraries.
-        env = dict(os.environ)
-        for key in ('PYTHONPATH','PYTHONHOME','DYLD_LIBRARY_PATH'):
-            env.pop(key,None)
+        env = worker_env()
         self.process = None
         try:
             self.process = subprocess.Popen([python, '-u', str(Path(__file__).with_name('depth_worker.py')),
@@ -60,23 +55,7 @@ class DepthNode(Node):
             self.latest = msg
 
     def read_exact(self,count):
-        proc = self.process
-        if proc is None or proc.stdout is None:
-            raise EOFError('Inference worker unavailable')
-        data = bytearray(); deadline = time.monotonic()+120
-        while len(data)<count and not self.stop_event.is_set():
-            if time.monotonic()>deadline:
-                raise TimeoutError('Inference deadline')
-            ready,_,_ = select.select([proc.stdout],[],[],.2)
-            if not ready:
-                continue
-            chunk = os.read(proc.stdout.fileno(),count-len(data))
-            if not chunk:
-                raise EOFError('Inference worker ended')
-            data.extend(chunk)
-        if len(data)!=count:
-            raise EOFError('Inference interrupted')
-        return bytes(data)
+        return read_pipe_exact(self.process, count, self.stop_event)
 
     def run_worker(self,period):
         proc = self.process
@@ -127,24 +106,7 @@ class DepthNode(Node):
         self.pub.publish(msg)
 
     def close(self):
-        self.stop_event.set()
-        if self.worker is not None:
-            self.worker.join(timeout=5)
-        proc = self.process
-        if proc is None:
-            return
-        if proc.stdin is not None:
-            proc.stdin.close()  # EOF lets the model worker release resources normally.
-        try:
-            proc.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            proc.terminate()
-            try:
-                proc.wait(timeout=2)
-            except subprocess.TimeoutExpired:
-                proc.kill(); proc.wait()
-        if proc.stdout is not None:
-            proc.stdout.close()
+        stop_worker_process(self.process, self.worker, self.stop_event)
 
 
 def main():

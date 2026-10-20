@@ -3,10 +3,64 @@
 Images remain visible when uncalibrated, but metric consumers never process them.
 No HTTP, camera control or acquisition is performed here.
 """
+import os
+import select
+import subprocess
 import time
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from sensor_msgs.msg import Image, CompressedImage
 from z70_interfaces.msg import FrameMetadata
+
+
+def worker_env(**extra) -> dict[str, str]:
+    env = dict(os.environ)
+    for key in ('PYTHONPATH', 'PYTHONHOME', 'DYLD_LIBRARY_PATH'):
+        env.pop(key, None)
+    env.update(extra)
+    return env
+
+
+def read_pipe_exact(proc, count: int, stop_event, timeout_s: float = 120.) -> bytes:
+    if proc is None or proc.stdout is None:
+        raise EOFError('Inference worker unavailable')
+    data = bytearray()
+    deadline = time.monotonic() + timeout_s
+    while len(data) < count and not stop_event.is_set():
+        if time.monotonic() > deadline:
+            raise TimeoutError('Inference deadline')
+        ready, _, _ = select.select([proc.stdout], [], [], .2)
+        if not ready:
+            continue
+        chunk = os.read(proc.stdout.fileno(), count - len(data))
+        if not chunk:
+            raise EOFError('Inference worker ended')
+        data.extend(chunk)
+    if len(data) != count:
+        raise EOFError('Inference interrupted')
+    return bytes(data)
+
+
+def stop_worker_process(proc, worker, stop_event) -> None:
+    stop_event.set()
+    if proc is not None:
+        if proc.stdin is not None:
+            try:
+                proc.stdin.close()
+            except OSError:
+                pass
+        try:
+            proc.wait(timeout=5.)
+        except subprocess.TimeoutExpired:
+            proc.terminate()
+            try:
+                proc.wait(timeout=2.)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait()
+    if worker is not None:
+        worker.join(timeout=5.)
+    if proc is not None and proc.stdout is not None:
+        proc.stdout.close()
 
 
 class MatchedFrames:

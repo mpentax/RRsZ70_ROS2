@@ -2,9 +2,7 @@
 from copy import deepcopy
 import json
 import math
-import os
 from pathlib import Path
-import select
 import signal
 import struct
 import subprocess
@@ -24,7 +22,7 @@ from std_msgs.msg import String
 from visualization_msgs.msg import Marker, MarkerArray
 from tf2_ros import Buffer, TransformListener, TransformException
 from z70_interfaces.msg import GarmentObservation, GarmentObservations
-from z70_driver.frame_subscription import MatchedFrames
+from z70_driver.frame_subscription import MatchedFrames, read_pipe_exact, stop_worker_process, worker_env
 from .perception import front_camera, calibration
 from .garment_geometry import observe, geofence, GarmentTracker
 from .garment_worker import decode_result, MAX_PACKET, BACKENDS
@@ -86,10 +84,7 @@ class GarmentNode(Node):
         self.set_status(dict(model_available=False, backend=backend, state='STARTING'))
         if backend not in BACKENDS:
             self.set_status(dict(model_available=False, error='UNKNOWN_BACKEND')); return
-        env = dict(os.environ)
-        for key in ('PYTHONPATH', 'PYTHONHOME', 'DYLD_LIBRARY_PATH'):
-            env.pop(key, None)
-        env.update(HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1', HF_HUB_DISABLE_TELEMETRY='1')
+        env = worker_env(HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1', HF_HUB_DISABLE_TELEMETRY='1')
         try:
             self.process = subprocess.Popen([python, '-u', str(Path(__file__).with_name('garment_worker.py')),
                                              '--backend', backend, '--device', device], stdin=subprocess.PIPE,
@@ -116,20 +111,7 @@ class GarmentNode(Node):
             self.latest = (msg, deepcopy(meta))
 
     def read_exact(self, count):
-        proc = self.process; data = bytearray(); deadline = time.monotonic()+120
-        while len(data) < count and not self.stop_event.is_set():
-            if time.monotonic() > deadline:
-                raise TimeoutError('Garment inference deadline')
-            ready, _, _ = select.select([proc.stdout], [], [], .2)
-            if not ready:
-                continue
-            chunk = os.read(proc.stdout.fileno(), count-len(data))
-            if not chunk:
-                raise EOFError('Garment worker ended')
-            data.extend(chunk)
-        if len(data) != count:
-            raise EOFError('Garment worker interrupted')
-        return bytes(data)
+        return read_pipe_exact(self.process, count, self.stop_event)
 
     def run_worker(self, period):
         proc = self.process
@@ -242,28 +224,7 @@ class GarmentNode(Node):
                              confirmed=sum(x['confirmed'] for x in items)))
 
     def close(self):
-        self.stop_event.set()
-        proc = self.process
-        if proc is None:
-            return
-        # Closing stdin delivers EOF. Bound teardown even if child is in inference.
-        if proc.stdin:
-            try:
-                proc.stdin.close()
-            except OSError:
-                pass
-        try:
-            proc.wait(timeout=5.)
-        except subprocess.TimeoutExpired:
-            proc.terminate()
-            try:
-                proc.wait(timeout=2.)
-            except subprocess.TimeoutExpired:
-                proc.kill(); proc.wait()
-        if self.worker:
-            self.worker.join(timeout=2.)
-        if proc.stdout:
-            proc.stdout.close()
+        stop_worker_process(self.process, self.worker, self.stop_event)
 
 
 def main():
