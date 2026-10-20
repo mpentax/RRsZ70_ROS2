@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { setTimeout as delay } from "node:timers/promises";
 import { CameraSelector } from "./camera-selection.ts";
 import { TransportError } from "./rpc-outcome.ts";
+import { createService } from "./service.ts";
+import { loadServiceConfig } from "./service-config.ts";
 
 const jpeg = (camera: number) => Buffer.from([255,216,255,192,0,11,8,...(camera ? [3,128] : [4,176]),6,64,1,1,17,0,255,218,0,2,255,217]);
 
@@ -74,13 +76,12 @@ test("stale pre-switch JPEGs are drained, never tagged as gripper", async () => 
 });
 
 test("a confirmed switch passes the selected camera without restarting the warm receivers", async () => {
-  const { CameraSelector } = await import("./camera-selection.ts");
   let bit = 0;
   const switched: string[] = [];
   const warmed: string[] = [];
   const selector = new CameraSelector(async (method, params) => {
     if (method === "get_camera_status") return [bit << 15];
-    if (method === "app_change_camera") { bit = (params as { flag: number }).flag; throw new (await import("./rpc-outcome.ts")).TransportError("Camera RPC timed out", "unknown"); }
+    if (method === "app_change_camera") { bit = (params as { flag: number }).flag; throw new TransportError("Camera RPC timed out", "unknown"); }
     return ["ok"];
   }, (camera) => { switched.push(camera); });
   assert.equal(await selector.select("gripper", async (current) => { warmed.push(current); }), "gripper");
@@ -91,8 +92,6 @@ test("a confirmed switch passes the selected camera without restarting the warm 
 });
 
 test("service switches between front and gripper using pre-warmed per-camera streams without closing go2rtc", async t => {
-  const { createService } = await import("./service.ts");
-  const { loadServiceConfig } = await import("./service-config.ts");
   let selected = 0, closed = 0;
   const framesRequested: string[] = [];
   const token = "c".repeat(43);
@@ -130,12 +129,8 @@ test("service switches between front and gripper using pre-warmed per-camera str
   });
   await service.start();
   t.after(() => service.stop());
-  const addr = service.server.address();
-  assert.ok(addr && typeof addr === "object");
-  const origin = `http://127.0.0.1:${addr.port}`;
-  config.allowedHosts.push(`127.0.0.1:${addr.port}`);
-  config.publicOrigin = origin;
-  const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+  const origin = service.origin;
+  const headers = { Authorization: ["Bearer", token].join(" "), "Content-Type": "application/json" };
 
   const f1 = await fetch(origin + "/api/camera/frame", { method: "POST", headers, body: "{}" });
   assert.equal(f1.status, 200);

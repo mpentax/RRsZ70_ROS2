@@ -38,8 +38,7 @@ async function fixture(t: import("node:test").TestContext) {
       calls.push(`frame:${selected}`); if (captureFailure && selected === 1) throw Error("failed"); return jpeg(wrongShape ? 1 : selected);
     }} });
   await service.start(); t.after(() => service.stop());
-  const addr = service.server.address(); assert.ok(addr && typeof addr === "object");
-  const origin = `http://127.0.0.1:${addr.port}`; config.allowedHosts.push(`127.0.0.1:${addr.port}`); config.publicOrigin = origin;
+  const origin = service.origin;
   return { calls, timeouts, appSwitch(value: number) { selected = value; }, wrongShape() { wrongShape = true; }, noFlip() { noFlip = true; }, setCommon(value: number) { common = value; }, failCapture() { captureFailure = true; }, unknownSelection() { selectionUnknown = true; }, selected: () => selected,
     select: (body: unknown) => fetch(origin + "/api/driver/camera/select", { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify(body) }),
     post: (body: unknown) => fetch(origin + "/api/camera/frame", { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify(body) }) };

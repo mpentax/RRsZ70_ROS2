@@ -32,10 +32,7 @@ test("private acquisition reports an empty go2rtc startup response without priva
     },
   }) });
   await service.start(); t.after(() => service.stop());
-  const address = service.server.address(); assert.ok(address && typeof address === "object");
-  config.allowedHosts.push(`127.0.0.1:${address.port}`);
-  config.publicOrigin = `http://127.0.0.1:${address.port}`;
-  const response = await realFetch(config.publicOrigin+'/api/camera/frame',{method:'POST',headers:{Host:'127.0.0.1:57000',Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:'{}'});
+  const response = await realFetch(service.origin+'/api/camera/frame',{method:'POST',headers:{Host:'127.0.0.1:57000',Authorization:['Bearer',token].join(' '),'Content-Type':'application/json'},body:'{}'});
   assert.equal(response.status,502);
   const error=await response.json() as Record<string,unknown>;
   assert.equal(error.cameraFailure,'no_camera_image');assert.equal(error.upstreamStatus,200);

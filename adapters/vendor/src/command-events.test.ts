@@ -23,9 +23,7 @@ test('live event stream authenticates and preserves attempts, uncertainty and cl
   const config = {...loadServiceConfig(),port:0};
   const service = await createService({store, config, robotFactory:()=>robot});
   await service.start();
-  const address=service.server.address(); assert.ok(address && typeof address==='object');
-  const origin=`http://127.0.0.1:${address.port}`;
-  config.allowedHosts.push(`127.0.0.1:${address.port}`); config.publicOrigin=origin;
+  const origin=service.origin;
   const controller = new AbortController();
   try {
     assert.equal((await fetch(origin+'/api/commands/events')).status,401);
