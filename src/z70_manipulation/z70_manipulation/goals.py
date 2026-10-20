@@ -185,7 +185,9 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         feedback=lambda **fields: None,
         outcome=lambda success: CommandOutcome(error_code='NONE' if success else 'OBSERVATION_GAP'),
     )
-    defaults.update(overrides)
+    callable_keys = {p['name'] for p in GOAL_CONTEXT_PRIMITIVES}
+    for k, v in overrides.items():
+        defaults[k] = (lambda *_a, _v=v, **_kw: _v) if k in callable_keys and not callable(v) else v
     return spec.run(SimpleNamespace(**defaults), request)
 
 
@@ -351,7 +353,9 @@ class GoalContext:
         from .garment_delivery import GarmentDeliverer
         runner = GarmentDeliverer(
             self.observations, self.executor,
-            boundary_config=self.server.navigation_config, feedback=self.feedback,
+            boundary_config=self.server.navigation_config,
+            towing_config=getattr(self.server, 'towing_config', None),
+            feedback=self.feedback,
         )
         return self._run_garment_runner(runner, SimpleNamespace(
             category=str(category), drop_x_m=float(drop_x_m), drop_y_m=float(drop_y_m),
@@ -363,7 +367,9 @@ class GoalContext:
         from .patrol import PatrolCollector, PatrolLedger
         runner = PatrolCollector(
             self.observations, self.executor, PatrolLedger(self.server.patrol_directory),
-            boundary_config=self.server.navigation_config, feedback=self.feedback,
+            boundary_config=self.server.navigation_config,
+            towing_config=getattr(self.server, 'towing_config', None),
+            feedback=self.feedback,
         )
         return self._run_garment_runner(runner, SimpleNamespace(
             drop_x_m=float(drop_x_m), drop_y_m=float(drop_y_m), max_duration_s=float(max_duration_s),

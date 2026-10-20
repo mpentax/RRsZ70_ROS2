@@ -285,8 +285,8 @@ export function createRoboClawMcp(client: RoboClawMcpClient): McpServer {
   ]).or(z.object({ kind: z.string().min(1) }).passthrough());
   server.registerTool('list_goals', {title: 'List ROS goals and GoalContext primitives', description: 'List all registered ROS 2 action goals, their required fields, and GoalContext authoring primitives.', annotations: READONLY},
     jsonTool(() => client.listGoals()));
-  server.registerTool('start_task', {title: 'Start bounded ROS action', description: 'Start a ROS action or manipulation primitive and return its goal UUID (or validate/simulate without actuation).', inputSchema: {task: taskSchema, validateOnly: z.boolean().optional(), simulate: z.boolean().optional()}, annotations: ACTUATION},
-    jsonTool(({task, validateOnly, simulate}) => validateOnly === true || simulate === true ? client.validateGoal(simulate === true ? {...task, simulate: true} : task) : client.startTask(task)));
+  server.registerTool('start_task', {title: 'Start bounded ROS action', description: 'Start a ROS action or manipulation primitive and return its goal UUID (or validate/simulate without actuation).', inputSchema: {task: taskSchema, validateOnly: z.boolean().optional(), simulate: z.boolean().optional(), context: z.record(z.string(), z.unknown()).optional()}, annotations: ACTUATION},
+    jsonTool(({task, validateOnly, simulate, context}) => validateOnly === true || simulate === true || context !== undefined ? client.validateGoal({...task, ...(simulate === true || context !== undefined ? {simulate: true} : {}), ...(context !== undefined ? {context} : {})}) : client.startTask(task)));
   server.registerTool('list_tasks', {title:'List shared tasks', description:'List active and recent ROS tasks.', annotations:READONLY},
     jsonTool(() => client.request('/api/ros/tasks')));
   server.registerTool('get_task', {title:'Get shared task', description:'Read status, phase, and result for a ROS task UUID.', inputSchema:{id:idSchema}, annotations:READONLY},

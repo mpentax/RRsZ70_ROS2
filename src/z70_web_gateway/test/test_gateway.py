@@ -176,6 +176,16 @@ def test_validation_token_and_closed_error_contract(system, tmp_path):
     assert valid.status_code == 200 and valid.json() == {'valid': True, 'kind': 'pick', 'topic': '/z70/pick', 'action': 'Pick'}
     simulated = request('POST', '/api/ros/goals/validate', {'kind': 'pick', 'goal': {'color': 'yellow', 'dry_run': True}, 'simulate': True})
     assert simulated.status_code == 200 and simulated.json()['simulated']['ok'] is True and simulated.json()['simulated']['result']['dry_run_valid'] is True
+    sim_override = request('POST', '/api/ros/goals/validate', {
+        'kind': 'pick', 'goal': {'color': 'yellow', 'dry_run': True},
+        'simulate': True, 'context': {'pick': {'verified': False, 'dry_run': True, 'target': None}},
+    })
+    assert sim_override.status_code == 200 and sim_override.json()['simulated']['ok'] is False
+    bad_ctx = request('POST', '/api/ros/goals/validate', {
+        'kind': 'pick', 'goal': {'color': 'yellow', 'dry_run': True},
+        'simulate': True, 'context': {'unknown_primitive': 1},
+    })
+    assert bad_ctx.status_code == 400 and bad_ctx.json()['error'] == 'INVALID_INPUT'
     invalid = request('POST', '/api/ros/goals/validate', {'kind': 'pick', 'goal': {'color': 'yellow', 'dry_run': 1}})
     assert invalid.status_code == 400 and invalid.json()['valid'] is False and invalid.json()['error'] == 'INVALID_INPUT'
     assert request('GET','/api/ros/state',token='wrong').status_code == 401

@@ -213,11 +213,14 @@ class Gateway(Node):
         try:
             if not isinstance(body, dict): raise ApiError(400, 'INVALID_INPUT')
             simulate = body.get('simulate', False)
-            if type(simulate) is not bool: raise ApiError(400, 'INVALID_INPUT')
-            kind, topic, cls, message = self.goal_message({k: v for k, v in body.items() if k != 'simulate'})
+            context = body.get('context', {})
+            if type(simulate) is not bool or not isinstance(context, dict): raise ApiError(400, 'INVALID_INPUT')
+            allowed_ctx = {p['name'] for p in GOAL_CONTEXT_PRIMITIVES}
+            if set(context) - allowed_ctx: raise ApiError(400, 'INVALID_INPUT')
+            kind, topic, cls, message = self.goal_message({k: v for k, v in body.items() if k not in ('simulate', 'context')})
             res = {'valid': True, 'kind': kind, 'topic': topic, 'action': cls.__name__}
             if simulate:
-                sim_ok, sim_res = simulate_goal(ALL_GOALS[kind], message)
+                sim_ok, sim_res = simulate_goal(ALL_GOALS[kind], message, **context)
                 res['simulated'] = {'ok': bool(sim_ok), 'result': data(sim_res)}
             return 200, res, {}
         except ApiError as e:
