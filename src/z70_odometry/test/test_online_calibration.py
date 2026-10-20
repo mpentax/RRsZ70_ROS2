@@ -16,9 +16,8 @@ from rclpy.executors import SingleThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile
 from z70_interfaces.msg import CalibrationState, CommandEvent, OdometryStatus
-from z70_odometry import calibration_state as resources
-from z70_odometry.calibration_state import CalibrationPublication, calibrated_camera_x, fill_state, gains_from_state
-from z70_odometry.chassis_calibrator import CommandStream, OnlineCalibration, _arc
+from z70_odometry import chassis_calibrator as resources
+from z70_odometry.chassis_calibrator import CalibrationPublication, CommandStream, OnlineCalibration, _arc, calibrated_camera_x, fill_state, gains_from_state
 
 
 def motion(c, index, velocity=0, omega=.5, rejected=False, silent=False, dispatch='sent'):

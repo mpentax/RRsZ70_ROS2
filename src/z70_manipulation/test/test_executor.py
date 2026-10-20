@@ -15,7 +15,8 @@ from rosidl_runtime_py.convert import message_to_ordereddict
 from std_msgs.msg import String
 from visualization_msgs.msg import MarkerArray
 from z70_interfaces.action import AlignToTarget, DeployArm, GraspAndLift, MoveArm, Pick, ReleaseAndStow, Stack
-from z70_manipulation import perception, placement, planner
+from z70_manipulation import perception, planner
+from z70_manipulation import planner as placement
 from z70_manipulation.cli import run, run_stack
 from z70_manipulation.executor import Client, Executor
 from z70_manipulation.goals import ALL_GOALS, BUILTIN_GOALS, GoalContext, GoalSpec, simulate_goal

@@ -17,7 +17,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-from .calibration_state import front_calibration_path, initial_camera_x_m
+from .chassis_calibrator import front_calibration_path, initial_camera_x_m
 
 
 class FloorCamera:

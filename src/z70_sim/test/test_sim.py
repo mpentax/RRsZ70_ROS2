@@ -17,7 +17,7 @@ from rclpy.parameter import Parameter
 from z70_driver.driver import Driver
 from z70_interfaces.action import PatrolCollect
 from z70_interfaces.msg import FrameMetadata
-from z70_manipulation import perception, placement
+from z70_manipulation import perception, planner as placement
 from z70_manipulation.executor import Executor
 from z70_manipulation.garment_delivery import TowingQualificationConfig, loaded_route
 from z70_manipulation.garment_geometry import GarmentTracker, geofence, observe

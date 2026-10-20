@@ -23,7 +23,7 @@ from tf2_ros import Buffer, TransformListener, TransformException
 import yaml
 
 from z70_interfaces.msg import ArmEstimate, CalibrationState, CommandOutcome
-from z70_odometry.calibration_state import gains_from_state
+from z70_odometry.chassis_calibrator import gains_from_state
 from z70_driver.frame_subscription import MatchedFrames
 from z70_mapping.boundary import BoundaryConfig
 from z70_mapping.decoder import quat_yaw

@@ -9,7 +9,8 @@ import cv2
 import numpy as np
 import requests
 from z70_description.arm_model import LIMITS
-from . import perception, placement, planner
+from . import perception, planner
+from . import planner as placement
 from .observations import Commands, Observations, read_arm, read_status
 
 TRACK_GATE_M = .12

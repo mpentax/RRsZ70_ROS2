@@ -23,7 +23,8 @@ from z70_interfaces.msg import ArmEstimate, CommandOutcome
 from z70_mapping.boundary import check_corridor_containment, compute_safe_interior
 from z70_mapping.decoder import spatial_context as compute_spatial_context
 from z70_mapping.dynamic_layer import mobility_from_suitability
-from . import perception, placement, planner
+from . import perception, planner
+from . import planner as placement
 from .executor import Executor
 from .garment_delivery import GarmentDeliverer, graspable_garments, loaded_route
 from .garment_geometry import transform_xy

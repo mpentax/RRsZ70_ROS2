@@ -3,7 +3,8 @@ import cv2
 import numpy as np
 import pytest
 from z70_description import pincher_geometry as hand
-from z70_manipulation import perception, placement, planner as p
+from z70_manipulation import perception, planner as p
+from z70_manipulation import planner as placement
 
 
 def test_firmware_endpoint_is_separate_from_cad_hand_and_camera():
