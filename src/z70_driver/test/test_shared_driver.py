@@ -267,7 +267,7 @@ def test_all_generated_observation_and_service_types_serialize():
     assert Driver.acquisition_session(first,backend)!=Driver.acquisition_session(second,backend)
     module=importlib.import_module('z70_interfaces.msg')
     names=['EvidenceStamp','Validity','RobotState','CameraState','FrameMetadata','ArmEstimate',
-           'OdometryStatus','RoomLabel','MapSnapshot','ObjectObservation','ObjectObservations',
+           'OdometryStatus','RoomLabel','MapSnapshot','GarmentObservation','GarmentObservations',
            'CommandOutcome','CommandEvent']
     for name in names:
         cls=getattr(module,name);msg=cls()
