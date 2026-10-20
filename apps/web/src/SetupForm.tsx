@@ -41,7 +41,7 @@ export function SetupForm({setup,onUpdated}:{setup:Setup|null;onUpdated:()=>Prom
     </div>
     <p className="caption">
       {setup?.device ? `Selected robot: ${setup.device.name} (${setup.device.model}) at ${setup.device.host} · protocol ${setup.device.localProtocol}` : 'No selected device.'}{' '}
-      Authenticate or reauthenticate here. Secrets stay server-side and are not sent to ROS or MCP. Use the existing camera pattern; this does not change the robot PIN.
+      Authenticate your Roborock account, select your robot and LAN IP, and save your existing camera pattern.
     </p>
     <div className="setup-grid">
       <form onSubmit={e => {e.preventDefault();void submit(async () => {await json('/api/account/code',{body:{email,region}});setStage('code');setCode('');setMessage('Code sent. Enter it here within 20 minutes.');});}}>

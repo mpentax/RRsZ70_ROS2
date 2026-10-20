@@ -204,7 +204,7 @@ def test_real_dds_pin_and_go_dry_run_and_unverified_map():
         executor.add_node(server); executor.add_node(peer)
         pubs = {cls: peer.create_publisher(cls, topic, LATCHED) for cls, topic in (
             (ArmEstimate, '/z70/arm_estimate'), (RobotState, '/z70/state'),
-            (MapSnapshot, '/z70/driver/map_snapshot'), (OccupancyGrid, '/z70/map/safe_grid'))}
+            (MapSnapshot, '/z70/driver/map_snapshot'))}
         state = RobotState(connected=True, robot_state=3, robot_state_known=True, error_code_known=True,
                            common_status_known=True, battery_known=True, battery_fraction=.8,
                            cleaning_known=True, returning_known=True)
@@ -214,7 +214,6 @@ def test_real_dds_pin_and_go_dry_run_and_unverified_map():
         snapshot.evidence.valid = True; snapshot.evidence.sequence = 1
         snapshot.evidence.received_at = peer.get_clock().now().to_msg()
         pubs[RobotState].publish(state); pubs[ArmEstimate].publish(arm); pubs[MapSnapshot].publish(snapshot)
-        pubs[OccupancyGrid].publish(OccupancyGrid())
         calls = []; native = {'active': False, 'refreshes': 0}
 
         def session(request, response):
@@ -252,7 +251,7 @@ def test_real_dds_pin_and_go_dry_run_and_unverified_map():
         thread = threading.Thread(target=executor.spin); thread.start()
         assert action.wait_for_server(timeout_sec=5.)
         wait(lambda: server.observations.map_snapshot is not None and server.observations.arm is not None
-             and server.observations.state is not None and server.observations.safe_grid is not None)
+             and server.observations.state is not None)
 
         def goal(dry_run=True):
             future = action.send_goal_async(PinAndGo.Goal(target_x_m=2., target_y_m=1., max_duration_s=5., dry_run=dry_run))
