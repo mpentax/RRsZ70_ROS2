@@ -1,7 +1,12 @@
+import json
 import cv2
 import numpy as np
 import pytest
-from z70_manipulation import perception as p
+import rclpy
+import yaml
+from z70_description.resources import config_path
+from z70_manipulation import perception as p, planner
+from z70_manipulation.node import Perception
 
 
 def test_coloured_blobs_reject_tiles_and_noise():
@@ -75,3 +80,40 @@ def test_contact_uses_bottom_pixels_not_sparse_contour_vertices():
     jpeg=cv2.imencode('.jpg',image)[1]
     blob=p.detect(cv2.imdecode(jpeg,cv2.IMREAD_COLOR))[0]
     assert blob['contact_px'][0]==pytest.approx(693,abs=3)
+
+
+def test_default_front_works_without_checkout_or_cwd(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path); monkeypatch.setenv('Z70_REPO', '/missing/archive')
+    p.front_camera.cache_clear()
+    cam = p.front_camera()
+    assert (cam.width, cam.height) == (1600, 1200)
+    pixel = cam.floor_to_pixel(400., 50.)
+    point = cam.pixel_to_floor(*pixel)
+    assert [point['forward_mm'], point['left_mm']] == pytest.approx([400., 50.], abs=1e-7)
+    assert p.calibration()['front_camera_x_m'] > 0
+
+
+def test_fallback_lenses_match_active_resources():
+    lens = p.gripper_camera_info()
+    assert np.array_equal(planner.GRIPPER_MATRIX, np.array(lens['camera_matrix']['data']).reshape(3, 3))
+    assert np.array_equal(planner.GRIPPER_D, np.array(lens['distortion_coefficients']['data']))
+    front = json.loads(config_path('front_camera.json').read_text())
+    info = yaml.safe_load(config_path('z70_front_camera_info.yaml').read_text())
+    expected = [front['f_px'], 0., front['cx'], 0., front['f_px'], front['cy'], 0., 0., 1.]
+    assert info['camera_matrix']['data'] == [round(x, 3) for x in expected]
+    assert info['distortion_coefficients']['data'] == [round(front['k1'], 6), round(front['k2'], 6), 0., 0., 0.]
+
+
+def test_node_before_camera_info_uses_shared_pincher_lens():
+    rclpy.init(domain_id=91)
+    node = None
+    try:
+        node = Perception(name='pincher_lens_fallback_test', subscribe=False)
+        assert node.K == pytest.approx(planner.GRIPPER_MATRIX, abs=1e-12)
+        assert node.D == pytest.approx(planner.GRIPPER_D, abs=1e-12)
+        assert not np.shares_memory(node.K, planner.GRIPPER_MATRIX)
+        assert not np.shares_memory(node.D, planner.GRIPPER_D)
+    finally:
+        if node is not None:
+            node.destroy_node()
+        rclpy.try_shutdown()

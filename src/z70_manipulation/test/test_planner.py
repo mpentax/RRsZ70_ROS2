@@ -103,3 +103,50 @@ def test_stack_tier_plans_cover_three_dodecahedron_tiers():
         assert abs(t['operational_point_m'][2] - t['target_equator_z_m']) <= 0.020
     with pytest.raises(ValueError):
         p.stack_tier_plan(4)
+
+
+def test_floor_safety_checks_the_whole_open_hand_and_roll():
+    candidates = [(a, b, roll, 90) for a in range(180, 271, 5) for b in range(35, 171, 5) for roll in (0, 40, 90)]
+    examples = [s for s in candidates if p.tip_floor_bound(s) >= p.MIN_TIP and
+                hand.lowest(hand.world_bodies(s)) - hand.CONFIG['uncertainty_m'] < p.MIN_TIP]
+    assert examples
+    assert not any(p.safe(s) for s in examples)
+    with pytest.raises(ValueError):
+        hand.world_bodies([250, 95, float('nan'), 90])
+    with pytest.raises(ValueError):
+        hand.world_bodies([250, 95, 0, 91])
+
+
+def test_new_anatomy_routes_to_operational_equator_not_unsafe_historical_preset():
+    assert p.GRASP == (250, 95)
+    plan = p.grasp_goal([.43, 0, 0], (190, 65))
+    state = tuple(plan['state'])
+    assert p.safe(state)
+    assert abs(p.operational_point(state)[2] - .033) <= .012
+    assert plan['steps']
+
+
+def test_operational_query_exposes_frames_regions_and_opening_not_legacy_tcp():
+    gaps = []
+    for m6 in (0, 45, 90):
+        detail = hand.articulated_geometry((240, 95, 40, m6))
+        gaps.append(detail['terminal_gap_m'])
+        assert set(detail['finger_frames']) == {'finger_left', 'finger_right'}
+        assert {b.name for b in detail['pad_regions']} == {'finger_left', 'finger_right'}
+        assert detail['finger_frames']['finger_left'] == pytest.approx(hand.hand_pose((240, 95, 40, m6)) @ hand.finger_frame(1, m6))
+    assert gaps[0] > .01 and gaps[0] < gaps[1] < gaps[2]
+    body = hand.world_bodies((190, 65))[0]
+    assert not p.safe((190, 65), [(body.center - .001, body.center + .001)])
+    assert not p.safe_edge((190, 65), (190, 75), [(body.center - .001, body.center + .001)])
+    assert p.safe((190, 65), [([8, 8, 8], [9, 9, 9])])
+    for invalid in (float('nan'), -1, 91):
+        with pytest.raises(ValueError):
+            hand.local_bodies(invalid)
+    with pytest.raises(ValueError, match='M3/M4'):
+        p.joint_plan((190, 65, 0, 90), (190, 65, 0, 45))
+
+
+def test_four_angle_edges_include_m6_and_reject_mismatched_states():
+    assert p.safe_edge((190, 65, 0, 90), (190, 65, 40, 45))
+    with pytest.raises(ValueError):
+        p.safe_edge((190, 65), (190, 65, 0, 90))
