@@ -823,6 +823,7 @@ DRIVER_GOALS: dict[str, GoalSpec] = {
             read_only=lambda _: False,
             fields=('linear_mps', 'angular_radps', 'duration'),
             validate_payload=_valid_pulse_payload,
+            description='Execute a bounded linear or angular chassis RC pulse (<=0.8 s, |v|<=0.1 m/s, |w|<=0.5 rad/s).',
         ),
         GoalSpec(
             'arm_step', ArmStep, '/z70/arm/step', 35.,
@@ -835,6 +836,7 @@ DRIVER_GOALS: dict[str, GoalSpec] = {
             fields=('joint', 'direction'),
             validate_payload=lambda p: (type(p['joint']) is int and p['joint'] in (3, 4, 5, 34, 43)
                                         and type(p['direction']) is int and p['direction'] in (-1, 1)),
+            description='Step arm joint M3 (3), M4 (4), M5 (5), or coupled M3+M4 (34/43) by +/-10 deg.',
         ),
         GoalSpec(
             'hand_step', HandStep, '/z70/arm/hand_step', 35.,
@@ -846,6 +848,7 @@ DRIVER_GOALS: dict[str, GoalSpec] = {
             read_only=lambda _: False,
             fields=('direction',),
             validate_payload=lambda p: _int_in(p['direction'], 1, 4),
+            description='Step end-effector along +Y (1), -Y (2), +X (3), or -X (4) by 0.04 m via sagittal IK.',
         ),
         GoalSpec(
             'arm_operation', ArmOperation, '/z70/arm/operation', 60.,
@@ -857,6 +860,7 @@ DRIVER_GOALS: dict[str, GoalSpec] = {
             read_only=lambda _: False,
             fields=('operation',),
             validate_payload=lambda p: _int_in(p['operation'], 1, 9),
+            description='Execute vendor arm operation (1=deploy, 2=stow, 3=open_gripper, 4=grip, 5=put_down, 6=enter_pickup, 7=manual_arm_mode, 8=exit_pickup, 9=recover).',
         ),
     )
 }
