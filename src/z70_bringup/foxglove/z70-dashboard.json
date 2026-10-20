@@ -279,7 +279,7 @@
         "/z70/world/markers": {
           "visible": true
         },
-        "/z70/garments/markers": {
+        "/z70/garments": {
           "visible": true
         },
         "/z70/objects": {
@@ -620,7 +620,7 @@
         "/z70/world/markers": {
           "visible": false
         },
-        "/z70/garments/markers": {
+        "/z70/garments": {
           "visible": false
         },
         "/z70/objects": {
@@ -897,7 +897,7 @@
         "/z70/world/markers": {
           "visible": false
         },
-        "/z70/garments/markers": {
+        "/z70/garments": {
           "visible": false
         },
         "/z70/objects": {

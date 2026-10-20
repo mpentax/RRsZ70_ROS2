@@ -20,10 +20,9 @@ import yaml
 from z70_description import arm_model as hand
 from z70_description.arm_model import config_path
 from z70_interfaces.msg import FrameMetadata, GarmentObservations
-from z70_manipulation import garment_node, perception, planner
-from z70_manipulation.garment_node import GarmentNode, observations_message, seconds
+from z70_manipulation import perception, planner
 from z70_manipulation.node import Perception
-from z70_manipulation.perception import FrontCamera
+from z70_manipulation.perception import FrontCamera, GarmentNode, observations_message, seconds
 
 ROOT = Path(__file__).resolve().parents[3]
 CAM = FrontCamera(800., 800., 400., 0., 0., [[0, -1, 0], [0, 0, -1], [1, 0, 0]], 60., 1600, 1200)
@@ -249,24 +248,24 @@ def test_suitability_requires_explicit_qualification():
 
 def test_worker_framing_eof_invalid_image_and_contour_backend():
     stream = io.BytesIO(struct.pack('<I', 3) + b'abc')
-    assert garment_node.read_packet(stream) == b'abc'
-    with pytest.raises(EOFError): garment_node.read_packet(stream)
-    with pytest.raises(EOFError): garment_node.read_exact(io.BytesIO(b'x'), 2)
-    with pytest.raises(ValueError): garment_node.read_packet(io.BytesIO(struct.pack('<I', 9 * 1024 * 1024)))
+    assert perception.read_packet(stream) == b'abc'
+    with pytest.raises(EOFError): perception.read_packet(stream)
+    with pytest.raises(EOFError): perception.read_exact(io.BytesIO(b'x'), 2)
+    with pytest.raises(ValueError): perception.read_packet(io.BytesIO(struct.pack('<I', 9 * 1024 * 1024)))
     image = np.full((120, 160, 3), 180, np.uint8)
     cv2.rectangle(image, (60, 70), (100, 100), (80, 40, 190), -1)
-    model = garment_node.GarmentModel('contour_fallback')
+    model = perception.GarmentModel('contour_fallback')
     detections, quality = model.infer(image)
     assert not quality['model_available'] and quality['backend'] == 'contour_fallback'
     assert detections and detections[0]['mask'].shape == image.shape[:2]
-    data = garment_node.encode_result(detections, quality)
-    decoded, info = garment_node.decode_result(data)
+    data = perception.encode_result(detections, quality)
+    decoded, info = perception.decode_result(data)
     assert np.array_equal(decoded[0]['mask'], detections[0]['mask'])
     assert info == quality
 
 
 def test_persistent_worker_subprocess_two_frames_and_clean_eof():
-    script = ROOT / 'src/z70_manipulation/z70_manipulation/garment_node.py'
+    script = ROOT / 'src/z70_manipulation/z70_manipulation/perception.py'
     image = np.full((120, 160, 3), 180, np.uint8)
     jpeg = cv2.imencode('.jpg', image)[1].tobytes()
     payload = struct.pack('<I', len(jpeg)) + jpeg
@@ -275,7 +274,7 @@ def test_persistent_worker_subprocess_two_frames_and_clean_eof():
     assert proc.returncode == 0, proc.stderr.decode()
     stream = io.BytesIO(proc.stdout)
     for _ in range(2):
-        _, quality = garment_node.decode_result(garment_node.read_packet(stream))
+        _, quality = perception.decode_result(perception.read_packet(stream))
         assert not quality['model_available']
     assert not stream.read()
 
@@ -296,10 +295,10 @@ def test_ros_garment_serialization_preserves_provenance_and_unknown_suitability(
 
 
 def test_worker_invalid_jpeg_reports_unavailable_not_a_detection():
-    script = ROOT / 'src/z70_manipulation/z70_manipulation/garment_node.py'
+    script = ROOT / 'src/z70_manipulation/z70_manipulation/perception.py'
     proc = subprocess.run([sys.executable, str(script), '--backend', 'contour_fallback'],
                           input=struct.pack('<I', 3) + b'bad', capture_output=True, timeout=15)
-    detections, quality = garment_node.decode_result(garment_node.read_packet(io.BytesIO(proc.stdout)))
+    detections, quality = perception.decode_result(perception.read_packet(io.BytesIO(proc.stdout)))
     assert not detections and not quality['model_available'] and quality['error'] == 'ValueError'
 
 
@@ -387,11 +386,11 @@ def test_worker_loaders_are_pinned_and_offline(monkeypatch):
     monkeypatch.setitem(sys.modules, 'torch', NS())
     monkeypatch.setitem(sys.modules, 'transformers', NS(AutoProcessor=LocalLoader,
                          AutoModelForZeroShotObjectDetection=LocalLoader, CLIPSegForImageSegmentation=LocalLoader))
-    model = garment_node.GarmentModel('grounding_dino_clipseg')
+    model = perception.GarmentModel('grounding_dino_clipseg')
     assert model.error is None and len(calls) == 4
     for name, kwargs in calls:
         assert kwargs['local_files_only'] is True
-        assert kwargs['revision'] == (garment_node.DINO_REV if name == garment_node.DINO_ID else garment_node.CLIP_REV)
+        assert kwargs['revision'] == (perception.DINO_REV if name == perception.DINO_ID else perception.CLIP_REV)
 
 
 def test_real_calibration_synthetic_contact_roundtrip():

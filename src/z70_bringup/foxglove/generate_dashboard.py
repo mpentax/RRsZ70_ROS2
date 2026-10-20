@@ -81,7 +81,7 @@ def scene(name, overview=True, distance=None, follow_tf='odom'):
         '/z70/map/dynamic_obstacles': dict(visible=False, colorMode='map', alpha=.5, frameLocked=True),
         '/z70/map/markers': dict(visible=overview),
         '/z70/world/markers': dict(visible=overview),
-        '/z70/garments/markers': dict(visible=overview),
+        '/z70/garments': dict(visible=overview),
         '/z70/objects': dict(visible=True),
         '/z70/floor_mosaic': dict(visible=False, cubeOutline=False, pointShape='circle', frameLocked=True, cameraInfoTopic='/z70/camera_info', distance=.01),
         '/z70/floor_mosaic_mask': dict(visible=False, cubeOutline=False, pointShape='circle', frameLocked=True, cameraInfoTopic='/z70/camera_info', distance=.01),
