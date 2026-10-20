@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 import rclpy
 import yaml
-from z70_description.resources import config_path
+from z70_description.arm_model import config_path
 from z70_manipulation import perception as p, planner
 from z70_manipulation.node import Perception
 

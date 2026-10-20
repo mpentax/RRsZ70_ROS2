@@ -5,8 +5,8 @@ import cv2
 import numpy as np
 import yaml
 from z70_description import pincher_geometry as hand
+from z70_description.arm_model import config_path, package_root
 from z70_description.floor_geometry import FrontCamera
-from z70_description.resources import config_path, package_root
 
 _PACKAGE_ROOT = Path(__file__).resolve().parent.parent
 

@@ -1,7 +1,7 @@
 """Pincher housing, finger rings, and OBB collision bodies in metres (elbow/link2-zero gauge)."""
 from dataclasses import dataclass
 from functools import lru_cache
-from .resources import config_path
+from .arm_model import config_path
 import math
 import numpy as np
 import yaml

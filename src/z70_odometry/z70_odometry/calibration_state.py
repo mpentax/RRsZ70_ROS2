@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 import uuid
 import yaml
-from z70_description.resources import config_path, package_root
+from z70_description.arm_model import config_path, package_root
 from z70_interfaces.msg import CalibrationState
 
 _FALLBACK_ROOT = Path(__file__).resolve().parent.parent

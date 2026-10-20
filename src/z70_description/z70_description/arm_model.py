@@ -7,9 +7,29 @@ Frame (app 2-D, sagittal plane): x forward, y up, metres.
 y ~ 0 is the floor (ground-collision check y < 0.01); the robot body occupies |x| < 0.24, y < 0.14.
 """
 import math
+from pathlib import Path
 import yaml
 
-from .resources import config_path
+
+def package_root(package_name: str, fallback: Path) -> Path:
+    try:
+        from ament_index_python.packages import get_package_share_directory, PackageNotFoundError
+    except ImportError:
+        return fallback
+    try:
+        return Path(get_package_share_directory(package_name))
+    except PackageNotFoundError:
+        return fallback
+
+
+def config_path(name: str) -> Path:
+    """Resolve a configuration basename under z70_description/config."""
+    if Path(name).name != name:
+        raise ValueError('configuration name must be a basename')
+    path = package_root('z70_description', Path(__file__).resolve().parent.parent) / 'config' / name
+    if not path.is_file():
+        raise FileNotFoundError(path)
+    return path
 
 SHOULDER = (0.0475, 0.14)       # m2_pos: shoulder pivot (M3)           #32735 / W #32741
 VENDOR_L1, VENDOR_L2 = 0.1775, 0.205
