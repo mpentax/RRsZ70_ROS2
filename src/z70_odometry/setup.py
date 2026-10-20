@@ -12,6 +12,6 @@ setup(
                 for path in sorted(glob('config/chassis/*/fit.json'))],
     install_requires=["setuptools", "numpy", "PyYAML"], zip_safe=True,
     entry_points={"console_scripts": ["floor_odometry = z70_odometry.node:main",
-                                       "chassis_calibrator = z70_odometry.chassis_calibrator:main",
+                                       "chassis_calibrator = z70_odometry.node:calibrator_main",
                                        "floor_mosaic = z70_odometry.node:mosaic_main"]},
 )

@@ -24,17 +24,19 @@ import pytest
 import rclpy
 from builtin_interfaces.msg import Time
 
-from z70_odometry import chassis_calibrator as resources, node as odom_node
-from z70_odometry.chassis_calibrator import (
+from z70_odometry import node as odom_node
+from z70_odometry.node import (
     CalibrationPublication,
     CommandStream,
+    FloorCamera,
+    FloorMosaic,
     OnlineCalibration,
     _arc,
     calibrated_camera_x,
     fill_state,
     gains_from_state,
+    render_floor_view,
 )
-from z70_odometry.node import FloorCamera, FloorMosaic, render_floor_view
 
 
 def stamp(ns):
@@ -556,28 +558,28 @@ def _cal_message():
 
 def test_runtime_calibration_path(monkeypatch, tmp_path):
     monkeypatch.setenv('XDG_DATA_HOME', str(tmp_path / 'data'))
-    first = resources.runtime_calibration_path()
+    first = odom_node.runtime_calibration_path()
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv('Z70_REPO', '/unusable/archive')
-    assert first == resources.runtime_calibration_path() == tmp_path / 'data/RRsZ70_ROS2/calibration/chassis/online.json'
+    assert first == odom_node.runtime_calibration_path() == tmp_path / 'data/RRsZ70_ROS2/calibration/chassis/online.json'
     assert not first.exists()
     monkeypatch.setenv('XDG_DATA_HOME', 'relative-invalid')
-    assert resources.runtime_calibration_path() == Path.home() / '.local/share/RRsZ70_ROS2/calibration/chassis/online.json'
+    assert odom_node.runtime_calibration_path() == Path.home() / '.local/share/RRsZ70_ROS2/calibration/chassis/online.json'
     monkeypatch.delenv('XDG_DATA_HOME')
-    assert resources.runtime_calibration_path() == Path.home() / '.local/share/RRsZ70_ROS2/calibration/chassis/online.json'
+    assert odom_node.runtime_calibration_path() == Path.home() / '.local/share/RRsZ70_ROS2/calibration/chassis/online.json'
 
 
 def test_initial_camera_x_m():
-    assert resources.initial_camera_x_m() == .16
+    assert odom_node.initial_camera_x_m() == .16
 
 
 def test_atomic_save_retains_identity(tmp_path):
     path = tmp_path / 'data/online.json'; estimator = OnlineCalibration(path)
-    estimator.seed(resources.seed_directory())
+    estimator.seed(odom_node.seed_directory())
     assert estimator.summary()['n'] > 0
     original = path.read_bytes(); ident = hashlib.sha256(original).hexdigest()
     assert estimator.calibration_id == ident
-    restored = OnlineCalibration(path); restored.seed(resources.seed_directory()); restored.save()
+    restored = OnlineCalibration(path); restored.seed(odom_node.seed_directory()); restored.save()
     assert path.read_bytes() == original
     assert restored.updated_at == estimator.updated_at
     assert restored.calibration_id == ident
@@ -604,7 +606,7 @@ def test_empty_state_snapshot(tmp_path):
 
 
 def test_seeded_state_snapshot(tmp_path):
-    estimator = OnlineCalibration(tmp_path / 'online.json'); estimator.seed(resources.seed_directory())
+    estimator = OnlineCalibration(tmp_path / 'online.json'); estimator.seed(odom_node.seed_directory())
     publication = CalibrationPublication(); state = publication.snapshot(estimator, 'receipt', _cal_message)
     assert state.validity.value == 1 and state.evidence.valid
     assert state.sample_count == estimator.summary()['n']
@@ -641,7 +643,7 @@ def test_ros_calibrator_consumes_stream_and_persists(tmp_path):
     path = tmp_path / 'online.json'
     log = (tmp_path / 'calibrator.log').open('w')
     process = subprocess.Popen(
-        [sys.executable, '-m', 'z70_odometry.chassis_calibrator', '--ros-args', '-p', f'output_file:={path}', '-p', 'seed_directory:=""'],
+        [sys.executable, '-m', 'z70_odometry.node', '--ros-args', '-p', f'output_file:={path}', '-p', 'seed_directory:=""'],
         env=dict(os.environ, ROS_DOMAIN_ID='95'), stdout=log, stderr=log)
     try:
         deadline = time.monotonic() + 8

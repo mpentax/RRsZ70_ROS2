@@ -25,7 +25,7 @@ import yaml
 
 from z70_interfaces.action import Pick, Stack
 from z70_interfaces.msg import ArmEstimate, CalibrationState, CommandOutcome
-from z70_odometry.chassis_calibrator import gains_from_state
+from z70_odometry.node import gains_from_state
 from z70_driver.driver import MatchedFrames
 from z70_mapping.boundary import BoundaryConfig
 from z70_mapping.node import quat_yaw
