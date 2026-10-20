@@ -46,6 +46,7 @@ GOAL_CONTEXT_PRIMITIVES: tuple[dict[str, str], ...] = (
     {'name': 'arm', 'signature': 'arm() -> dict', 'summary': 'Read the current arm joint and pose estimate dict.'},
     {'name': 'map_pose', 'signature': "map_pose(source='base_footprint') -> tuple[float, float, float]", 'summary': 'Lookup (x_m, y_m, yaw_rad) of a frame in the map.'},
     {'name': 'safe_interior', 'signature': 'safe_interior(refresh=False, deployed_arm_extension_m=0.)', 'summary': 'Return (map_snapshot, safe_interior_grid) for navigation and corridor planning.'},
+    {'name': 'spatial_context', 'signature': 'spatial_context(refresh: bool = False) -> dict', 'summary': 'Return ego-centric map context: current_room, rooms (centroids/distances/bearings), dock pose, and 8-sector clearance_sectors_m.'},
     {'name': 'plan_route', 'signature': 'plan_route(target_x_m: float, target_y_m: float, deployed_arm_extension_m: float = 0., refresh: bool = False) -> list[tuple[float, float]] | None', 'summary': 'Plan a collision-checked A* route on the eroded safe interior from the current robot pose to (target_x_m, target_y_m).'},
     {'name': 'objects', 'signature': "objects(camera='front', color=None) -> list[dict]", 'summary': 'Detect and project HSV objects in base_footprint from a fresh camera frame.'},
     {'name': 'garments', 'signature': "garments(category='any', after=None) -> list", 'summary': 'Return verified reachable garments from the garment observation pipeline.'},
@@ -129,6 +130,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         map_pose=lambda source='base_footprint': (0., 0., 0.),
         map_snapshot=lambda refresh=False, max_age_s=5.: None,
         safe_interior=lambda refresh=False, deployed_arm_extension_m=0.: (None, None),
+        spatial_context=lambda refresh=False: {'robot_pose_map': {'x': 0., 'y': 0., 'yaw': 0.}, 'current_room': None, 'rooms': [], 'dock': None, 'clearance_sectors_m': {}},
         plan_route=lambda target_x_m, target_y_m, deployed_arm_extension_m=0., refresh=False: [(float(target_x_m), float(target_y_m))],
         objects=lambda camera='front', color=None: [],
         observe_color=lambda camera, color: [],
@@ -224,6 +226,15 @@ class GoalContext:
         snap = self.map_snapshot(refresh=refresh)
         cfg = replace(self.server.navigation_config, deployed_arm_extension_m=deployed_arm_extension_m)
         return snap, compute_safe_interior(snap.map, snap.labels, cfg, snap.map.robot)
+
+    def spatial_context(self, refresh: bool = False) -> dict:
+        from z70_mapping.geometry import spatial_context as compute_spatial_context
+        snap = self.map_snapshot(refresh=refresh)
+        try:
+            pose = self.map_pose()
+        except LookupError:
+            pose = snap.map.robot
+        return compute_spatial_context(snap.map, snap.labels, pose)
 
     def plan_route(self, target_x_m: float, target_y_m: float, deployed_arm_extension_m: float = 0., refresh: bool = False) -> list[tuple[float, float]] | None:
         from .garment_delivery import loaded_route

@@ -105,6 +105,16 @@ class Dispatcher:
             self.task_id = uuid.uuid4().bytes
             return True, self.task_id, 'NONE'
 
+    def _finish_stop(self, ticket):
+        try:
+            ticket.stop_outcomes = self._stop(3)
+            with self.lock:
+                self.blocked = not self._stop_ok(ticket.stop_outcomes)
+        finally:
+            with self.lock:
+                ticket.stop_done.set()
+                self.stopping -= 1
+
     def end(self, task_id):
         with self.lock:
             if task_id == ZERO or task_id != self.task_id:
@@ -113,14 +123,7 @@ class Dispatcher:
             if previous:
                 self.stopping += 1
         if previous:
-            try:
-                previous.stop_outcomes = self._stop(3)
-                with self.lock:
-                    self.blocked = not self._stop_ok(previous.stop_outcomes)
-            finally:
-                with self.lock:
-                    previous.stop_done.set()
-                    self.stopping -= 1
+            self._finish_stop(previous)
         return True
 
     def cancel(self, ticket, launch):
@@ -129,16 +132,7 @@ class Dispatcher:
                 return
             self.stopping += 1
             self._revoke()
-        def finish():
-            try:
-                ticket.stop_outcomes = self._stop(3)
-                with self.lock:
-                    self.blocked = not self._stop_ok(ticket.stop_outcomes)
-            finally:
-                with self.lock:
-                    ticket.stop_done.set()
-                    self.stopping -= 1
-        launch(finish)
+        launch(lambda: self._finish_stop(ticket))
 
     def takeover(self):
         # Return a reserved manual ticket only after stop has completed, with no
