@@ -1,5 +1,4 @@
 import math
-import importlib.util
 import json
 from pathlib import Path
 import threading
@@ -7,6 +6,7 @@ import cv2
 import numpy as np
 import pytest
 from z70_manipulation import planner, perception
+from z70_manipulation.executor import Client, Executor
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -169,12 +169,6 @@ def fake(tmp_path, monkeypatch):
     yield origin, token, events, state
 
 
-def api():
-    assert importlib.util.find_spec('z70_manipulation.executor'), 'executor missing'
-    from z70_manipulation.executor import Client, Executor
-    return Client, Executor
-
-
 def observer(client):
     def observe(camera, color):
         image, tag = client.frame()
@@ -192,7 +186,6 @@ def observer(client):
 
 
 def test_curated_actions_compose_into_full_verified_pick(fake, tmp_path):
-    Client, Executor = api()
     origin, token, events, state = fake
     state['hide_marker'] = True  # Marker out of frame must not block MoveArm or Pick
     client = Client(origin, token)
@@ -211,7 +204,6 @@ def test_curated_actions_compose_into_full_verified_pick(fake, tmp_path):
 
 
 def test_move_arm_uses_kinematic_model_and_rpc_without_camera_frames(fake, tmp_path):
-    Client, Executor = api()
     origin, token, events, state = fake
     state.update(deployed=True, arm_state='WORKING_POS', joints=[150, 45, 0])
     client = Client(origin, token)
@@ -228,7 +220,6 @@ def test_move_arm_uses_kinematic_model_and_rpc_without_camera_frames(fake, tmp_p
 
 
 def test_move_arm_nonzero_m5_dispatches_only_safe_states(tmp_path):
-    _, Executor = api()
     ex = Executor(None, None, tmp_path / 'rolled-arm', sleep=lambda _: None)
     dispatched = []
     ex.jog = lambda step: dispatched.append(step)
@@ -245,7 +236,6 @@ def test_move_arm_nonzero_m5_dispatches_only_safe_states(tmp_path):
 
 
 def test_lift_can_be_verified_when_marker_exits_top_but_not_when_floor_object_remains(fake, tmp_path, monkeypatch):
-    Client, Executor = api()
     origin, token, events, state = fake
     client = Client(origin, token)
     state.update(deployed=True, gripped=True, lift=.08, joints=list(planner.GRASP))
@@ -262,7 +252,6 @@ def test_lift_can_be_verified_when_marker_exits_top_but_not_when_floor_object_re
 
 
 def test_dry_run_only_reads_and_frames(fake, tmp_path):
-    Client, Executor = api()
     origin, token, events, state = fake
     client = Client(origin, token, read_only=True)
     ex = Executor(client, observer(client), tmp_path / 'dry', sleep=lambda _: None)
@@ -277,7 +266,6 @@ def test_dry_run_only_reads_and_frames(fake, tmp_path):
 
 
 def test_robot_error_stops_without_deploy(fake, tmp_path):
-    Client, Executor = api()
     origin, token, events, state = fake
     state['error'] = 8
     client = Client(origin, token)
@@ -289,7 +277,6 @@ def test_robot_error_stops_without_deploy(fake, tmp_path):
 
 
 def test_external_path_hazard_stops(fake, tmp_path):
-    Client, Executor = api()
     origin, token, events, state = fake
     client = Client(origin, token)
     ex = Executor(client, observer(client), tmp_path / 'hazard', sleep=lambda _: None, hazard=lambda: 'person in path')
@@ -299,7 +286,6 @@ def test_external_path_hazard_stops(fake, tmp_path):
 
 
 def test_approach_reobserves_until_bearing_and_range_converge(fake, tmp_path):
-    Client, Executor = api()
     origin, token, events, state = fake
     state['floor_point'] = [.72, .12, 0.]
     client = Client(origin, token)
@@ -312,7 +298,6 @@ def test_approach_reobserves_until_bearing_and_range_converge(fake, tmp_path):
 
 
 def test_post_deploy_reacquires_after_vendor_spin_before_any_descent(fake, tmp_path):
-    Client, Executor = api()
     origin, token, events, state = fake
     state.update(deploy_yaw=.20, pose=dict(x=0., y=0., yaw=0.))
     client = Client(origin, token)
@@ -333,7 +318,6 @@ def test_post_deploy_reacquires_after_vendor_spin_before_any_descent(fake, tmp_p
 
 
 def test_target_prediction_follows_the_robots_own_motion():
-    _, Executor = api()
     e = Executor.__new__(Executor)
     e.last_motion = (0.10, 0.0, 0.0)
     assert e.predict([0.60, 0.05, 0.]) == pytest.approx([0.50, 0.05, 0.], abs=1e-9)
@@ -362,7 +346,6 @@ class MemoryClient:
 
 
 def test_normal_open_requires_observed_manual_mode_before_in_place_release(tmp_path):
-    _, Executor = api()
     client = MemoryClient()
     ex = Executor(client, lambda *_: [], tmp_path/'open', sleep=lambda _:None)
     assert ex.open_jaws()['release_dispatched']
@@ -385,7 +368,6 @@ def placement_sample(gap, lateral=(0.,0.), separation=.03):
 
 
 def test_supported_place_descends_observes_contact_then_verifies_detach_stability(tmp_path):
-    _, Executor = api()
     client = MemoryClient()
     ex = Executor(client, lambda *_:[], tmp_path/'supported', sleep=lambda _:None)
     ex.gripped = True
@@ -411,7 +393,6 @@ def test_supported_place_descends_observes_contact_then_verifies_detach_stabilit
 
 
 def test_precision_limited_place_returns_incomplete_without_release_or_stop(tmp_path):
-    _, Executor = api()
     client = MemoryClient()
     ex = Executor(client, lambda *_:[], tmp_path/'unresolved', sleep=lambda _:None)
     ex.gripped = True
@@ -424,7 +405,6 @@ def test_precision_limited_place_returns_incomplete_without_release_or_stop(tmp_
 
 
 def test_failed_detachment_never_marks_object_released(tmp_path):
-    _, Executor = api()
     client = MemoryClient()
     ex = Executor(client, lambda *_:[], tmp_path/'stuck', sleep=lambda _:None)
     ex.gripped = True
@@ -434,7 +414,6 @@ def test_failed_detachment_never_marks_object_released(tmp_path):
 
 
 def test_place_alignment_tracks_measured_held_column_not_grasp_point(tmp_path):
-    _, Executor = api()
     client = MemoryClient()
     ex = Executor(client, lambda *_:[], tmp_path/'column', sleep=lambda _:None)
     observations = iter([placement_sample(.06, lateral=(.03,0.)), placement_sample(.02)])
@@ -447,7 +426,6 @@ def test_place_alignment_tracks_measured_held_column_not_grasp_point(tmp_path):
 
 
 def stack_executor(tmp_path):
-    _, Executor = api()
     ex = Executor(MemoryClient(), lambda *_:[], tmp_path/'stack', sleep=lambda _:None)
     ex.deployed = True
     ex.target = lambda *a,**kw: dict(position=[.5,0.,0.])
@@ -513,7 +491,6 @@ def test_stack_never_uses_pre_lift_joint_labels_to_start_next_tier(tmp_path):
 
 
 def test_pick_uses_normal_in_place_open_instead_of_recovery_rpc(fake,tmp_path):
-    Client, Executor = api()
     origin,token,events,state = fake
     state['hide_marker'] = True
     client = Client(origin,token)
@@ -524,7 +501,6 @@ def test_pick_uses_normal_in_place_open_instead_of_recovery_rpc(fake,tmp_path):
 
 
 def test_front_servo_retains_observed_object_in_hand_transform(tmp_path):
-    _,Executor=api()
     ex=Executor(MemoryClient(),lambda *_:[],tmp_path/'transform',sleep=lambda _:None)
     T=np.eye(4);T[:3,3]=[.5,0.,.033]
     ex.front_measure=lambda *_:dict(image=np.zeros((10,10,3),np.uint8),
@@ -535,7 +511,6 @@ def test_front_servo_retains_observed_object_in_hand_transform(tmp_path):
 
 
 def test_snapshot_names_are_unique_per_tier_attempt(tmp_path):
-    _,Executor=api()
     ex=Executor(MemoryClient(),lambda *_:[],tmp_path/'photos',sleep=lambda _:None)
     ex.fresh_frame=lambda:(np.zeros((10,10,3),np.uint8),'front')
     ex.evidence_prefix='tier-2-attempt-1-';ex.snap('1-pregrip')
@@ -545,7 +520,6 @@ def test_snapshot_names_are_unique_per_tier_attempt(tmp_path):
 
 def test_placement_post_command_frames_reject_earlier_receipts(tmp_path,monkeypatch):
     from z70_manipulation import placement
-    _,Executor=api()
     client=MemoryClient()
     ex=Executor(client,lambda *_:[],tmp_path/'timing',sleep=lambda _:None)
     def old_frame():
@@ -558,7 +532,6 @@ def test_placement_post_command_frames_reject_earlier_receipts(tmp_path,monkeypa
 
 
 def test_release_not_verified_when_stack_geometry_moves(tmp_path):
-    _, Executor = api()
     ex = Executor(MemoryClient(),lambda *_:[],tmp_path/'unstable',sleep=lambda _:None)
     ex.gripped=True
     stable=placement_sample(.001,separation=.075)
@@ -586,7 +559,6 @@ def test_stack_resets_pregrip_geometry_between_tiers(tmp_path):
 
 
 def test_current_pose_recovery_uses_observation_when_estimator_unknown(tmp_path,monkeypatch):
-    _,Executor=api()
     ex=Executor(MemoryClient(),lambda *_:[],tmp_path/'recover',sleep=lambda _:None)
     ex.fresh_frame=lambda:(np.zeros((10,10,3),np.uint8),'front')
     monkeypatch.setattr(perception,'front_jaw',lambda _:dict(hand_pose_base=planner.hand.hand_pose([210.,75.,0.]).tolist()))
@@ -594,7 +566,6 @@ def test_current_pose_recovery_uses_observation_when_estimator_unknown(tmp_path,
 
 
 def test_stow_polls_common_status_instead_of_blind_10s_sleep(tmp_path):
-    _, Executor = api()
     client = MemoryClient()
     statuses = iter([{'common_status': 3 << 6}, {'common_status': 0}])
     client.status = lambda: next(statuses, {'common_status': 0})
@@ -607,7 +578,6 @@ def test_stow_polls_common_status_instead_of_blind_10s_sleep(tmp_path):
 
 
 def test_pickup_client_delegates_observations_without_network_or_token(tmp_path, monkeypatch):
-    Client, _ = api()
     calls = []
 
     class Shared:
