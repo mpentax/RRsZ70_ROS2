@@ -1,4 +1,5 @@
 """ROS 2 observation adapter for manipulation and navigation actions."""
+import json
 from copy import deepcopy
 from types import SimpleNamespace
 import math
@@ -11,11 +12,14 @@ import rclpy
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.qos import QoSProfile, DurabilityPolicy, ReliabilityPolicy
+from nav_msgs.msg import OccupancyGrid
 from sensor_msgs.msg import CompressedImage
+from std_msgs.msg import String
 from z70_driver.frame_subscription import frame_key
 from z70_interfaces.msg import RobotState, ArmEstimate, FrameMetadata, MapSnapshot, GarmentObservations
 from z70_interfaces.srv import SelectCamera, RefreshMap
 from z70_mapping.decoder import decode_map
+from z70_mapping.dynamic_layer import SessionWorldMap
 
 LATCHED = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
                      durability=DurabilityPolicy.TRANSIENT_LOCAL)
@@ -58,13 +62,17 @@ class Observations:
         self.condition = threading.Condition()
         self.state = None; self.arm = None; self.image = None; self.used = None
         self.map_snapshot = None; self.garments = None
+        self.dynamic_grid = None; self.world = SessionWorldMap()
         self.frames = {}; self.metadata = {}
         self.group = ReentrantCallbackGroup()
+        self.world_pub = self.node.create_publisher(String, '/z70/world/update', 10)
         self.subscriptions = [
             self.node.create_subscription(RobotState, '/z70/state', self.on_state, LATCHED, callback_group=self.group),
             self.node.create_subscription(ArmEstimate, '/z70/arm_estimate', self.on_arm, LATCHED, callback_group=self.group),
             self.node.create_subscription(GarmentObservations, '/z70/garments/observations', self.on_garments, LATCHED, callback_group=self.group),
-            self.node.create_subscription(MapSnapshot, '/z70/driver/map_snapshot', self.on_map, LATCHED, callback_group=self.group)]
+            self.node.create_subscription(MapSnapshot, '/z70/driver/map_snapshot', self.on_map, LATCHED, callback_group=self.group),
+            self.node.create_subscription(OccupancyGrid, '/z70/map/dynamic_obstacles', self.on_dynamic_grid, LATCHED, callback_group=self.group),
+            self.node.create_subscription(String, '/z70/world/objects', self.on_world_objects, LATCHED, callback_group=self.group)]
         self.map_refresher = self.node.create_client(RefreshMap, '/z70/map/refresh', callback_group=self.group)
         for camera in ('front','gripper'):
             self.subscriptions.extend([
@@ -83,7 +91,48 @@ class Observations:
         return (bytes(evidence.session_id.uuid), evidence.sequence)
 
     def on_garments(self, msg):
-        with self.condition: self.garments = msg; self.condition.notify_all()
+        with self.condition:
+            self.garments = msg
+            if self.map_snapshot is not None and getattr(msg, 'model_available', False) and getattr(msg, 'geofence_active', False):
+                try:
+                    m = decode_map(bytes(self.map_snapshot.raw))
+                    self.world.bind_session(bytes(self.map_snapshot.evidence.session_id.uuid), self.map_snapshot.map_index, m.origin, m.width, m.height, m.resolution)
+                    self.world.ingest_observations(msg, m.robot)
+                except Exception:
+                    pass
+            self.condition.notify_all()
+
+    def on_dynamic_grid(self, msg):
+        with self.condition:
+            self.dynamic_grid = msg
+
+    def on_world_objects(self, msg):
+        try:
+            payload = json.loads(msg.data)
+        except (ValueError, TypeError):
+            return
+        with self.condition:
+            self.world.load_entries(payload)
+
+    def dynamic_obstacles(self, pose_xy=None):
+        with self.condition:
+            if self.world.width > 0 and self.world.height > 0:
+                return self.world.obstacle_mask(protect_xy=pose_xy)
+            if self.dynamic_grid is not None:
+                return deepcopy(self.dynamic_grid)
+            return None
+
+    def world_map(self) -> SessionWorldMap:
+        return self.world
+
+    def record_world_event(self, action: str, **fields):
+        payload = dict(action=action, **fields)
+        with self.condition:
+            self.world.apply_event(payload)
+        try:
+            self.world_pub.publish(String(data=json.dumps(payload)))
+        except Exception:
+            pass
 
     def garment_barrier(self):
         with self.condition:
@@ -146,11 +195,16 @@ class Observations:
         raw_age=time.time()-stamp_seconds(m.evidence.received_at)
         hdr_age=time.time()-stamp_seconds(m.header.stamp) if m.header.stamp.sec > 0 else raw_age
         cache_age_s=0. if refresh else min(raw_age, hdr_age) if hdr_age >= 0 else raw_age
-        return SimpleNamespace(map=decode_map(bytes(m.raw)), labels={r.segment_id:r.name for r in m.rooms},
+        decoded = decode_map(bytes(m.raw))
+        with self.condition:
+            self.world.bind_session(bytes(m.evidence.session_id.uuid), m.map_index, decoded.origin, decoded.width, decoded.height, decoded.resolution)
+        return SimpleNamespace(map=decoded, labels={r.segment_id:r.name for r in m.rooms},
             sequence=m.evidence.sequence, map_index=m.map_index, map_sequence=m.map_sequence,
             session_id=bytes(m.evidence.session_id.uuid),
             active_floor_verified=m.active_floor_verified, current_pose_verified=m.current_pose_verified,
-            cache_age_s=cache_age_s, evidence=m.evidence)
+            cache_age_s=cache_age_s, evidence=m.evidence,
+            dynamic_obstacles=self.dynamic_obstacles(decoded.robot[:2] if decoded.robot else None),
+            world=self.world)
 
     def on_state(self, msg):
         with self.condition: self.state = msg; self.condition.notify_all()
@@ -250,5 +304,6 @@ class Observations:
             if self.initialized: rclpy.try_shutdown()
         else:
             for sub in self.subscriptions: self.node.destroy_subscription(sub)
+            self.node.destroy_publisher(self.world_pub)
             self.node.destroy_client(self.selector)
             self.node.destroy_client(self.map_refresher)

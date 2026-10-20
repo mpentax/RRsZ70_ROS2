@@ -16,6 +16,9 @@ pixi run bringup mapping:=false     # disable vendor map node
 | :--- | :--- |
 | `/map` | `nav_msgs/msg/OccupancyGrid` (`0.05 m/cell`, `RELIABLE + TRANSIENT_LOCAL`) |
 | `/z70/map/safe_grid` | `nav_msgs/msg/OccupancyGrid` — reachable eroded allowlisted interior (`0` = free, `100` = excluded) |
+| `/z70/map/dynamic_obstacles` | `nav_msgs/msg/OccupancyGrid` — session-scoped dynamic obstacle layer (`100` = obstacle/skipped item, `50` = delivered laundry pile, `0` = free) |
+| `/z70/world/objects`, `/z70/world/markers` | `std_msgs/msg/String` (JSON) & `visualization_msgs/msg/MarkerArray` — session-scoped `map`-frame registry of sighted clothing objectives, dynamic obstacles, and delivered laundry piles |
+| `/z70/world/update` | `std_msgs/msg/String` (JSON) — updates the session-scoped dynamic obstacle and objective registry (`obstacle`, `delivered`, `failed`, `objective`, `clear`) |
 | `/z70/map/robot_pose`, `/z70/map/dock_pose` | `geometry_msgs/msg/PoseStamped` from the vendor map snapshot |
 | `/z70/map/markers` | `visualization_msgs/msg/MarkerArray` — room boundaries/labels, dock, paths, virtual walls, zones, carpet, and patrol waypoints |
 | `/z70/map/spatial_context` | `std_msgs/msg/String` (JSON) — current room, 8-sector clearance raycasts, and `boundary_contract` |

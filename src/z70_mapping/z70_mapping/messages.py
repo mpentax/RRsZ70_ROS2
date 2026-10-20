@@ -40,6 +40,54 @@ def safe_grid_message(boundary_result, saved_at, load_at=None):
     return _occupancy_grid(boundary_result, boundary_result.safe_grid, saved_at, load_at)
 
 
+def dynamic_grid_message(m, dynamic_layer, saved_at, load_at=None):
+    data = (
+        dynamic_layer.occupancy_grid_data(m.width, m.height, m.origin, m.resolution)
+        if hasattr(dynamic_layer, 'occupancy_grid_data')
+        else np.asarray(dynamic_layer, dtype=np.int8)
+    )
+    return _occupancy_grid(m, data, saved_at, load_at)
+
+
+def world_markers_message(dynamic_layer, saved_at):
+    result = MarkerArray()
+    clear = Marker(); clear.action = Marker.DELETEALL
+    clear.header.frame_id = 'map'; clear.header.stamp = stamp(saved_at)
+    result.markers.append(clear)
+    entries = list(dynamic_layer.entries.values()) if hasattr(dynamic_layer, 'entries') else list(dynamic_layer or [])
+    for idx, entry in enumerate(entries):
+        status = getattr(entry, 'status', entry['status'] if isinstance(entry, dict) else 'PENDING')
+        category = getattr(entry, 'category', entry.get('category', 'item') if isinstance(entry, dict) else 'item')
+        x = float(getattr(entry, 'x', entry['x'] if isinstance(entry, dict) else 0.))
+        y = float(getattr(entry, 'y', entry['y'] if isinstance(entry, dict) else 0.))
+        r = float(getattr(entry, 'radius_m', entry.get('radius_m', 0.08) if isinstance(entry, dict) else 0.08))
+        if status == 'DELIVERED':
+            color = (0.15, 0.90, 0.35, 0.90)
+            ns = 'world_delivered'
+        elif status in ('SKIPPED_OBSTACLE', 'FAILED_OBSTACLE', 'OBSTACLE'):
+            color = (0.95, 0.20, 0.20, 0.90)
+            ns = 'world_obstacles'
+        else:
+            color = (1.0, 0.65, 0.10, 0.95)
+            ns = 'world_objectives'
+        cyl = Marker(); cyl.header = clear.header; cyl.ns = ns; cyl.id = idx
+        cyl.type = Marker.CYLINDER; cyl.action = Marker.ADD; cyl.pose.orientation.w = 1.
+        cyl.frame_locked = True
+        cyl.pose.position.x, cyl.pose.position.y, cyl.pose.position.z = x, y, 0.04
+        cyl.scale.x = cyl.scale.y = max(0.08, 2.0 * r); cyl.scale.z = 0.08
+        cyl.color.r, cyl.color.g, cyl.color.b, cyl.color.a = color
+        result.markers.append(cyl)
+        lbl = Marker(); lbl.header = clear.header; lbl.ns = ns + '_labels'; lbl.id = idx
+        lbl.type = Marker.TEXT_VIEW_FACING; lbl.action = Marker.ADD; lbl.pose.orientation.w = 1.
+        lbl.frame_locked = True
+        lbl.pose.position.x, lbl.pose.position.y, lbl.pose.position.z = x, y, 0.18
+        lbl.scale.z = 0.12
+        lbl.color.r, lbl.color.g, lbl.color.b, lbl.color.a = color
+        lbl.text = f'{category} [{status}]'
+        result.markers.append(lbl)
+    return result
+
+
 def markers_message(m, labels, saved_at, waypoints=None, boundary_result=None):
     result = MarkerArray()
     clear = Marker(); clear.action = Marker.DELETEALL

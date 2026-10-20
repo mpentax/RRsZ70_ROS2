@@ -15,17 +15,21 @@ from rclpy.executors import MultiThreadedExecutor
 from rclpy.parameter import Parameter
 
 from z70_driver.driver import Driver
+from z70_interfaces.action import PatrolCollect
 from z70_interfaces.msg import FrameMetadata
 from z70_manipulation import perception, placement
 from z70_manipulation.executor import Executor
-from z70_manipulation.garment_delivery import TowingQualificationConfig
+from z70_manipulation.garment_delivery import TowingQualificationConfig, loaded_route
 from z70_manipulation.garment_geometry import GarmentTracker, geofence, observe
 from z70_manipulation.garment_node import observations_message
 from z70_manipulation.garment_worker import GarmentModel
+from z70_manipulation.goals import BUILTIN_GOALS, GOAL_CONTEXT_PRIMITIVES, GoalContext
 from z70_manipulation.observations import Observations
 from z70_manipulation.patrol import PatrolCollector, PatrolLedger
 from z70_mapping.boundary import BoundaryConfig, compute_safe_interior
 from z70_mapping.decoder import decode_map
+from z70_mapping.dynamic_layer import SessionWorldMap
+from z70_mapping.messages import dynamic_grid_message, world_markers_message
 from z70_mapping.node import MappingNode
 from z70_odometry.floor_vo import FloorCamera, FloorOdometry
 from z70_sim import (
@@ -239,6 +243,7 @@ def test_patrol_collect_and_drag_garments_to_washing_machine_in_sim(tmp_path: Pa
     class SimGarmentObservations:
         def __init__(self, w: SimWorld):
             self.w = w
+            self.world = SessionWorldMap()
             self.last_msg = None
             self.last_img = None
             self.last_pose_used = None
@@ -253,10 +258,47 @@ def test_patrol_collect_and_drag_garments_to_washing_machine_in_sim(tmp_path: Pa
                 joints=dict(self.w.joints),
             )
 
+        def world_map(self) -> SessionWorldMap:
+            return self.world
+
+        def dynamic_obstacles(self, pose_xy=None):
+            if self.world.width > 0 and self.world.height > 0:
+                return self.world.obstacle_mask(protect_xy=pose_xy)
+            return None
+
+        def record_world_event(self, action: str, **fields):
+            if action == 'clear':
+                self.world.clear()
+            elif action == 'obstacle':
+                self.world.mark_obstacle(
+                    float(fields['x']), float(fields['y']),
+                    radius_m=float(fields.get('radius_m', 0.12)),
+                    category=str(fields.get('category', 'obstacle')),
+                    detail=str(fields.get('detail', 'OBSTACLE')),
+                    track_id=str(fields.get('track_id', '')),
+                    status=str(fields.get('status', 'OBSTACLE')),
+                )
+            elif action == 'delivered':
+                self.world.mark_delivered(
+                    float(fields['x']), float(fields['y']),
+                    track_id=str(fields.get('track_id', '')),
+                    category=str(fields.get('category', 'garment')),
+                    radius_m=float(fields.get('radius_m', 0.12)),
+                    detail=str(fields.get('detail', 'DELIVERED')),
+                )
+            elif action == 'failed':
+                self.world.mark_attempt_failed(
+                    float(fields['x']), float(fields['y']),
+                    track_id=str(fields.get('track_id', '')),
+                    detail=str(fields.get('detail', 'FAILED')),
+                )
+
         def navigation_snapshot(self, refresh: bool = False, max_age_s: float = 5.0):
             raw, mseq, _ = self.w.raw_map(refresh=refresh)
+            decoded = decode_map(raw)
+            self.world.bind_session(b'\x01' * 16, 0, decoded.origin, decoded.width, decoded.height, decoded.resolution)
             return NS(
-                map=decode_map(raw),
+                map=decoded,
                 labels=labels,
                 sequence=mseq,
                 map_index=0,
@@ -266,6 +308,8 @@ def test_patrol_collect_and_drag_garments_to_washing_machine_in_sim(tmp_path: Pa
                 current_pose_verified=True,
                 cache_age_s=0.0,
                 evidence=None,
+                dynamic_obstacles=self.dynamic_obstacles(decoded.robot[:2] if decoded.robot else None),
+                world=self.world,
             )
 
         def garment_barrier(self):
@@ -278,7 +322,7 @@ def test_patrol_collect_and_drag_garments_to_washing_machine_in_sim(tmp_path: Pa
             img = cv2.imdecode(np.frombuffer(jpeg, np.uint8), cv2.IMREAD_COLOR)
             detections, quality = model.infer(img)
             snap = self.navigation_snapshot(refresh=False)
-            b = compute_safe_interior(snap.map, snap.labels, BoundaryConfig(), tuple(self.w.pose))
+            b = compute_safe_interior(snap.map, snap.labels, BoundaryConfig(), tuple(self.w.pose), dynamic_obstacles=snap.dynamic_obstacles)
             grid = NS(origin=b.origin, resolution=b.resolution, safe_grid=b.safe_grid)
             pose = (float(self.w.pose[0]), float(self.w.pose[1]), float(self.w.pose[2]))
             if last_pose is None:
@@ -323,6 +367,7 @@ def test_patrol_collect_and_drag_garments_to_washing_machine_in_sim(tmp_path: Pa
             meta.evidence.sequence = seq
             meta.evidence.session_id.uuid = [1] * 16
             msg = observations_message(items, meta, quality, True)
+            self.world.ingest_observations(msg, pose)
             self.last_msg = msg
             self.last_img = img
             return img, msg
@@ -403,6 +448,163 @@ def test_patrol_collect_and_drag_garments_to_washing_machine_in_sim(tmp_path: Pa
         pos = world._get_object_pos(str(g['name']))
         assert math.dist(pos[:2], WASHING_MACHINE_DROP_M) <= 0.40
     assert not world.deployed
+    summary = obs.world.summary()
+    assert len(summary['delivered_piles']) == 2
+
+
+def test_session_dynamic_map_opportunistic_sighting_obstacle_avoidance_and_reset(tmp_path: Path):
+    world = SimWorld(objects=DEFAULT_GARMENTS, map_preset='apartment')
+    labels = {r['segment_id']: r['name'] for r in APARTMENT_ROOMS}
+    raw, _, _ = world.raw_map(refresh=True)
+    m = decode_map(raw)
+    wm = SessionWorldMap()
+    assert wm.bind_session(b'\x01' * 16, 0, m.origin, m.width, m.height, m.resolution)
+
+    # 1. Opportunistic sighting while performing another task:
+    # Suppose the robot spotted a sock in the Bedroom (x=1.55, y=3.65) while driving past.
+    wm.observe_garment(1.55, 3.65, category='sock', width_m=0.05, depth_m=0.06, transport_suitability=1, track_id='bed_sock')
+    assert len(wm.pending_objectives()) == 1
+
+    # Verify PatrolCollector prioritizes the waypoint near the sighted Bedroom objective (tier 0)
+    # over closer unvisited waypoints with no sighted objectives (tier 1).
+    ledger = PatrolLedger(tmp_path / 'priority_ledger')
+    b0 = compute_safe_interior(m, labels, BoundaryConfig(allowed_segments=(1, 2, 4, 5, 6)), (0.0, 0.0, 0.0))
+    ledger.waypoints(b0.waypoints)
+    patrol = PatrolCollector(NS(world_map=lambda: wm), None, ledger, world=wm)
+    patrol.position = [0.0, 0.0]
+    best_key = min(ledger.data['waypoints'].keys(), key=patrol._waypoint_priority)
+    best_wp = ledger.data['waypoints'][best_key]
+    assert best_wp['segment_id'] == 5
+
+    # 2. Skipped/unsupported garment & dynamic obstacle avoidance:
+    # Place a dynamic obstacle on the direct corridor path between (0.0, 0.0) and Kitchen drop (-3.85, -0.30).
+    base_loaded = compute_safe_interior(
+        m, labels, BoundaryConfig(allowed_segments=(1, 2, 4, 5, 6), deployed_arm_extension_m=0.10), (0.0, 0.0, 0.0)
+    )
+    direct_route = loaded_route(base_loaded, (0.0, 0.0), WASHING_MACHINE_DROP_M)
+    assert direct_route is not None and len(direct_route) > 4
+    mid_pt = direct_route[len(direct_route) // 2]
+    wm.mark_obstacle(mid_pt[0], mid_pt[1], radius_m=0.12, category='heavy_blanket', detail='UNSUPPORTED_GARMENT_SKIP', status='SKIPPED_OBSTACLE')
+
+    dyn_grid = dynamic_grid_message(m, wm, 1000)
+    assert max(dyn_grid.data) == 100
+    markers = world_markers_message(wm, 1000)
+    assert any(mk.ns == 'world_obstacles' for mk in markers.markers)
+    assert any(mk.ns == 'world_objectives' for mk in markers.markers)
+
+    updated_loaded = compute_safe_interior(
+        m, labels, BoundaryConfig(allowed_segments=(1, 2, 4, 5, 6), deployed_arm_extension_m=0.10),
+        (0.0, 0.0, 0.0), dynamic_obstacles=wm.obstacle_mask(protect_xy=(0.0, 0.0))
+    )
+    gx = int(math.floor((mid_pt[0] - m.origin[0]) / m.resolution))
+    gy = int(math.floor((mid_pt[1] - m.origin[1]) / m.resolution))
+    assert not updated_loaded.reachable_mask[gy, gx]
+
+    # 3. GoalContext integration & session reset:
+    fake_obs = NS(
+        world_map=lambda: wm,
+        dynamic_obstacles=lambda pose_xy=None: wm.obstacle_mask(protect_xy=pose_xy),
+        record_world_event=lambda action, **kw: wm.clear() if action == 'clear' else wm.mark_obstacle(kw['x'], kw['y'], radius_m=kw.get('radius_m', 0.12)),
+        navigation_snapshot=lambda refresh=False, max_age_s=5.0: NS(
+            map=m, labels=labels, evidence=None, dynamic_obstacles=wm.obstacle_mask(protect_xy=(0.0, 0.0))
+        ),
+    )
+    fake_server = NS(
+        observations=fake_obs,
+        navigation_config=BoundaryConfig(allowed_segments=(1, 2, 4, 5, 6)),
+        gains={},
+        odom=lambda: {'x': 0.0, 'y': 0.0, 'yaw': 0.0},
+    )
+    ctx = GoalContext(
+        fake_server,
+        NS(request=PatrolCollect.Goal(), is_cancel_requested=False),
+        PatrolCollect,
+        None,
+        tmp_path,
+        create_executor=False,
+    )
+    assert len(ctx.world_objects()['obstacles']) == 1
+    assert len(ctx.world_objects()['objectives']) == 1
+    _, ctx_boundary = ctx.safe_interior()
+    assert not ctx_boundary.reachable_mask[gy, gx]
+
+    # Session change automatically clears the session-scoped world map
+    assert wm.bind_session(b'\x02' * 16, 0, m.origin, m.width, m.height, m.resolution)
+    assert len(ctx.world_objects()['entries']) == 0
+    _, clean_boundary = ctx.safe_interior()
+    assert clean_boundary.reachable_mask[gy, gx]
+    assert 'world_objects' in {p['name'] for p in GOAL_CONTEXT_PRIMITIVES}
+
+    # 4. Simulated session edge case: patrol with allow_towing=False skips the large towel,
+    # records it as a SKIPPED_OBSTACLE in the session world map, and delivers the small sock.
+    obs_no_tow = NS(
+        world_map=lambda: wm,
+        dynamic_obstacles=lambda pose_xy=None: wm.obstacle_mask(protect_xy=pose_xy),
+        record_world_event=lambda action, **kw: wm.apply_event(dict(action=action, **kw)),
+        navigation_snapshot=lambda refresh=False, max_age_s=5.0: NS(
+            map=decode_map(world.raw_map(refresh=refresh)[0]), labels=labels, sequence=1, map_index=0, map_sequence=1, session_id=b'\x02' * 16,
+            active_floor_verified=True, current_pose_verified=True, cache_age_s=0.0, evidence=None,
+            dynamic_obstacles=wm.obstacle_mask(protect_xy=tuple(world.pose[:2])), world=wm,
+        ),
+        status=world.status_dict,
+        arm_estimate=lambda: dict(state='IN_ROBOT', joints=dict(world.joints)),
+        garment_barrier=lambda: dict(garment=1, image=1),
+        garment_frame=lambda **_: dict(coverage_valid=True),
+    )
+    towel_obs = NS(
+        track_id=NS(uuid=list(b'\xaa' * 16)),
+        category='towel',
+        contact_valid=True,
+        inside_geofence=True,
+        geofence_verified=True,
+        grasp_valid=True,
+        reachable_for_grasp=True,
+        transport_suitability=2,
+        footprint_width_m=0.22,
+        footprint_depth_m=0.06,
+        floor_contact_m=NS(x=0.35, y=0.0),
+    )
+    obs_no_tow.garment_snapshot = lambda **_: NS(
+        garments=[towel_obs],
+        model_available=True,
+        geofence_active=True,
+        evidence=NS(session_id=NS(uuid=[2] * 16), sequence=2),
+    )
+    ex_stub = NS(
+        client=NS(commands=NS(
+            rpc=lambda method, params, timeout_ms=5000: (
+                world.handle_rpc(method, params) and {'dispatch': 'sent', 'response': 'received', 'result': ['ok']}
+            ),
+            stop=lambda: None,
+            cancelled=NS(is_set=lambda: False),
+        )),
+        gripped=False,
+        hazard=lambda: None,
+        odom=lambda: {'x': world.pose[0], 'y': world.pose[1], 'yaw': world.pose[2]},
+        end_rc=lambda: None,
+        pulse=lambda **_: None,
+    )
+    skip_ledger = PatrolLedger(tmp_path / 'skip_ledger')
+    skip_patrol = PatrolCollector(
+        obs_no_tow,
+        ex_stub,
+        skip_ledger,
+        boundary_config=BoundaryConfig(allowed_segments=(1, 2, 4, 5, 6), waypoint_spacing_m=20.0),
+        sleep=lambda _: None,
+        world=wm,
+    )
+    skip_res = skip_patrol.execute(NS(
+        drop_x_m=WASHING_MACHINE_DROP_M[0],
+        drop_y_m=WASHING_MACHINE_DROP_M[1],
+        max_duration_s=60.0,
+        max_items=2,
+        allow_towing=False,
+        dry_run=False,
+    ))
+    assert skip_res['items_skipped'] == 1
+    assert len(wm.obstacle_entries()) == 1
+    assert wm.obstacle_entries()[0].status == 'SKIPPED_OBSTACLE'
+    assert wm.obstacle_entries()[0].detail == 'UNSUPPORTED_GARMENT_SKIP'
 
 
 def test_ensure_token_file_matches_gateway_token_contract(tmp_path: Path):

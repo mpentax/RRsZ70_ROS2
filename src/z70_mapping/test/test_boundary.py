@@ -5,6 +5,7 @@ import pytest
 from nav_msgs.msg import OccupancyGrid
 from rclpy.qos import DurabilityPolicy, ReliabilityPolicy
 from rclpy.serialization import serialize_message, deserialize_message
+from std_msgs.msg import String
 from z70_mapping.boundary import (
     BoundaryConfig,
     check_corridor_containment,
@@ -240,3 +241,29 @@ def test_node_publishes_latched_safe_grid_and_contract_on_both_json_topics(mappi
                  for topic in ('/z70/map/status', '/z70/map/spatial_context')]
     assert contracts[0] == contracts[1]
     assert contracts[0]['room_connectivity']['2']['raw_cells'] > 0
+
+
+def test_dynamic_obstacle_layer_subtracts_cells_and_publishes_world_markers(mapping_node):
+    node, pubs, _ = mapping_node
+    node.snapshot(snapshot_message())
+    node.publish()
+    m = node.current[0]
+    cx = float(m.origin[0] + 1.5 * m.resolution)
+    cy = float(m.origin[1] + 0.5 * m.resolution)
+    node.on_world_update(String(data=json.dumps({
+        'action': 'obstacle',
+        'x': cx,
+        'y': cy,
+        'radius_m': 0.08,
+        'category': 'blanket',
+        'detail': 'UNSUPPORTED_GARMENT_SKIP',
+        'status': 'SKIPPED_OBSTACLE',
+    })))
+    node.publish()
+    dyn_msg = pubs['/z70/map/dynamic_obstacles'].publish.call_args.args[0]
+    assert max(dyn_msg.data) == 100
+    world_markers = pubs['/z70/world/markers'].publish.call_args.args[0]
+    assert any(mk.ns == 'world_obstacles' for mk in world_markers.markers)
+    world_json = json.loads(pubs['/z70/world/objects'].publish.call_args.args[0].data)
+    assert len(world_json['obstacles']) == 1
+    assert world_json['obstacles'][0]['category'] == 'blanket'

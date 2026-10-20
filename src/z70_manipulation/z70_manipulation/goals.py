@@ -25,6 +25,7 @@ from z70_mapping.geometry import spatial_context as compute_spatial_context
 from . import perception, placement, planner
 from .executor import Executor
 from .garment_delivery import GarmentDeliverer, graspable_garments, loaded_route
+from .garment_geometry import transform_xy
 from .navigation import PinAndGoNavigator
 from .observations import read_arm, read_status
 from .patrol import PatrolCollector, PatrolLedger
@@ -56,6 +57,9 @@ GOAL_CONTEXT_PRIMITIVES: tuple[dict[str, str], ...] = (
     {'name': 'wrist_pose', 'signature': 'wrist_pose() -> dict | None', 'summary': 'Estimate the elevated ArUco ID68 wrist/jaw pose and grasp reference in base_footprint from the front camera.'},
     {'name': 'fit_wrist_joints', 'signature': 'fit_wrist_joints() -> dict | None', 'summary': 'Fit [M3, M4, M5] joint angles (degrees) to the front-camera ArUco ID68 wrist marker pose.'},
     {'name': 'garments', 'signature': "garments(category='any', after=None) -> list", 'summary': 'Return verified reachable garments from the garment observation pipeline.'},
+    {'name': 'world_objects', 'signature': 'world_objects() -> dict', 'summary': 'Return the session-scoped dynamic world map summary (pending objectives, dynamic obstacles, and delivered laundry piles in the map frame).'},
+    {'name': 'mark_obstacle', 'signature': "mark_obstacle(x_m: float, y_m: float, radius_m: float = 0.12, category: str = 'obstacle', detail: str = 'OBSTACLE') -> dict", 'summary': 'Record a session-scoped dynamic obstacle at (x_m, y_m) in the map frame so safe_interior and route planners avoid it.'},
+    {'name': 'clear_world', 'signature': 'clear_world() -> dict', 'summary': 'Clear all session-scoped dynamic obstacles and tracked objectives from the active session world map.'},
     {'name': 'navigate', 'signature': 'navigate(target_x_m: float, target_y_m: float, max_duration_s: float = 60., dry_run: bool = False) -> dict', 'summary': 'Navigate the stowed chassis to (target_x_m, target_y_m) via PinAndGo.'},
     {'name': 'pick', 'signature': 'pick(color: str, dry_run: bool = False) -> dict', 'summary': 'Execute a full autonomous object pickup by HSV color.'},
     {'name': 'stack', 'signature': 'stack(base_color: str, middle_color: str, top_color: str, dry_run: bool = False) -> dict', 'summary': 'Execute a 3-object stack by HSV color.'},
@@ -153,6 +157,11 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         fit_wrist_joints=lambda: {'joints': [190., 65., 0.], 'residual_m': 0., 'residual_deg': 0., 'uncertainty_m': 0.015},
         observe_color=lambda camera, color: [],
         garments=lambda category='any', after=None: [],
+        world_objects=lambda: {'session_bound': True, 'objectives': [], 'obstacles': [], 'delivered_piles': [], 'entries': []},
+        mark_obstacle=lambda x_m, y_m, radius_m=0.12, category='obstacle', detail='OBSTACLE': {
+            'x': float(x_m), 'y': float(y_m), 'radius_m': float(radius_m), 'category': str(category), 'detail': str(detail), 'status': 'OBSTACLE',
+        },
+        clear_world=lambda: {'cleared': True},
         navigate=lambda target_x_m, target_y_m, max_duration_s=60., dry_run=False: {
             'arrived': not dry_run, 'dry_run_valid': bool(dry_run), 'status_code': 'ARRIVED', 'detail': '',
         },
@@ -249,7 +258,10 @@ class GoalContext:
     def safe_interior(self, refresh=False, deployed_arm_extension_m=0.):
         snap = self.map_snapshot(refresh=refresh)
         cfg = replace(self.server.navigation_config, deployed_arm_extension_m=deployed_arm_extension_m)
-        return snap, compute_safe_interior(snap.map, snap.labels, cfg, snap.map.robot)
+        dyn = getattr(snap, 'dynamic_obstacles', None)
+        if dyn is None and hasattr(self.observations, 'dynamic_obstacles'):
+            dyn = self.observations.dynamic_obstacles(snap.map.robot[:2] if snap.map.robot else None)
+        return snap, compute_safe_interior(snap.map, snap.labels, cfg, snap.map.robot, dynamic_obstacles=dyn)
 
     def spatial_context(self, refresh: bool = False) -> dict:
         snap = self.map_snapshot(refresh=refresh)
@@ -308,6 +320,23 @@ class GoalContext:
         self.latest_observation = batch.evidence
         return graspable_garments(batch.garments, category)
 
+    def world_objects(self) -> dict:
+        wm = self.observations.world_map() if hasattr(self.observations, 'world_map') else None
+        return wm.summary() if wm is not None else {'session_bound': False, 'objectives': [], 'obstacles': [], 'delivered_piles': [], 'entries': []}
+
+    def mark_obstacle(self, x_m: float, y_m: float, radius_m: float = 0.12, category: str = 'obstacle', detail: str = 'OBSTACLE') -> dict:
+        if hasattr(self.observations, 'record_world_event'):
+            self.observations.record_world_event(
+                'obstacle', x=float(x_m), y=float(y_m), radius_m=float(radius_m),
+                category=str(category), detail=str(detail), status='OBSTACLE',
+            )
+        return {'x': float(x_m), 'y': float(y_m), 'radius_m': float(radius_m), 'category': str(category), 'detail': str(detail), 'status': 'OBSTACLE'}
+
+    def clear_world(self) -> dict:
+        if hasattr(self.observations, 'record_world_event'):
+            self.observations.record_world_event('clear')
+        return {'cleared': True}
+
     # --- Motion & Manipulation Primitives ---
 
     def navigate(self, target_x_m: float, target_y_m: float, max_duration_s: float = 60., dry_run: bool = False) -> dict:
@@ -354,10 +383,25 @@ class GoalContext:
             towing_config=getattr(self.server, 'towing_config', None),
             feedback=self.feedback,
         )
-        return self._run_garment_runner(runner, SimpleNamespace(
+        res = self._run_garment_runner(runner, SimpleNamespace(
             category=str(category), drop_x_m=float(drop_x_m), drop_y_m=float(drop_y_m),
             max_duration_s=float(max_duration_s), allow_towing=bool(allow_towing), dry_run=bool(dry_run),
         ))
+        if not dry_run and hasattr(self.observations, 'record_world_event'):
+            tid = str(res.get('track_id', ''))
+            if res.get('delivered'):
+                self.observations.record_world_event(
+                    'delivered', x=float(drop_x_m), y=float(drop_y_m),
+                    track_id=tid, category=str(category), detail='DELIVERED',
+                )
+            elif res.get('status_code') in ('TOWING_UNQUALIFIED_SKIP', 'UNSUPPORTED_GARMENT_SKIP', 'TOWING_REQUIRES_SUPERVISED_TRIAL') and runner.track is not None:
+                p = runner.track.floor_contact_m
+                ox, oy = transform_xy(getattr(runner, 'current_pose', (0., 0., 0.)), (p.x, p.y))
+                self.observations.record_world_event(
+                    'obstacle', x=float(ox), y=float(oy),
+                    radius_m=0.14, category=str(runner.track.category), detail=res['status_code'], track_id=tid, status='SKIPPED_OBSTACLE',
+                )
+        return res
 
     def patrol_collect(self, drop_x_m: float = 0., drop_y_m: float = 0., max_duration_s: float = 600.,
                        max_items: int = 5, allow_towing: bool = False, dry_run: bool = False) -> dict:

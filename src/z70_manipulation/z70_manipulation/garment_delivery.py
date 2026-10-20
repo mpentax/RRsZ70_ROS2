@@ -152,9 +152,15 @@ class GarmentDeliverer:
         self.position=list(p[:2]); self.current_pose=p
         return s
 
+    def _dynamic_obstacles(self, s, pose_xy=None):
+        dyn = getattr(s, 'dynamic_obstacles', None)
+        if dyn is None and hasattr(self.observations, 'dynamic_obstacles'):
+            dyn = self.observations.dynamic_obstacles(pose_xy)
+        return dyn
+
     def context(self, refresh=True):
         s=self.snapshot(refresh)
-        b=compute_safe_interior(s.map,s.labels,self.config,self.current_pose)
+        b=compute_safe_interior(s.map,s.labels,self.config,self.current_pose,dynamic_obstacles=self._dynamic_obstacles(s,self.position))
         if not inside(b,self.position): raise DeliveryRejected('LOADED_ROUTE_BLOCKED')
         return s,b
 
@@ -267,7 +273,7 @@ class GarmentDeliverer:
         s=self.snapshot()
         if not same_map_frame(map_identity(baseline), map_identity(s)):
             raise DeliveryRejected('MAP_CONTEXT_CHANGED')
-        live=compute_safe_interior(s.map,s.labels,self.config,self.current_pose)
+        live=compute_safe_interior(s.map,s.labels,self.config,self.current_pose,dynamic_obstacles=self._dynamic_obstacles(s,self.position))
         if not inside(boundary,self.position) or not inside(live,self.position):
             raise DeliveryRejected('BOUNDARY_ABORT')
         if loaded:

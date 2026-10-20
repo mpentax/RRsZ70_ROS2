@@ -9,6 +9,7 @@ from dataclasses import replace
 from .garment_delivery import (GarmentDeliverer, TowingQualificationConfig, atomic_json,
     map_identity, same_map_frame, tf_jumped, transport_policy, track_key, loaded_route, DeliveryRejected)
 from z70_mapping.boundary import BoundaryConfig, compute_safe_interior
+from z70_mapping.dynamic_layer import SessionWorldMap
 from .garment_geometry import transform_xy
 from .navigation import PinAndGoNavigator, inside
 from .observations import read_arm, read_status
@@ -144,13 +145,14 @@ class PatrolCollector:
     def __init__(self,observations,executor,ledger,*,boundary_config=None,towing_config=None,
                  pose=None,map_odom=None,feedback=lambda **_:None,delivery_factory=GarmentDeliverer,
                  navigator_factory=None,reserve_for_loaded_transit_and_dock=25.,resume_battery_pct=80.,
-                 sleep=time.sleep,clock=time.monotonic):
+                 sleep=time.sleep,clock=time.monotonic,world=None):
         self.observations=observations; self.executor=executor; self.ledger=ledger
         self.config=boundary_config or BoundaryConfig(); self.towing=towing_config or TowingQualificationConfig()
         self.pose=pose; self.map_odom=map_odom; self.feedback=feedback
         self.delivery_factory=delivery_factory; self.navigator_factory=navigator_factory
         self.reserve=reserve_for_loaded_transit_and_dock; self.resume=resume_battery_pct
         self.sleep=sleep; self.clock=clock; self.deadline=math.inf; self.latest_observation=None; self.position=[0.,0.]
+        self.world = world or (observations.world_map() if hasattr(observations, 'world_map') else SessionWorldMap())
 
     def state(self,state):
         self.ledger.data['state']=state; self.ledger.save()
@@ -177,6 +179,45 @@ class PatrolCollector:
         snap = snapshot or self.observations.navigation_snapshot(refresh=False, max_age_s=max_age_s)
         return snap.map.robot
 
+    def _record_world(self, action: str, **fields):
+        fn = getattr(self.observations, 'record_world_event', None)
+        if callable(fn):
+            fn(action, **fields)
+        elif self.world is not None:
+            if action == 'obstacle':
+                self.world.mark_obstacle(
+                    float(fields['x']), float(fields['y']),
+                    radius_m=float(fields.get('radius_m', 0.12)),
+                    category=str(fields.get('category', 'obstacle')),
+                    detail=str(fields.get('detail', 'OBSTACLE')),
+                    track_id=str(fields.get('track_id', '')),
+                    status=str(fields.get('status', 'OBSTACLE')),
+                )
+            elif action == 'delivered':
+                self.world.mark_delivered(
+                    float(fields['x']), float(fields['y']),
+                    track_id=str(fields.get('track_id', '')),
+                    category=str(fields.get('category', 'garment')),
+                    radius_m=float(fields.get('radius_m', 0.12)),
+                    detail=str(fields.get('detail', 'DELIVERED')),
+                )
+            elif action == 'failed':
+                self.world.mark_attempt_failed(
+                    float(fields['x']), float(fields['y']),
+                    track_id=str(fields.get('track_id', '')),
+                    detail=str(fields.get('detail', 'FAILED')),
+                )
+
+    def _dynamic_obstacles(self, snapshot, pose_xy=None):
+        dyn = getattr(snapshot, 'dynamic_obstacles', None)
+        if dyn is not None:
+            return dyn
+        if hasattr(self.observations, 'dynamic_obstacles'):
+            return self.observations.dynamic_obstacles(pose_xy)
+        if self.world is not None and self.world.width > 0 and self.world.height > 0:
+            return self.world.obstacle_mask(protect_xy=pose_xy)
+        return None
+
     def verify_context(self,refresh=True):
         self.guard(); self.state('LOCALIZE_AND_VERIFY_CONTEXT')
         s=self.observations.navigation_snapshot(refresh=refresh,max_age_s=5.)
@@ -186,8 +227,17 @@ class PatrolCollector:
         self.position=list(pose[:2]); self.latest_observation=s.evidence
         tf=self.map_odom() if self.map_odom else None
         self.ledger.bind_map(map_identity(s),self.config.allowed_segments,tf)
+        if self.world is not None:
+            self.world.bind_session(
+                getattr(s, 'session_id', b'\x01' * 16),
+                s.map_index,
+                s.map.origin,
+                s.map.width,
+                s.map.height,
+                s.map.resolution,
+            )
         self.config=replace(self.config,allowed_segments=tuple(self.ledger.data['allowed_segments']))
-        b=compute_safe_interior(s.map,s.labels,self.config,pose)
+        b=compute_safe_interior(s.map,s.labels,self.config,pose,dynamic_obstacles=self._dynamic_obstacles(s,pose[:2]))
         if not inside(b,pose[:2]): raise DeliveryRejected('UNLOCALIZED_MAP')
         self.ledger.data['lost_rooms']=list(b.lost_rooms)
         self.ledger.waypoints(b.waypoints)
@@ -236,6 +286,8 @@ class PatrolCollector:
             barrier=self.observations.garment_barrier()
             batch=self.observations.garment_snapshot(after=barrier)
             pose=self._pose()
+            if self.world is not None and pose is not None:
+                self.world.ingest_observations(batch, pose)
             valid=batch.model_available and batch.geofence_active
             source=bytes(batch.evidence.session_id.uuid).hex()+':'+str(batch.evidence.sequence)
             frame=self.observations.garment_frame(after=barrier)
@@ -245,6 +297,23 @@ class PatrolCollector:
                                 empty=empty,occluded=not frame.get('coverage_valid',False))
             if batch.garments: return batch
         return batch
+
+    def _waypoint_priority(self, key: str) -> tuple[int, float]:
+        wp = self.ledger.data['waypoints'][key]
+        wx, wy = float(wp['x']), float(wp['y'])
+        dist = math.dist(self.position, (wx, wy))
+        if self.world is not None:
+            for obj in self.world.pending_objectives(tuple(self.position)):
+                nearest_key = min(
+                    self.ledger.data['waypoints'].keys(),
+                    key=lambda k: math.hypot(
+                        float(self.ledger.data['waypoints'][k]['x']) - obj.x,
+                        float(self.ledger.data['waypoints'][k]['y']) - obj.y,
+                    ),
+                )
+                if key == nearest_key or math.hypot(obj.x - wx, obj.y - wy) <= 0.65:
+                    return (0, math.hypot(obj.x - self.position[0], obj.y - self.position[1]) + 0.1 * math.hypot(obj.x - wx, obj.y - wy))
+        return (1, dist)
 
     def execute(self,goal):
         if (not math.isfinite(goal.max_duration_s) or not 1<=goal.max_duration_s<=3600
@@ -257,7 +326,7 @@ class PatrolCollector:
             snapshot,b=self.verify_context(refresh=not goal.dry_run)
             pose=self._pose(snapshot)
             loaded_boundary=compute_safe_interior(snapshot.map,snapshot.labels,
-                replace(self.config,deployed_arm_extension_m=.10),pose)
+                replace(self.config,deployed_arm_extension_m=.10),pose,dynamic_obstacles=self._dynamic_obstacles(snapshot,pose[:2]))
             if loaded_route(loaded_boundary,pose[:2],(goal.drop_x_m,goal.drop_y_m)) is None:
                 return dict(self.ledger.completion(),status_code='LOADED_ROUTE_BLOCKED',detail='No safe deployed-arm route to staging drop')
             if goal.dry_run:
@@ -272,10 +341,18 @@ class PatrolCollector:
                     reconciliation['__robot__']='STOWED_LOCALIZED_STATIONARY'
                 self.ledger.reconcile(reconciliation)
                 if self.ledger.requires_reconciliation: return dict(self.ledger.completion(),detail='Fresh observation required; no in-flight command replay')
-            for key in sorted(list(self.ledger.data['waypoints']),
-                              key=lambda k: math.dist(self.position, (self.ledger.data['waypoints'][k]['x'], self.ledger.data['waypoints'][k]['y']))):
+            visited_keys: set[str] = set()
+            while True:
                 self.guard()
                 snapshot,b=self.verify_context()
+                candidates = [
+                    k for k, w in self.ledger.data['waypoints'].items()
+                    if k not in visited_keys and w['status'] not in ('CLEARED', 'UNREACHABLE')
+                ]
+                if not candidates:
+                    break
+                key = min(candidates, key=self._waypoint_priority)
+                visited_keys.add(key)
                 waypoint=self.ledger.data['waypoints'].get(key)
                 if waypoint is None or waypoint['status'] in ('CLEARED','UNREACHABLE'): continue
                 self.state('SELECT_REACHABLE_WAYPOINT')
@@ -328,7 +405,10 @@ class PatrolCollector:
                     if any(not self.ledger.may_attempt(k) for k in aliases): continue
                     rejection=transport_policy(g,goal.allow_towing,self.towing)
                     if rejection:
-                        self.ledger.skip_item(item_key,location,rejection); continue
+                        self.ledger.skip_item(item_key,location,rejection)
+                        rad = float(max(0.10, 0.5 * max(getattr(g, 'footprint_width_m', 0.16), getattr(g, 'footprint_depth_m', 0.16))))
+                        self._record_world('obstacle', x=location[0], y=location[1], radius_m=rad, category=g.category, detail=rejection, track_id=item_key, status='SKIPPED_OBSTACLE')
+                        continue
                     if not (g.grasp_valid and g.reachable_for_grasp): continue
                     attempted+=1
                     self.ledger.begin_item(item_key,location)
@@ -340,6 +420,12 @@ class PatrolCollector:
                     uncertain=delivery.holding or getattr(delivery,'payload_uncertain',False)
                     status='DELIVERED' if result['delivered'] else 'IN_FLIGHT_UNKNOWN' if uncertain else 'FAILED'
                     self.ledger.finish_item(item_key,status,result['status_code'])
+                    if status == 'DELIVERED':
+                        self._record_world('delivered', x=goal.drop_x_m, y=goal.drop_y_m, track_id=item_key, category=g.category, detail='DELIVERED')
+                    elif status == 'FAILED':
+                        self._record_world('failed', x=location[0], y=location[1], track_id=item_key, detail=result['status_code'])
+                        if not self.ledger.may_attempt(item_key):
+                            self._record_world('obstacle', x=location[0], y=location[1], radius_m=0.12, category=g.category, detail=result['status_code'], track_id=item_key, status='FAILED_OBSTACLE')
                     if result['status_code']=='SAFE_RELEASE_BEFORE_DOCK':
                         self.recharge(delivery)
                         break

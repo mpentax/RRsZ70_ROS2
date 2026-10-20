@@ -128,13 +128,33 @@ def rasterize_forbidden(m):
     return mask.astype(bool)
 
 
-def compute_safe_interior(m, labels, config, robot_pose_map=None):
+def _normalize_dynamic_mask(m, dynamic_obstacles):
+    if dynamic_obstacles is None:
+        return np.zeros((m.height, m.width), dtype=bool)
+    if hasattr(dynamic_obstacles, 'obstacle_mask'):
+        return np.asarray(
+            dynamic_obstacles.obstacle_mask(m.width, m.height, m.origin, m.resolution),
+            dtype=bool,
+        )
+    if hasattr(dynamic_obstacles, 'info'):
+        g = dynamic_obstacles
+        if (g.info.width, g.info.height) != (m.width, m.height):
+            return np.zeros((m.height, m.width), dtype=bool)
+        return np.asarray(g.data).reshape(m.height, m.width) >= 100
+    arr = np.asarray(dynamic_obstacles)
+    if arr.shape != (m.height, m.width):
+        return np.zeros((m.height, m.width), dtype=bool)
+    return arr if arr.dtype == bool else arr >= 100
+
+
+def compute_safe_interior(m, labels, config, robot_pose_map=None, dynamic_obstacles=None):
     """Union allowlisted rooms before erosion and subtract zones, walls, and obstacles."""
     if not math.isfinite(m.resolution) or m.resolution <= 0:
         raise ValueError('map resolution must be positive and finite')
     ids = extract_segment_ids(m)
     allowed = (ids != 0) & np.isin(ids, config.allowed_segments)
-    forbidden = rasterize_forbidden(m)
+    dyn_mask = _normalize_dynamic_mask(m, dynamic_obstacles)
+    forbidden = rasterize_forbidden(m) | dyn_mask
     interior = allowed & ~forbidden & (m.occupancy == 0)
     padded = np.pad(interior.astype(np.uint8), 1)
     distance = cv2.distanceTransform(padded, cv2.DIST_L2, cv2.DIST_MASK_PRECISE)[1:-1, 1:-1]

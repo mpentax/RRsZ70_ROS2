@@ -79,7 +79,10 @@ class PinAndGoNavigator:
 
     def validate(self, s):
         m = s.map
-        b = compute_safe_interior(m, s.labels, self.config, m.robot)
+        dyn = getattr(s, 'dynamic_obstacles', None)
+        if dyn is None and hasattr(self.observations, 'dynamic_obstacles'):
+            dyn = self.observations.dynamic_obstacles(m.robot[:2] if m.robot else None)
+        b = compute_safe_interior(m, s.labels, self.config, m.robot, dynamic_obstacles=dyn)
         if b.selection_method not in ('robot_safe_cell', 'nearest_safe_cell') or not inside(b, m.robot[:2]):
             raise NavigationRejected('UNLOCALIZED_MAP')
         if not inside(b, self.target):

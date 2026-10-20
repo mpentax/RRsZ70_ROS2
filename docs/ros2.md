@@ -53,7 +53,8 @@ pixi run sim
 | `/camera/{front,gripper}/image_raw`, `image_raw/compressed`, `camera_info`, `metadata` | Shared camera streams with paired `FrameMetadata` and calibrated `CameraInfo` (`RELIABLE + TRANSIENT_LOCAL` on compressed/info/metadata) |
 | `/z70/camera/state`, `/z70/camera/select` | `CameraState` topic and `SelectCamera` service (`1` front, `2` gripper) |
 | `/z70/driver/map_snapshot`, `/z70/map/refresh` | Raw vendor `v1` map bytes and `RefreshMap` service |
-| `/map`, `/z70/map/safe_grid`, `/z70/map/markers`, `/z70/map/spatial_context` | Decoded `OccupancyGrid`, eroded safe interior grid, room/zone markers, and 8-sector clearance context |
+| `/map`, `/z70/map/safe_grid`, `/z70/map/dynamic_obstacles`, `/z70/map/markers`, `/z70/map/spatial_context` | Decoded `OccupancyGrid`, eroded safe interior grid, session-scoped dynamic obstacle grid, room/zone markers, and 8-sector clearance context |
+| `/z70/world/objects`, `/z70/world/markers`, `/z70/world/update` | Session-scoped `map`-frame registry of sighted clothing objectives, dynamic obstacles, and delivered laundry piles with Foxglove 3D `MarkerArray` |
 | `/odom`, `/z70/odom_status`, `/z70/chassis_calibration`, `/z70/floor_mosaic` | Floor visual odometry, unicycle pulse fallback, online chassis gains, and floor mosaic |
 | `/z70/stop`, `/z70/control/session`, `/z70/driver/raw_rpc`, `/z70/arm/anchor`, `/z70/tasks/session` | Priority stop, session enable/disable, raw vendor RPC, arm pose anchor, and task token ownership |
 | `/z70/base/pulse`, `/z70/arm/step`, `/z70/arm/hand_step`, `/z70/arm/operation` | Driver motion primitives (`BasePulse`, `ArmStep`, `HandStep`, `ArmOperation`) |
