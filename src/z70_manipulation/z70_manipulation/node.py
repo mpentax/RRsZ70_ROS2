@@ -369,17 +369,17 @@ class PickServer(Perception):
             success = True
         except Exception as e:
             data = dict(error=type(e).__name__, reason=str(e))
-            ctx.executor.log('failure', **data)
+            ctx.log('failure', **data)
             success = False
         return success, build_result(ctx.outcome(success), success, data)
 
     def _goal_pick(self, ctx: GoalContext, req):
         try:
-            report = ctx.executor.pick(req.color, dry_run=req.dry_run)
+            report = ctx.pick(req.color, dry_run=req.dry_run)
             success = bool(report.get('verified', report.get('dry_run') and report.get('target') is not None))
         except Exception as e:
             report = dict(error=type(e).__name__, reason=str(e), log_dir=str(ctx.directory))
-            ctx.executor.log('failure', **report)
+            ctx.log('failure', **report)
             success = False
         return success, Pick.Result(
             outcome=ctx.outcome(success),
@@ -389,13 +389,12 @@ class PickServer(Perception):
         )
 
     def _goal_stack(self, ctx: GoalContext, req):
-        ctx.executor.feedback = lambda _phase: ctx.feedback(phase=3, current_tier=1, reason='NONE')
         try:
-            report = ctx.executor.stack(req.base_color, req.middle_color, req.top_color, dry_run=req.dry_run)
+            report = ctx.stack(req.base_color, req.middle_color, req.top_color, dry_run=req.dry_run)
             success = bool(report.get('stack_verified', report.get('dry_run') and report.get('all_targets_visible')))
         except Exception as e:
             report = dict(error=type(e).__name__, reason=str(e), log_dir=str(ctx.directory))
-            ctx.executor.log('failure', **report)
+            ctx.log('failure', **report)
             success = False
         tiers_done = 3 if (req.dry_run and success) else int(report.get('tiers_completed', 0))
         return success, Stack.Result(

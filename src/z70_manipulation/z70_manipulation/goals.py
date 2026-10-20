@@ -25,6 +25,8 @@ GOAL_CONTEXT_PRIMITIVES: tuple[dict[str, str], ...] = (
     {'name': 'objects', 'signature': "objects(camera='front', color=None) -> list[dict]", 'summary': 'Detect and project HSV objects in base_footprint from a fresh camera frame.'},
     {'name': 'garments', 'signature': "garments(category='any', after=None) -> list", 'summary': 'Return verified reachable garments from the garment observation pipeline.'},
     {'name': 'navigate', 'signature': 'navigate(target_x_m: float, target_y_m: float, max_duration_s: float = 60., dry_run: bool = False) -> dict', 'summary': 'Navigate the stowed chassis to (target_x_m, target_y_m) via PinAndGo.'},
+    {'name': 'pick', 'signature': 'pick(color: str, dry_run: bool = False) -> dict', 'summary': 'Execute a full autonomous object pickup by HSV color.'},
+    {'name': 'stack', 'signature': 'stack(base_color: str, middle_color: str, top_color: str, dry_run: bool = False) -> dict', 'summary': 'Execute a 3-object stack by HSV color.'},
     {'name': 'deploy_arm', 'signature': 'deploy_arm(settle=True) -> dict', 'summary': 'Enter manual arm mode and unstow the arm to WORKING_POS.'},
     {'name': 'align_target', 'signature': 'align_target(color: str) -> dict', 'summary': 'Visually servo the chassis toward a target color using front camera observations.'},
     {'name': 'move_arm', 'signature': 'move_arm(m3_deg: float, m4_deg: float, m5_deg: float = 0.) -> dict', 'summary': 'Execute a collision-checked coordinated multi-axis arm trajectory.'},
@@ -35,6 +37,23 @@ GOAL_CONTEXT_PRIMITIVES: tuple[dict[str, str], ...] = (
     {'name': 'feedback', 'signature': 'feedback(**fields)', 'summary': 'Publish ROS 2 action feedback with latest observation and outcome stamps.'},
     {'name': 'outcome', 'signature': 'outcome(success: bool) -> CommandOutcome', 'summary': 'Build the terminal CommandOutcome for the goal result.'},
 )
+
+GOAL_DESCRIPTIONS: dict[str, str] = {
+    'pick': 'Autonomous object pickup by HSV color with visual alignment, coordinated descent, grasp, lift, and stow.',
+    'stack': 'Multi-tier 3-object stacking with visual alignment, controlled descent, in-place jaw release, and stability verification.',
+    'pin_and_go': 'Interior-geofenced Pin-and-Go point navigation on the verified vendor SLAM map.',
+    'deliver_garment': 'Single-garment perception, staged deployment, pickup, loaded corridor transit, and drop-zone delivery.',
+    'patrol_collect': 'Autonomous multi-waypoint garment patrol, collection, and drop-zone delivery with persistent ledger state.',
+    'deploy_arm': 'Unstow the arm into WORKING_POS (150, 45, 0, 90) and optionally wait for obstruction check settle.',
+    'align_target': 'Visually servo the chassis using front camera observations to center and range a target color.',
+    'move_arm': 'Plan and execute collision-checked, coordinated multi-axis 10-degree arm steps to target joint angles.',
+    'grasp_and_lift': 'Close jaws, execute upward hand steps, and optionally verify target elevation in the front camera.',
+    'release_and_stow': 'Optionally open jaws in place, stow the arm into the compartment, and anchor IN_ROBOT.',
+    'base_pulse': 'Execute a single bounded linear or angular chassis velocity pulse.',
+    'arm_step': 'Execute a single 10-degree joint step on M3..M5 or a coordinated M3+M4 step (34/43).',
+    'hand_step': 'Execute a single 40 mm Cartesian IK hand step (up, down, forward, back).',
+    'arm_operation': 'Invoke a discrete arm mode or lifecycle operation (unstow, stow, recovery-open, grip, put-down, mode entry/exit, recover).',
+}
 
 
 @dataclass
@@ -59,7 +78,7 @@ class GoalSpec:
             'action': self.action_cls.__name__,
             'fields': list(self.fields),
             'navigation': self.navigation,
-            'description': self.description,
+            'description': self.description or GOAL_DESCRIPTIONS.get(self.name, ''),
         }
 
 
@@ -71,6 +90,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         directory=Path('.'),
         latest_observation=None,
         commands=None,
+        executor=None,
         status=lambda: {'state': 3, 'error_code': 0, 'battery': 100, 'common_status': 51202},
         arm=lambda: {'state': 'IN_ROBOT', 'joints': {'m3': 270., 'm4': 180., 'm5': 0., 'm6': 0.}},
         arm_msg=lambda: None,
@@ -84,6 +104,12 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         navigate=lambda target_x_m, target_y_m, max_duration_s=60., dry_run=False: {
             'arrived': not dry_run, 'dry_run_valid': bool(dry_run), 'status_code': 'ARRIVED', 'detail': '',
         },
+        pick=lambda color, dry_run=False: {
+            'verified': not dry_run, 'dry_run': bool(dry_run), 'target': {'color': color},
+        },
+        stack=lambda base_color, middle_color, top_color, dry_run=False: {
+            'stack_verified': not dry_run, 'dry_run': bool(dry_run), 'all_targets_visible': True, 'tiers_completed': 3,
+        },
         deploy_arm=lambda settle=True: {'ready': True},
         align_target=lambda color: {'position': [0.35, 0., 0.04], 'bearing_error_deg': 0., 'range_error_m': 0.},
         move_arm=lambda m3_deg, m4_deg, m5_deg=0.: {'steps_executed': 1},
@@ -95,6 +121,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         hazard=lambda: None,
         is_cancelled=lambda: False,
         sleep=lambda duration: None,
+        log=lambda stage, **fields: None,
         feedback=lambda **fields: None,
         outcome=lambda success: CommandOutcome(error_code='NONE' if success else 'OBSERVATION_GAP'),
     )
@@ -133,14 +160,10 @@ class GoalContext:
     # --- State & Perception ---
 
     def status(self) -> dict:
-        if hasattr(self.observations, 'status'):
-            return self.observations.status()
-        return self.observations.get('/api/state')['telemetry']['status']['value']
+        return self.observations.status() if hasattr(self.observations, 'status') else self.observations.get('/api/state')['telemetry']['status']['value']
 
     def arm(self) -> dict:
-        if hasattr(self.observations, 'arm_estimate'):
-            return self.observations.arm_estimate()
-        return self.observations.get('/api/arm/estimate')
+        return self.observations.arm_estimate() if hasattr(self.observations, 'arm_estimate') else self.observations.get('/api/arm/estimate')
 
     def arm_msg(self):
         return self.server._current_arm_msg()
@@ -211,6 +234,13 @@ class GoalContext:
         self.latest_observation = nav.latest_observation
         return res
 
+    def pick(self, color: str, dry_run: bool = False) -> dict:
+        return self.executor.pick(color, dry_run=dry_run)
+
+    def stack(self, base_color: str, middle_color: str, top_color: str, dry_run: bool = False) -> dict:
+        self.executor.feedback = lambda _phase: self.feedback(phase=3, current_tier=1, reason='NONE')
+        return self.executor.stack(base_color, middle_color, top_color, dry_run=dry_run)
+
     def deploy_arm(self, settle=True) -> dict:
         return self.executor.deploy(settle=settle)
 
@@ -235,6 +265,10 @@ class GoalContext:
     def stop(self):
         if self.commands:
             self.commands.stop()
+
+    def log(self, stage: str, **fields):
+        if self.executor:
+            self.executor.log(stage, **fields)
 
     # --- Lifecycle, Cancellation & Feedback ---
 
