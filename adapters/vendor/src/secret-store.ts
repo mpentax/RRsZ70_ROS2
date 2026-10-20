@@ -1,11 +1,10 @@
 import { constants, type Stats } from "node:fs";
 import { link, lstat, mkdir, open, rename, unlink } from "node:fs/promises";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { summarizeV1Map } from "./v1-map-summary.ts";
 import { isIP } from "node:net";
 import { join, parse, resolve, sep } from "node:path";
 import { validateHomeAuthorization, type CameraAccount, type DeviceCredentials, type HomeAuthorization } from "./cloud.ts";
-import { readPrivateMapFile, savePrivateV1Map, validatedMapMetadata, type PrivateMapMetadata } from "./private-map-cache.ts";
+import { readPrivateMapFile, savePrivateV1Map, summarizeV1Map, validatedMapMetadata, type PrivateMapMetadata } from "./private-map-cache.ts";
 
 export type LocalProtocol = "1.0" | "L01";
 export function localProtocol(value: unknown): LocalProtocol {

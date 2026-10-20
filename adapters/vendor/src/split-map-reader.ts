@@ -1,7 +1,7 @@
 /** Read the V1 LiDAR map via local L01 request and correlated MQTT 301 reply. */
 import { createHash, randomUUID } from "node:crypto";
 import { connectAsync } from "mqtt";
-import { summarizeV1Map } from "./v1-map-summary.ts";
+import { summarizeV1Map } from "./private-map-cache.ts";
 import { RobotClient } from "./robot.ts";
 import { createBlobSecurity, decodeCloudMapResponse, inspectMapFrame, MAX_CLOUD_MAP_FRAME_BYTES } from "./photo-protocol.ts";
 import { cloudControlCredentials, mqttOptions } from "./cloud-control.ts";
