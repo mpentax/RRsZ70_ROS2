@@ -642,8 +642,9 @@ def test_pickup_client_delegates_observations_without_network_or_token(tmp_path,
 
 def test_simulate_goal_exercises_all_builtin_goals():
     from types import SimpleNamespace
-    from z70_manipulation.goals import BUILTIN_GOALS, GoalSpec, simulate_goal
+    from z70_manipulation.goals import ALL_GOALS, BUILTIN_GOALS, GoalSpec, simulate_goal
 
+    assert len(ALL_GOALS) == 14
     cases = [
         ('pick', dict(color='yellow', dry_run=False), lambda r: r.verified_hold),
         ('stack', dict(base_color='blue', middle_color='purple', top_color='yellow', dry_run=False), lambda r: r.stack_verified and r.tiers_completed == 3),
@@ -655,9 +656,13 @@ def test_simulate_goal_exercises_all_builtin_goals():
         ('move_arm', dict(m3_deg=150., m4_deg=45., m5_deg=0.), lambda r: r.steps_executed == 1),
         ('grasp_and_lift', dict(lift_steps=2, verify_color='yellow'), lambda r: r.verified_hold),
         ('release_and_stow', dict(put_down=True), lambda r: r.stowed),
+        ('base_pulse', dict(linear_mps=0.05, angular_radps=0., duration=dict(sec=0, nanosec=300000000)), lambda r: r.outcome.error_code == 'NONE'),
+        ('arm_step', dict(joint=34, direction=1), lambda r: r.outcome.error_code == 'NONE'),
+        ('hand_step', dict(direction=1), lambda r: r.outcome.error_code == 'NONE'),
+        ('arm_operation', dict(operation=7), lambda r: r.outcome.error_code == 'NONE'),
     ]
     for name, payload, check in cases:
-        spec = BUILTIN_GOALS[name]
+        spec = ALL_GOALS[name]
         assert spec.validate_payload(payload), name
         ok, res = simulate_goal(spec, SimpleNamespace(**payload))
         assert ok and check(res), name
@@ -665,7 +670,10 @@ def test_simulate_goal_exercises_all_builtin_goals():
     route_spec = BUILTIN_GOALS['pin_and_go']
     ok, _ = simulate_goal(
          GoalSpec('route_check', route_spec.action_cls, '/z70/route_check', 10., lambda _s, _r: True,
-                  lambda ctx, r: (ctx.plan_route(r.target_x_m, r.target_y_m) == [(1., 2.)], route_spec.action_cls.Result())),
+                  lambda ctx, r: (ctx.plan_route(r.target_x_m, r.target_y_m) == [(1., 2.)]
+                                  and ctx.arm_step(1, 2, 0) == {'m3': 1, 'm4': 2, 'm5': 0}
+                                  and ctx.hand_step(1) == {'direction': 1}
+                                  and ctx.open_jaws() is None, route_spec.action_cls.Result())),
         SimpleNamespace(target_x_m=1., target_y_m=2.),
     )
     assert ok

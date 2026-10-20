@@ -263,25 +263,6 @@ export class Go2Rtc {
     } catch { return false; }
   }
 
-  // This is a separate, strict read-only diagnostic. The legacy preloaded()
-  // check is permissive and must not be used as evidence to reset a stale hold.
-  async idleStream(): Promise<boolean> {
-    try {
-      const preload = await fetch(`${this.#origin}/api/preload`, { redirect: "error", signal: AbortSignal.timeout(3000) });
-      if (!preload.ok) { await preload.body?.cancel(); return false; }
-      const preloadValue: unknown = JSON.parse(await responseText(preload));
-      if (!preloadValue || typeof preloadValue !== "object" || Array.isArray(preloadValue) ||
-          GO2RTC_STREAM in preloadValue) return false;
-      const stream = await fetch(`${this.#origin}/api/streams?src=${GO2RTC_STREAM}`, {
-        redirect: "error", signal: AbortSignal.timeout(3000),
-      });
-      if (!stream.ok) { await stream.body?.cancel(); return false; }
-      const streamValue: unknown = JSON.parse(await responseText(stream));
-      return !!streamValue && typeof streamValue === "object" && !Array.isArray(streamValue) &&
-        "consumers" in streamValue && Array.isArray(streamValue.consumers) && streamValue.consumers.length === 0;
-    } catch { return false; }
-  }
-
   async preload(videoOnly = true): Promise<void> {
     const session = this.#activeSignal();
     const endpoint = new URL("/api/preload", this.#origin);
