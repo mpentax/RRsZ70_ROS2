@@ -100,18 +100,21 @@ class Observations:
     def on_map(self, msg):
         with self.condition: self.map_snapshot = msg; self.condition.notify_all()
 
+    def _call_service(self, client, request, timeout_s, timeout_exc):
+        future = client.call_async(request)
+        done = threading.Event(); future.add_done_callback(lambda _: done.set())
+        deadline = time.monotonic() + timeout_s
+        while not done.wait(.02):
+            if self.cancelled(): raise InterruptedError('CANCELLED')
+            if time.monotonic() >= deadline: raise timeout_exc
+        return future.result()
+
     def navigation_snapshot(self, refresh=False, max_age_s=5.):
         from z70_mapping.decoder import decode_map
         expected = None
         if refresh:
             if not self.map_refresher.wait_for_service(timeout_sec=1.): raise LookupError('MAP_REFRESH_UNAVAILABLE')
-            future = self.map_refresher.call_async(RefreshMap.Request())
-            done = threading.Event(); future.add_done_callback(lambda _:done.set())
-            deadline = time.monotonic()+35.
-            while not done.wait(.02):
-                if self.cancelled(): raise InterruptedError('CANCELLED')
-                if time.monotonic() >= deadline: raise TimeoutError('MAP_REFRESH_TIMEOUT')
-            response = future.result()
+            response = self._call_service(self.map_refresher, RefreshMap.Request(), 35., TimeoutError('MAP_REFRESH_TIMEOUT'))
             if response.outcome.error_code != 'NONE' or not response.snapshot.valid or response.snapshot.stale:
                 raise LookupError('MAP_REFRESH_FAILED')
             expected = response.snapshot
@@ -207,13 +210,12 @@ class Observations:
     def frame(self):
         def available():
             if self.image is None: return False
-            frame, meta, _ = self.image
-            identity = (bytes(meta.evidence.session_id.uuid), meta.evidence.sequence)
-            return identity != self.used and self.fresh(meta.evidence, 5.)
+            _, meta, _ = self.image
+            return self.evidence_id(meta.evidence) != self.used and self.fresh(meta.evidence, 5.)
         self.wait(available)
         with self.condition:
             frame, meta, camera = self.image
-            self.used = (bytes(meta.evidence.session_id.uuid), meta.evidence.sequence)
+            self.used = self.evidence_id(meta.evidence)
         image = cv2.imdecode(np.frombuffer(frame.data, np.uint8), cv2.IMREAD_COLOR)
         if image is None: raise LookupError('invalid shared frame')
         return image, camera
@@ -221,13 +223,8 @@ class Observations:
     def select(self, camera):
         if camera not in ('front','gripper'): raise ValueError('unsupported camera')
         if not self.selector.wait_for_service(timeout_sec=2.): raise LookupError('driver selector unavailable')
-        future = self.selector.call_async(SelectCamera.Request(camera=1 if camera=='front' else 2))
-        done = threading.Event(); future.add_done_callback(lambda _:done.set())
-        deadline=time.monotonic()+20.
-        while not done.wait(.05):
-            if self.cancelled(): raise InterruptedError('CANCELLED')
-            if time.monotonic()>=deadline: raise LookupError('driver selection deadline; do not replay blindly')
-        response = future.result()
+        response = self._call_service(self.selector, SelectCamera.Request(camera=1 if camera=='front' else 2),
+                                      20., LookupError('CAMERA_SELECT_TIMEOUT'))
         if not response.state.selection_confirmed or response.outcome.error_code not in ('NONE','TIMEOUT'):
             raise LookupError(response.outcome.error_code or 'selection unconfirmed')
         with self.condition:
