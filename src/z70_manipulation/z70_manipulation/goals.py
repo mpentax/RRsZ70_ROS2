@@ -25,6 +25,7 @@ from z70_mapping.boundary import check_corridor_containment, compute_safe_interi
 from . import placement, planner
 from .executor import Executor
 from .navigation import PinAndGoNavigator
+from .observations import read_arm, read_status
 
 COLOR_RE = re.compile(r'[a-zA-Z0-9_-]{1,32}')
 
@@ -222,10 +223,10 @@ class GoalContext:
     # --- State & Perception ---
 
     def status(self) -> dict:
-        return self.observations.status() if hasattr(self.observations, 'status') else self.observations.get('/api/state')['telemetry']['status']['value']
+        return read_status(self.observations)
 
     def arm(self) -> dict:
-        return self.observations.arm_estimate() if hasattr(self.observations, 'arm_estimate') else self.observations.get('/api/arm/estimate')
+        return read_arm(self.observations)
 
     def arm_msg(self):
         return self.server._current_arm_msg()

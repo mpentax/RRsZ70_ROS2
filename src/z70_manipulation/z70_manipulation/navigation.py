@@ -4,6 +4,7 @@ import time
 
 import numpy as np
 from z70_mapping.boundary import BoundaryConfig, compute_safe_interior
+from .observations import read_arm, read_status
 
 
 class NavigationRejected(Exception):
@@ -51,12 +52,10 @@ class PinAndGoNavigator:
                     detail=(detail or code)[:128])
 
     def status(self) -> dict:
-        fn = getattr(self.observations, 'status', None)
-        return (fn() if callable(fn) else self.observations.get('/api/state')['telemetry']['status']['value'])  # type: ignore[return-value]
+        return read_status(self.observations)
 
     def _arm(self) -> dict:
-        fn = getattr(self.observations, 'arm_estimate', None)
-        return (fn() if callable(fn) else self.observations.get('/api/arm/estimate'))  # type: ignore[return-value]
+        return read_arm(self.observations)
 
     def stowed(self, status):
         common = status.get('common_status')
