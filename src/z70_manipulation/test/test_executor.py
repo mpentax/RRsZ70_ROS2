@@ -828,7 +828,7 @@ def test_simulate_goal_filters_list_overrides_and_plans_stack_tier():
     custom = GoalSpec(
         'custom_check', Pick, '/z70/custom_check', 10., lambda _s, _r: True,
         lambda ctx, req: (
-            bool(ctx.objects('front', req.color)) and ctx.plan_stack_tier(1)['tier'] == 1,
+            bool(ctx.objects('front', req.color)) and ctx.plan_stack_tier(1)['tier'] == 1 and ctx.arm_kinematics(150, 45)['safe'],
             Pick.Result(outcome=ctx.outcome(True), verified_hold=bool(ctx.objects('front', req.color)), dry_run_valid=req.dry_run, evidence_uri='sim'),
         ),
         fields=('color', 'dry_run'),

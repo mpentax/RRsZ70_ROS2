@@ -143,6 +143,22 @@ def tip_floor_bound(state):
     """Return jaw tip height minus vertical calibration uncertainty."""
     return tip_height(state)-_CALIBRATION['jaw_uncertainty_bound_m']
 
+
+def arm_kinematics(state):
+    """Return forward kinematics, floor clearance, and safety status for a joint state."""
+    st = (float(state[0]), float(state[1]), float(state[2]) if len(state) > 2 else 0., float(state[3]) if len(state) > 3 else 90.)
+    op = operational_point(st)
+    vx, vz = vendor_endpoint(st)
+    return dict(
+        state=list(st),
+        safe=safe(st),
+        operational_point_m=[round(x, 4) for x in op],
+        grasp_point_m=[round(op[0], 4), round(op[1], 4), 0.0],
+        tip_height_m=round(tip_height(st), 4),
+        tip_floor_bound_m=round(tip_floor_bound(st), 4),
+        vendor_endpoint_xz_m=[round(vx, 4), round(vz, 4)],
+    )
+
 def descent_plan(start,target=None,goal=GRASP,min_tip=.015,equator_height=.033):
     """Plan a joint path keeping floor contact and object equator within the gripper FOV."""
     target=target or grasp_point(); f,cx,cy,w,h=GRIPPER_K
