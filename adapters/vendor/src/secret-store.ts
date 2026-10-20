@@ -4,9 +4,22 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { summarizeV1Map } from "./v1-map-summary.ts";
 import { isIP } from "node:net";
 import { join, parse, resolve, sep } from "node:path";
-import { validateHomeAuthorization, type CameraAccount, type HomeAuthorization } from "./cloud.ts";
-import { localProtocol, type SavedDevice } from "./credentials.ts";
+import { validateHomeAuthorization, type CameraAccount, type DeviceCredentials, type HomeAuthorization } from "./cloud.ts";
 import { readPrivateMapFile, savePrivateV1Map, validatedMapMetadata, type PrivateMapMetadata } from "./private-map-cache.ts";
+
+export type LocalProtocol = "1.0" | "L01";
+export function localProtocol(value: unknown): LocalProtocol {
+  if (value !== "1.0" && value !== "L01") throw new Error("Unsupported local protocol");
+  return value;
+}
+export function selectedLocalProtocol(device: SavedDevice): LocalProtocol {
+  return localProtocol(device.localProtocol ?? "1.0");
+}
+
+export interface SavedDevice extends DeviceCredentials {
+  host: string;
+  localProtocol?: LocalProtocol;
+}
 
 export interface PersistentCamera {
   account: CameraAccount;

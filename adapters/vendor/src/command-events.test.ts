@@ -2,8 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { startService, type ServiceRobot, type ServiceStore } from './service.ts';
 import { loadServiceConfig } from './service-config.ts';
-import { TransportError } from './rpc-outcome.ts';
-import { summarizeStatus } from './credentials.ts';
+import { summarizeStatus, TransportError } from './rpc-outcome.ts';
 import { pulseParams } from './command-events.ts';
 
 // All credentials and transport here are synthetic; no disk store or robot.

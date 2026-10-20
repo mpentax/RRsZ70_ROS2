@@ -1,4 +1,4 @@
-import { localProtocol, selectedLocalProtocol, summarizeStatus, type SavedDevice } from "./credentials.ts";
+import { localProtocol, selectedLocalProtocol, type SavedDevice } from "./secret-store.ts";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -9,7 +9,7 @@ import { isIP } from "node:net";
 import { refreshRooms, RoborockCloud, selectedRooms, type CameraAccount, type CameraLogin, type HomeAuthorization } from "./cloud.ts";
 import { RobotClient, RpcError, type RobotDiagnostic } from "./robot.ts";
 import { CloudControlClient, cloudControlCredentials } from "./cloud-control.ts";
-import { numericTelemetry, publicRpcValue, TransportError, type RpcOutcome } from "./rpc-outcome.ts";
+import { numericTelemetry, publicRpcValue, summarizeStatus, TransportError, type RpcOutcome } from "./rpc-outcome.ts";
 import { Go2Rtc, publicCameraFailure } from "./go2rtc.ts";
 import { CameraSelector, requestedCamera } from "./camera-selection.ts";
 import { loadServiceConfig, type ServiceConfig } from "./service-config.ts";

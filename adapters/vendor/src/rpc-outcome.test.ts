@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { numericTelemetry, publicRpcValue } from "./rpc-outcome.ts";
+import { numericTelemetry, publicRpcValue, summarizeStatus } from "./rpc-outcome.ts";
 test("credential keys and embedded known credential values never survive public vendor results", () => {
   assert.deepEqual(publicRpcValue({ localKey: "hidden", nested: [{ password: "hidden", result: "secret-value" }], ok: true }, ["secret-value"]), { nested: [{ result: "[redacted]" }], ok: true });
 });
@@ -24,4 +24,12 @@ test("transport sanitization bounds nesting and array size without inventing num
   assert.equal((numericTelemetry(Array.from({ length: 100 }, () => true)) as unknown[]).length, 64);
   assert.deepEqual(numericTelemetry([NaN, "ok", {}, false]), [null, null, {}, false]);
   assert.equal(numericTelemetry({ value: 1 }, 6), null);
+});
+
+test("status summary permits only selected scalar fields", () => {
+  assert.deepEqual(summarizeStatus([{ battery: 90, state: 8, localKey: "secret", fw_ver: {} }]), {
+    battery: 90, state: 8,
+  });
+  assert.deepEqual(summarizeStatus(null), {});
+  assert.deepEqual(summarizeStatus([]), {});
 });

@@ -5,7 +5,7 @@ import { summarizeV1Map } from "./v1-map-summary.ts";
 import { RobotClient } from "./robot.ts";
 import { createBlobSecurity, decodeCloudMapResponse, inspectMapFrame, MAX_CLOUD_MAP_FRAME_BYTES } from "./photo-protocol.ts";
 import { cloudControlCredentials, mqttOptions } from "./cloud-control.ts";
-import type { SavedDevice } from "./credentials.ts";
+import type { SavedDevice } from "./secret-store.ts";
 import type { CameraAccount } from "./cloud.ts";
 const TIMEOUT_MS = 12_000;
 export async function readSplitMap(device: SavedDevice, account: CameraAccount): Promise<{

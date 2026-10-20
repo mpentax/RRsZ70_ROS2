@@ -4,7 +4,7 @@ import { chmod, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm, stat, sy
 import { randomInt } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { SecretStore, safeReason, type PersistentCamera, type PersistentPairing } from "./secret-store.ts";
+import { SecretStore, safeReason, selectedLocalProtocol, type PersistentCamera, type PersistentPairing } from "./secret-store.ts";
 
 const device = {
   host: "192.0.2.10", duid: "synthetic-device", name: "Synthetic camera",
@@ -227,4 +227,15 @@ test("startup failure reasons keep errno codes and fixed labels, never paths or 
   assert.equal(safeReason(new Error("Unsafe state owner.")), "Unsafe state owner.");
   assert.equal(safeReason(new SyntaxError("Unexpected token s in JSON at position 3: secret123")), "SyntaxError");
   assert.equal(safeReason("raw string"), "unknown");
+});
+
+test("explicit local L01 persists independently of cloud pv 1.0", async (t) => {
+  const { store } = await fixture(t);
+  await store.savePairing(pairing({ device: { ...device, localProtocol: "L01" } }));
+  const saved = (await store.loadPairing())?.device;
+  assert.ok(saved); assert.equal(saved.protocolVersion, "1.0");
+  assert.equal(selectedLocalProtocol(saved), "L01");
+  assert.equal(selectedLocalProtocol({ ...device, protocolVersion: "L01", localProtocol: undefined }), "1.0");
+  await assert.rejects(store.savePairing(pairing({ device: { ...device, localProtocol: "unknown" as "L01" } })));
+  assert.equal((await store.loadPairing())?.device.localProtocol, "L01");
 });

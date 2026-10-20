@@ -4,6 +4,8 @@ import { connectAsync, type IClientOptions } from "mqtt";
 import { localProtocolCodec } from "./local.ts";
 import { RpcError } from "./robot.ts";
 import { defaultRpcTimeoutMs, PRIORITY_STOPS, TransportError } from "./rpc-outcome.ts";
+import type { CameraAccount } from "./cloud.ts";
+import type { SavedDevice } from "./secret-store.ts";
 
 export interface CloudControlCredentials {
   broker: string; user: string; secret: string; accountKey: string; deviceId: string; localKey: string;
@@ -14,7 +16,7 @@ function record(value: unknown): value is Record<string, unknown> {
 }
 
 /** Credentials originate from the authenticated service account, never go2rtc. */
-export function cloudControlCredentials(account: import("./cloud.ts").CameraAccount, device: import("./credentials.ts").SavedDevice): CloudControlCredentials {
+export function cloudControlCredentials(account: CameraAccount, device: SavedDevice): CloudControlCredentials {
   const endpoint = new URL(account.mqttUrl);
   if (!["ssl:", "mqtts:"].includes(endpoint.protocol)) throw new TransportError("Invalid authenticated broker", "not_sent");
   const credentials = { broker: account.mqttUrl.replace(/^(ssl|mqtts):/, "mqtts:"),

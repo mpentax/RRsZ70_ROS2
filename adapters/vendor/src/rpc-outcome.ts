@@ -62,3 +62,16 @@ export function numericTelemetry(value: unknown, depth = 0): NumericTelemetry {
   }
   return result;
 }
+
+export function summarizeStatus(status: unknown): Record<string, string | number | boolean | null> {
+  const first: unknown = Array.isArray(status) ? status[0] : status;
+  const result: Record<string, string | number | boolean | null> = {};
+  if (!first || typeof first !== "object") return result;
+  for (const key of ["battery", "state", "error_code", "in_cleaning", "in_returning", "fw_ver", "common_status", "grab_status"]) {
+    const value: unknown = Reflect.get(first, key);
+    if (value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+      result[key] = value;
+    }
+  }
+  return result;
+}
