@@ -1,14 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Window} from 'happy-dom';
-import {createElement,act} from 'react';
-import {createRoot} from 'react-dom/client';
-import './setup-tsx.ts';
+import { createElement, act } from 'react';
+import { dom, flush } from './setup-tsx.ts';
 const {App}=await import('../src/App.tsx');
 
 test('rendered web reconnects read-only and clears only connection errors',async t=>{
-  const window=new Window();Object.assign(globalThis,{window,document:window.document,IS_REACT_ACT_ENVIRONMENT:true});
-  const element=window.document.createElement('div');const root=createRoot(element as unknown as Element);
+  const {window,element,root}=dom();
   let available=false;const writes:string[]=[];
   t.mock.method(globalThis,'fetch',async(path:string,init:RequestInit)=>{
     if(init.method==='POST')writes.push(path);
@@ -19,10 +16,10 @@ test('rendered web reconnects read-only and clears only connection errors',async
   });
   try {
     await act(async()=>{root.render(createElement(App,{session:Promise.resolve({authenticated:true})}));});
-    await act(async()=>{await new Promise(resolve=>setTimeout(resolve,30));});
+    await flush(30);
     assert.match(element.textContent!,/ROS_UNAVAILABLE/);
     available=true;
-    await act(async()=>{await new Promise(resolve=>setTimeout(resolve,1600));});
+    await flush(1600);
     assert.match(element.textContent!,/ROS driver available/);assert.match(element.textContent!,/75%/);
     assert.doesNotMatch(element.textContent!,/ROS_UNAVAILABLE/);assert.deepEqual(writes,[]);
   } finally {await act(async()=>root.unmount());await window.happyDOM.close();}

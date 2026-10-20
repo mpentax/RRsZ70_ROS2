@@ -1,17 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Window, type HTMLInputElement} from 'happy-dom';
-import {createElement,act} from 'react';
-import {createRoot} from 'react-dom/client';
-import './setup-tsx.ts';
+import type { HTMLInputElement } from 'happy-dom';
+import { createElement, act } from 'react';
+import { dom, flush } from './setup-tsx.ts';
 const {App}=await import('../src/App.tsx');
 const {SESSION_EXPIRED}=await import('../src/api.ts');
 
 test('first-run browser offers setup without ROS and returns to PIN sign-in on completion',async t=>{
-  const window=new Window({url:'http://127.0.0.1:57000'});
-  Object.assign(globalThis,{window,document:window.document,IS_REACT_ACT_ENVIRONMENT:true});
-  const element=window.document.createElement('div');window.document.body.append(element);
-  const root=createRoot(element as unknown as Element);const paths:string[]=[];let completed=false;
+  const {window,element,root}=dom();const paths:string[]=[];let completed=false;
   t.mock.method(globalThis,'fetch',async(path:string,init:RequestInit)=>{
     paths.push(path);
     if(path==='/api/session' && init.method==='POST')return Response.json({authenticated:false,scope:'setup',setupAvailable:true});
@@ -20,7 +16,6 @@ test('first-run browser offers setup without ROS and returns to PIN sign-in on c
     if(path==='/api/camera/pin'){completed=true;return Response.json({pinCached:true});}
     return Response.json({error:'ROS_UNAVAILABLE'},{status:503});
   });
-  const flush=async()=>act(async()=>{await new Promise(resolve=>setTimeout(resolve,10));});
   try {
     await act(async()=>root.render(createElement(App,{session:Promise.resolve({authenticated:false,scope:null,setupAvailable:true})})));await flush();
     const start=Array.from(element.querySelectorAll('button')).find(b=>b.textContent==='Start local setup');assert.ok(start);
@@ -38,10 +33,7 @@ test('first-run browser offers setup without ROS and returns to PIN sign-in on c
 });
 
 test('stale first-run setup conflict refreshes session and offers usable PIN sign-in',async t=>{
-  const window=new Window({url:'http://127.0.0.1:57000'});
-  Object.assign(globalThis,{window,document:window.document,IS_REACT_ACT_ENVIRONMENT:true});
-  const element=window.document.createElement('div');window.document.body.append(element);
-  const root=createRoot(element as unknown as Element);const requests:string[]=[];
+  const {window,element,root}=dom();const requests:string[]=[];
   t.mock.method(globalThis,'fetch',async(path:string,init:RequestInit)=>{
     requests.push(`${init.method} ${path}`);
     if(path==='/api/session' && init.method==='POST'){
@@ -54,7 +46,6 @@ test('stale first-run setup conflict refreshes session and offers usable PIN sig
     if(path==='/api/setup')return Response.json({device:null,accountConfigured:true,pinConfigured:true});
     return Response.json({error:'ROS_UNAVAILABLE'},{status:503});
   });
-  const flush=async()=>act(async()=>{await new Promise(resolve=>setTimeout(resolve,10));});
   try {
     await act(async()=>root.render(createElement(App,{session:Promise.resolve({authenticated:false,scope:null,setupAvailable:true})})));
     const start=Array.from(element.querySelectorAll('button')).find(b=>b.textContent==='Start local setup')!;
@@ -75,9 +66,7 @@ test('stale first-run setup conflict refreshes session and offers usable PIN sig
 });
 
 test('expired first-run setup clears secret inputs and offers setup again without a reload',async t=>{
-  const window=new Window({url:'http://127.0.0.1:57000'});
-  Object.assign(globalThis,{window,document:window.document,IS_REACT_ACT_ENVIRONMENT:true});
-  const element=window.document.createElement('div');const root=createRoot(element as unknown as Element);
+  const {window,element,root}=dom();
   t.mock.method(globalThis,'fetch',async(path:string)=>Response.json(path==='/api/session'
     ? {authenticated:false,scope:null,setupAvailable:true}
     : {device:null,accountConfigured:false,pinConfigured:false}));
@@ -85,7 +74,7 @@ test('expired first-run setup clears secret inputs and offers setup again withou
     await act(async()=>root.render(createElement(App,{session:Promise.resolve({authenticated:false,scope:'setup' as const,setupAvailable:true})})));
     assert.ok(element.querySelector('input[type=email]'));
     await act(async()=>window.dispatchEvent(new window.Event(SESSION_EXPIRED)));
-    await act(async()=>{await new Promise(resolve=>setTimeout(resolve,10));});
+    await flush();
     assert.equal(element.querySelector('input[type=email]'),null);
     assert.ok(Array.from(element.querySelectorAll('button')).some(b=>b.textContent==='Start local setup'));
   } finally {await act(async()=>root.unmount());await window.happyDOM.close();}

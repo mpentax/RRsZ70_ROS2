@@ -1,14 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Window} from 'happy-dom';
-import {createElement,act} from 'react';
-import {createRoot} from 'react-dom/client';
-import './setup-tsx.ts';
+import { createElement, act } from 'react';
+import { dom, flush } from './setup-tsx.ts';
 const {App}=await import('../src/App.tsx');
 
 test('rendered session stop remains usable during a stalled command and requires explicit resume',async t=>{
-  const window=new Window();Object.assign(globalThis,{window,document:window.document,IS_REACT_ACT_ENVIRONMENT:true});
-  const element=window.document.createElement('div');const root=createRoot(element as unknown as Element);
+  const {window,element,root}=dom();
   const writes:{path:string;body:unknown}[]=[];let enabled=true;let finish!:()=>void;
   const pending=new Promise<void>(r=>{finish=r;});
   t.mock.method(globalThis,'fetch',async(path:string,init:RequestInit)=>{
@@ -32,7 +29,7 @@ test('rendered session stop remains usable during a stalled command and requires
     assert.deepEqual(writes.at(-1),{path:'/api/ros/control/session',body:{enabled:false}});
     assert.equal(button('M3 + nominal step')!.disabled,true);
     assert.ok(button('Resume control & streams'));
-    await act(async()=>{await new Promise(r=>setTimeout(r,1600));});
+    await flush(1600);
     assert.equal(writes.filter(w=>w.path==='/api/ros/control/session').length,1,'polling must not resume');
     await act(async()=>{button('Resume control & streams')!.click();});
     assert.deepEqual(writes.at(-1),{path:'/api/ros/control/session',body:{enabled:true}});

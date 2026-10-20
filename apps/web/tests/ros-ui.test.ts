@@ -1,20 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Window } from 'happy-dom';
 import { createElement, act } from 'react';
-import { createRoot } from 'react-dom/client';
-import './setup-tsx.ts';
+import { dom, flush } from './setup-tsx.ts';
 const {App,TaskList}=await import('../src/App.tsx');
 const {SetupForm}=await import('../src/SetupForm.tsx');
 const {SESSION_EXPIRED}=await import('../src/api.ts');
-
-function dom() {
-  const window=new Window({url:'http://127.0.0.1:57060'});
-  Object.assign(globalThis,{window,document:window.document,HTMLElement:window.HTMLElement,IS_REACT_ACT_ENVIRONMENT:true});
-  const element=window.document.createElement('div');window.document.body.append(element);
-  return {window,element,root:createRoot(element as unknown as Element)};
-}
-async function flush() { await act(async()=>{await new Promise(resolve=>setTimeout(resolve,10));}); }
 
 test('actual task rows expose shared ID, numeric phase/result and cancel same ID',async()=>{
   const {element,root,window}=dom();const id='b9e0e188-122b-449d-966b-f97b2bb63981';const ids:string[]=[];
