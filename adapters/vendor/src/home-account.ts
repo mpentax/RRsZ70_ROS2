@@ -1,6 +1,5 @@
 /** Read-only, selected-home Roborock account access. Never log/return authorization. */
-import { createHash, createHmac, randomBytes } from "node:crypto";
-import { roomsFromHome, type AccountRoom, type HomeAuthorization } from "./cloud.ts";
+import { hawkHeaders, roomsFromHome, type AccountRoom, type HomeAuthorization } from "./cloud.ts";
 
 export function validateHomeAuthorization(value: unknown): HomeAuthorization {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid private home authorization.");
@@ -39,16 +38,10 @@ export function selectedRooms(home: HomeAuthorization): { source: string; rooms:
 export async function refreshRooms(home: HomeAuthorization): Promise<AccountRoom[]> {
   home = validateHomeAuthorization(home);
   const url = new URL(`/v3/user/homes/${home.homeId}`, home.realApi);
-  const timestamp = Math.floor(Date.now() / 1000);
-  const nonce = randomBytes(6).toString("base64").slice(0, 6).replace(/\+/g, "X").replace(/\//g, "Y");
-  const pathHash = createHash("md5").update(url.pathname).digest("hex");
-  const mac = createHmac("sha256", home.hawkKey)
-    .update([home.user, home.secret, nonce, timestamp, pathHash, "", ""].join(":")).digest("base64");
-  const response = await fetch(url, { method: "GET", redirect: "error", signal: AbortSignal.timeout(12_000), headers: {
-    Authorization: `Hawk id="${home.user}", s="${home.secret}", ts="${timestamp}", nonce="${nonce}", mac="${mac}"`,
-    "x-iotsdk-version": "1.0.1", "x-app-name": "com.roborock.smart", "x-app-version-code": "100834",
-    "x-app-version-name": "4.57.02", "x-uid": home.user, "User-Agent": "UA=RRSDKAndroid/1.0.1",
-  } });
+  const response = await fetch(url, {
+    method: "GET", redirect: "error", signal: AbortSignal.timeout(12_000),
+    headers: hawkHeaders(url, home.user, home.secret, home.hawkKey),
+  });
   if (!response.ok) { await response.body?.cancel(); throw new Error("Home room refresh failed; account reauthentication may be required."); }
   const declared = Number(response.headers.get("content-length"));
   if (response.headers.has("content-length") && (declared > 2 * 1024 * 1024 || !Number.isSafeInteger(declared))) {
