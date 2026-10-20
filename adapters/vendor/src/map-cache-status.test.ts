@@ -26,7 +26,9 @@ test("private map metadata persists bound to selected device, checks bytes and p
   const result = { raw, sha256, bytes: raw.length, mapIndex: 0, mapSequence: 0 };
   await store.saveMapBytes(raw);
   await store.saveMapCache(mapMetadataFromRead("private-device", result));
-  const metadata = validatedMapMetadata(await store.loadMapCache());
+  const loaded = await store.loadMapRasterSource();
+  assert.ok(loaded);
+  const metadata = validatedMapMetadata(loaded.metadata);
   assert.equal(metadata.deviceId, "private-device");
   assert.equal(metadata.sha256, sha256);
   assert.equal((await lstat(join(root, "state", "map-cache.json"))).mode & 0o777, 0o600);
@@ -35,5 +37,5 @@ test("private map metadata persists bound to selected device, checks bytes and p
   const file = join(root, "state", "maps", `v1-${sha256}.bin`);
   const corrupted = Buffer.from(await readFile(file)); corrupted[25] ^= 1;
   await writeFile(file, corrupted);
-  await assert.rejects(store.loadMapCache(), /Cannot load private map metadata/);
+  await assert.rejects(store.loadMapRasterSource(), /Cannot load private map raster source/);
 });

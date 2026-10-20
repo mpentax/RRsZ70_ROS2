@@ -34,7 +34,6 @@ export interface ServiceStore {
   loadPairing(): Promise<{ device: SavedDevice; camera: { account: CameraAccount; pin: string }; home: HomeAuthorization } | null>;
   savePairing(pairing: { device: SavedDevice; camera: { account: CameraAccount; pin: string }; home: HomeAuthorization }): Promise<void>;
   serviceToken(): Promise<string>;
-  loadMapCache?(): Promise<unknown | null>;
   loadMapRasterSource?(): Promise<{ metadata: PrivateMapMetadata; raw: Buffer } | null>;
   saveMapCache?(metadata: PrivateMapMetadata): Promise<void>;
   saveMapBytes?(raw: Buffer): Promise<void>;
