@@ -28,11 +28,10 @@ from z70_driver.frame_subscription import MatchedFrames
 from z70_mapping.boundary import BoundaryConfig
 from z70_mapping.geometry import quat_yaw
 from . import perception, planner
-from .commands import Commands
 from .executor import Client, log_directory
 from .garment_delivery import TowingQualificationConfig
 from .goals import GoalContext, GoalSpec, BUILTIN_GOALS
-from .observations import Observations, LATCHED
+from .observations import Commands, Observations, LATCHED
 
 RGB = {'yellow': (1., 1., 0.), 'orange': (1., .4, 0.), 'purple': (.7, 0., 1.), 'blue': (0., .2, 1.), 'green': (0., 1., .2)}
 

@@ -10,7 +10,7 @@ import numpy as np
 import requests
 from z70_description.arm_model import LIMITS
 from . import perception, placement, planner
-from .observations import read_arm, read_status
+from .observations import Commands, Observations, read_arm, read_status
 
 TRACK_GATE_M = .12
 ACQUIRE_MAX_RANGE_M = 1.5
@@ -31,10 +31,8 @@ class Client:
     def __init__(self, origin='', token_file='', read_only=False, observations=None):
         self.origin = origin.rstrip('/')
         self.read_only = read_only
-        from .observations import Observations
         self.observations = observations if observations is not None else Observations()
         self.owns_observations = observations is None
-        from .commands import Commands
         self.commands = None if read_only else Commands(self.observations)
 
     def get(self, path):
