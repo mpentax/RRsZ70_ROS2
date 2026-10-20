@@ -7,6 +7,34 @@ export function rosRoute(method: string, path: string): boolean {
   return (method === "GET" ? GET : method === "POST" ? POST : /$a/).test(path);
 }
 export type ImageDimensions = Readonly<{ width: number; height: number }>;
+export interface GoalSpecDescriptor {
+  kind: string;
+  name: string;
+  topic: string;
+  action: string;
+  fields: string[];
+  field_types?: Record<string, string>;
+  result_fields?: string[];
+  navigation: boolean;
+  description: string;
+}
+export interface GoalContextPrimitive {
+  name: string;
+  signature: string;
+  summary: string;
+}
+export interface GoalCatalog {
+  goals: GoalSpecDescriptor[];
+  context_primitives: GoalContextPrimitive[];
+}
+export interface GoalValidationResponse {
+  valid: boolean;
+  kind?: string;
+  topic?: string;
+  action?: string;
+  simulated?: { ok: boolean; result: Record<string, unknown> };
+  error?: string;
+}
 function requireValue(condition: boolean, message: string): asserts condition {
   if (!condition) throw new Error(`Camera observation: ${message}.`);
 }

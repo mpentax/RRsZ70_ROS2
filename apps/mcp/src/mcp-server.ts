@@ -7,21 +7,10 @@ import { randomUUID } from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod/v4";
-import { jpegImageDimensions, CAMERA_NAMES, rosRoute } from "@rrsz70/http-contracts";
+import { jpegImageDimensions, CAMERA_NAMES, rosRoute, type GoalCatalog as GoalCatalogResponse, type GoalValidationResponse } from "@rrsz70/http-contracts";
 
 export type TaskInput = { kind: string; goal?: Record<string, unknown>; [key: string]: unknown };
-export interface GoalCatalogResponse {
-  goals: { kind: string; topic: string; action: string; fields: string[]; field_types?: Record<string, string>; result_fields?: string[]; description?: string }[];
-  context_primitives?: { name: string; signature: string; summary: string }[];
-}
-export interface GoalValidationResponse {
-  valid: boolean;
-  kind?: string;
-  topic?: string;
-  action?: string;
-  simulated?: { ok: boolean; result: Record<string, unknown> };
-  error?: string;
-}
+export type { GoalCatalogResponse, GoalValidationResponse };
 
 let frameDirectory: string | undefined;
 let previousFrame: string | undefined;
@@ -51,7 +40,6 @@ const MAX_ERROR_JSON = 16 * 1024;
 const MAX_JPEG = 5 * 1024 * 1024;
 const READONLY = { readOnlyHint: true, destructiveHint: false, openWorldHint: false } as const;
 const ACTUATION = { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false } as const;
-const GET_PATHS = new Set(["/api/ros/state", "/api/ros/map", "/api/ros/goals", "/api/ros/tasks"]);
 /** Refuse remote origins and injected URLs; the service credential must stay on this host. */
 export function mcpServiceOrigin(value: string): URL {
   let url: URL;
@@ -90,7 +78,7 @@ export class RoboClawMcpClient {
   }
 
   async request(path: string, timeoutMs = 12000, payload?: Record<string, unknown>): Promise<unknown> {
-    const get = (GET_PATHS.has(path) && (path !== '/api/ros/tasks' || payload === undefined)) || /^\/api\/ros\/tasks\/[0-9a-f-]{36}$/.test(path);
+    const get = rosRoute("GET", path) && (path !== "/api/ros/tasks" || payload === undefined);
     const action = !get && path !== '/api/ros/frame';
     if (!rosRoute(get ? 'GET' : 'POST', path)) throw new Error("Unsupported RoboClaw MCP route.");
     if (action && payload === undefined) throw new Error("RPC payload is required.");
