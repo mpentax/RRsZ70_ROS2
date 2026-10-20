@@ -142,10 +142,7 @@ def predict(position, odom_delta):
 class GarmentTracker:
     def __init__(self, gate_m=.18, max_misses=4):
         self.gate_m, self.max_misses = gate_m, max_misses
-        self.tracks = {}; self.id_switches = 0
-        # ID-switch ground truth is available only in labelled offline replay.
-        # Unlabelled live zero means no OBSERVED switches, not proven identity.
-        self.instance_assignments = {}; self.instance_switches = {}
+        self.tracks = {}
 
     def update(self, observations, odom_delta=(0., 0., 0.)):
         for t in self.tracks.values():
@@ -167,23 +164,15 @@ class GarmentTracker:
         for i, obs in enumerate(observations):
             obs = dict(obs)
             if not obs.get('contact_valid'):
-                obs.update(track_id=str(uuid.UUID(int=0)), confirmed=False, hits=0, misses=0, id_switches=0)
+                obs.update(track_id=str(uuid.UUID(int=0)), confirmed=False, hits=0, misses=0)
                 output.append(obs); continue
             ident = assigned.get(i, str(uuid.uuid4()))
-            t = self.tracks.get(ident, dict(hits=0, misses=0, category=obs.get('category'), id_switches=0))
-            instance = obs.get('instance_id')
-            if instance is not None:
-                previous = self.instance_assignments.get(instance)
-                if previous is not None and previous != ident:
-                    self.id_switches += 1
-                    self.instance_switches[instance] = self.instance_switches.get(instance, 0)+1
-                self.instance_assignments[instance] = ident
-                t['id_switches'] = self.instance_switches.get(instance, 0)
+            t = self.tracks.get(ident, dict(hits=0, misses=0, category=obs.get('category')))
             # Confirmation needs consecutive consistent observations, not sightings separated by misses.
             t['hits'] = t['hits']+1 if t['misses'] <= 1 else 1
             t.update(position=list(obs['floor_contact_m']), misses=0)
             self.tracks[ident] = t
-            obs.update(track_id=ident, hits=t['hits'], misses=0, id_switches=t['id_switches'], confirmed=t['hits'] >= 2)
+            obs.update(track_id=ident, hits=t['hits'], misses=0, confirmed=t['hits'] >= 2)
             output.append(obs)
         self.tracks = {k: v for k, v in self.tracks.items() if v['misses'] <= self.max_misses}
         return output

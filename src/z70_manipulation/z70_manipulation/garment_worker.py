@@ -142,6 +142,7 @@ class GarmentModel:
                     contrast = probabilities[0]-np.maximum(probabilities[1], probabilities[2])
                     clip_mask = ((cv2.resize(contrast, (image.shape[1], image.shape[0])) > .12) &
                                  (cv2.resize(probabilities[0], (image.shape[1], image.shape[0])) > .45)).astype(np.uint8)
+                min_area = max(50, image.shape[0]*image.shape[1]//10000)
                 if self.dino is not None:
                     inputs = self.dino_proc(images=rgb, text='sock. shirt. towel. pants. jeans. hoodie.', return_tensors='pt').to(self.device)
                     prediction = self.dino(**inputs)
@@ -155,9 +156,9 @@ class GarmentModel:
                         mask = refine_box(image, box.cpu().numpy())
                         if clip_mask is not None:
                             mask &= clip_mask
-                        detections.extend(components(mask, float(score.cpu()), min_area=max(50, image.shape[0]*image.shape[1]//10000)))
+                        detections.extend(components(mask, float(score.cpu()), min_area=min_area))
                 elif clip_mask is not None:
-                    detections = components(clip_mask, min_area=max(50, image.shape[0]*image.shape[1]//10000))
+                    detections = components(clip_mask, min_area=min_area)
         self.sync()
         quality['inference_ms'] = (time.monotonic()-start)*1000
         if self.device == 'mps' and hasattr(self, 'torch'):

@@ -77,7 +77,6 @@ def test_tracker_odometry_confirmation_misses_and_unique_association():
     assert [x['track_id'] for x in second] == ids and all(x['confirmed'] for x in second)
     tracker.update([]); assert all(t['misses'] == 1 for t in tracker.tracks.values())
     tracker.update([]); tracker.update([]); assert not tracker.tracks
-    assert tracker.id_switches == 0
 
 
 def test_tracker_rotation_and_out_of_gate():
@@ -265,16 +264,6 @@ def test_worker_loaders_are_pinned_and_offline(monkeypatch):
     for name, kwargs in calls:
         assert kwargs['local_files_only'] is True
         assert kwargs['revision'] == (w.DINO_REV if name == w.DINO_ID else w.CLIP_REV)
-
-
-def test_tracker_counts_labelled_replay_id_switches():
-    tracker = geometry().GarmentTracker(max_misses=0)
-    obs = dict(contact_valid=True, floor_contact_m=[.4,0,0], category='garment', instance_id='sock-fixture')
-    first = tracker.update([obs])[0]
-    tracker.update([])
-    second = tracker.update([obs])[0]
-    assert first['track_id'] != second['track_id']
-    assert tracker.id_switches == 1 and second['id_switches'] == 1
 
 
 def test_real_calibration_synthetic_contact_roundtrip():

@@ -235,7 +235,7 @@ class GarmentNode(Node):
             marker.lifetime = Duration(seconds=5.).to_msg(); markers.markers.append(marker)
         self.markers.publish(markers)
         self.set_status(dict(quality, geofence_active=active, frame_age_s=age, tracks=len(self.tracker.tracks),
-                             confirmed=sum(x['confirmed'] for x in items), id_switches=self.tracker.id_switches))
+                             confirmed=sum(x['confirmed'] for x in items)))
 
     def close(self):
         self.stop_event.set()
