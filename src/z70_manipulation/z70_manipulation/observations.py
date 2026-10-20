@@ -14,6 +14,7 @@ from rclpy.qos import QoSProfile, DurabilityPolicy, ReliabilityPolicy
 from sensor_msgs.msg import CompressedImage
 from z70_interfaces.msg import RobotState, ArmEstimate, FrameMetadata, MapSnapshot, GarmentObservations
 from z70_interfaces.srv import SelectCamera, RefreshMap
+from z70_mapping.decoder import decode_map
 
 LATCHED = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
                      durability=DurabilityPolicy.TRANSIENT_LOCAL)
@@ -120,7 +121,6 @@ class Observations:
         return future.result()
 
     def navigation_snapshot(self, refresh=False, max_age_s=5.):
-        from z70_mapping.decoder import decode_map
         expected = None
         if refresh:
             if not self.map_refresher.wait_for_service(timeout_sec=1.): raise LookupError('MAP_REFRESH_UNAVAILABLE')

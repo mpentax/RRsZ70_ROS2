@@ -21,10 +21,13 @@ from z70_interfaces.action import (
 )
 from z70_interfaces.msg import CommandOutcome
 from z70_mapping.boundary import check_corridor_containment, compute_safe_interior
-from . import placement, planner
+from z70_mapping.geometry import spatial_context as compute_spatial_context
+from . import perception, placement, planner
 from .executor import Executor
+from .garment_delivery import GarmentDeliverer, loaded_route
 from .navigation import PinAndGoNavigator
 from .observations import read_arm, read_status
+from .patrol import PatrolCollector, PatrolLedger
 
 COLOR_RE = re.compile(r'[a-zA-Z0-9_-]{1,32}')
 
@@ -249,7 +252,6 @@ class GoalContext:
         return snap, compute_safe_interior(snap.map, snap.labels, cfg, snap.map.robot)
 
     def spatial_context(self, refresh: bool = False) -> dict:
-        from z70_mapping.geometry import spatial_context as compute_spatial_context
         snap = self.map_snapshot(refresh=refresh)
         try:
             pose = self.map_pose()
@@ -258,7 +260,6 @@ class GoalContext:
         return compute_spatial_context(snap.map, snap.labels, pose)
 
     def plan_route(self, target_x_m: float, target_y_m: float, deployed_arm_extension_m: float = 0., refresh: bool = False) -> list[tuple[float, float]] | None:
-        from .garment_delivery import loaded_route
         snap, boundary = self.safe_interior(refresh=refresh, deployed_arm_extension_m=deployed_arm_extension_m)
         if snap.map.robot is None:
             return None
@@ -290,7 +291,6 @@ class GoalContext:
         return self.objects(camera=camera, color=color)
 
     def wrist_pose(self) -> dict | None:
-        from . import perception
         image, tag = self.client.frame()
         if tag != 'front':
             raise LookupError('wrist_pose requires front camera frame')
@@ -352,7 +352,6 @@ class GoalContext:
 
     def deliver_garment(self, category: str = 'any', drop_x_m: float = 0., drop_y_m: float = 0.,
                         max_duration_s: float = 300., allow_towing: bool = False, dry_run: bool = False) -> dict:
-        from .garment_delivery import GarmentDeliverer
         runner = GarmentDeliverer(
             self.observations, self.executor,
             boundary_config=self.server.navigation_config,
@@ -366,7 +365,6 @@ class GoalContext:
 
     def patrol_collect(self, drop_x_m: float = 0., drop_y_m: float = 0., max_duration_s: float = 600.,
                        max_items: int = 5, allow_towing: bool = False, dry_run: bool = False) -> dict:
-        from .patrol import PatrolCollector, PatrolLedger
         runner = PatrolCollector(
             self.observations, self.executor, PatrolLedger(self.server.patrol_directory),
             boundary_config=self.server.navigation_config,

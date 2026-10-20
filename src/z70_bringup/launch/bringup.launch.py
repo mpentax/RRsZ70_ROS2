@@ -4,6 +4,7 @@ import shutil
 import yaml
 from pathlib import Path
 
+from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, ExecuteProcess
 from launch.conditions import IfCondition
@@ -17,7 +18,6 @@ def generate_launch_description():
     desc = FindPackageShare("z70_description")
     urdf = ParameterValue(Command(["xacro ", PathJoinSubstitution([desc, "urdf", "z70.urdf.xacro"])]), value_type=str)
     repo = Path(os.environ.get("Z70_REPO", Path.cwd()))
-    from ament_index_python.packages import get_package_share_directory
     calibration = Path(get_package_share_directory('z70_description')) / 'config'
     mount = yaml.safe_load((calibration / 'mount_calibration.yaml').read_text())
     camera_x = mount['front_camera_x_m']

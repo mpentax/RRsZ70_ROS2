@@ -29,6 +29,7 @@ from z70_driver.frame_subscription import MatchedFrames
 from z70_mapping.boundary import BoundaryConfig
 from . import perception, planner
 from .executor import Client, log_directory
+from .garment_delivery import TowingQualificationConfig
 from .goals import GoalContext, GoalSpec, BUILTIN_GOALS
 from .observations import Observations, LATCHED
 
@@ -159,7 +160,6 @@ class PickServer(Perception):
         self.create_timer(.05, self.watchdog, callback_group=self.group)
         self.navigation_config = BoundaryConfig(allowed_segments=tuple(
             self.declare_parameter('pin_and_go_allowed_segments', [1, 2, 3, 4, 5, 6]).value))
-        from .garment_delivery import TowingQualificationConfig
         towing_qual = bool(self.declare_parameter('towing_qualified', False).value)
         towing_cats = tuple(self.declare_parameter('towing_qualified_categories', ['towel', 'shirt', 'pants', 'jeans', 'hoodie']).value)
         towing_uri = str(self.declare_parameter('towing_artifact_uri', '').value)

@@ -14,6 +14,7 @@ import numpy as np
 import requests
 import yaml
 import rclpy
+from ament_index_python.packages import get_package_share_directory
 from builtin_interfaces.msg import Time
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from rclpy.callback_groups import ReentrantCallbackGroup
@@ -26,6 +27,8 @@ from z70_interfaces.msg import (EvidenceStamp, RobotState, CameraState, FrameMet
                                 ArmEstimate, MapSnapshot, RoomLabel, CommandEvent, CommandOutcome)
 from z70_interfaces.srv import SelectCamera, RefreshMap
 from z70_description.arm_model import LIMITS, POSES
+from z70_mapping.decoder import decode_map
+from z70_mapping.geometry import room_names
 from .commands import CommandSurfaces
 from .estimator import ArmEstimator
 from .dashboard import Dashboard
@@ -80,7 +83,6 @@ class Driver(CommandSurfaces, Node):
         self.map_interval = float(param('map_refresh_s', 60.))
         self.state_stale = float(param('state_stale_after_s', 5.))
         self.camera_stale = float(param('camera_stale_after_s', 5.))
-        from ament_index_python.packages import get_package_share_directory
         config = Path(get_package_share_directory('z70_description')) / 'config'
         self.calibrations = {}
         for camera, default in [('front', config/'z70_front_camera_info.yaml'),
@@ -463,13 +465,11 @@ class Driver(CommandSurfaces, Node):
             m.evidence.received_at = host_ms(r.headers['X-Map-Saved-At'])
             m.evidence.reason = 'SOURCE_FRESHNESS_UNKNOWN'
             try:
-                from z70_mapping.geometry import room_names
                 rooms = self.request('GET', '/api/home/rooms', timeout=2).json().get('rooms', [])
                 _, mapping = self.driver_rpc('get_room_mapping', [], 2000)
                 m.rooms = [RoomLabel(segment_id=seg, name=name[:128])
                            for seg, name in room_names(mapping or [], rooms).items()]
                 if m.rooms and m.map_index >= 0 and m.map_sequence > 0:
-                    from z70_mapping.decoder import decode_map
                     decoded = decode_map(bytes(m.raw))
                     with self.sample_lock:
                         cur_state = self.samples.get('state')
