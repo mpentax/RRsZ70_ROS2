@@ -65,6 +65,7 @@ GOAL_CONTEXT_PRIMITIVES: tuple[dict[str, str], ...] = (
     {'name': 'arm_step', 'signature': 'arm_step(m3: int = 0, m4: int = 0, m5: int = 0) -> dict', 'summary': 'Execute a single 10-degree multi-axis joint step [m3, m4, m5] (0=hold, 1=+10deg, 2=-10deg).'},
     {'name': 'hand_step', 'signature': 'hand_step(direction: int) -> dict', 'summary': 'Execute a single 40 mm Cartesian IK hand step (1=up, 2=down, 3=forward, 4=back).'},
     {'name': 'open_jaws', 'signature': 'open_jaws()', 'summary': 'Open gripper jaws in place without lifting or stowing the arm.'},
+    {'name': 'set_arm_anchor', 'signature': "set_arm_anchor(anchor: str, reason: str = '') -> dict", 'summary': "Re-anchor the driver arm estimator ('stowed', 'deployed', or 'unknown') after visual confirmation."},
     {'name': 'grasp_and_lift', 'signature': "grasp_and_lift(lift_steps: int = 2, verify_color: str = '') -> dict", 'summary': 'Close the gripper jaws, step the hand upward, and verify grasp elevation.'},
     {'name': 'release_and_stow', 'signature': 'release_and_stow(put_down: bool = True) -> dict', 'summary': 'Open jaws in place, stow the arm into the robot compartment, and anchor IN_ROBOT.'},
     {'name': 'pulse', 'signature': 'pulse(velocity: float = 0., omega: float = 0., duration: int = 300)', 'summary': 'Send a bounded linear or angular chassis velocity pulse.'},
@@ -169,6 +170,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         arm_step=lambda m3=0, m4=0, m5=0: {'m3': int(m3), 'm4': int(m4), 'm5': int(m5)},
         hand_step=lambda direction: {'direction': int(direction)},
         open_jaws=lambda: None,
+        set_arm_anchor=lambda anchor, reason='': {'accepted': anchor in ('unknown', 'stowed', 'deployed'), 'anchor': anchor},
         grasp_and_lift=lambda lift_steps=2, verify_color='': {'verified': True},
         release_and_stow=lambda put_down=True: {'stowed': True},
         pulse=lambda velocity=0., omega=0., duration=300: {'ok': True},
@@ -393,6 +395,11 @@ class GoalContext:
 
     def open_jaws(self):
         self.executor.open_jaws()
+
+    def set_arm_anchor(self, anchor: str, reason: str = '') -> dict:
+        if not self.commands:
+            raise PermissionError('dry-run forbids arm re-anchoring')
+        return self.commands.set_arm_anchor(anchor, reason)
 
     def grasp_and_lift(self, lift_steps: int = 2, verify_color: str = '') -> dict:
         return self.executor.grasp_and_lift(lift_steps=lift_steps, verify_color=verify_color)

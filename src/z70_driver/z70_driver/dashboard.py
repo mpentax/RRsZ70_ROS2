@@ -83,7 +83,7 @@ class Dashboard:
         self.odom = {'ok': 0, 'rejected': 0, **self.odom, 'state': 'accepted' if msg.pair_accepted else 'rejected'}
         key = 'ok' if msg.pair_accepted else 'rejected'
         self.odom[key] = self.odom.get(key, 0)+1
-        self.odom_received = time.time() if msg.evidence.valid and not msg.evidence.stale else 0.
+        self.odom_received = time.time()
 
     def on_command(self, msg):
         stamp = msg.outcome.requested_at

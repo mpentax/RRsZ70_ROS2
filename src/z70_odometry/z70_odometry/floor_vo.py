@@ -75,10 +75,6 @@ class Motion:
     matches: int
     rms_m: float
 
-    @property
-    def dtheta_deg(self):
-        return math.degrees(self.dtheta)
-
 
 def rigid2d(a: np.ndarray, b: np.ndarray):
     """Least-squares R, t with b ~ R a + t (2-D Kabsch)."""

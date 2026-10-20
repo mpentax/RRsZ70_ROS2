@@ -3,7 +3,7 @@ import json
 import threading
 import time
 from unique_identifier_msgs.msg import UUID
-from z70_interfaces.srv import RawRpc, Stop, TaskSession
+from z70_interfaces.srv import RawRpc, SetArmAnchor, Stop, TaskSession
 
 
 class _Transport:
@@ -12,7 +12,8 @@ class _Transport:
         self.node = observations.node
         self.group = observations.group
         self.clients = {kind:self.node.create_client(kind,name,callback_group=self.group)
-            for kind,name in ((RawRpc,'/z70/driver/raw_rpc'),(Stop,'/z70/stop'),(TaskSession,'/z70/tasks/session'))}
+            for kind,name in ((RawRpc,'/z70/driver/raw_rpc'),(Stop,'/z70/stop'),
+                              (TaskSession,'/z70/tasks/session'),(SetArmAnchor,'/z70/arm/anchor'))}
         self.active: 'Commands | None' = None
         self.subscription = self.node.create_subscription(UUID,'/z70/tasks/cancel',self.revoked,10,callback_group=self.group)
 
@@ -59,6 +60,13 @@ class Commands:
         if any(self.task_id.uuid):
             try: self.call(TaskSession,TaskSession.Request(begin=False,task_id=self.task_id),16.,False)
             finally: self.task_id=UUID()
+
+    def set_arm_anchor(self, anchor: str, reason: str = '') -> dict:
+        codes = {'unknown': 0, 'stowed': 1, 'deployed': 2}
+        if anchor not in codes:
+            raise ValueError("anchor must be 'unknown', 'stowed', or 'deployed'")
+        reply = self.call(SetArmAnchor, SetArmAnchor.Request(anchor=codes[anchor], observation_reason=str(reason)[:64]), 3.)
+        return {'accepted': bool(reply.accepted), 'anchor': anchor}
 
     def rpc(self,method,params,timeout_ms):
         if self.cancelled.is_set(): raise InterruptedError('CANCELLED')

@@ -138,7 +138,7 @@ def image(odom, offset_s=0., value=0):
 
 
 def motion(dx=.03, dy=-.01, angle=.1):
-    return SimpleNamespace(dx=dx, dy=dy, dtheta=angle, dtheta_deg=math.degrees(angle),
+    return SimpleNamespace(dx=dx, dy=dy, dtheta=angle,
                            inliers=100, rms_m=.001)
 
 
