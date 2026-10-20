@@ -21,28 +21,23 @@ def pose_message(pose, saved_at):
     return m
 
 
-def grid_message(m, saved_at, load_at=None):
+def _occupancy_grid(meta, data, saved_at, load_at=None):
     g = OccupancyGrid()
     g.header.frame_id = 'map'; g.header.stamp = stamp(saved_at)
     g.info.map_load_time = stamp(saved_at if load_at is None else load_at)
-    g.info.width, g.info.height, g.info.resolution = m.width, m.height, m.resolution
-    g.info.origin.position.x, g.info.origin.position.y = m.origin
+    g.info.width, g.info.height, g.info.resolution = meta.width, meta.height, meta.resolution
+    g.info.origin.position.x, g.info.origin.position.y = meta.origin
     g.info.origin.orientation.w = 1.
-    g.data = m.occupancy.reshape(-1).tolist()
+    g.data = data.reshape(-1).tolist()
     return g
+
+
+def grid_message(m, saved_at, load_at=None):
+    return _occupancy_grid(m, m.occupancy, saved_at, load_at)
 
 
 def safe_grid_message(boundary_result, saved_at, load_at=None):
-    """Latched metric centreline grid: reachable interior=0, everything else=100."""
-    g = OccupancyGrid()
-    g.header.frame_id = 'map'; g.header.stamp = stamp(saved_at)
-    g.info.map_load_time = stamp(saved_at if load_at is None else load_at)
-    g.info.width, g.info.height = boundary_result.width, boundary_result.height
-    g.info.resolution = boundary_result.resolution
-    g.info.origin.position.x, g.info.origin.position.y = boundary_result.origin
-    g.info.origin.orientation.w = 1.
-    g.data = boundary_result.safe_grid.reshape(-1).tolist()
-    return g
+    return _occupancy_grid(boundary_result, boundary_result.safe_grid, saved_at, load_at)
 
 
 def markers_message(m, labels, saved_at, waypoints=None, boundary_result=None):
