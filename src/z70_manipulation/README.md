@@ -87,10 +87,10 @@ ros2 action send_goal /z70/patrol_collect z70_interfaces/action/PatrolCollect \
 
 ## Authoring ROS 2 Goals (`z70_manipulation/goals.py`)
 
-All manipulation and navigation action servers are defined in `BUILTIN_GOALS` inside `src/z70_manipulation/z70_manipulation/goals.py`. Both `PickServer` (`z70_manipulation/node.py`) and `Gateway` (`z70_web_gateway/gateway.py`) consume `BUILTIN_GOALS` directly, so adding or updating a `GoalSpec` in `BUILTIN_GOALS` registers both the ROS 2 `ActionServer` and the HTTP/MCP validation schema in one place:
+All manipulation, navigation, and driver action specs are defined in `BUILTIN_GOALS`, `DRIVER_GOALS`, and `ALL_GOALS` inside `src/z70_manipulation/z70_manipulation/goals.py`. Both `PickServer` (`z70_manipulation/node.py`) and `Gateway` (`z70_web_gateway/gateway.py`) consume `goals.py` directly, so adding or updating a `GoalSpec` registers both the ROS 2 `ActionServer` and the HTTP/MCP validation schema in one place:
 
 ```python
-from z70_manipulation.goals import BUILTIN_GOALS, GoalContext, GoalSpec, simulate_goal
+from z70_manipulation.goals import ALL_GOALS, BUILTIN_GOALS, GoalContext, GoalSpec, simulate_goal
 
 spec = GoalSpec(
     name='my_goal',
@@ -105,13 +105,13 @@ spec = GoalSpec(
 )
 ```
 
-- **Runtime Goal Catalog (`GET /api/ros/goals`, `GOAL_CONTEXT_PRIMITIVES` & `GoalSpec.describe()`):** `z70_web_gateway` exposes `GET /api/ros/goals` (and MCP `list_goals`) returning `{goals: [{kind, topic, action, fields, description}, ...], context_primitives: [{name, signature, summary}, ...]}` (`GOAL_CONTEXT_PRIMITIVES` in `goals.py`).
-- **Dry-Run Goal Validation (`POST /api/ros/goals/validate` & MCP `validateOnly: true`):** `POST /api/ros/goals/validate` validates a `{kind, goal}` request payload against `GoalSpec.validate_payload` and the ROS message schema without dispatching to hardware.
+- **Runtime Goal Catalog (`GET /api/ros/goals`, `GOAL_CONTEXT_PRIMITIVES` & `GoalSpec.describe()`):** `z70_web_gateway` exposes `GET /api/ros/goals` (and MCP `list_goals`) returning `{goals: [{kind, topic, action, fields, navigation, description}, ...], context_primitives: [{name, signature, summary}, ...]}` (`GOAL_CONTEXT_PRIMITIVES` in `goals.py`).
+- **Dry-Run Goal Validation & Simulation (`POST /api/ros/goals/validate` & MCP `validateOnly`/`simulate`):** `POST /api/ros/goals/validate` validates a `{kind, goal, simulate?: bool}` request payload against `GoalSpec.validate_payload` and the ROS message schema without dispatching to hardware, and when `simulate: true` is passed (or via MCP `start_task(..., simulate: true)`), executes `simulate_goal()` in memory and returns `simulated: {ok, result}`.
 - **Pure-Python Goal Simulation (`simulate_goal(spec, request, **overrides)`):** `simulate_goal()` constructs an in-memory mock `GoalContext` with defaults for all `GOAL_CONTEXT_PRIMITIVES` (overridable via keyword arguments) and invokes `spec.run(ctx, request)` so `GoalSpec` handlers can be unit-tested offline without spinning up DDS or hardware.
 
 Inside a goal handler `def _goal_my_goal(ctx: GoalContext, req) -> tuple[bool, MyGoal.Result]`, `ctx` provides:
-- **State & Perception:** `ctx.status()`, `ctx.arm()`, `ctx.arm_msg()`, `ctx.odom()`, `ctx.map_pose()`, `ctx.map_snapshot(refresh=False)`, `ctx.safe_interior(refresh=False, deployed_arm_extension_m=0.0)`, `ctx.objects(camera='front', color=None)`, `ctx.garments(category='any')`, `ctx.frame()`
-- **Motion & Manipulation:** `ctx.navigate(x_m, y_m, max_duration_s=60.0, dry_run=False)`, `ctx.pick(color, dry_run=False)`, `ctx.stack(base_color, middle_color, top_color, dry_run=False)`, `ctx.deliver_garment(...)`, `ctx.patrol_collect(...)`, `ctx.deploy_arm(settle=True)`, `ctx.align_target(color)`, `ctx.move_arm(m3_deg, m4_deg, m5_deg=0.0)`, `ctx.grasp_and_lift(lift_steps=2, verify_color='')`, `ctx.release_and_stow(put_down=True)`, `ctx.pulse(velocity=0.0, omega=0.0, duration=300)`, `ctx.rpc(method, params, timeout_ms=5000)`, `ctx.stop()`
+- **State, Spatial Context & Perception:** `ctx.status()`, `ctx.arm()`, `ctx.arm_msg()`, `ctx.odom()`, `ctx.map_pose()`, `ctx.map_snapshot(refresh=False)`, `ctx.safe_interior(refresh=False, deployed_arm_extension_m=0.0)`, `ctx.spatial_context(refresh=False)`, `ctx.plan_route(target_x_m, target_y_m, deployed_arm_extension_m=0.0, refresh=False)`, `ctx.objects(camera='front', color=None)`, `ctx.wrist_pose()`, `ctx.garments(category='any')`, `ctx.frame()`
+- **Motion & Manipulation:** `ctx.navigate(x_m, y_m, max_duration_s=60.0, dry_run=False)`, `ctx.pick(color, dry_run=False)`, `ctx.stack(base_color, middle_color, top_color, dry_run=False)`, `ctx.deliver_garment(...)`, `ctx.patrol_collect(...)`, `ctx.deploy_arm(settle=True)`, `ctx.align_target(color)`, `ctx.move_arm(m3_deg, m4_deg, m5_deg=0.0)`, `ctx.arm_step(m3=0, m4=0, m5=0)`, `ctx.hand_step(direction)`, `ctx.open_jaws()`, `ctx.grasp_and_lift(lift_steps=2, verify_color='')`, `ctx.release_and_stow(put_down=True)`, `ctx.pulse(velocity=0.0, omega=0.0, duration=300)`, `ctx.rpc(method, params, timeout_ms=5000)`, `ctx.stop()`
 - **Lifecycle & Feedback:** `ctx.sleep(seconds)`, `ctx.hazard()`, `ctx.is_cancelled()`, `ctx.log(stage, **fields)`, `ctx.feedback(**fields)`, `ctx.outcome(success)`
 
 ---

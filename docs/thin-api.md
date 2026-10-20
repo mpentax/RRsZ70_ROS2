@@ -24,8 +24,8 @@ Proxied by the sidecar to `z70_web_gateway` (`127.0.0.1:57020`). Task IDs are lo
 | `POST /api/ros/stop` | `{scope?: 1 \| 2 \| 3}` (`1` BASE, `2` ARM, `3` ALL; default `ALL`) -> calls `/z70/stop` (`Stop`). |
 | `POST /api/ros/control/session` | `{enabled: bool}` -> calls `/z70/control/session` (`SetControlSession`). |
 | `POST /api/ros/rpc` | `{method, params, timeoutMs?: 1..30000, transport?: "local" \| "cloud", takeover?: bool}` -> calls `/z70/driver/raw_rpc` (`RawRpc`). |
-| `GET /api/ros/goals` | `{goals: [{kind, topic, action, fields}], context_primitives: [{name, signature, summary}]}` |
-| `POST /api/ros/goals/validate` | `{kind, goal}` -> dry-run schema/field validation without dispatching to the robot (`{valid, kind, topic, action}`). |
+| `GET /api/ros/goals` | `{goals: [{kind, topic, action, fields, navigation, description}], context_primitives: [{name, signature, summary}]}` |
+| `POST /api/ros/goals/validate` | `{kind, goal, simulate?: bool}` -> dry-run schema/field validation (and optional in-memory `simulate_goal()` execution returning `simulated: {ok, result}`) without dispatching to the robot. |
 | `POST /api/ros/tasks` | `{kind, goal}` -> `202` `Task` after action acceptance. |
 | `GET /api/ros/tasks` | `{tasks: [Task]}` |
 | `GET /api/ros/tasks/<id>` | `Task` (`{id, kind, status, phase, feedback, result}`) |
