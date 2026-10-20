@@ -15,8 +15,7 @@ import {
   inspectMapFrame,
   MAX_CLOUD_MAP_FRAME_BYTES,
 } from "./photo-protocol.ts";
-import { mapMetadataFromRead, savePrivateV1Map, summarizeV1Map, syntheticV1Image, validatedMapMetadata } from "./private-map-cache.ts";
-import { SecretStore } from "./secret-store.ts";
+import { mapMetadataFromRead, savePrivateV1Map, SecretStore, summarizeV1Map, syntheticV1Image, validatedMapMetadata } from "./secret-store.ts";
 
 function encodeMapResponse(data: Buffer, security: BlobSecurity, requestId = 20009): Buffer {
   const cipher = createCipheriv("aes-128-cbc", security.nonce, Buffer.alloc(16));

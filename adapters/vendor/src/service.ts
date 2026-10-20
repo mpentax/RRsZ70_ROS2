@@ -1,4 +1,4 @@
-import { localProtocol, selectedLocalProtocol, type SavedDevice } from "./secret-store.ts";
+import { localProtocol, mapMetadataFromRead, selectedLocalProtocol, type PrivateMapMetadata, type SavedDevice } from "./secret-store.ts";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -14,7 +14,6 @@ import { CameraSelector, requestedCamera } from "./camera-selection.ts";
 import { loadServiceConfig, proxyRos, rosGatewayOrigin, rosRoute, ServiceAuth, ServiceHttpError, type ServiceConfig } from "./service-config.ts";
 import { jpegImageDimensions } from "@rrsz70/http-contracts";
 import { readSplitMap } from "./photo-protocol.ts";
-import { mapMetadataFromRead, type PrivateMapMetadata } from "./private-map-cache.ts";
 
 /** Connection-level events only; messages are fixed internal labels (no payloads, keys or addresses). */
 function logRobotDiagnostic(e: RobotDiagnostic): void {

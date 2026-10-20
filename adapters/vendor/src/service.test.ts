@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { request as httpRequest } from "node:http";
 import { Go2Rtc } from "./go2rtc.ts";
-import { mapMetadataFromRead, syntheticV1Image } from "./private-map-cache.ts";
+import { mapMetadataFromRead, syntheticV1Image } from "./secret-store.ts";
 import { startService, type ServiceRobot, type ServiceStore } from "./service.ts";
 import { loadServiceConfig } from "./service-config.ts";
 import { RpcError } from "./robot.ts";

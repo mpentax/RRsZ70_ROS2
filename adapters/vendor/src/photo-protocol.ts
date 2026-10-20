@@ -5,11 +5,10 @@ import { gunzipSync } from "node:zlib";
 import { connectAsync } from "mqtt";
 import { cloudControlCredentials, decryptV1MqttPayload, mqttOptions, validV1MqttFrame } from "./cloud-control.ts";
 import type { CameraAccount } from "./cloud.ts";
-import { summarizeV1Map } from "./private-map-cache.ts";
 import { RobotClient } from "./robot.ts";
-import type { SavedDevice } from "./secret-store.ts";
+import { MAX_MAP_BYTES, summarizeV1Map, type SavedDevice } from "./secret-store.ts";
 
-export const MAX_MAP_BYTES = 32 * 1024 * 1024;
+export { MAX_MAP_BYTES } from "./secret-store.ts";
 
 /** Largest complete MQTT V1 frame accepted by the map probe. */
 export const MAX_CLOUD_MAP_FRAME_BYTES = MAX_MAP_BYTES + 47;
