@@ -35,7 +35,7 @@ def test_lower_contact_not_elevated_body():
     assert result['grasp_valid'] and result['reachable_for_grasp']
     assert result['footprint_depth_m'] < .01  # upper body never flattened onto floor
     assert result['transport_suitability'] == 0
-    assert result['suitability_reason'] == 'WEIGHT_AND_TOW_UNQUALIFIED'
+    assert result['suitability_reason'] == 'UNQUALIFIED'
 
 
 @pytest.mark.parametrize('rows', [(0, 390), (1130, 1200)])
@@ -94,7 +94,7 @@ def test_suitability_requires_explicit_qualification():
     assert g.suitability(.05, .05)[0] == 0
     assert g.suitability(.05, .05, qualified_small_lift=True)[0] == 1
     assert g.suitability(.5, .05, qualified_small_lift=True)[0] == 0
-    assert g.suitability(.5, .05, qualified_small_lift=True, allow_unverified_tow=True)[0] == 2
+    assert g.suitability(.5, .05, qualified_small_lift=True, allow_tow=True)[0] == 2
 
 
 def test_worker_framing_eof_invalid_image_and_contour_backend():

@@ -6,17 +6,17 @@ import numpy as np
 
 SUITABILITY_UNKNOWN = 0
 SMALL_LIFT_CANDIDATE = 1
-TOW_CANDIDATE_UNVERIFIED = 2
+TOW_CANDIDATE = 2
 UNSUPPORTED = 3
 
 
 def suitability(width, depth, *, qualified_small_lift=False, max_small_extent_m=.15,
-                allow_unverified_tow=False):
+                allow_tow=False):
     if qualified_small_lift and max(width, depth) <= max_small_extent_m:
         return SMALL_LIFT_CANDIDATE, 'QUALIFIED_SMALL_LIFT_POLICY'
-    if qualified_small_lift and allow_unverified_tow:
-        return TOW_CANDIDATE_UNVERIFIED, 'TOW_UNQUALIFIED'
-    return SUITABILITY_UNKNOWN, 'WEIGHT_AND_TOW_UNQUALIFIED'
+    if qualified_small_lift and allow_tow:
+        return TOW_CANDIDATE, 'TOW_CANDIDATE'
+    return SUITABILITY_UNKNOWN, 'UNQUALIFIED'
 
 
 def project(camera, pixel, camera_x_m=.275):
@@ -49,7 +49,7 @@ def observe(mask, camera, *, bbox=None, category='garment', confidence=0.,
                   contact_valid=False, grasp_valid=False, footprint_width_m=0.,
                   footprint_depth_m=0., position_uncertainty_m=10., inside_geofence=False,
                   geofence_verified=False, reachable_for_grasp=False,
-                  transport_suitability=0, suitability_reason='WEIGHT_AND_TOW_UNQUALIFIED',
+                  transport_suitability=0, suitability_reason='UNQUALIFIED',
                   calibration_id=str(calibration_id)[:128])
     box_only = mask is None
     if box_only:

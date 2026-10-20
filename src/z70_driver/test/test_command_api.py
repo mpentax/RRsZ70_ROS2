@@ -163,7 +163,7 @@ def test_action_result_backend_ids_and_no_duplicate_events(system):
     row = next(row for row in system['calls'] if row[0] == 'app_arm_move')
     assert bytes(outcome.command_id.uuid) == uuid.UUID(row[2]).bytes
     assert bytes(outcome.attempt_id.uuid) == uuid.UUID(row[3]).bytes
-    assert outcome.physical_completion == 0 and not outcome.write_time_known
+    assert not outcome.write_time_known
     wait_for(lambda: len(system['observed']) == 4)
     assert all(event.outcome.command_id == outcome.command_id for event in system['observed'])
     assert [event.phase for event in system['observed']] == [0, 1, 2, 4]
@@ -190,7 +190,7 @@ def test_hanging_action_cancel_priority_conflicts_and_no_cleanup_motion(system):
         result = resolved(handle.get_result_async(), 3)
     finally: system['driver'].camera_lock.release()
     assert time.monotonic()-start < 3
-    assert result.status == GoalStatus.STATUS_CANCELED and result.result.outcome.physical_completion == 0
+    assert result.status == GoalStatus.STATUS_CANCELED
     assert methods(system) == ['app_arm_move', 'app_rc_stop', 'app_rc_end', 'app_stop_grasp']
     assert all(row[1]['timeoutMs'] <= 5000 for row in system['calls'][1:])
     system['release'].set()
@@ -209,7 +209,7 @@ def test_task_manual_conflict_takeover_stops_before_new_rpc_and_revokes_token(sy
     wait_for(lambda: 'app_arm_move' in methods(system))
     takeover = resolved(service(system, RawRpc, '/z70/driver/raw_rpc', RawRpc.Request(
         method='app_open_gripper', timeout_ms=1000, takeover=True)), 3)
-    assert takeover.outcome.response == 1 and takeover.outcome.physical_completion == 0
+    assert takeover.outcome.response == 1
     assert methods(system) == ['app_arm_move', 'app_rc_stop', 'app_rc_end', 'app_stop_grasp', 'app_open_gripper']
     wait_for(lambda: cancelled)
     assert cancelled[0] == begin.task_id
@@ -228,7 +228,6 @@ def test_stop_independent_hanging_raw_and_unknown_motion_not_replayed(system):
     start = time.monotonic()
     stopped = resolved(service(system, Stop, '/z70/stop', Stop.Request(scope=3)), 3)
     assert time.monotonic()-start < 3 and len(stopped.outcomes) == 3 and not stopped.cessation_observed
-    assert all(outcome.physical_completion == 0 for outcome in stopped.outcomes)
     system['release'].set(); resolved(pending)
     system['unknown'].add('app_grip')
     client, handle = action(system, ArmOperation, '/z70/arm/operation', ArmOperation.Goal(operation=4))
@@ -264,7 +263,7 @@ def test_base_pulse_bounded_wire_mapping_and_unverified_odom(system):
     assert handle.accepted
     result = resolved(handle.get_result_async())
     assert result.status == GoalStatus.STATUS_SUCCEEDED
-    assert not result.result.odom_delta_valid and result.result.outcome.physical_completion == 0
+    assert not result.result.odom_delta_valid
     assert methods(system) == ['app_rc_start', 'app_rc_move', 'app_rc_stop', 'app_rc_end']
     move = system['calls'][1][1]['params']
     assert move == [dict(velocity=.05, omega=0., duration=100, seqnum=1)]

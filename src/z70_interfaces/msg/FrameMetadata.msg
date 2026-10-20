@@ -1,4 +1,3 @@
-# Generated from docs/migration/interfaces.md; SI units.
 std_msgs/Header header
 z70_interfaces/EvidenceStamp evidence
 uint8 camera

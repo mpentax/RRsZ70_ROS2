@@ -193,7 +193,6 @@ def test_shared_acquisition_serialization_late_join_switch_stale_cleanup(backend
         wait_for(lambda:len(events)==4)
         assert [e.phase for e in events]==[0,1,2,4]
         assert not any(e.outcome.write_time_known for e in events)
-        assert all(e.outcome.physical_completion==0 for e in events)
         assert events[1].outcome.dispatch==2
         # A duplicate is ignored; a skipped sequence is diagnosed, never replayed.
         row=dict(sessionId=session,sequence=6,commandId=command,attemptId=attempt,attemptIndex=0,

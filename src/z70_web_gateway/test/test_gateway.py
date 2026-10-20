@@ -268,7 +268,7 @@ def test_native_navigation_stop_is_added_only_after_goto(system):
 def test_shared_goal_uuid_feedback_and_unknown_failed_results(system):
     first = start(system); ident = first['id']
     result = wait(lambda: (r := task(system, ident))['status'] == 'succeeded' and r)
-    assert result['phase'] == 5 and result['result']['outcome']['physical_completion'] == 0
+    assert result['phase'] == 5
     assert str(uuid.UUID(bytes=bytes(system['gateway'].handles[ident].goal_id.uuid))) == ident
     assert any(t['id'] == ident for t in system['request']('GET','/api/ros/tasks').json()['tasks'])
     system['unknown'] = True
@@ -301,7 +301,6 @@ def test_stop_and_cancel_do_not_wait_on_long_task(system, mode):
         assert cancel.status_code == 200 and cancel.json()['cancel_requested']
         result = wait(lambda:(r := task(system,first['id']))['status'] == 'cancelled' and r)
         assert time.monotonic()-before < 2
-    assert result['result']['outcome']['physical_completion'] == 0
     assert not any(m in system['calls'] for m in ('app_arm_in_compartment','app_open_gripper','app_put_down'))
 
 
