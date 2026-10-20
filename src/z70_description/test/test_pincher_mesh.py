@@ -1,13 +1,15 @@
 """Pincher mesh manifold, normal, installation, and generator tests."""
-import struct
 from pathlib import Path
-import xml.etree.ElementTree as ET
+import shutil
+import struct
+import subprocess
+import sys
 
 import numpy as np
 import pytest
-import xacro
+from ament_index_python.packages import get_package_share_directory
 
-from test_physical_visuals import SOURCE, origin, relative_frames
+from test_physical_visuals import ROBOT, SOURCE, origin, relative_frames
 
 PACKAGE = SOURCE.parents[1]
 
@@ -62,8 +64,7 @@ def visual_triangles(robot, link):
 
 
 def test_one_connected_housing_has_recess_with_clear_calibrated_optical_ray():
-    robot = ET.fromstring(xacro.process_file(str(SOURCE)).toxml())
-    shell = visual_triangles(robot, 'arm_wrist_link')
+    shell = visual_triangles(ROBOT, 'arm_wrist_link')
     vertices, edges = manifold_edges(shell)
     neighbors = {i: set() for i in range(len(vertices))}
     for a, b in edges:
@@ -78,15 +79,13 @@ def test_one_connected_housing_has_recess_with_clear_calibrated_optical_ray():
     assert len(reached) == len(vertices), 'no disconnected camera blob'
     assert np.linalg.norm(np.cross(shell[:, 1]-shell[:, 0], shell[:, 2]-shell[:, 0]), axis=1).min() > 1e-12
     assert np.einsum('ij,ij->', shell[:, 0], np.cross(shell[:, 1], shell[:, 2]))/6 > 0
-    camera = relative_frames(robot, 'arm_wrist_link', {})['gripper_camera_link']
+    camera = relative_frames(ROBOT, 'arm_wrist_link', {})['gripper_camera_link']
     assert camera[:3, 3] == pytest.approx([0.0355, 0.0075, -0.0109], abs=1e-4)
 
 
 def test_package_meshes_are_installed_for_foxglove_asset_lookup():
-    from ament_index_python.packages import get_package_share_directory
     installed = Path(get_package_share_directory('z70_description'))
-    robot = ET.fromstring(xacro.process_file(str(SOURCE)).toxml())
-    meshes = robot.findall('.//geometry/mesh')
+    meshes = ROBOT.findall('.//geometry/mesh')
     assert meshes
     for mesh in meshes:
         relative = mesh.get('filename').split('package://z70_description/')[1]
@@ -107,18 +106,13 @@ def test_all_mesh_normals_match_non_degenerate_positive_manifold_geometry():
 
 
 def test_offline_generator_reproduces_every_installed_triangle(tmp_path):
-    import shutil
-    import subprocess
-    import sys
-    (tmp_path / 'meshes').mkdir()
-    (tmp_path / 'config').mkdir()
+    for d in ('meshes', 'config', 'urdf'):
+        (tmp_path / d).mkdir()
     generator = PACKAGE / 'meshes/generate_pincher.py'
     shutil.copy(generator, tmp_path / 'meshes' / generator.name)
-    shutil.copy(PACKAGE / 'config/cad_arm.yaml', tmp_path / 'config/cad_arm.yaml')
-    shutil.copy(PACKAGE / 'config/mount_calibration.yaml', tmp_path / 'config/mount_calibration.yaml')
-    shutil.copy(PACKAGE / 'config/pincher_geometry.yaml', tmp_path / 'config/pincher_geometry.yaml')
-    shutil.copytree(PACKAGE / 'z70_description',tmp_path / 'z70_description',ignore=shutil.ignore_patterns('__pycache__'))
-    (tmp_path / 'urdf').mkdir()
+    for cfg in ('cad_arm.yaml', 'mount_calibration.yaml', 'pincher_geometry.yaml'):
+        shutil.copy(PACKAGE / 'config' / cfg, tmp_path / 'config' / cfg)
+    shutil.copytree(PACKAGE / 'z70_description', tmp_path / 'z70_description', ignore=shutil.ignore_patterns('__pycache__'))
     subprocess.run([sys.executable, str(tmp_path / 'meshes' / generator.name)], check=True, capture_output=True)
     for source in (PACKAGE / 'meshes').glob('*.stl'):
         assert (tmp_path / 'meshes' / source.name).read_bytes() == source.read_bytes()
