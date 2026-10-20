@@ -138,9 +138,7 @@
     <limit lower="${10*pi/180}" upper="${145*pi/180}" effort="5" velocity="1"/>
   </joint>
 
-  <!-- Camera rolls with M5 (observed 20261014T144906Z); mount and M5 station are CAD-backed. -->
   <link name="gripper_camera_link">
-    <!-- Small glass surface INSIDE the shared shell's real pocket. +X is view direction. -->
     <visual><geometry><mesh filename="package://z70_description/meshes/pincher_lens.stl"/></geometry><material name="moving"/></visual>
   </link>
   <joint name="gripper_camera_mount" type="fixed">
@@ -155,8 +153,6 @@
   </joint>
 
   <link name="arm_wrist_link">
-    <!-- Broad upper face follows the wrist, not the marker-plane orientation.
-         Small marker backing is local; cavity and hidden anatomy provisional. -->
     <visual>
       <geometry><mesh filename="package://z70_description/meshes/cad/cad_hand.stl"/></geometry>
       <material name="moving"/>
@@ -170,8 +166,6 @@
     <limit lower="${-155*pi/180}" upper="0" effort="5" velocity="1"/>
   </joint>
 
-  <!-- Collision fingers use photo-estimated roots; CAD display jaws have separate roots below.
-       Both use nominal coupling, not measured linkage. Driver coordinates are M6/2. -->
   <xacro:macro name="finger" params="side sign">
     <link name="m6_${side}_drive"/>
     <joint name="m6_${side}_joint" type="revolute">
@@ -208,13 +202,10 @@
   <xacro:jaw side="left" sign="1" mesh="cad_jaw_left.stl" x="0.0515" y="0.0106" z="0.0041"/>
   <xacro:jaw side="right" sign="-1" mesh="cad_jaw_right.stl" x="0.0515" y="-0.0101" z="0.0041"/>
 
-  <!-- ID68 is on the underside of the pincher, not at the nominal wrist.
-       CAD-face registration in cad_arm.yaml: photo-oriented, owner-adjusted provisional
-       placement, not the historical free optical fit. Paper thickness is illustrative. -->
+  <!-- Underside DICT_4X4_1000 ID 68 marker (15 mm black square, 20 mm white border). -->
   <link name="pincher_marker_68">
     <visual><origin xyz="0 0 -0.0001"/><geometry><box size="${cal['marker_paper_side_m']} ${cal['marker_paper_side_m']} 0.0003"/></geometry><material name="marker_white"/></visual>
     <visual><origin xyz="0 0 0.0002"/><geometry><box size="${cal['marker_black_side_m']} ${cal['marker_black_side_m']} 0.00015"/></geometry><material name="arm"/></visual>
-    <!-- DICT_4X4_1000 id 68 white modules, 15mm square, 6x6 including border. -->
     <visual><origin xyz="-0.00375 0.00375 0.0004"/><geometry><box size="0.0025 0.0025 0.0006"/></geometry><material name="marker_white"/></visual>
     <visual><origin xyz="-0.00125 0.00125 0.0004"/><geometry><box size="0.0025 0.0025 0.0006"/></geometry><material name="marker_white"/></visual>
     <visual><origin xyz="0.00375 0.00125 0.0004"/><geometry><box size="0.0025 0.0025 0.0006"/></geometry><material name="marker_white"/></visual>
@@ -232,7 +223,6 @@
   <link name="gripper_tcp"/>
   <joint name="tcp_joint" type="fixed">
     <parent link="arm_wrist_link"/><child link="gripper_tcp"/>
-    <!-- Provisional marker-relative terminal-region surrogate, not an exact pad/contact-seam midpoint; CAD M5 station is represented; exact physical contact remains uncalibrated. -->
     <origin xyz="${cal['effective_jaw_from_elbow_m'][0] - l2} ${cal['effective_jaw_from_elbow_m'][1]} ${cal['effective_jaw_from_elbow_m'][2]}"/>
   </joint>
 </robot>
