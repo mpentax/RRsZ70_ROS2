@@ -27,7 +27,7 @@ from z70_manipulation.goals import BUILTIN_GOALS, GOAL_CONTEXT_PRIMITIVES, GoalC
 from z70_manipulation.observations import Observations
 from z70_manipulation.patrol import PatrolCollector, PatrolLedger
 from z70_mapping.boundary import BoundaryConfig, compute_safe_interior
-from z70_mapping.decoder import decode_map
+from z70_mapping.node import decode_map
 from z70_mapping.dynamic_layer import SessionWorldMap
 from z70_mapping.node import dynamic_grid_message, world_markers_message
 from z70_mapping.node import MappingNode

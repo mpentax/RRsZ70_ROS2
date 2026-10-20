@@ -22,9 +22,8 @@ from z70_mapping.boundary import (
     extract_segment_ids,
     generate_patrol_waypoints,
 )
-from z70_mapping.decoder import VendorMap, alignment, decode_map, room_names, spatial_context, transform_pose
 from z70_mapping.depth_node import camera_rays, metric_cloud
-from z70_mapping.node import grid_message, pose_message, markers_message, safe_grid_message
+from z70_mapping.node import VendorMap, alignment, decode_map, grid_message, markers_message, pose_message, room_names, safe_grid_message, spatial_context, transform_pose
 
 
 def block(kind, data, extra=b''):

@@ -27,7 +27,7 @@ from z70_manipulation.node import PickServer
 from z70_manipulation.observations import LATCHED
 from z70_manipulation.patrol import PatrolCollector, PatrolLedger
 from z70_mapping.boundary import BoundaryConfig, compute_safe_interior
-from z70_mapping.decoder import VendorMap
+from z70_mapping.node import VendorMap
 
 
 def _grid_map(size=30, pose=(1., 1., 0.)):

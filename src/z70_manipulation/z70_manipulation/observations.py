@@ -19,7 +19,7 @@ from unique_identifier_msgs.msg import UUID
 from z70_driver.driver import frame_key
 from z70_interfaces.msg import RobotState, ArmEstimate, FrameMetadata, MapSnapshot, GarmentObservations
 from z70_interfaces.srv import RawRpc, RefreshMap, SelectCamera, SetArmAnchor, Stop, TaskSession
-from z70_mapping.decoder import decode_map
+from z70_mapping.node import decode_map
 from z70_mapping.dynamic_layer import SessionWorldMap
 
 LATCHED = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,

@@ -32,7 +32,7 @@ try:
     from tf2_ros import Buffer, TransformListener, TransformException
     from z70_interfaces.msg import GarmentObservation, GarmentObservations
     from z70_driver.driver import MatchedFrames, read_pipe_exact, stop_worker_process, worker_env
-    from z70_mapping.decoder import quat_yaw
+    from z70_mapping.node import quat_yaw
     from .perception import front_camera, calibration, observe, geofence, GarmentTracker
     LATCHED = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL,
                          reliability=ReliabilityPolicy.RELIABLE)
