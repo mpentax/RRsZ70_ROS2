@@ -7,12 +7,11 @@ import { extname, resolve, sep } from "node:path";
 import { isIP } from "node:net";
 import { refreshRooms, RoborockCloud, selectedRooms, type CameraAccount, type CameraLogin, type HomeAuthorization } from "./cloud.ts";
 import { RobotClient, RpcError, type RobotDiagnostic } from "./robot.ts";
-import { CloudControlClient, cloudControlCredentials } from "./cloud-control.ts";
+import { CloudControlClient, cloudControlCredentials, readSplitMap } from "./cloud-control.ts";
 import { CommandEvents, numericTelemetry, publicRpcValue, pulseParams, summarizeStatus, TransportError, type RpcOutcome } from "./rpc-outcome.ts";
 import { CameraSelector, Go2Rtc, publicCameraFailure, requestedCamera } from "./go2rtc.ts";
 import { loadServiceConfig, proxyRos, rosGatewayOrigin, rosRoute, ServiceAuth, ServiceHttpError, type ServiceConfig } from "./service-config.ts";
 import { jpegImageDimensions } from "@rrsz70/http-contracts";
-import { readSplitMap } from "./photo-protocol.ts";
 
 /** Connection-level events only; messages are fixed internal labels (no payloads, keys or addresses). */
 function logRobotDiagnostic(e: RobotDiagnostic): void {

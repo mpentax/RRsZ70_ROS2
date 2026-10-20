@@ -5,15 +5,15 @@ import { createCipheriv, createHash, randomInt } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
-import { encodeV1MqttFrame } from "./cloud-control.ts";
 import {
   type BlobSecurity,
   createBlobSecurity,
   decodeCloudMapResponse,
   decodeMapResponse,
+  encodeV1MqttFrame,
   inspectMapFrame,
   MAX_CLOUD_MAP_FRAME_BYTES,
-} from "./photo-protocol.ts";
+} from "./cloud-control.ts";
 import { localProtocolCodec } from "./robot.ts";
 import {
   mapMetadataFromRead,

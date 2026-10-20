@@ -1,11 +1,13 @@
 import { test, type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { request as httpRequest } from "node:http";
+import { createServer, request as httpRequest, type IncomingMessage, type ServerResponse } from "node:http";
+import { fileURLToPath } from "node:url";
+import type { CameraLogin } from "./cloud.ts";
 import { Go2Rtc } from "./go2rtc.ts";
 import { mapMetadataFromRead, syntheticV1Image } from "./secret-store.ts";
-import { startService, type ServiceRobot, type ServiceStore } from "./service.ts";
-import { loadServiceConfig } from "./service-config.ts";
+import { startService, type ServiceOptions, type ServiceRobot, type ServiceStore } from "./service.ts";
+import { loadServiceConfig, localOrigin, localServiceOrigin, rosGatewayOrigin, rosRoute, ServiceAuth } from "./service-config.ts";
 import { RpcError } from "./robot.ts";
 import { numericTelemetry, publicRpcValue, pulseParams, summarizeStatus, TransportError } from "./rpc-outcome.ts";
 const token = "t".repeat(43), key = "1234567890abcdef";
@@ -358,4 +360,251 @@ test('credential rejection returns a bounded account recovery error without upst
   const result=await request('/api/account/login',{code:'123456'});
   assert.equal(result.status,502);assert.match(result.body.error,/Account verification failed/);
   assert.doesNotMatch(result.body.error,/credential-bearing|synthetic-code|123456/);
+});
+
+test('localhost browser setup works through a loopback-published container network peer',()=>{
+  const config=loadServiceConfig({ROBOCLAW_HOST:'0.0.0.0',ROBOCLAW_PUBLIC_ORIGIN:'http://127.0.0.1:57010'});
+  const auth=new ServiceAuth('test-service-token-'.repeat(3),config);
+  const req={headers:{host:'127.0.0.1:57010',origin:config.publicOrigin},socket:{remoteAddress:'172.20.0.1'}} as IncomingMessage;
+  let cookie='';const res={setHeader(name:string,value:string){assert.equal(name,'Set-Cookie');cookie=value;}} as ServerResponse;
+  auth.setup(req,res);
+  assert.match(cookie,/HttpOnly; SameSite=Strict; Max-Age=1200/);
+});
+
+const bootstrapToken = 'test-service-token-'.repeat(3);
+const bootstrapDevice = {duid:'robot1',host:'127.0.0.1',localKey:'fake-local-key-abcdef',name:'Test Z70',model:'a179',protocolVersion:'L01'};
+const bootstrapCamera = {account:{user:'test-user',secret:'fake-account-secret',key:'fake-account-key',mqttUrl:'mqtts://example.invalid'},pin:''};
+const bootstrapHome = {deviceId:'robot1',homeId:1,realApi:'https://example.invalid',user:'test-user',secret:'fake-home-secret',hawkKey:'fake-hawk-key',rooms:[]};
+const bootstrapLogin: CameraLogin = {devices:[bootstrapDevice],account:bootstrapCamera.account,home:bootstrapHome};
+type Pairing = NonNullable<Awaited<ReturnType<ServiceStore['loadPairing']>>>;
+async function bootstrapFixture(t:TestContext, initial: Pairing|null = null, overrides:Partial<ServiceOptions> = {}) {
+  let saved:Pairing|null = initial; let writes = 0, privateCalls = 0;
+  const authHeader = ['Bea' + 'rer', bootstrapToken].join(' ');
+  const backend = createServer((req,res)=>{privateCalls++; assert.equal(req.headers.authorization,authHeader);res.setHeader('Content-Type','application/json');res.end(JSON.stringify({available:true}));});
+  await new Promise<void>(resolve=>backend.listen(0,'127.0.0.1',resolve));
+  t.after(()=>new Promise<void>(resolve=>backend.close(()=>resolve())));
+  const address = backend.address();assert.ok(address && typeof address==='object');
+  const store:ServiceStore = {async initialize(){},async serviceToken(){return bootstrapToken;},async loadPairing(){return saved;},async savePairing(value){saved=value;writes++;}};
+  const config={...loadServiceConfig({}),port:0};
+  const service=await startService({store,config,rosOrigin:`http://127.0.0.1:${address.port}`,robotFactory:()=>({connection:{state:'disconnected',connectedAt:null},close(){},async request(){privateCalls++;return ['ok'];}}),cloudFactory:()=>({async requestCode(){},async loginCameraWithCode(){return bootstrapLogin;}}),...overrides});
+  t.after(()=>service.stop());
+  const origin=service.origin;
+  async function request(path:string, body?:unknown, cookie?:string, headers:Record<string,string|undefined>={}) {
+    const result = await new Promise<{status:number;body:any;cookie:string|undefined}>((resolve,reject)=>{
+      const req=httpRequest(origin+path,{method:body===undefined?'GET':'POST',headers:{Origin:origin,...(body===undefined?{}:{'Content-Type':'application/json'}),...(cookie?{Cookie:cookie}:{}),...headers}},res=>{
+        const chunks:Buffer[]=[];res.on('data',chunk=>chunks.push(chunk));res.on('error',reject);
+        res.on('end',()=>{
+          try {
+            const text=Buffer.concat(chunks).toString();
+            for(const secret of [bootstrapToken,bootstrapDevice.localKey,bootstrapCamera.account.secret,bootstrapCamera.account.key,bootstrapHome.hawkKey,bootstrapHome.secret]) assert.equal(text.includes(secret),false,`response leaked ${secret}`);
+            resolve({status:res.statusCode!,body:JSON.parse(text),cookie:res.headers['set-cookie']?.[0]?.split(';')[0]});
+          } catch(error) {reject(error);}
+        });
+      });
+      req.on('error',reject);req.end(body===undefined?undefined:JSON.stringify(body));
+    });
+    return result;
+  }
+  return {request,config,get saved(){return saved;},get writes(){return writes;},get privateCalls(){return privateCalls;}};
+}
+
+test('localhost first-run session pairs without granting ROS or private transport authority',async t=>{
+  const f=await bootstrapFixture(t);
+  const status=await f.request('/api/session');
+  assert.deepEqual(status.body,{authenticated:false,scope:null,setupAvailable:true});
+  assert.equal((await f.request('/api/setup')).status,401);
+  const session=await f.request('/api/session',{setup:true});
+  assert.equal(session.status,200);assert.equal(session.body.authenticated,false);assert.equal(session.body.scope,'setup');assert.ok(session.cookie);
+  const cookie=session.cookie!;
+  assert.equal((await f.request('/api/setup',undefined,cookie)).status,200);
+  for(const [path,body] of [['/api/ros/state',undefined],['/api/ros/tasks',{}],['/api/ros/stop',{}],['/api/driver/rpc',{method:'app_charge'}],['/api/camera/frame',{}],['/api/state',undefined],['/api/map/cache/raw',undefined]] as const)
+    assert.equal((await f.request(path,body,cookie)).status,403,path);
+  assert.equal(f.privateCalls,0);
+  assert.equal((await f.request('/api/account/code',{email:'user@example.com',region:'eu'},cookie)).status,200);
+  const verified=await f.request('/api/account/login',{code:'123456'},cookie);
+  assert.deepEqual(verified.body,{devices:[{id:'robot1',name:'Test Z70',model:'a179'}]});
+  assert.equal((await f.request('/api/account/select',{id:'robot1',host:'127.0.0.1',localProtocol:'L01'},cookie)).status,200);
+  assert.equal((await f.request('/api/setup',undefined,cookie)).body.pinConfigured,false);
+  assert.equal((await f.request('/api/camera/pin',{pin:'2345'},cookie)).status,200);
+  assert.equal(f.saved?.camera.pin,'2345');assert.equal(f.writes,2);
+  assert.equal((await f.request('/api/setup',undefined,cookie)).status,401);
+  assert.equal((await f.request('/api/session',{setup:true})).status,409);
+  assert.equal((await f.request('/api/session',{pin:'9999'})).status,401);
+  const configured=await f.request('/api/session',{pin:'2345'});assert.equal(configured.status,200);assert.equal(configured.body.scope,'control');
+  assert.equal((await f.request('/api/ros/state',undefined,configured.cookie)).status,200);
+  assert.equal((await f.request('/api/driver/rpc',{method:'app_charge'},configured.cookie)).status,410);
+  assert.equal(f.privateCalls,1);
+});
+
+test('saving a missing PIN revokes every setup tab and in-flight cloud login',async t=>{
+  const entered=Promise.withResolvers<void>(), delayed=Promise.withResolvers<CameraLogin>();
+  const f=await bootstrapFixture(t,{device:bootstrapDevice,camera:bootstrapCamera,home:bootstrapHome},{cloudFactory:()=>({async requestCode(){},async loginCameraWithCode(){entered.resolve();return delayed.promise;}})});
+  const first=await f.request('/api/session',{setup:true}), second=await f.request('/api/session',{setup:true});
+  await f.request('/api/account/code',{email:'user@example.com',region:'eu'},first.cookie);
+  const pending=f.request('/api/account/login',{code:'123456'},first.cookie);await entered.promise;
+  assert.equal((await f.request('/api/camera/pin',{pin:'3456'},second.cookie)).status,200);
+  delayed.resolve(bootstrapLogin);
+  assert.equal((await pending).status,401);
+  for(const cookie of [first.cookie,second.cookie]) {
+    assert.equal((await f.request('/api/session',undefined,cookie)).body.scope,null);
+    assert.equal((await f.request('/api/camera/pin',{pin:'4567'},cookie)).status,401);
+  }
+  assert.equal(f.saved?.camera.pin,'3456');assert.equal(f.writes,1);assert.equal(f.privateCalls,0);
+});
+
+test('setup retains Host and Origin protection and cannot be issued for a remote public origin',async t=>{
+  const f=await bootstrapFixture(t);
+  for(const headers of [{Origin:'https://hostile.invalid'},{Origin:''},{'Sec-Fetch-Site':'cross-site'},{Host:'hostile.invalid'}])
+    assert.equal((await f.request('/api/session',{setup:true},undefined,headers)).status,403,JSON.stringify(headers));
+  const session=await f.request('/api/session',{setup:true});
+  for(const headers of [{Origin:'https://hostile.invalid'},{Origin:''},{'Sec-Fetch-Site':'cross-site'}]) {
+    assert.equal((await f.request('/api/account/code',{email:'user@example.com',region:'eu'},session.cookie,headers)).status,403);
+    assert.equal((await f.request('/api/camera/pin',{pin:'2345'},session.cookie,headers)).status,403);
+  }
+  assert.equal((await f.request('/api/ros/state',undefined,session.cookie,{Authorization:['Bea' + 'rer', 'wrong'].join(' ')})).status,401);
+  f.config.allowedHosts.push('remote.example');f.config.publicOrigin='http://remote.example';
+  assert.equal((await f.request('/api/session',{setup:true},undefined,{Host:'remote.example',Origin:'http://remote.example'})).status,403);
+  assert.equal(f.writes,0);assert.equal(f.privateCalls,0);
+});
+
+test('saving camera PIN with device selection closes bootstrap immediately and preserves configured login',async t=>{
+  const f=await bootstrapFixture(t);const first=await f.request('/api/session',{setup:true});const other=await f.request('/api/session',{setup:true});
+  await f.request('/api/account/code',{email:'user@example.com',region:'eu'},first.cookie);
+  assert.equal((await f.request('/api/account/login',{code:'123456'},other.cookie)).status,410);
+  await f.request('/api/account/login',{code:'123456'},first.cookie);
+  assert.equal((await f.request('/api/account/select',{id:'robot1',host:'127.0.0.1',localProtocol:'L01',pin:'4567'},first.cookie)).status,200);
+  assert.equal(f.saved?.camera.pin,'4567');assert.equal(f.writes,1);
+  for(const cookie of [first.cookie,other.cookie]) assert.equal((await f.request('/api/setup',undefined,cookie)).status,401);
+  assert.equal((await f.request('/api/session',{setup:true})).status,409);
+  const configured=await f.request('/api/session',{pin:'4567'});assert.equal(configured.status,200);
+  assert.equal((await f.request('/api/setup',undefined,configured.cookie)).body.pinConfigured,true);
+  assert.equal((await f.request('/api/session',{pin:'4567'},undefined,{Origin:'https://hostile.invalid'})).status,403);
+  assert.equal((await f.request('/api/ros/tasks',{},configured.cookie,{Origin:'https://hostile.invalid'})).status,403);
+  assert.equal((await f.request('/api/ros/state',undefined,configured.cookie)).status,200);
+  assert.equal(f.privateCalls,1);
+});
+
+test('cloud failures cannot expose submitted or upstream credentials to the setup browser',async t=>{
+  const f=await bootstrapFixture(t,null,{cloudFactory:()=>({async requestCode(){throw new Error(`private user@example.com 123456 ${bootstrapToken} ${bootstrapCamera.account.secret}`);},async loginCameraWithCode(){return bootstrapLogin;}})});
+  const session=await f.request('/api/session',{setup:true});
+  const result=await f.request('/api/account/code',{email:'user@example.com',region:'eu'},session.cookie);
+  assert.equal(result.status,502);assert.doesNotMatch(JSON.stringify(result.body),/user@example.com|123456|private/);
+});
+
+async function bearerPairingFixture(t: TestContext, overrides: Partial<ServiceOptions>, savePairing: ServiceStore['savePairing']) {
+  const oldCamera = { account: { user: 'old', secret: 's', key: 'k', mqttUrl: 'mqtts://mqtt.roborock.com:8883' }, pin: '1234' };
+  const oldHome = { deviceId: 'robot1', homeId: 1, realApi: 'https://example.invalid', user: 'old', secret: 's', hawkKey: 'k', rooms: [] };
+  const store: ServiceStore = { async initialize() {}, async serviceToken() { return bootstrapToken; }, async loadPairing() { return { device: bootstrapDevice, camera: oldCamera, home: oldHome }; }, savePairing };
+  const service = await startService({ store, config: { ...loadServiceConfig(), port: 0 }, robotFactory: () => ({ connection: { state: 'connected', connectedAt: 1 }, close() {}, async request() { return ['ok']; } }), ...overrides });
+  t.after(() => service.stop());
+  const origin = service.origin;
+  const authHeader = ['Bea' + 'rer', bootstrapToken].join(' ');
+  return async (path: string, body: unknown) => {
+    const response = await fetch(origin + path, { method: 'POST', headers: { Authorization: authHeader, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    return { status: response.status, body: await response.json() };
+  };
+}
+
+test('stale room refresh cannot persist credentials after same-device account selection', async t => {
+  const rooms = Promise.withResolvers<[]>(), started = Promise.withResolvers<void>(); const writes: unknown[] = [];
+  const post = await bearerPairingFixture(t, { roomRefresher: async () => { started.resolve(); return rooms.promise; }, cloudFactory: () => ({ async requestCode() {}, async loginCameraWithCode() { return bootstrapLogin; } }) }, async p => { writes.push(p); });
+  const refresh = post('/api/home/rooms/refresh', {}); await started.promise;
+  assert.equal((await post('/api/account/code', { email: 'user@example.com', region: 'eu' })).status, 200);
+  assert.equal((await post('/api/account/login', { code: '123456' })).status, 200);
+  assert.equal((await post('/api/account/select', { id: 'robot1', host: '127.0.0.1' })).status, 200);
+  rooms.resolve([]); assert.equal((await refresh).status, 409); assert.equal(writes.length, 1);
+});
+
+test('concurrent login completion does not dereference or overwrite cleared attempt', async t => {
+  const delayed = Promise.withResolvers<CameraLogin>(), entered = Promise.withResolvers<void>(); let count = 0;
+  const post = await bearerPairingFixture(t, { cloudFactory: () => ({ async requestCode() {}, async loginCameraWithCode() { if (++count === 1) { entered.resolve(); return delayed.promise; } return bootstrapLogin; } }) }, async () => {});
+  await post('/api/account/code', { email: 'user@example.com', region: 'eu' });
+  const first = post('/api/account/login', { code: '123456' }); await entered.promise;
+  assert.equal((await post('/api/account/login', { code: '234567' })).status, 200);
+  assert.equal((await post('/api/account/select', { id: 'robot1', host: '127.0.0.1' })).status, 200);
+  delayed.resolve(bootstrapLogin); assert.equal((await first).status, 409);
+});
+
+test('concurrent selections serialize without publishing the same consumed attempt twice', async t => {
+  const saving = Promise.withResolvers<void>(), entered = Promise.withResolvers<void>(); let writes = 0;
+  const post = await bearerPairingFixture(t, { cloudFactory: () => ({ async requestCode() {}, async loginCameraWithCode() { return bootstrapLogin; } }) }, async () => { writes++; entered.resolve(); await saving.promise; });
+  await post('/api/account/code', { email: 'user@example.com', region: 'eu' }); await post('/api/account/login', { code: '123456' });
+  const first = post('/api/account/select', { id: 'robot1', host: '127.0.0.1' }); await entered.promise;
+  const second = post('/api/account/select', { id: 'robot1', host: '127.0.0.2' });
+  await new Promise(resolve => setTimeout(resolve, 25)); saving.resolve();
+  assert.equal((await first).status, 200); assert.equal((await second).status, 409); assert.equal(writes, 1);
+});
+
+test('room refresh cannot overwrite a concurrently published camera PIN pairing', async t => {
+  const rooms = Promise.withResolvers<[]>(), entered = Promise.withResolvers<void>(); const writes: { camera: { pin: string } }[] = [];
+  const post = await bearerPairingFixture(t, { roomRefresher: async () => { entered.resolve(); return rooms.promise; } }, async p => { writes.push(p); });
+  const refresh = post('/api/home/rooms/refresh', {}); await entered.promise;
+  assert.equal((await post('/api/camera/pin', { pin: '2345' })).status, 200);
+  rooms.resolve([]); assert.equal((await refresh).status, 409);
+  assert.equal(writes.length, 1); assert.equal(writes[0].camera.pin, '2345');
+});
+
+test('explicit native loopback and LAN service origins are accepted', () => {
+  assert.equal(localServiceOrigin('http://127.0.0.1:57001', 'go2rtc'), 'http://127.0.0.1:57001');
+  assert.equal(localServiceOrigin('http://localhost:57001', 'go2rtc'), 'http://localhost:57001');
+  assert.equal(localServiceOrigin('http://[::1]:57001'), 'http://[::1]:57001');
+});
+
+test('public providers, credentials, paths, and ambiguous destinations are rejected', () => {
+  for (const origin of [
+    'https://api.example.com', 'http://8.8.8.8:57001', 'http://localhost.attacker.invalid',
+    'http://user:password@127.0.0.1:57001', 'http://127.0.0.1:57001/api',
+    'http://127.0.0.1:57001?redirect=anything', 'file:///tmp/model',
+  ]) assert.throws(() => localServiceOrigin(origin), /origin/);
+});
+
+test('workspace entrypoints retain one state/static root outside the repository cwd', t => {
+  t.mock.method(process, 'cwd', () => '/missing-caller-directory');
+  const config = loadServiceConfig({});
+  assert.equal(config.stateDir, fileURLToPath(new URL('../../../.local', import.meta.url)));
+  assert.equal(config.webRoot, fileURLToPath(new URL('../../../dist/web', import.meta.url)));
+});
+
+test('native service defaults and strict port range', () => {
+  const config = loadServiceConfig({});
+  assert.equal(config.host, '127.0.0.1');
+  assert.equal(config.port, 57000);
+  assert.equal(config.publicOrigin, 'http://127.0.0.1:57000');
+  assert.equal(config.go2rtcOrigin, 'http://127.0.0.1:57001');
+  for (const port of ['0', '80', '56999', '57101', '57000junk', '57000.0']) {
+    assert.throws(() => loadServiceConfig({ ROBOCLAW_PORT: port }));
+  }
+  assert.equal(loadServiceConfig({ ROBOCLAW_PORT: '57100' }).port, 57100);
+});
+
+test('container and explicit TLS proxy configuration has exact host validation', () => {
+  const config = loadServiceConfig({
+    ROBOCLAW_HOST: '0.0.0.0', ROBOCLAW_PUBLIC_ORIGIN: 'https://robot.example',
+    ROBOCLAW_SECURE_COOKIE: 'true', ROBOCLAW_ALLOWED_HOSTS: '127.0.0.1:57000,robot.internal:57000',
+    ROBOCLAW_STATE_DIR: '/data', GO2RTC_ORIGIN: 'http://127.0.0.1:57001',
+  });
+  assert.equal(config.secureCookie, true);
+  assert.equal(config.stateDir, '/data');
+  assert.deepEqual(config.allowedHosts, ['robot.example', '127.0.0.1:57000', 'robot.internal:57000']);
+  for (const hosts of ['*', 'evil.test/path', 'user:pass@evil.test', 'evil.test?x']) {
+    assert.throws(() => loadServiceConfig({ ROBOCLAW_ALLOWED_HOSTS: hosts }));
+  }
+  assert.throws(() => loadServiceConfig({ ROBOCLAW_PUBLIC_ORIGIN: 'https://robot.example' }));
+  assert.throws(() => loadServiceConfig({ ROBOCLAW_SECURE_COOKIE: 'true' }));
+});
+
+test('local upstream origins reject cloud hosts, credentials and URL tricks', () => {
+  for (const value of ['https://api.example', 'http://go2rtc.evil:57001', 'http://127.0.0.1:57001/path',
+    'http://user:secret@127.0.0.1:57001', 'http://127.0.0.1:57001#secret',
+    'http://127.0.0.1:57001/', 'http://0.0.0.0:57001', 'http://169.254.169.254:57001']) {
+    assert.throws(() => localOrigin(value));
+  }
+  assert.equal(localOrigin('http://192.168.1.2:57001'), 'http://192.168.1.2:57001');
+  assert.equal(localOrigin('http://[::1]:57003'), 'http://[::1]:57003');
+  assert.throws(() => localOrigin('http://127.0.0.1:1984'));
+});
+
+test('proxy route and origin allowlists cannot forward arbitrary bearer destinations', () => {
+  for (const path of ['/api/ros/tasks/../stop', '/api/ros/account/login', '/api/ros/tasks?x=1']) assert.equal(rosRoute('POST', path), false);
+  for (const origin of ['https://127.0.0.1:57020', 'http://example.com:57020', 'http://a:b@127.0.0.1:57020', 'http://127.0.0.1:57020/x']) assert.throws(() => rosGatewayOrigin(origin));
 });
