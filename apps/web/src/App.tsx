@@ -8,7 +8,7 @@ import { robotRpc } from './rpc.ts';
 import { actionOutcome } from './outcomes.ts';
 import { record } from './helpers.ts';
 
-const COLORS = ['yellow', 'orange', 'red', 'green', 'blue'] as const;
+const COLORS = ['yellow', 'purple', 'blue', 'green', 'orange'] as const;
 const ARM_STATES: Record<number, string> = { 0: 'UNKNOWN', 1: 'IN_ROBOT', 2: 'IN_PROCESS_POS', 3: 'WORKING_POS', 4: 'TRANSFER_POS' };
 const GRAB_MODES: Record<number, string> = { 0: 'OFF', 1: 'MANUAL (flag=1)', 2: 'REMOTE_PICKUP (flag=2)' };
 const GRAB_ACTIONS: Record<number, string> = {
@@ -287,8 +287,7 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
   const [vendorM3, vendorM4, vendorM5] = armJointPositions.length >= 3
     ? urdfToVendorDeg(armJointPositions)
     : [fmtDeg(armPositions[0]), fmtDeg(armPositions[1]), fmtDeg(armPositions[2])];
-  const rawStateCode = typeof robotState.robot_state === 'number' ? robotState.robot_state : typeof robotState.state_code === 'number' ? robotState.state_code : null;
-  const robotStateCode = rawStateCode;
+  const robotStateCode = typeof robotState.robot_state === 'number' ? robotState.robot_state : typeof robotState.state_code === 'number' ? robotState.state_code : null;
   const robotStateName = robotStateCode !== null ? (ROBOT_STATES[robotStateCode] ?? `CODE_${robotStateCode}`) : 'UNKNOWN';
   const commonStatus = typeof robotState.common_status === 'number' ? robotState.common_status : null;
   const grabModeCode = commonStatus !== null ? ((commonStatus >> 10) & 3) : null;
@@ -514,7 +513,7 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
             </div>
             <div className="button-row" style={{marginBottom: 0}}>
               <button className="primary" disabled={busy || controlStopped}>Start Pick</button>
-              <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => launchTask({kind:'stack',goal:{base_color:'yellow',middle_color:'orange',top_color:'red',dry_run:dryRun}}, true)}>Start 3-Ball Stack (yellow→orange→red)</button>
+              <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => launchTask({kind:'stack',goal:{base_color:'yellow',middle_color:'purple',top_color:'blue',dry_run:dryRun}}, true)}>Start 3-Ball Stack (yellow→purple→blue)</button>
             </div>
           </form>
 
@@ -549,7 +548,7 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
             setHoldToJog={setHoldToJog}
             startHoldJog={startHoldJog}
             stopHoldJog={stopHoldJog}
-            run={run}
+            launchTask={launchTask}
             setOutcome={setOutcome}
           />
 

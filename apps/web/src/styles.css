@@ -262,7 +262,7 @@ summary { cursor: pointer; }
 .swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 .swatch-yellow { background: #fbbf24; }
 .swatch-orange { background: #fb923c; }
-.swatch-red { background: #f87171; }
+.swatch-purple { background: #a855f7; }
 .swatch-green { background: #34d399; }
 .swatch-blue { background: #38bdf8; }
 .checkbox-row { display: flex; align-items: center; gap: 10px; margin: 0; padding: 10px 12px; min-height: 44px; background: #101a1f; border: 1px solid #35474d; border-radius: 8px; cursor: pointer; font-size: 13px; }
