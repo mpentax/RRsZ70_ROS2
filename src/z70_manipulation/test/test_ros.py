@@ -1,13 +1,9 @@
-import importlib.util
-from pathlib import Path
 import threading
 import time
-from test_executor import fake
+from test_executor import fake, ROOT
 import rclpy
 from rclpy.action import ActionClient
 from rclpy.executors import MultiThreadedExecutor
-
-ROOT = Path(__file__).resolve().parents[3]
 
 
 def _send_and_wait(action, goal, timeout=10.):
@@ -26,7 +22,6 @@ def _send_and_wait(action, goal, timeout=10.):
 
 
 def test_ros_pick_and_curated_actions(fake, tmp_path):
-    assert importlib.util.find_spec('z70_manipulation.node'), 'ROS nodes missing'
     from z70_manipulation.node import PickServer
     from z70_interfaces.action import Pick, Stack, DeployArm, AlignToTarget, MoveArm, GraspAndLift, ReleaseAndStow
     from std_msgs.msg import String

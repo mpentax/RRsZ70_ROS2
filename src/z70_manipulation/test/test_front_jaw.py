@@ -1,10 +1,8 @@
 import cv2
 import numpy as np
 import pytest
-from pathlib import Path
 from z70_manipulation import perception,planner
 from z70_manipulation.executor import Executor
-ROOT=Path(__file__).resolve().parents[3]
 
 def test_front_jaw_uses_elevated_68_not_floor_duplicate():
     # Render the real registered marker in a synthetic calibrated frame.
