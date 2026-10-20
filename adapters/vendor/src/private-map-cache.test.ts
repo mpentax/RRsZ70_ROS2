@@ -5,7 +5,31 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { syntheticV1Image } from "./map-raster-fixture.ts";
-import { savePrivateV1Map } from "./private-map-cache.ts";
+import { mapMetadataFromRead, savePrivateV1Map, validatedMapMetadata } from "./private-map-cache.ts";
+import { SecretStore } from "./secret-store.ts";
+
+test("private map metadata persists bound to selected device, checks bytes and private modes", async t => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "roboclaw-map-metadata-")));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const store = new SecretStore(join(root, "state"));
+  await store.initialize();
+  const raw = syntheticV1Image(), sha256 = createHash("sha256").update(raw).digest("hex");
+  const result = { raw, sha256, bytes: raw.length, mapIndex: 0, mapSequence: 0 };
+  await store.saveMapBytes(raw);
+  await store.saveMapCache(mapMetadataFromRead("private-device", result));
+  const loaded = await store.loadMapRasterSource();
+  assert.ok(loaded);
+  const metadata = validatedMapMetadata(loaded.metadata);
+  assert.equal(metadata.deviceId, "private-device");
+  assert.equal(metadata.sha256, sha256);
+  assert.equal((await lstat(join(root, "state", "map-cache.json"))).mode & 0o777, 0o600);
+  assert.equal((await lstat(join(root, "state", "maps"))).mode & 0o777, 0o700);
+  assert.equal((await lstat(join(root, "state"))).mode & 0o777, 0o700);
+  const file = join(root, "state", "maps", `v1-${sha256}.bin`);
+  const corrupted = Buffer.from(await readFile(file)); corrupted[25] ^= 1;
+  await writeFile(file, corrupted);
+  await assert.rejects(store.loadMapRasterSource(), /Cannot load private map raster source/);
+});
 
 test("private cache is content-addressed, non-overwriting, restricted and idempotent", async t => {
   const base = await realpath(await mkdtemp(join(tmpdir(), "roboclaw-map-test-")));

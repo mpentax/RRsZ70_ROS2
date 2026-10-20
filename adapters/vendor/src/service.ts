@@ -17,7 +17,7 @@ import { ServiceAuth, ServiceHttpError } from "./service-auth.ts";
 import { numericTelemetry } from "./telemetry.ts";
 import { jpegImageDimensions } from "@rrsz70/http-contracts";
 import { readSplitMap } from "./split-map-reader.ts";
-import { mapMetadataFromRead, type PrivateMapMetadata } from "./map-cache-status.ts";
+import { mapMetadataFromRead, type PrivateMapMetadata } from "./private-map-cache.ts";
 import { refreshRooms, selectedRooms } from "./home-account.ts";
 import { proxyRos, rosGatewayOrigin, rosRoute } from "./ros-gateway.ts";
 

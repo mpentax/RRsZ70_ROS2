@@ -1,15 +1,13 @@
 import { constants, type Stats } from "node:fs";
 import { link, lstat, mkdir, open, rename, unlink } from "node:fs/promises";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { validatedMapMetadata } from "./map-cache-status.ts";
 import { summarizeV1Map } from "./v1-map-summary.ts";
-import { MAX_MAP_BYTES } from "./photo-protocol.ts";
 import { isIP } from "node:net";
 import { join, parse, resolve, sep } from "node:path";
 import type { CameraAccount, HomeAuthorization } from "./cloud.ts";
 import { validateHomeAuthorization } from "./home-account.ts";
 import { localProtocol, type SavedDevice } from "./credentials.ts";
-import { savePrivateV1Map } from "./private-map-cache.ts";
+import { readPrivateMapFile, savePrivateV1Map, validatedMapMetadata, type PrivateMapMetadata } from "./private-map-cache.ts";
 
 export interface PersistentCamera {
   account: CameraAccount;
@@ -173,7 +171,7 @@ export class SecretStore {
     }, "Cannot save authenticated account pairing.");
   }
 
-  async loadMapRasterSource(): Promise<{ metadata: import("./map-cache-status.ts").PrivateMapMetadata; raw: Buffer } | null> {
+  async loadMapRasterSource(): Promise<{ metadata: PrivateMapMetadata; raw: Buffer } | null> {
     return sanitized(() => this.#readVerifiedMapCache(), "Cannot load private map raster source.");
   }
 
@@ -185,24 +183,12 @@ export class SecretStore {
     const path = join(this.#directory, "maps", `v1-${metadata.sha256}.bin`);
     const dir = await lstat(join(this.#directory, "maps"));
     if (!dir.isDirectory() || dir.isSymbolicLink() || (dir.mode & 0o777) !== 0o700) throw new Error("Unsafe private map directory.");
-    const file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
-    try {
-      const stat = await file.stat();
-      if (!stat.isFile() || stat.nlink !== 1 || (stat.mode & 0o7777) !== 0o600 || stat.size !== metadata.bytes ||
-          stat.size > MAX_MAP_BYTES) throw new Error("Unsafe private map file.");
-      const bytes = Buffer.alloc(stat.size);
-      let total = 0;
-      while (total < bytes.length) {
-        const { bytesRead } = await file.read(bytes, total, bytes.length - total, null);
-        if (!bytesRead) throw new Error("Truncated private map file.");
-        total += bytesRead;
-      }
-      if (createHash("sha256").update(bytes).digest("hex") !== metadata.sha256) throw new Error("Invalid cached map digest.");
-      summarizeV1Map(bytes);
-      if (bytes.readUInt32LE(12) !== metadata.mapIndex || bytes.readUInt32LE(16) !== metadata.mapSequence)
-        throw new Error("Private map header differs from published metadata.");
-      return { metadata, raw: bytes };
-    } finally { await file.close(); }
+    const bytes = await readPrivateMapFile(path, metadata.bytes);
+    if (createHash("sha256").update(bytes).digest("hex") !== metadata.sha256) throw new Error("Invalid cached map digest.");
+    summarizeV1Map(bytes);
+    if (bytes.readUInt32LE(12) !== metadata.mapIndex || bytes.readUInt32LE(16) !== metadata.mapSequence)
+      throw new Error("Private map header differs from published metadata.");
+    return { metadata, raw: bytes };
   }
 
   async saveMapCache(metadata: unknown): Promise<void> {

@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { startService, type ServiceStore } from './service.ts';
 import { loadServiceConfig } from './service-config.ts';
 import { syntheticV1Image } from './map-raster-fixture.ts';
-import { mapMetadataFromRead } from './map-cache-status.ts';
+import { mapMetadataFromRead } from './private-map-cache.ts';
 
 test('authenticated raw map reads preserve exact verified bytes and selected-device binding', async t => {
   const token = 'x'.repeat(43), raw = syntheticV1Image();
