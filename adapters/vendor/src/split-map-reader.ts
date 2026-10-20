@@ -5,7 +5,7 @@ import { summarizeV1Map } from "./v1-map-summary.ts";
 import { RobotClient } from "./robot.ts";
 import { createBlobSecurity } from "./photo-protocol.ts";
 import { decodeCloudMapResponse, inspectMapFrame } from "./cloud-map-v1.ts";
-import { mqttOptions } from "./cloud-control.ts";
+import { cloudControlCredentials, mqttOptions } from "./cloud-control.ts";
 import type { SavedDevice } from "./credentials.ts";
 import type { CameraAccount } from "./cloud.ts";
 const TIMEOUT_MS = 12_000;
@@ -14,11 +14,9 @@ export async function readSplitMap(device: SavedDevice, account: CameraAccount):
  geometry: ReturnType<typeof summarizeV1Map>;
 }> {
  if (device.model !== "roborock.vacuum.a179") throw new Error("Unsupported map device.");
- const credentials = { broker: account.mqttUrl.replace(/^ssl:/, "mqtts:"), user: account.user,
- secret: account.secret, accountKey: account.key, deviceId: device.duid, localKey: device.localKey };
+ const credentials = cloudControlCredentials(account, device);
   const auth = mqttOptions(credentials);
   const security = createBlobSecurity(credentials.accountKey);
-  let stage = "mqtt-connect";
   const client = await connectAsync(credentials.broker, {
     username: auth.username, password: auth.password,
     clientId: `roboclaw-map-split-${randomUUID()}`,
@@ -57,7 +55,6 @@ export async function readSplitMap(device: SavedDevice, account: CameraAccount):
     wake();
   });
   try {
-    stage = "subscribe";
     await new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error("setup-failed")), 4000);
       client.subscribe(auth.incoming, { qos: 0 }, (error, granted) => {
@@ -67,9 +64,7 @@ export async function readSplitMap(device: SavedDevice, account: CameraAccount):
       });
     });
     if (!client.connected) throw new Error("setup-failed");
-    stage = "local-connect";
     await robot.connect();
-    stage = "local-read";
     // The read reserves its ID synchronously before returning the promise.
     // Listen during the LAN ACK so an early cloud response is not discarded.
     const read = robot.requestMapWithSecurity(security);
@@ -82,7 +77,6 @@ export async function readSplitMap(device: SavedDevice, account: CameraAccount):
       throw new Error("local-not-acknowledged");
     }
     // A local ACK is not a map. Wait only for a correlated 301, once.
-    stage = "await-map";
     while (!map && client.connected && Date.now() < deadline) {
       await new Promise<void>((resolve) => {
         const timer = setTimeout(resolve, Math.max(1, deadline - Date.now()));
@@ -99,14 +93,6 @@ export async function readSplitMap(device: SavedDevice, account: CameraAccount):
       throw new Error(reason);
     }
     const bytes: Buffer = map;
-    stage = "validate";
-    // A decompressed byte array is not yet geometry. Require a V1 map header,
-    // a bounded data length, and upstream's trailing SHA-1 before claiming bytes.
-    if (bytes.length < 40 || bytes.toString("ascii", 0, 2) !== "rr" ||
-      bytes.readUInt16LE(2) !== 20 || bytes.readUInt32LE(4) !== bytes.length - 20 ||
-      !createHash("sha1").update(bytes.subarray(0, -20)).digest().equals(bytes.subarray(-20))) {
-      throw new Error("map-format-unverified");
-    }
     let geometry: ReturnType<typeof summarizeV1Map>;
     try { geometry = summarizeV1Map(bytes); }
     catch { throw new Error("map-format-unverified"); }
