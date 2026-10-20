@@ -15,6 +15,7 @@ export interface GoalSpecDescriptor {
   fields: string[];
   field_types?: Record<string, string>;
   result_fields?: string[];
+  timeout_s?: number | null;
   navigation: boolean;
   description: string;
 }

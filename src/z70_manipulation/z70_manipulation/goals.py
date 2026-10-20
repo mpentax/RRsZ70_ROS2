@@ -135,6 +135,7 @@ class GoalSpec:
             'fields': list(self.fields),
             'field_types': field_types,
             'result_fields': result_fields,
+            'timeout_s': float(self.timeout_s) if isinstance(self.timeout_s, (int, float)) else None,
             'navigation': self.navigation,
             'description': self.description,
         }
@@ -793,8 +794,11 @@ def _run_driver_arm_op(ctx: 'GoalContext | SimpleNamespace', r):
 DRIVER_GOALS: dict[str, GoalSpec] = {
     spec.name: spec for spec in (
         GoalSpec(
-            'base_pulse', BasePulse, '/z70/base/pulse', 5.,
-            lambda _s, _r: True,
+            'base_pulse', BasePulse, '/z70/base/pulse', 15.,
+            lambda _s, r: _valid_pulse_payload({
+                'linear_mps': r.linear_mps, 'angular_radps': r.angular_radps,
+                'duration': r.duration if isinstance(r.duration, dict) else {'sec': r.duration.sec, 'nanosec': r.duration.nanosec},
+            }),
             lambda ctx, r: _goal_curated(
                 ctx,
                 lambda c: c.pulse(
@@ -812,7 +816,7 @@ DRIVER_GOALS: dict[str, GoalSpec] = {
             validate_payload=_valid_pulse_payload,
         ),
         GoalSpec(
-            'arm_step', ArmStep, '/z70/arm/step', 5.,
+            'arm_step', ArmStep, '/z70/arm/step', 35.,
             lambda _s, r: r.joint in (3, 4, 5, 34, 43) and r.direction in (-1, 1),
             lambda ctx, r: _goal_curated(
                 ctx, lambda c: _run_driver_arm_step(c, r),
@@ -824,7 +828,7 @@ DRIVER_GOALS: dict[str, GoalSpec] = {
                                         and type(p['direction']) is int and p['direction'] in (-1, 1)),
         ),
         GoalSpec(
-            'hand_step', HandStep, '/z70/arm/hand_step', 5.,
+            'hand_step', HandStep, '/z70/arm/hand_step', 35.,
             lambda _s, r: 1 <= r.direction <= 4,
             lambda ctx, r: _goal_curated(
                 ctx, lambda c: c.hand_step(r.direction),
@@ -835,7 +839,7 @@ DRIVER_GOALS: dict[str, GoalSpec] = {
             validate_payload=lambda p: _int_in(p['direction'], 1, 4),
         ),
         GoalSpec(
-            'arm_operation', ArmOperation, '/z70/arm/operation', 15.,
+            'arm_operation', ArmOperation, '/z70/arm/operation', 60.,
             lambda _s, r: 1 <= r.operation <= 9,
             lambda ctx, r: _goal_curated(
                 ctx, lambda c: _run_driver_arm_op(c, r),

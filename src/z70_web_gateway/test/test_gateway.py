@@ -176,6 +176,7 @@ def test_validation_token_and_closed_error_contract(system, tmp_path):
         g['kind'] == 'pick' and g['topic'] == '/z70/pick' and g['action'] == 'Pick'
         and g['fields'] == ['color', 'dry_run']
         and g['field_types'] == {'color': 'string<32>', 'dry_run': 'boolean'}
+        and g['timeout_s'] == 285.0
         and 'verified_hold' in g['result_fields']
         for g in goals
     )
