@@ -154,6 +154,22 @@ function apiData(body: unknown, stage: string): unknown {
   return body.data;
 }
 
+export function hawkHeaders(url: URL, user: string, secret: string, hawkKey: string): Record<string, string> {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const nonce = randomBytes(6).toString("base64").slice(0, 6).replace(/\+/g, "X").replace(/\//g, "Y");
+  const pathHash = createHash("md5").update(url.pathname + url.search).digest("hex");
+  const mac = createHmac("sha256", hawkKey).update([user, secret, nonce, timestamp, pathHash, "", ""].join(":")).digest("base64");
+  return {
+    Authorization: ["Hawk", `id="${user}", s="${secret}", ts="${timestamp}", nonce="${nonce}", mac="${mac}"`].join(" "),
+    "x-iotsdk-version": "1.0.1",
+    "x-app-name": "com.roborock.smart",
+    "x-app-version-code": "100834",
+    "x-app-version-name": "4.57.02",
+    "x-uid": user,
+    "User-Agent": "UA=RRSDKAndroid/1.0.1",
+  };
+}
+
 export function roomsFromHome(body: unknown): AccountRoom[] {
   if (!record(body) || body.success !== true || !record(body.result)) return invalid("home data");
   const rooms: unknown = body.result.rooms ?? [];
@@ -304,22 +320,9 @@ export class RoborockCloud {
       return invalid("home identifier");
     }
     const homeUrl = new URL(`/v3/user/homes/${home.rrHomeId}`, realApi);
-    const timestamp = Math.floor(Date.now() / 1000);
-    const nonce = randomBytes(6).toString("base64").slice(0, 6).replace(/\+/g, "X").replace(/\//g, "Y");
-    const pathHash = createHash("md5").update(homeUrl.pathname + homeUrl.search).digest("hex");
-    const prestr = [rriot.u, rriot.s, nonce, timestamp, pathHash, "", ""].join(":");
-    const mac = createHmac("sha256", rriot.h).update(prestr).digest("base64");
     const homeResponse = await request(homeUrl, {
       method: "GET",
-      headers: {
-        Authorization: `Hawk id="${rriot.u}", s="${rriot.s}", ts="${timestamp}", nonce="${nonce}", mac="${mac}"`,
-        "x-iotsdk-version": "1.0.1",
-        "x-app-name": "com.roborock.smart",
-        "x-app-version-code": "100834",
-        "x-app-version-name": "4.57.02",
-        "x-uid": rriot.u,
-        "User-Agent": "UA=RRSDKAndroid/1.0.1",
-      },
+      headers: hawkHeaders(homeUrl, rriot.u, rriot.s, rriot.h),
     }, "signed home lookup");
     const devices = devicesFromHome(homeResponse);
     const rooms = camera ? roomsFromHome(homeResponse) : [];
