@@ -190,7 +190,7 @@ def observer(client):
                 if 'position' not in b:
                     g = planner.grasp_point()
                     w = b['image_size'][0]
-                    b['position'] = [g[0], planner.MOUNT[1] - (b['pixel'][0] - w / 2) / (843. * w / 1600) * .3, 0.]
+                    b['position'] = [g[0], g[1] - (b['pixel'][0] - w / 2) / (843. * w / 1600) * .3, 0.]
                 b.update(camera_distance_m=.12, camera_height_m=.12)
         return [b for b in blobs if b['color'] == color]
     return observe
