@@ -8,7 +8,7 @@ import pytest
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy
 import z70_mapping.depth_node as dn
-from z70_mapping.depth_geometry import camera_rays, metric_cloud
+from z70_mapping.depth_worker import camera_rays, metric_cloud
 
 CAL = {'width': 4, 'height': 4, 'f_px': 10., 'cx': 1.5, 'cy': 1.5, 'k1': 0., 'k2': 0.,
        'camera_height_mm': 50., 'R_floor_to_cam': [[0., -1., 0.], [0., 0., -1.], [1., 0., 0.]]}

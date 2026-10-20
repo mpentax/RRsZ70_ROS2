@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import pytest
 from z70_odometry.floor_vo import FloorCamera, render_floor_view
-from z70_odometry.mosaic import FloorMosaic
+from z70_odometry.mosaic_node import FloorMosaic
 
 CAM = FloorCamera.load()
 
