@@ -1,12 +1,12 @@
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import assert from "node:assert/strict";
-import { createService, type ServiceRobot, type ServiceStore } from "./service.ts";
+import { startService, type ServiceRobot, type ServiceStore } from "./service.ts";
 import { loadServiceConfig } from "./service-config.ts";
 import { RpcError } from "./robot.ts";
 import { TransportError } from "./rpc-outcome.ts";
 
 const jpeg = (selected: number) => Buffer.from([255,216,255,192,0,11,8,...(selected ? [3,128] : [4,176]),6,64,1,1,17,0,255,218,0,2,255,217]);
-async function fixture(t: import("node:test").TestContext) {
+async function fixture(t: TestContext) {
   const calls: string[] = [], timeouts: number[] = [];
   let selected = 0, common = 49154, captureFailure = false, noFlip = false, selectionUnknown = false, wrongShape = false;
   const token = "c".repeat(43);
@@ -32,12 +32,11 @@ async function fixture(t: import("node:test").TestContext) {
       };
     },
     async savePairing() {} };
-  const config = { ...loadServiceConfig(), port: 0 };
-  const service = await createService({ store, config, robotFactory: () => robot,
+  const service = await startService({ store, config: { ...loadServiceConfig(), port: 0 }, robotFactory: () => robot,
     driver: { async configure() { calls.push("configure"); }, async offer() { return { type: "answer", sdp: "v=0" }; }, async frame() {
       calls.push(`frame:${selected}`); if (captureFailure && selected === 1) throw Error("failed"); return jpeg(wrongShape ? 1 : selected);
     }} });
-  await service.start(); t.after(() => service.stop());
+  t.after(() => service.stop());
   const origin = service.origin;
   return { calls, timeouts, appSwitch(value: number) { selected = value; }, wrongShape() { wrongShape = true; }, noFlip() { noFlip = true; }, setCommon(value: number) { common = value; }, failCapture() { captureFailure = true; }, unknownSelection() { selectionUnknown = true; }, selected: () => selected,
     select: (body: unknown) => fetch(origin + "/api/driver/camera/select", { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify(body) }),

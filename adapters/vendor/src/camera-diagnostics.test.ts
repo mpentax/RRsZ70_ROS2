@@ -1,9 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Go2Rtc } from "./go2rtc.ts";
-import { createService, type ServiceStore } from "./service.ts";
+import { startService, type ServiceStore } from "./service.ts";
 import { loadServiceConfig } from "./service-config.ts";
-
 
 test("private acquisition reports an empty go2rtc startup response without private text", async t => {
   const realFetch = globalThis.fetch;
@@ -25,14 +24,13 @@ test("private acquisition reports an empty go2rtc startup response without priva
       };
     },
     async savePairing() {} };
-  const config = { ...loadServiceConfig(), port: 0 };
-  const service = await createService({ config, store, driver: new Go2Rtc(), robotFactory: () => ({
+  const service = await startService({ config: { ...loadServiceConfig(), port: 0 }, store, driver: new Go2Rtc(), robotFactory: () => ({
     connection: { state: "connected", connectedAt: 1 }, close() {}, async request(method) {
       assert.equal(method, "get_camera_status"); return [11685];
     },
   }) });
-  await service.start(); t.after(() => service.stop());
-  const response = await realFetch(service.origin+'/api/camera/frame',{method:'POST',headers:{Host:'127.0.0.1:57000',Authorization:['Bearer',token].join(' '),'Content-Type':'application/json'},body:'{}'});
+  t.after(() => service.stop());
+  const response = await realFetch(service.origin+'/api/camera/frame',{method:'POST',headers:{Authorization:['Bearer',token].join(' '),'Content-Type':'application/json'},body:'{}'});
   assert.equal(response.status,502);
   const error=await response.json() as Record<string,unknown>;
   assert.equal(error.cameraFailure,'no_camera_image');assert.equal(error.upstreamStatus,200);

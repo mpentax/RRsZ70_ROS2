@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createService, type ServiceRobot, type ServiceStore } from './service.ts';
+import { startService, type ServiceRobot, type ServiceStore } from './service.ts';
 import { loadServiceConfig } from './service-config.ts';
 import { TransportError } from './rpc-outcome.ts';
 import { summarizeStatus } from './credentials.ts';
@@ -20,9 +20,7 @@ test('live event stream authenticates and preserves attempts, uncertainty and cl
   const store: ServiceStore = {async initialize(){}, async serviceToken(){return token;},
     async loadPairing(){return {device:{duid:'fake',host:'127.0.0.1',localKey:'1234567890abcdef',name:'fake',model:'a179',protocolVersion:'L01'},camera:{account:{user:'u',secret:'s',key:'k',mqttUrl:'ssl://mqtt-eu.roborock.com:8883'},pin:'1234'},home:{deviceId:'fake',homeId:1,realApi:'https://api-eu.roborock.com',user:'u',secret:'s',hawkKey:'k',rooms:[]}};},
     async savePairing(){}};
-  const config = {...loadServiceConfig(),port:0};
-  const service = await createService({store, config, robotFactory:()=>robot});
-  await service.start();
+  const service = await startService({store, config: {...loadServiceConfig(),port:0}, robotFactory:()=>robot});
   const origin=service.origin;
   const controller = new AbortController();
   try {

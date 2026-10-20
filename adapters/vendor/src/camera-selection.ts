@@ -62,22 +62,17 @@ export class CameraSelector {
     } while (Date.now() < deadline);
     throw new ServiceHttpError(409, `Camera selection not confirmed: requested ${camera}, active ${active ?? "unknown"}. Gripper needs pickup mode (app_pick_up_enter_exit {flag:2}) with the arm out.`);
   }
+  async #warmAndSelect(camera: ActiveCamera, warm: (camera: ActiveCamera) => Promise<unknown>): Promise<ActiveCamera> {
+    const current = await this.#selected(true);
+    if (current !== camera) await warm(current); // switch inside an existing preview with both receivers pre-warmed
+    return this.#select(camera);
+  }
   select(camera: ActiveCamera, warm: (camera: ActiveCamera) => Promise<unknown>): Promise<ActiveCamera> {
-    return this.#enqueue(async () => {
-      const current = await this.#selected(true);
-      if (current !== camera) await warm(current); // switch inside an existing preview with both receivers pre-warmed
-      return this.#select(camera);
-    });
+    return this.#enqueue(() => this.#warmAndSelect(camera, warm));
   }
   run(camera: ActiveCamera | undefined, capture: (camera: ActiveCamera) => Promise<Buffer>): Promise<{ frame: Buffer; camera: ActiveCamera; sizeCamera?: ActiveCamera }> {
     return this.#enqueue(async () => {
-      if (camera !== undefined) {
-        const current = await this.#selected(true);
-        if (current !== camera) {
-          await capture(current); // opening preview after switching can reset firmware selection
-          await this.#select(camera);
-        }
-      }
+      if (camera !== undefined) await this.#warmAndSelect(camera, capture);
       const deadline = Date.now() + 6000;
       do {
         let active = await this.#selected();

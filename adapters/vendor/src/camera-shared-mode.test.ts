@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { setTimeout as delay } from "node:timers/promises";
 import { CameraSelector } from "./camera-selection.ts";
 import { TransportError } from "./rpc-outcome.ts";
-import { createService } from "./service.ts";
+import { startService } from "./service.ts";
 import { loadServiceConfig } from "./service-config.ts";
 
 const jpeg = (camera: number) => Buffer.from([255,216,255,192,0,11,8,...(camera ? [3,128] : [4,176]),6,64,1,1,17,0,255,218,0,2,255,217]);
@@ -117,9 +117,8 @@ test("service switches between front and gripper using pre-warmed per-camera str
     },
     async savePairing() {},
   };
-  const config = { ...loadServiceConfig(), port: 0 };
-  const service = await createService({
-    store, config, robotFactory: () => robot,
+  const service = await startService({
+    store, config: { ...loadServiceConfig(), port: 0 }, robotFactory: () => robot,
     driver: {
       async configure() {},
       async offer() { return { type: "answer" as const, sdp: "v=0" }; },
@@ -127,7 +126,6 @@ test("service switches between front and gripper using pre-warmed per-camera str
       close() { closed++; },
     },
   });
-  await service.start();
   t.after(() => service.stop());
   const origin = service.origin;
   const headers = { Authorization: ["Bearer", token].join(" "), "Content-Type": "application/json" };
