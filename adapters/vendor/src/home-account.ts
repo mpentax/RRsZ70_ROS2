@@ -55,9 +55,6 @@ export async function refreshRooms(home: HomeAuthorization): Promise<AccountRoom
     if (size > 2 * 1024 * 1024) { await response.body.cancel().catch(() => {}); throw new Error("Home room response exceeded the safe size limit."); }
     chunks.push(chunk);
   }
-  let body: unknown;
-  try { body = JSON.parse(Buffer.concat(chunks, size).toString("utf8")); }
-  catch { throw new Error("Invalid home room response."); }
-  try { return roomsFromHome(body); }
+  try { return roomsFromHome(JSON.parse(Buffer.concat(chunks, size).toString("utf8"))); }
   catch { throw new Error("Invalid home room response."); }
 }

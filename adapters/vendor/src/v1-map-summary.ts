@@ -19,6 +19,7 @@ export function summarizeV1Map(raw: Buffer) {
     return { x: raw.readInt32LE(start), y: raw.readInt32LE(start + 4),
       ...(length === 12 ? { angle: raw.readInt32LE(start + 8) } : {}) };
   };
+  const roomSegment = (pixel: number) => pixel !== 255 && pixel !== 7 && (pixel & 7) === 7 ? pixel >> 3 : null;
   let blockCount = 0;
   let digestSeen = false;
   let imagePixelData: Buffer | undefined;
@@ -46,7 +47,8 @@ export function summarizeV1Map(raw: Buffer) {
         const pixel = raw[i];
         if ((pixel & 7) === 1) walls++;
         if ((pixel & 7) === 7) floor++;
-        if (pixel !== 255 && pixel !== 7 && (pixel & 7) === 7) rooms.add(pixel >> 3);
+        const seg = roomSegment(pixel);
+        if (seg !== null) rooms.add(seg);
       }
       image = { left, top, width, height, metersPerPixel: 0.05, walls, floor, pixels: length,
         roomSegments: [...rooms].sort((a, b) => a - b) };
@@ -61,8 +63,7 @@ export function summarizeV1Map(raw: Buffer) {
     const x = Math.floor(vacuumPosition.x / 50 - image.left);
     const y = Math.floor(vacuumPosition.y / 50 - image.top);
     if (x >= 0 && y >= 0 && x < image.width && y < image.height) {
-      const pixel = imagePixelData[x + image.width * y];
-      if (pixel !== 255 && pixel !== 7 && (pixel & 7) === 7) embeddedVacuumRoomSegment = pixel >> 3;
+      embeddedVacuumRoomSegment = roomSegment(imagePixelData[x + image.width * y]);
     }
   }
   return { blocks, image, vacuumPosition, chargerPosition, embeddedVacuumRoomSegment };

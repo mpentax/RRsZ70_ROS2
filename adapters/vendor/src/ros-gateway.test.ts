@@ -1,21 +1,20 @@
-import test from 'node:test';
+import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
-import { createService, type ServiceStore } from './service.ts';
+import { startService, type ServiceStore } from './service.ts';
 import { loadServiceConfig } from './service-config.ts';
 import { rosRoute, rosGatewayOrigin } from './ros-gateway.ts';
 
 const token='z'.repeat(43), pin='1234';
-async function fixture(t:import('node:test').TestContext, transport:typeof fetch, cloudReject=false) {
+async function fixture(t:TestContext, transport:typeof fetch, cloudReject=false) {
   const saved:unknown[]=[];
   const login={devices:[{duid:'fake1',name:'fake Z70',model:'a179',localKey:'synthetic-local-key',protocolVersion:'L01'}],
     account:{user:'fake',secret:'synthetic-account-secret',key:'synthetic-account-key',mqttUrl:'mqtts://example.invalid'},
     home:{homeId:1,realApi:'https://example.invalid',user:'fake',secret:'synthetic-home-secret',hawkKey:'synthetic-hawk',rooms:[]}};
   const store:ServiceStore={async initialize(){},async serviceToken(){return token;},async loadPairing(){return {device:{...login.devices[0]!,host:'127.0.0.1'},camera:{account:login.account,pin},home:{...login.home,deviceId:'fake1'}};},async savePairing(p){saved.push(p);}};
-  const config={...loadServiceConfig(),port:0};
-  const service=await createService({store,config,rosTransport:transport,
+  const service=await startService({store,config:{...loadServiceConfig(),port:0},rosTransport:transport,
     robotFactory:()=>({connection:{state:'disconnected',connectedAt:null},async request(){throw new Error('No private robot access permitted');},close(){}}),
     cloudFactory:()=>({async requestCode(){},async loginCameraWithCode(){if(cloudReject) throw new Error('credential-bearing synthetic-code');return login;}})});
-  await service.start();t.after(()=>service.stop());
+  t.after(()=>service.stop());
   const origin=service.origin;
   let cookie='';
   async function request(path:string,body?:unknown,authorized=true) {
