@@ -1,4 +1,4 @@
-import { startTask, type TaskRequest } from './ros.ts';
+import type { TaskRequest } from './ros.ts';
 import { robotRpc } from './rpc.ts';
 
 export interface ArmControlPanelProps {
@@ -18,17 +18,17 @@ export interface ArmControlPanelProps {
   setHoldToJog: (value: boolean) => void;
   startHoldJog: (command: { method: string; params: Record<string, unknown> }) => void;
   stopHoldJog: (sendStop?: boolean) => void;
-  run: (task: () => Promise<void>) => Promise<void>;
+  launchTask: (task: TaskRequest) => void;
   setOutcome: (outcome: unknown) => void;
 }
 
 export function ArmControlPanel({
   busy, controlStopped, color, targetM3, targetM4, targetM5,
   setTargetM3, setTargetM4, setTargetM5, grabModeCode, grabModeLabel, grabActionLabel,
-  holdToJog, setHoldToJog, startHoldJog, stopHoldJog, run, setOutcome,
+  holdToJog, setHoldToJog, startHoldJog, stopHoldJog, launchTask, setOutcome,
 }: ArmControlPanelProps) {
   const disabled = busy || controlStopped;
-  const launch = (task: TaskRequest) => () => void run(async () => { setOutcome(await startTask(task)); });
+  const launch = (task: TaskRequest) => () => launchTask(task);
   const jogProps = (command: { method: string; params: Record<string, unknown> }, task: TaskRequest) => ({
     type: 'button' as const,
     className: 'quiet',
