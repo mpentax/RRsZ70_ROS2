@@ -26,9 +26,8 @@ from z70_mapping.dynamic_layer import mobility_from_suitability
 from . import perception, planner
 from . import planner as placement
 from .executor import Executor
-from .garment_delivery import GarmentDeliverer, graspable_garments, loaded_route
+from .garment_delivery import GarmentDeliverer, PinAndGoNavigator, graspable_garments, loaded_route
 from .perception import transform_xy
-from .navigation import PinAndGoNavigator
 from .observations import read_arm, read_status
 from .patrol import PatrolCollector, PatrolLedger
 

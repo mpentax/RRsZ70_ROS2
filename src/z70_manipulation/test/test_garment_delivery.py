@@ -18,11 +18,11 @@ from z70_manipulation import planner
 from z70_manipulation.garment_delivery import (
     DeliveryRejected,
     GarmentDeliverer,
+    PinAndGoNavigator,
     TowingQualificationConfig,
     loaded_route,
     transport_policy,
 )
-from z70_manipulation.navigation import PinAndGoNavigator
 from z70_manipulation.node import PickServer
 from z70_manipulation.observations import LATCHED
 from z70_manipulation.patrol import PatrolCollector, PatrolLedger

@@ -16,7 +16,7 @@ from rclpy.qos import QoSProfile, DurabilityPolicy, ReliabilityPolicy
 from rclpy.executors import ExternalShutdownException
 from sensor_msgs.msg import CompressedImage, PointCloud2, PointField
 from std_msgs.msg import String
-from z70_driver.frame_subscription import MatchedFrames, read_pipe_exact, stop_worker_process, worker_env
+from z70_driver.driver import MatchedFrames, read_pipe_exact, stop_worker_process, worker_env
 
 
 class DepthNode(Node):

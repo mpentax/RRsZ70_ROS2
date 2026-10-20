@@ -22,7 +22,7 @@ from tf2_ros import TransformBroadcaster
 from z70_odometry.chassis_calibrator import _arc, calibrated_camera_x, front_calibration_path, initial_camera_x_m, quat_yaw, stamp_ns
 from z70_interfaces.msg import CalibrationState, CommandEvent, OdometryStatus
 from rclpy.qos import QoSProfile, DurabilityPolicy
-from z70_driver.frame_subscription import MatchedFrames
+from z70_driver.driver import MatchedFrames
 
 
 class FloorCamera:
