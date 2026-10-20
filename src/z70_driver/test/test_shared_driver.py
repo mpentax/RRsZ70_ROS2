@@ -31,11 +31,10 @@ from z70_mapping.node import MappingNode
 
 
 def wait_for(predicate, seconds=5.):
-    deadline=time.monotonic()+seconds
-    while time.monotonic()<deadline:
-        if predicate(): return
+    deadline = time.monotonic() + seconds
+    while not predicate():
+        assert time.monotonic() < deadline, 'condition deadline'
         time.sleep(.01)
-    assert predicate(), 'condition deadline'
 
 
 def synthetic_map():

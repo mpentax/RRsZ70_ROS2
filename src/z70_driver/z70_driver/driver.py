@@ -29,30 +29,12 @@ from z70_interfaces.srv import SelectCamera, RefreshMap
 from z70_description.arm_model import LIMITS, POSES
 from z70_mapping.decoder import decode_map
 from z70_mapping.geometry import room_names
-from .commands import CommandSurfaces
+from .commands import CommandSurfaces, LATCHED, host_ms, host_time, uid
 from .estimator import ArmEstimator
 from .dashboard import Dashboard
 
 STOW_VISUAL = dict(m3=90., m4=170., m5=0., m6=0.)
 CAMERAS = {'front': 1, 'gripper': 2}
-LATCHED = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
-                     durability=DurabilityPolicy.TRANSIENT_LOCAL)
-
-
-def uid(value):
-    return UUID(uuid=list(uuid.UUID(str(value)).bytes))
-
-
-def host_time(seconds):
-    ns = max(0, int(seconds * 1e9))
-    return Time(sec=ns // 10**9, nanosec=ns % 10**9)
-
-
-def host_ms(milliseconds):
-    # Date.now() is integer milliseconds. Avoid float seconds -> nanoseconds
-    # roundoff changing identity or inventing sub-millisecond source precision.
-    sec, remainder = divmod(int(milliseconds), 1000)
-    return Time(sec=sec, nanosec=remainder*1_000_000)
 
 
 def estimate_to_app(estimate):

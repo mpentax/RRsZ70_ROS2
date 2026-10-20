@@ -9,14 +9,35 @@ import time
 import uuid
 
 import requests
+from builtin_interfaces.msg import Time
 from rclpy.action import ActionServer, GoalResponse, CancelResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.qos import QoSProfile, DurabilityPolicy, ReliabilityPolicy
 from unique_identifier_msgs.msg import UUID
 from z70_interfaces.action import BasePulse, ArmStep, HandStep, ArmOperation
 from z70_interfaces.msg import CommandOutcome, ArmEstimate
 from z70_interfaces.srv import Stop, SetArmAnchor, RawRpc, TaskSession, SetControlSession
 from std_msgs.msg import Bool
 from .dispatcher import Dispatcher, ZERO
+
+LATCHED = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
+                     durability=DurabilityPolicy.TRANSIENT_LOCAL)
+
+
+def uid(value):
+    return UUID(uuid=list(uuid.UUID(str(value)).bytes))
+
+
+def host_time(seconds):
+    ns = max(0, int(seconds * 1e9))
+    return Time(sec=ns // 10**9, nanosec=ns % 10**9)
+
+
+def host_ms(milliseconds):
+    # Date.now() is integer milliseconds. Avoid float seconds -> nanoseconds
+    # roundoff changing identity or inventing sub-millisecond source precision.
+    sec, remainder = divmod(int(milliseconds), 1000)
+    return Time(sec=sec, nanosec=remainder*1_000_000)
 
 
 def outcome_ok(outcome):
@@ -67,7 +88,6 @@ class CommandSurfaces:
         self.dispatcher = Dispatcher(self.priority_stop,
             lambda token: self.task_cancel_pub.publish(UUID(uuid=list(token))),
             stop_ok=lambda outcomes: bool(outcomes) and all(outcome_ok(o) for o in outcomes))
-        from .driver import LATCHED
         self.session_lock = threading.Lock()
         self.session_pub = self.create_publisher(Bool, '/z70/control/enabled', LATCHED)
         self.session_pub.publish(Bool(data=True))
@@ -94,13 +114,11 @@ class CommandSurfaces:
     def local_outcome(self, code='NONE', unknown=False, command_id=None):
         # No backend request exists for local rejection. Zero attempt identifies
         # absence of a wire attempt, not a fabricated backend event.
-        from .driver import uid, host_time
         return CommandOutcome(command_id=uid(command_id or uuid.uuid4()), requested_at=host_time(time.time()),
             finished_at=host_time(time.time()), error_code=code,
             dispatch=2 if unknown else 0, response=3 if unknown else 0)
 
     def backend_outcome(self, row):
-        from .driver import uid, host_ms
         o = CommandOutcome(command_id=uid(row['commandId']), attempt_id=uid(row['attemptId']),
             attempt_index=int(row['attemptIndex']),
             requested_at=host_ms(row['startedAt'] if 'startedAt' in row else row['requestedAt']),
@@ -125,7 +143,6 @@ class CommandSurfaces:
             self.command_transport=transport
         if method == 'app_goto_target': self.goto_active = True
         command_id=uuid.uuid4()
-        from .driver import host_time
         requested_at=host_time(time.time())
         try:
             row = self.request('POST', '/api/driver/rpc',
