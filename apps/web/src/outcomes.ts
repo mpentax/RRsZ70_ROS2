@@ -12,10 +12,15 @@ export function actionOutcome(value: unknown): UiOutcome {
     return kind as UiOutcome;
   }
   const rosOutcome = record(data.outcome);
-  if (rosOutcome.dispatch === 2) return "rejected";
+  if (rosOutcome.dispatch === 2 || data.dispatch === "not_sent") return "rejected";
   if (rosOutcome.response === 2) return "acknowledged";
   if (rosOutcome.response === 3 || rosOutcome.response === 4) return "failed";
   if (rosOutcome.dispatch === 1 && rosOutcome.response === 1) return "accepted";
+  if (data.status === "accepted" || data.status === "pending") return "accepted";
+  if (data.status === "executing") return "in-progress";
+  if (data.status === "succeeded") return "acknowledged";
+  if (data.status === "failed" || data.status === "cancelled") return "failed";
+  if (data.status === "rejected") return "rejected";
   if (data.acknowledged === true) return "acknowledged";
   if (data.accepted === true) return "accepted";
   const state = record(data.state);

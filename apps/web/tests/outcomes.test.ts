@@ -12,6 +12,11 @@ test("actionOutcome maps explicit outcome envelopes and state flags", () => {
   assert.equal(actionOutcome({ outcome: { dispatch: 2, response: 1 } }), "rejected");
   assert.equal(actionOutcome({ outcome: { dispatch: 1, response: 4 } }), "failed");
   assert.equal(actionOutcome({ outcome: { dispatch: 1, response: 1 } }), "accepted");
+  assert.equal(actionOutcome({ status: "accepted", kind: "pick" }), "accepted");
+  assert.equal(actionOutcome({ status: "executing", kind: "pick" }), "in-progress");
+  assert.equal(actionOutcome({ status: "succeeded", kind: "pick" }), "acknowledged");
+  assert.equal(actionOutcome({ status: "failed", kind: "pick" }), "failed");
+  assert.equal(actionOutcome({ error: "INVALID_INPUT", dispatch: "not_sent" }), "rejected");
   assert.equal(actionOutcome({ state: { busy: true } }), "in-progress");
   for (const kind of ["accepted", "acknowledged", "in-progress", "rejected", "failed", "unknown"] as const) {
     assert.equal(actionOutcome({ actionOutcome: { outcome: kind } }), kind);
