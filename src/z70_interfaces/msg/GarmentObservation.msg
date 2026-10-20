@@ -1,7 +1,6 @@
-# Lower-contour floor hypothesis, NOT verified mass or towing suitability.
 uint8 SUITABILITY_UNKNOWN=0
 uint8 SMALL_LIFT_CANDIDATE=1
-uint8 TOW_CANDIDATE_UNVERIFIED=2
+uint8 TOW_CANDIDATE=2
 uint8 UNSUPPORTED=3
 std_msgs/Header header
 z70_interfaces/EvidenceStamp evidence

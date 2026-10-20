@@ -1,4 +1,3 @@
-# Generated from docs/migration/interfaces.md; SI units.
 builtin_interfaces/Time received_at
 builtin_interfaces/Time source_at
 bool source_time_known

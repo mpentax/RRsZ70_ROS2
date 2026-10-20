@@ -1,4 +1,3 @@
-# Generated from docs/migration/interfaces.md; SI units.
 z70_interfaces/EvidenceStamp evidence
 uint8 phase
 string<=128 operation

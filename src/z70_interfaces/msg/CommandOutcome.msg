@@ -1,4 +1,3 @@
-# Generated from docs/migration/interfaces.md; SI units.
 unique_identifier_msgs/UUID command_id
 unique_identifier_msgs/UUID attempt_id
 uint32 attempt_index
