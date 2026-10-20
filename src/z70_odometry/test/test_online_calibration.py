@@ -5,7 +5,7 @@ from types import SimpleNamespace, SimpleNamespace as NS
 import numpy as np
 import pytest
 from z70_interfaces.msg import CommandEvent
-from z70_odometry import resources
+from z70_odometry import calibration_state as resources
 from z70_odometry.calibration_state import CalibrationPublication, calibrated_camera_x, fill_state, gains_from_state
 from z70_odometry.chassis_calibrator import CommandStream, OnlineCalibration, _arc
 

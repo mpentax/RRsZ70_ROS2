@@ -13,8 +13,7 @@ from nav_msgs.msg import Odometry
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile
 from z70_interfaces.msg import CalibrationState, CommandEvent, OdometryStatus
-from z70_odometry.calibration_state import CalibrationPublication
-from z70_odometry.resources import runtime_calibration_path, seed_directory
+from z70_odometry.calibration_state import CalibrationPublication, runtime_calibration_path, seed_directory
 
 
 def local_delta(a,b):

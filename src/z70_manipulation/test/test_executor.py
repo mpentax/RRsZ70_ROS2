@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import cv2
 import numpy as np
 import pytest
+import requests
 from rosidl_runtime_py.convert import message_to_ordereddict
 from z70_manipulation import perception, placement, planner
 from z70_manipulation.executor import Client, Executor
@@ -666,6 +667,74 @@ def test_simulate_goal_exercises_all_builtin_goals():
         ('app_arm_move', {'m': [1, 2, 0]}, 3000),
         ('app_arm_direction_move', {'direction': 3}, 3000),
     ]
+
+
+class _FakeJawClient:
+    def __init__(self, status=None, arm=None, fill=0, fail_first=False):
+        self._status = status or {}
+        self._arm = arm or {'state': 'IN_PROCESS_POS', 'joints': {'m3': 240, 'm4': 105}}
+        self.fill = fill
+        self.fail_first = fail_first
+        self.calls = 0
+
+    def status(self):
+        return self._status
+
+    def arm_estimate(self):
+        return self._arm
+
+    def rpc(self, *a):
+        return {'dispatch': 'sent', 'response': 'received'}
+
+    def frame(self):
+        self.calls += 1
+        if self.fail_first and self.calls == 1:
+            raise requests.RequestException('camera gap')
+        return np.full((1200, 1600, 3), self.fill, np.uint8), 'front'
+
+
+def test_frame_recovery_backs_off_without_replaying_motion(tmp_path):
+    client = _FakeJawClient(fail_first=True)
+    waits = []
+    ex = Executor(client, lambda *a: [], tmp_path, sleep=waits.append)
+    image, tag = ex.fresh_frame()
+    assert tag == 'front' and client.calls == 2 and waits == [5.]
+
+
+def test_low_battery_returns_charge_request_without_motion(tmp_path):
+    ex = Executor(_FakeJawClient(status={'battery': 15}), lambda *a: [], tmp_path, sleep=lambda _: None)
+    with pytest.raises(LookupError, match='charge'):
+        ex.safety()
+
+
+def test_jog_executes_on_received_rpc_without_camera_frame(tmp_path):
+    ex = Executor(_FakeJawClient(), lambda *a: [], tmp_path, sleep=lambda _: None)
+    ex.jog({'m': [1, 0, 0], 'state': [240, 105]})
+    assert 'arm_jog' in (tmp_path / 'timeline.jsonl').read_text()
+
+
+def test_servo_proceeds_when_marker_out_of_frame(tmp_path):
+    ex = Executor(_FakeJawClient(fill=255), lambda *a: [], tmp_path, sleep=lambda _: None)
+    blob, current, spot = ex.front_servo('yellow', planner.GRASP, [.48, .02, 0])
+    assert current == planner.GRASP and spot == [.48, .02, 0]
+
+
+def test_servo_requires_same_frame_geometric_alignment(tmp_path):
+    client = _FakeJawClient()
+    ex = Executor(client, lambda *a: [], tmp_path, sleep=lambda _: None)
+    state = tuple(planner.grasp_goal(planner.grasp_point(), (190, 65))['state'])
+    T = planner.hand.hand_pose(state)
+    aim = np.array(planner.operational_point(state))
+    sample = dict(
+        jaw=dict(position=aim.tolist(), hand_pose_base=T.tolist(), uncertainty_bound_m=.015),
+        object=dict(position=aim[:2].tolist() + [0], color='yellow'),
+        image=np.zeros((1200, 1600, 3), np.uint8),
+    )
+    ex.front_measure = lambda color, previous: sample
+    blob, current, spot = ex.front_servo('yellow', state, sample['object']['position'])
+    assert spot == sample['object']['position']
+    rows = (tmp_path / 'timeline.jsonl').read_text()
+    assert rows.count('front_jaw_check') == 2
 
 
 

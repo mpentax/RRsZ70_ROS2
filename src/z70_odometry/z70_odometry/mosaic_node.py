@@ -13,9 +13,8 @@ from sensor_msgs.msg import CameraInfo, Image
 from std_msgs.msg import String
 from z70_odometry.chassis_calibrator import quat_yaw, stamp_ns
 from z70_odometry.floor_vo import FloorCamera, decode_bgr8
-from z70_odometry.calibration_state import calibrated_camera_x
+from z70_odometry.calibration_state import calibrated_camera_x, front_calibration_path, initial_camera_x_m
 from z70_interfaces.msg import CalibrationState
-from z70_odometry.resources import front_calibration_path, initial_camera_x_m
 from z70_driver.frame_subscription import MatchedFrames
 
 

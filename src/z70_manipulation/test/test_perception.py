@@ -117,3 +117,34 @@ def test_node_before_camera_info_uses_shared_pincher_lens():
         if node is not None:
             node.destroy_node()
         rclpy.try_shutdown()
+
+
+def test_front_jaw_uses_elevated_68_not_floor_duplicate():
+    camera = p.front_camera(); K = np.array([[camera.f, 0, camera.cx], [0, camera.f, camera.cy], [0, 0, 1.]])
+    R = np.array([[0, 0, -1], [1, 0, 0], [0, -1, 0.]])
+    pos = np.array([.16, .02, .10]); C = np.array([0, 0, camera.h / 1000])
+    obj = np.array([[-.0075, .0075, 0], [.0075, .0075, 0], [.0075, -.0075, 0], [-.0075, -.0075, 0]])
+    r = cv2.Rodrigues(camera.R @ R)[0]; t = camera.R @ (pos - C)
+    px = cv2.projectPoints(obj, r, t, K, np.array([camera.k1, camera.k2, 0, 0, 0]))[0].reshape(4, 2)
+    marker = cv2.aruco.generateImageMarker(cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_1000), 68, 200)
+    image = np.full((1200, 1600), 255, np.uint8)
+    H = cv2.getPerspectiveTransform(np.array([[0, 0], [199, 0], [199, 199], [0, 199]], np.float32), px.astype(np.float32))
+    warped = cv2.warpPerspective(marker, H, (1600, 1200), borderValue=255); image = np.minimum(image, warped)
+    floor_px = np.array([camera.floor_to_pixel(x * 1000, y * 1000) for x, y in
+                         [(.21, .075), (.21, .060), (.195, .060), (.195, .075)]], np.float32)
+    Hfloor = cv2.getPerspectiveTransform(np.array([[0, 0], [199, 0], [199, 199], [0, 199]], np.float32), floor_px)
+    image = np.minimum(image, cv2.warpPerspective(marker, Hfloor, (1600, 1200), borderValue=255))
+    detector = cv2.aruco.ArucoDetector(cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_1000))
+    _, ids, _ = detector.detectMarkers(image)
+    assert list(ids.flatten()).count(68) == 2
+    out = p.front_jaw(cv2.cvtColor(image, cv2.COLOR_GRAY2BGR))
+    hand = planner.hand
+    M = np.eye(4); M[:3, :3] = R; M[:3, 3] = pos + [.275, 0, 0]
+    T = hand.marker_hand_pose(M)
+    aim = T[:3, :3] @ hand.grasp_reference() + T[:3, 3]
+    assert out['position'] == pytest.approx(aim, abs=.004)
+    observed = np.array(out['marker_pose_base'])
+    assert observed[:3, 3] == pytest.approx(M[:3, 3], abs=.004)
+    angle = np.arccos(np.clip((np.trace(observed[:3, :3] @ R.T) - 1) / 2, -1, 1))
+    assert angle < np.radians(1.)
+    assert out['marker_id'] == 68 and out['marker_position'][2] > .025

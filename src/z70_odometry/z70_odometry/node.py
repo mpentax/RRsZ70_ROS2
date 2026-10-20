@@ -15,11 +15,10 @@ from sensor_msgs.msg import Image
 from tf2_ros import TransformBroadcaster
 
 from z70_odometry.floor_vo import FloorCamera, FloorOdometry, decode_bgr8
-from z70_odometry.calibration_state import calibrated_camera_x
+from z70_odometry.calibration_state import calibrated_camera_x, front_calibration_path, initial_camera_x_m
 from z70_odometry.chassis_calibrator import _arc, stamp_ns
 from z70_interfaces.msg import CalibrationState, CommandEvent, OdometryStatus
 from rclpy.qos import QoSProfile, DurabilityPolicy
-from z70_odometry.resources import front_calibration_path, initial_camera_x_m
 from z70_driver.frame_subscription import MatchedFrames
 
 
