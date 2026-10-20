@@ -1,16 +1,11 @@
-import importlib.util
 import math
+import numpy as np
 import pytest
+from z70_manipulation import planner as p
 
-def api():
-    assert importlib.util.find_spec('z70_manipulation.planner'), 'planner missing'
-    from z70_manipulation import planner
-    return planner
 
 def test_firmware_endpoint_is_separate_from_cad_hand_and_camera():
-    import numpy as np
     from z70_description import pincher_geometry as hand
-    p = api()
     a1, a2 = map(math.radians, (120, -15))
     endpoint = (.0475 + .1775*math.cos(a1) + .205*math.cos(a2),
                 .14 + .1775*math.sin(a1) + .205*math.sin(a2))
@@ -27,7 +22,6 @@ def test_firmware_endpoint_is_separate_from_cad_hand_and_camera():
 
 
 def test_default_grid_grasp_targets_front_measured_region():
-    p=api()
     assert p.GRASP==(250,95)
     assert p.tip_height(p.GRASP) == pytest.approx(.04158389094665366,abs=1e-10)
     assert p.grasp_point()[:2] == pytest.approx(p.operational_point((240,95))[:2])
@@ -37,8 +31,6 @@ def test_default_grid_grasp_targets_front_measured_region():
 
 
 def test_pincher_camera_follows_measured_M5_rotation():
-    import numpy as np
-    p=api()
     C0,R0=p.camera_pose((240,105,0))
     C40,R40=p.camera_pose((240,105,40))
     angle=math.degrees(math.acos(np.clip((np.trace(R40@R0.T)-1)/2,-1,1)))
@@ -51,8 +43,6 @@ def test_pincher_camera_follows_measured_M5_rotation():
 
 
 def test_metric_closed_jaw_height_uses_owner_registered_closing_point():
-    import numpy as np
-    p=api()
     cfg=p._CALIBRATION
     expected=np.array(cfg['marker_effective_from_elbow_m'])+np.array(cfg['marker_rotation_link2'])@cfg['jaw_region_in_marker_m']
     assert cfg['effective_jaw_from_elbow_m']==pytest.approx(expected,abs=1e-12)
@@ -63,7 +53,7 @@ def test_metric_closed_jaw_height_uses_owner_registered_closing_point():
 
 
 def test_approach_places_target_on_arm_plane():
-    p=api(); grasp=p.grasp_point(); plan=p.approach([.9,.20,0],grasp)
+    grasp=p.grasp_point(); plan=p.approach([.9,.20,0],grasp)
     th=plan['yaw']; d=plan['forward']
     x=math.cos(th)*.9+math.sin(th)*.20-d
     y=-math.sin(th)*.9+math.cos(th)*.20
@@ -72,8 +62,9 @@ def test_approach_places_target_on_arm_plane():
     aligned=p.approach(grasp,grasp)
     assert abs(aligned['yaw'])<1e-9 and abs(aligned['forward'])<1e-9
 
+
 def test_bfs_safe_grid_and_negative_code_two():
-    p=api(); goal=tuple(p.grasp_goal(p.grasp_point(),(190,65))['state'])
+    goal=tuple(p.grasp_goal(p.grasp_point(),(190,65))['state'])
     plan=p.joint_plan((150,45),goal)
     state=(150,45)
     assert plan
@@ -93,7 +84,6 @@ def test_bfs_safe_grid_and_negative_code_two():
 
 
 def test_joint_path_floor_envelope_rejects_low_shortcut():
-    p=api()
     assert p.tip_floor_bound((260,95))<p.MIN_TIP
     assert not p.safe_edge((250,95),(260,95))
     assert p.tip_floor_bound(p.GRASP)>=p.MIN_TIP
@@ -104,7 +94,6 @@ def test_joint_path_floor_envelope_rejects_low_shortcut():
 
 
 def test_stack_tier_plans_cover_three_dodecahedron_tiers():
-    p = api()
     tiers = [p.stack_tier_plan(t) for t in (1, 2, 3)]
     assert [t['tier'] for t in tiers] == [1, 2, 3]
     assert [t['target_equator_z_m'] for t in tiers] == [0.033, 0.099, 0.165]
