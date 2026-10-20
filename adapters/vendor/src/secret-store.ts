@@ -25,8 +25,29 @@ const MAX_JSON_BYTES = 16 * 1024;
 const FILES = ["pairing.json", "service-token", "map-cache.json"] as const;
 type StateFile = typeof FILES[number];
 
-function hasCode(error: unknown, code: string): boolean {
+export function hasCode(error: unknown, code: string): boolean {
   return error instanceof Error && "code" in error && error.code === code;
+}
+
+export async function ensurePrivateDir(directory: string, message = "Unsafe state directory."): Promise<void> {
+  const root = parse(directory).root;
+  let current = root;
+  for (const component of directory.slice(root.length).split(sep)) {
+    current = join(current, component);
+    try { await mkdir(current, { mode: 0o700 }); }
+    catch (error) { if (!hasCode(error, "EEXIST")) throw error; }
+    const info = await lstat(current);
+    if (!info.isDirectory() || info.isSymbolicLink()) throw new Error(message);
+  }
+  const handle = await open(directory, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
+  try { await handle.chmod(0o700); }
+  finally { await handle.close(); }
+}
+
+export async function syncPrivateDir(directory: string): Promise<void> {
+  const handle = await open(directory, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
+  try { await handle.sync(); }
+  finally { await handle.close(); }
 }
 
 function shape(value: unknown, keys: readonly string[]): value is Record<string, unknown> {
@@ -201,18 +222,7 @@ export class SecretStore {
   }
 
   async #prepare(): Promise<void> {
-    const root = parse(this.#directory).root;
-    let current = root;
-    for (const component of this.#directory.slice(root.length).split(sep)) {
-      current = join(current, component);
-      try { await mkdir(current, { mode: 0o700 }); }
-      catch (error) { if (!hasCode(error, "EEXIST")) throw error; }
-      const info = await lstat(current);
-      if (!info.isDirectory() || info.isSymbolicLink()) throw new Error("Unsafe state directory.");
-    }
-    const handle = await open(this.#directory, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
-    try { await handle.chmod(0o700); }
-    finally { await handle.close(); }
+    await ensurePrivateDir(this.#directory);
   }
 
   async #checkFile(file: StateFile): Promise<boolean> {
@@ -285,8 +295,6 @@ export class SecretStore {
       try { await unlink(temporary); }
       catch (error) { if (!hasCode(error, "ENOENT")) throw error; }
     }
-    const directory = await open(this.#directory, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW);
-    try { await directory.sync(); }
-    finally { await directory.close(); }
+    await syncPrivateDir(this.#directory);
   }
 }
