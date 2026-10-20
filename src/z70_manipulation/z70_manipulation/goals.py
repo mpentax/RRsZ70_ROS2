@@ -6,16 +6,39 @@ and for invoking navigation, base pulses, and multi-axis arm primitives.
 """
 from copy import deepcopy
 from dataclasses import dataclass, replace
+import math
 from pathlib import Path
+import re
 from types import SimpleNamespace
 from typing import Any, Callable
 import time
 
 from tf2_ros import TransformException
+from z70_description.arm_model import check as check_arm_limits
+from z70_interfaces.action import (
+    DeliverGarment, PatrolCollect, PinAndGo, Pick, Stack,
+    DeployArm, AlignToTarget, MoveArm, GraspAndLift, ReleaseAndStow,
+)
 from z70_interfaces.msg import CommandOutcome
 from z70_mapping.boundary import compute_safe_interior
+from . import planner
 from .executor import Executor
 from .navigation import PinAndGoNavigator
+
+COLOR_RE = re.compile(r'[a-zA-Z0-9_-]{1,32}')
+
+
+def _int_in(value, low, high) -> bool:
+    return type(value) is int and low <= value <= high
+
+
+def _num_in(value, low, high) -> bool:
+    return type(value) in (int, float) and math.isfinite(value) and low <= value <= high
+
+
+def _is_color(value) -> bool:
+    return isinstance(value, str) and bool(COLOR_RE.fullmatch(value))
+
 
 GOAL_CONTEXT_PRIMITIVES: tuple[dict[str, str], ...] = (
     {'name': 'status', 'signature': 'status() -> dict', 'summary': 'Read the latest robot status telemetry dict.'},
@@ -72,6 +95,7 @@ class GoalSpec:
     navigation: bool = False
     fields: tuple[str, ...] = ()
     description: str = ''
+    validate_payload: Callable[[dict], bool] = lambda _: True
 
     def describe(self) -> dict:
         return {
@@ -339,3 +363,222 @@ class GoalContext:
         if self.commands and self.commands.latest_outcome is not None:
             return deepcopy(self.commands.latest_outcome)
         return CommandOutcome(error_code='NONE' if success else 'OBSERVATION_GAP')
+
+
+# --- Canonical Built-in Goal Handlers & Registry ---
+
+def _valid_garment_goal(_server, request) -> bool:
+    return (all(math.isfinite(v) and -100 <= v <= 100 for v in (request.drop_x_m, request.drop_y_m))
+            and math.isfinite(request.max_duration_s) and 1 <= request.max_duration_s <= 3600
+            and (not hasattr(request, 'max_items') or 1 <= request.max_items <= 1000))
+
+
+def _goal_curated(ctx: 'GoalContext | SimpleNamespace', fn, build_result):
+    try:
+        data = fn(ctx)
+        success = True
+    except Exception as e:
+        data = dict(error=type(e).__name__, reason=str(e))
+        ctx.log('failure', **data)
+        success = False
+    return success, build_result(ctx.outcome(success), success, data)
+
+
+def _goal_pick(ctx: 'GoalContext | SimpleNamespace', req):
+    try:
+        report = ctx.pick(req.color, dry_run=req.dry_run)
+        success = bool(report.get('verified', report.get('dry_run') and report.get('target') is not None))
+    except Exception as e:
+        report = dict(error=type(e).__name__, reason=str(e), log_dir=str(ctx.directory))
+        ctx.log('failure', **report)
+        success = False
+    return success, Pick.Result(
+        outcome=ctx.outcome(success),
+        verified_hold=bool(report.get('verified')),
+        dry_run_valid=bool(req.dry_run and success),
+        evidence_uri=ctx.directory.name,
+    )
+
+
+def _goal_stack(ctx: 'GoalContext | SimpleNamespace', req):
+    try:
+        report = ctx.stack(req.base_color, req.middle_color, req.top_color, dry_run=req.dry_run)
+        success = bool(report.get('stack_verified', report.get('dry_run') and report.get('all_targets_visible')))
+    except Exception as e:
+        report = dict(error=type(e).__name__, reason=str(e), log_dir=str(ctx.directory))
+        ctx.log('failure', **report)
+        success = False
+    tiers_done = 3 if (req.dry_run and success) else int(report.get('tiers_completed', 0))
+    return success, Stack.Result(
+        outcome=ctx.outcome(success),
+        tiers_completed=tiers_done,
+        stack_verified=bool(report.get('stack_verified')),
+        dry_run_valid=bool(req.dry_run and success),
+        evidence_uri=ctx.directory.name,
+    )
+
+
+def _goal_pin_and_go(ctx: 'GoalContext | SimpleNamespace', req):
+    data = ctx.navigate(req.target_x_m, req.target_y_m, req.max_duration_s, dry_run=req.dry_run)
+    result = PinAndGo.Result(**data)
+    if ctx.commands and ctx.commands.latest_outcome is not None:
+        result.outcome = ctx.commands.latest_outcome
+    return bool(result.arrived or result.dry_run_valid), result
+
+
+def _goal_garment(ctx: 'GoalContext | SimpleNamespace', req, action_cls, patrol=False):
+    if patrol:
+        data = ctx.patrol_collect(
+            drop_x_m=req.drop_x_m, drop_y_m=req.drop_y_m, max_duration_s=req.max_duration_s,
+            max_items=req.max_items, allow_towing=req.allow_towing, dry_run=req.dry_run,
+        )
+    else:
+        data = ctx.deliver_garment(
+            category=req.category, drop_x_m=req.drop_x_m, drop_y_m=req.drop_y_m,
+            max_duration_s=req.max_duration_s, allow_towing=req.allow_towing, dry_run=req.dry_run,
+        )
+    success = (data.get('delivered', False) or data.get('completed', False) or data.get('dry_run_valid', False)
+               or data.get('status_code') == 'PARTIAL_COMPLETION_SMALL_ITEMS_ONLY')
+    result = action_cls.Result(**data)
+    result.outcome = ctx.outcome(success)
+    return success, result
+
+
+BUILTIN_GOALS: dict[str, GoalSpec] = {
+    spec.name: spec for spec in (
+        GoalSpec(
+            'pick', Pick, '/z70/pick', 285.,
+            lambda s, r: r.color in s.thresholds,
+            _goal_pick,
+            fields=('color', 'dry_run'),
+            description=GOAL_DESCRIPTIONS['pick'],
+            validate_payload=lambda p: _is_color(p['color']) and type(p['dry_run']) is bool,
+        ),
+        GoalSpec(
+            'stack', Stack, '/z70/stack', lambda r: 60. if r.dry_run else 540.,
+            lambda s, r: len({r.base_color, r.middle_color, r.top_color}) == 3 and all(c in s.thresholds for c in (r.base_color, r.middle_color, r.top_color)),
+            _goal_stack,
+            fields=('base_color', 'middle_color', 'top_color', 'dry_run'),
+            description=GOAL_DESCRIPTIONS['stack'],
+            validate_payload=lambda p: (all(_is_color(p[k]) for k in ('base_color', 'middle_color', 'top_color'))
+                                        and len({p['base_color'], p['middle_color'], p['top_color']}) == 3
+                                        and type(p['dry_run']) is bool),
+        ),
+        GoalSpec(
+            'pin_and_go', PinAndGo, '/z70/nav/pin_and_go', lambda r: r.max_duration_s,
+            lambda s, r: all(math.isfinite(v) and -100 <= v <= 100 for v in (r.target_x_m, r.target_y_m)) and math.isfinite(r.max_duration_s) and 1 <= r.max_duration_s <= 600,
+            _goal_pin_and_go,
+            needs_executor=lambda _: False,
+            navigation=True,
+            fields=('target_x_m', 'target_y_m', 'max_duration_s', 'dry_run'),
+            description=GOAL_DESCRIPTIONS['pin_and_go'],
+            validate_payload=lambda p: (_num_in(p['target_x_m'], -100., 100.) and _num_in(p['target_y_m'], -100., 100.)
+                                        and _num_in(p['max_duration_s'], 1., 600.) and type(p['dry_run']) is bool),
+        ),
+        GoalSpec(
+            'deliver_garment', DeliverGarment, '/z70/deliver_garment', lambda r: r.max_duration_s,
+            _valid_garment_goal,
+            lambda ctx, r: _goal_garment(ctx, r, DeliverGarment, patrol=False),
+            needs_executor=lambda r: not r.dry_run,
+            navigation=True,
+            fields=('category', 'drop_x_m', 'drop_y_m', 'max_duration_s', 'allow_towing', 'dry_run'),
+            description=GOAL_DESCRIPTIONS['deliver_garment'],
+            validate_payload=lambda p: (_num_in(p['drop_x_m'], -100., 100.) and _num_in(p['drop_y_m'], -100., 100.)
+                                        and _num_in(p['max_duration_s'], 1., 3600.) and type(p['allow_towing']) is bool
+                                        and type(p['dry_run']) is bool and isinstance(p['category'], str) and len(p['category']) <= 32),
+        ),
+        GoalSpec(
+            'patrol_collect', PatrolCollect, '/z70/patrol_collect', lambda r: r.max_duration_s,
+            _valid_garment_goal,
+            lambda ctx, r: _goal_garment(ctx, r, PatrolCollect, patrol=True),
+            needs_executor=lambda r: not r.dry_run,
+            navigation=True,
+            fields=('drop_x_m', 'drop_y_m', 'max_duration_s', 'max_items', 'allow_towing', 'dry_run'),
+            description=GOAL_DESCRIPTIONS['patrol_collect'],
+            validate_payload=lambda p: (_num_in(p['drop_x_m'], -100., 100.) and _num_in(p['drop_y_m'], -100., 100.)
+                                        and _num_in(p['max_duration_s'], 1., 3600.) and type(p['allow_towing']) is bool
+                                        and type(p['dry_run']) is bool and _int_in(p['max_items'], 1, 1000)),
+        ),
+        GoalSpec(
+            'deploy_arm', DeployArm, '/z70/arm/deploy', 90.,
+            lambda s, r: True,
+            lambda ctx, r: _goal_curated(
+                ctx, lambda c: c.deploy_arm(settle=r.settle),
+                lambda outcome, ok, data: DeployArm.Result(outcome=outcome, estimate=ctx.arm_msg(), ready=bool(ok and data.get('ready'))),
+            ),
+            read_only=lambda _: False,
+            fields=('settle',),
+            description=GOAL_DESCRIPTIONS['deploy_arm'],
+            validate_payload=lambda p: type(p['settle']) is bool,
+        ),
+        GoalSpec(
+            'align_target', AlignToTarget, '/z70/align_target', 120.,
+            lambda s, r: r.color in s.thresholds,
+            lambda ctx, r: _goal_curated(
+                ctx, lambda c: c.align_target(r.color),
+                lambda outcome, ok, data: AlignToTarget.Result(
+                    outcome=outcome,
+                    aligned=bool(ok and 'position' in data),
+                    target_position=[float(x) for x in data.get('position', [0., 0., 0.])[:3]],
+                    bearing_error_deg=float(data.get('bearing_error_deg', 0.)),
+                    range_error_m=float(data.get('range_error_m', 0.)),
+                ),
+            ),
+            read_only=lambda _: False,
+            fields=('color',),
+            description=GOAL_DESCRIPTIONS['align_target'],
+            validate_payload=lambda p: _is_color(p['color']),
+        ),
+        GoalSpec(
+            'move_arm', MoveArm, '/z70/arm/move', 120.,
+            lambda s, r: (all(math.isfinite(x) for x in (r.m3_deg, r.m4_deg, r.m5_deg))
+                          and check_arm_limits(r.m3_deg, r.m4_deg, r.m5_deg) == 'SUCCESS'
+                          and planner.safe((r.m3_deg, r.m4_deg, r.m5_deg, 90))),
+            lambda ctx, r: _goal_curated(
+                ctx, lambda c: c.move_arm(r.m3_deg, r.m4_deg, r.m5_deg),
+                lambda outcome, ok, data: MoveArm.Result(
+                    outcome=outcome,
+                    estimate=ctx.arm_msg(),
+                    steps_executed=int(data.get('steps_executed', 0)) if ok else 0,
+                ),
+            ),
+            read_only=lambda _: False,
+            fields=('m3_deg', 'm4_deg', 'm5_deg'),
+            description=GOAL_DESCRIPTIONS['move_arm'],
+            validate_payload=lambda p: _num_in(p['m3_deg'], 90, 270) and _num_in(p['m4_deg'], 35, 170) and _num_in(p['m5_deg'], 0, 155),
+        ),
+        GoalSpec(
+            'grasp_and_lift', GraspAndLift, '/z70/arm/grasp_and_lift', 90.,
+            lambda s, r: 0 <= r.lift_steps <= 10 and (not r.verify_color or r.verify_color in s.thresholds),
+            lambda ctx, r: _goal_curated(
+                ctx, lambda c: c.grasp_and_lift(lift_steps=r.lift_steps, verify_color=r.verify_color),
+                lambda outcome, ok, data: GraspAndLift.Result(
+                    outcome=outcome,
+                    estimate=ctx.arm_msg(),
+                    verified_hold=bool(ok and data.get('verified')),
+                ),
+            ),
+            read_only=lambda _: False,
+            fields=('lift_steps', 'verify_color'),
+            description=GOAL_DESCRIPTIONS['grasp_and_lift'],
+            validate_payload=lambda p: (_int_in(p['lift_steps'], 0, 10) and isinstance(p['verify_color'], str)
+                                        and (p['verify_color'] == '' or _is_color(p['verify_color']))),
+        ),
+        GoalSpec(
+            'release_and_stow', ReleaseAndStow, '/z70/arm/release_and_stow', 90.,
+            lambda s, r: True,
+            lambda ctx, r: _goal_curated(
+                ctx, lambda c: c.release_and_stow(put_down=r.put_down),
+                lambda outcome, ok, data: ReleaseAndStow.Result(
+                    outcome=outcome,
+                    estimate=ctx.arm_msg(),
+                    stowed=bool(ok and data.get('stowed')),
+                ),
+            ),
+            read_only=lambda _: False,
+            fields=('put_down',),
+            description=GOAL_DESCRIPTIONS['release_and_stow'],
+            validate_payload=lambda p: type(p['put_down']) is bool,
+        ),
+    )
+}

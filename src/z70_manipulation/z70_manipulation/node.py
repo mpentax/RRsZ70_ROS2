@@ -23,18 +23,16 @@ from visualization_msgs.msg import Marker, MarkerArray
 from tf2_ros import Buffer, TransformListener, TransformException
 import yaml
 
-from z70_description.arm_model import check as check_arm_limits
-from z70_interfaces.action import (
-    DeliverGarment, PatrolCollect, PinAndGo, Pick, Stack,
-    DeployArm, AlignToTarget, MoveArm, GraspAndLift, ReleaseAndStow,
-)
 from z70_interfaces.msg import ArmEstimate, CalibrationState, CommandOutcome
 from z70_odometry.calibration_state import gains_from_state
 from z70_driver.frame_subscription import MatchedFrames
 from z70_mapping.boundary import BoundaryConfig
 from . import perception, planner
 from .executor import Client, log_directory
-from .goals import GoalContext, GoalSpec
+from .goals import (
+    GoalContext, GoalSpec, BUILTIN_GOALS,
+    _valid_garment_goal, _goal_curated, _goal_pick, _goal_stack, _goal_pin_and_go, _goal_garment,
+)
 from .observations import Observations, LATCHED
 
 RGB = {'yellow': (1., 1., 0.), 'orange': (1., .4, 0.), 'purple': (.7, 0., 1.), 'blue': (0., .2, 1.), 'green': (0., 1., .2)}
@@ -136,6 +134,13 @@ class Perception(Node):
 
 
 class PickServer(Perception):
+    _valid_garment_goal = staticmethod(_valid_garment_goal)
+    _goal_curated = staticmethod(_goal_curated)
+    _goal_pick = staticmethod(_goal_pick)
+    _goal_stack = staticmethod(_goal_stack)
+    _goal_pin_and_go = staticmethod(_goal_pin_and_go)
+    _goal_garment = staticmethod(_goal_garment)
+
     def __init__(self, parameter_overrides=None):
         super().__init__('z70_pick_server', parameter_overrides, subscribe=False)
         self.log_root = self.declare_parameter('log_root', '').value
@@ -165,130 +170,15 @@ class PickServer(Perception):
 
         self.action_servers = []
         self.goal_specs = {}
-        self.action = self.register_goal(GoalSpec(
-            'pick', Pick, '/z70/pick', 285.,
-            lambda s, r: r.color in s.thresholds,
-            self._goal_pick,
-            fields=('color', 'dry_run'),
-            description='Autonomous object pickup by HSV color with visual alignment, coordinated descent, grasp, lift, and stow.',
-        ))
-        self.stack_action = self.register_goal(GoalSpec(
-            'stack', Stack, '/z70/stack', lambda r: 60. if r.dry_run else 540.,
-            lambda s, r: len({r.base_color, r.middle_color, r.top_color}) == 3 and all(c in s.thresholds for c in (r.base_color, r.middle_color, r.top_color)),
-            self._goal_stack,
-            fields=('base_color', 'middle_color', 'top_color', 'dry_run'),
-            description='Multi-tier 3-object stacking with visual alignment, controlled descent, in-place jaw release, and stability verification.',
-        ))
-        self.pin_and_go_action = self.register_goal(GoalSpec(
-            'pin_and_go', PinAndGo, '/z70/nav/pin_and_go', lambda r: r.max_duration_s,
-            lambda s, r: all(math.isfinite(v) and -100 <= v <= 100 for v in (r.target_x_m, r.target_y_m)) and math.isfinite(r.max_duration_s) and 1 <= r.max_duration_s <= 600,
-            self._goal_pin_and_go,
-            needs_executor=lambda _: False,
-            navigation=True,
-            fields=('target_x_m', 'target_y_m', 'max_duration_s', 'dry_run'),
-            description='Interior-geofenced Pin-and-Go point navigation on the verified vendor SLAM map.',
-        ))
-        self.deliver_garment_action = self.register_goal(GoalSpec(
-            'deliver_garment', DeliverGarment, '/z70/deliver_garment', lambda r: r.max_duration_s,
-            self._valid_garment_goal,
-            lambda ctx, r: self._goal_garment(ctx, r, DeliverGarment, patrol=False),
-            needs_executor=lambda r: not r.dry_run,
-            navigation=True,
-            fields=('category', 'drop_x_m', 'drop_y_m', 'max_duration_s', 'allow_towing', 'dry_run'),
-            description='Single-garment perception, staged deployment, pickup, loaded corridor transit, and drop-zone delivery.',
-        ))
-        self.patrol_collect_action = self.register_goal(GoalSpec(
-            'patrol_collect', PatrolCollect, '/z70/patrol_collect', lambda r: r.max_duration_s,
-            self._valid_garment_goal,
-            lambda ctx, r: self._goal_garment(ctx, r, PatrolCollect, patrol=True),
-            needs_executor=lambda r: not r.dry_run,
-            navigation=True,
-            fields=('drop_x_m', 'drop_y_m', 'max_duration_s', 'max_items', 'allow_towing', 'dry_run'),
-            description='Autonomous multi-waypoint garment patrol, collection, and drop-zone delivery with persistent ledger state.',
-        ))
+        servers_by_name = {spec.name: self.register_goal(spec) for spec in BUILTIN_GOALS.values()}
+        self.action = servers_by_name['pick']
+        self.stack_action = servers_by_name['stack']
+        self.pin_and_go_action = servers_by_name['pin_and_go']
+        self.deliver_garment_action = servers_by_name['deliver_garment']
+        self.patrol_collect_action = servers_by_name['patrol_collect']
         self.curated_actions = [
-            self.register_goal(GoalSpec(
-                'deploy_arm', DeployArm, '/z70/arm/deploy', 90.,
-                lambda s, r: True,
-                lambda ctx, r: self._goal_curated(
-                    ctx, lambda ex: ex.deploy(settle=r.settle),
-                    lambda outcome, ok, data: DeployArm.Result(outcome=outcome, estimate=ctx.arm_msg(), ready=bool(ok and data.get('ready'))),
-                ),
-                read_only=lambda _: False,
-                fields=('settle',),
-                description='Unstow the arm into WORKING_POS (150, 45, 0, 90) and optionally wait for obstruction check settle.',
-            )),
-            self.register_goal(GoalSpec(
-                'align_target', AlignToTarget, '/z70/align_target', 120.,
-                lambda s, r: r.color in s.thresholds,
-                lambda ctx, r: self._goal_curated(
-                    ctx, lambda ex: ex.align_front(r.color),
-                    lambda outcome, ok, data: AlignToTarget.Result(
-                        outcome=outcome,
-                        aligned=bool(ok and 'position' in data),
-                        target_position=[float(x) for x in data.get('position', [0., 0., 0.])[:3]],
-                        bearing_error_deg=float(data.get('bearing_error_deg', 0.)),
-                        range_error_m=float(data.get('range_error_m', 0.)),
-                    ),
-                ),
-                read_only=lambda _: False,
-                fields=('color',),
-                description='Visually servo the chassis using front camera observations to center and range a target color.',
-            )),
-            self.register_goal(GoalSpec(
-                'move_arm', MoveArm, '/z70/arm/move', 120.,
-                lambda s, r: (all(math.isfinite(x) for x in (r.m3_deg, r.m4_deg, r.m5_deg))
-                              and check_arm_limits(r.m3_deg, r.m4_deg, r.m5_deg) == 'SUCCESS'
-                              and planner.safe((r.m3_deg, r.m4_deg, r.m5_deg, 90))),
-                lambda ctx, r: self._goal_curated(
-                    ctx, lambda ex: ex.move_arm((r.m3_deg, r.m4_deg, r.m5_deg)),
-                    lambda outcome, ok, data: MoveArm.Result(
-                        outcome=outcome,
-                        estimate=ctx.arm_msg(),
-                        steps_executed=int(data.get('steps_executed', 0)) if ok else 0,
-                    ),
-                ),
-                read_only=lambda _: False,
-                fields=('m3_deg', 'm4_deg', 'm5_deg'),
-                description='Plan and execute collision-checked, coordinated multi-axis 10-degree arm steps to target joint angles.',
-            )),
-            self.register_goal(GoalSpec(
-                'grasp_and_lift', GraspAndLift, '/z70/arm/grasp_and_lift', 90.,
-                lambda s, r: 0 <= r.lift_steps <= 10 and (not r.verify_color or r.verify_color in s.thresholds),
-                lambda ctx, r: self._goal_curated(
-                    ctx, lambda ex: ex.grasp_and_lift(lift_steps=r.lift_steps, verify_color=r.verify_color),
-                    lambda outcome, ok, data: GraspAndLift.Result(
-                        outcome=outcome,
-                        estimate=ctx.arm_msg(),
-                        verified_hold=bool(ok and data.get('verified')),
-                    ),
-                ),
-                read_only=lambda _: False,
-                fields=('lift_steps', 'verify_color'),
-                description='Close jaws, execute upward hand steps, and optionally verify target elevation in the front camera.',
-            )),
-            self.register_goal(GoalSpec(
-                'release_and_stow', ReleaseAndStow, '/z70/arm/release_and_stow', 90.,
-                lambda s, r: True,
-                lambda ctx, r: self._goal_curated(
-                    ctx, lambda ex: ex.release_and_stow(put_down=r.put_down),
-                    lambda outcome, ok, data: ReleaseAndStow.Result(
-                        outcome=outcome,
-                        estimate=ctx.arm_msg(),
-                        stowed=bool(ok and data.get('stowed')),
-                    ),
-                ),
-                read_only=lambda _: False,
-                fields=('put_down',),
-                description='Optionally open jaws in place, stow the arm into the compartment, and anchor IN_ROBOT.',
-            )),
+            servers_by_name[k] for k in ('deploy_arm', 'align_target', 'move_arm', 'grasp_and_lift', 'release_and_stow')
         ]
-
-    @staticmethod
-    def _valid_garment_goal(_server, request):
-        return (all(math.isfinite(v) and -100 <= v <= 100 for v in (request.drop_x_m, request.drop_y_m))
-                and math.isfinite(request.max_duration_s) and 1 <= request.max_duration_s <= 3600
-                and (not hasattr(request, 'max_items') or 1 <= request.max_items <= 1000))
 
     def register_goal(self, spec: GoalSpec) -> ActionServer:
         server = ActionServer(
@@ -360,79 +250,6 @@ class PickServer(Perception):
             self.client = None
             self.deadline = None
             self.lock.release()
-
-    # --- Goal Handlers ---
-
-    @staticmethod
-    def _goal_curated(ctx: GoalContext, fn, build_result):
-        try:
-            data = fn(ctx.executor)
-            success = True
-        except Exception as e:
-            data = dict(error=type(e).__name__, reason=str(e))
-            ctx.log('failure', **data)
-            success = False
-        return success, build_result(ctx.outcome(success), success, data)
-
-    @staticmethod
-    def _goal_pick(ctx: GoalContext, req):
-        try:
-            report = ctx.pick(req.color, dry_run=req.dry_run)
-            success = bool(report.get('verified', report.get('dry_run') and report.get('target') is not None))
-        except Exception as e:
-            report = dict(error=type(e).__name__, reason=str(e), log_dir=str(ctx.directory))
-            ctx.log('failure', **report)
-            success = False
-        return success, Pick.Result(
-            outcome=ctx.outcome(success),
-            verified_hold=bool(report.get('verified')),
-            dry_run_valid=bool(req.dry_run and success),
-            evidence_uri=ctx.directory.name,
-        )
-
-    @staticmethod
-    def _goal_stack(ctx: GoalContext, req):
-        try:
-            report = ctx.stack(req.base_color, req.middle_color, req.top_color, dry_run=req.dry_run)
-            success = bool(report.get('stack_verified', report.get('dry_run') and report.get('all_targets_visible')))
-        except Exception as e:
-            report = dict(error=type(e).__name__, reason=str(e), log_dir=str(ctx.directory))
-            ctx.log('failure', **report)
-            success = False
-        tiers_done = 3 if (req.dry_run and success) else int(report.get('tiers_completed', 0))
-        return success, Stack.Result(
-            outcome=ctx.outcome(success),
-            tiers_completed=tiers_done,
-            stack_verified=bool(report.get('stack_verified')),
-            dry_run_valid=bool(req.dry_run and success),
-            evidence_uri=ctx.directory.name,
-        )
-
-    @staticmethod
-    def _goal_pin_and_go(ctx: GoalContext, req):
-        data = ctx.navigate(req.target_x_m, req.target_y_m, req.max_duration_s, dry_run=req.dry_run)
-        result = PinAndGo.Result(**data)
-        if ctx.commands and ctx.commands.latest_outcome is not None:
-            result.outcome = ctx.commands.latest_outcome
-        return bool(result.arrived or result.dry_run_valid), result
-
-    @staticmethod
-    def _goal_garment(ctx: GoalContext, req, action_cls, patrol=False):
-        if patrol:
-            data = ctx.patrol_collect(
-                drop_x_m=req.drop_x_m, drop_y_m=req.drop_y_m, max_duration_s=req.max_duration_s,
-                max_items=req.max_items, allow_towing=req.allow_towing, dry_run=req.dry_run,
-            )
-        else:
-            data = ctx.deliver_garment(
-                category=req.category, drop_x_m=req.drop_x_m, drop_y_m=req.drop_y_m,
-                max_duration_s=req.max_duration_s, allow_towing=req.allow_towing, dry_run=req.dry_run,
-            )
-        success = (data.get('delivered', False) or data.get('completed', False) or data.get('dry_run_valid', False)
-                   or data.get('status_code') == 'PARTIAL_COMPLETION_SMALL_ITEMS_ONLY')
-        result = action_cls.Result(**data)
-        result.outcome = ctx.outcome(success)
-        return success, result
 
     # --- Node Helpers & Subscriptions ---
 
