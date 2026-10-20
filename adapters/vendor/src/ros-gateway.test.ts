@@ -16,8 +16,7 @@ async function fixture(t:import('node:test').TestContext, transport:typeof fetch
     robotFactory:()=>({connection:{state:'disconnected',connectedAt:null},async request(){throw new Error('No private robot access permitted');},close(){}}),
     cloudFactory:()=>({async requestCode(){},async loginCameraWithCode(){if(cloudReject) throw new Error('credential-bearing synthetic-code');return login;}})});
   await service.start();t.after(()=>service.stop());
-  const address=service.server.address();assert.ok(address&&typeof address==='object');const origin=`http://127.0.0.1:${address.port}`;
-  config.publicOrigin=origin;config.allowedHosts.push(`127.0.0.1:${address.port}`);
+  const origin=service.origin;
   let cookie='';
   async function request(path:string,body?:unknown,authorized=true) {
     const r=await fetch(origin+path,{method:body===undefined?'GET':'POST',headers:{Origin:origin,...(authorized?{Cookie:cookie}:{}),...(body===undefined?{}:{'Content-Type':'application/json'})},...(body===undefined?{}:{body:JSON.stringify(body)})});

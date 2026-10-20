@@ -17,9 +17,8 @@ test('session stop releases preview and fences pending opens and queued reads ev
   const service=await createService({store,config,robotFactory:()=>({connection:{state:'connected',connectedAt:1},close(){},async request(method){calls.push(method);return method==='get_camera_status'?[0]:['ok'];}}),
     driver:{async configure(){calls.push('configure');configuring();await pending;},async frame(){calls.push('frame');return jpeg;},async offer(){return {type:'answer',sdp:'v=0'};},close(){calls.push('close');},async preload(){calls.push('preload');},async unload(){calls.push('unload');}}});
   await service.start();t.after(async()=>{finish();await service.stop();});
-  const addr=service.server.address();assert.ok(addr&&typeof addr==='object');const origin=`http://127.0.0.1:${addr.port}`;
-  config.allowedHosts.push(`127.0.0.1:${addr.port}`);config.publicOrigin=origin;
-  const post=(path:string,body:unknown)=>fetch(origin+path,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const origin=service.origin;
+  const post=(path:string,body:unknown)=>fetch(origin+path,{method:'POST',headers:{Authorization:['Bearer',token].join(' '),'Content-Type':'application/json'},body:JSON.stringify(body)});
   const opening=post('/api/camera/frame',{});await entered;
   let slowHold!:ReturnType<typeof httpRequest>;
   const holdResponse=new Promise<number>((resolve,reject)=>{

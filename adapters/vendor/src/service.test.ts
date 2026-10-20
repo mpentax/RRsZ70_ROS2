@@ -19,10 +19,7 @@ async function fixture(t: import("node:test").TestContext, behavior?: (method: s
   const config = { ...loadServiceConfig(), port: 0 };
   const service = await createService({ store, config, robotFactory: () => robot });
   await service.start(); t.after(() => service.stop());
-  const address = service.server.address(); assert.ok(address && typeof address === "object");
-  const origin = `http://127.0.0.1:${address.port}`;
-  config.allowedHosts.push(`127.0.0.1:${address.port}`);
-  config.publicOrigin = origin;
+  const origin = service.origin;
   async function post(path: string, body: unknown, authorized = true) {
     const res = await fetch(origin + path, { method: "POST", headers: { Host: "127.0.0.1:57000", "Content-Type": "application/json", ...(authorized ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body) });
     return { status: res.status, body: await res.json() as Record<string, unknown> };
@@ -77,9 +74,7 @@ test("service uses explicit local protocol independently of cloud inventory", as
   const service = await createService({ store, config });
   t.after(() => service.stop());
   await service.start();
-  const address = service.server.address(); assert.ok(address && typeof address === "object");
-  config.allowedHosts.push(`127.0.0.1:${address.port}`); config.publicOrigin = `http://127.0.0.1:${address.port}`;
-  const response = await fetch(`http://127.0.0.1:${address.port}/api/state`, { headers: { Host: "127.0.0.1:57000", Authorization: `Bearer ${token}` } });
+  const response = await fetch(`${service.origin}/api/state`, { headers: { Host: "127.0.0.1:57000", Authorization: ["Bearer", token].join(" ") } });
   const state = await response.json() as { connection: { protocol: string }; device: { cloudProtocolVersion: string; localProtocol: string } };
   assert.equal(state.connection.protocol, "L01"); assert.equal(state.device.cloudProtocolVersion, "1.0"); assert.equal(state.device.localProtocol, "L01");
 });

@@ -14,8 +14,7 @@ async function fixture(t: import("node:test").TestContext, overrides: Partial<Se
   const config = { ...loadServiceConfig(), port: 0 };
   const service = await createService({ store, config, robotFactory: () => ({ connection: { state: "connected", connectedAt: 1 }, close() {}, async request() { return ["ok"]; } }), ...overrides });
   await service.start(); t.after(() => service.stop());
-  const address = service.server.address(); assert.ok(address && typeof address === "object");
-  const origin = `http://127.0.0.1:${address.port}`; config.allowedHosts.push(`127.0.0.1:${address.port}`); config.publicOrigin = origin;
+  const origin = service.origin;
   return async (path: string, body: unknown) => {
     const response = await fetch(origin + path, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify(body) });
     return { status: response.status, body: await response.json() };

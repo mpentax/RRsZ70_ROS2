@@ -492,6 +492,12 @@ export async function createService(options: ServiceOptions) {
   async function start() {
     if (stopped) throw new Error("Service stopped");
     await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(config.port, config.host, () => { server.off("error", reject); resolve(); }); });
+    const addr = server.address();
+    if (config.port === 0 && addr && typeof addr === "object") {
+      const host = `${config.host}:${addr.port}`;
+      if (!config.allowedHosts.includes(host)) config.allowedHosts.push(host);
+      config.publicOrigin = `http://${host}`;
+    }
   }
   let stopping: Promise<void> | undefined;
   function stop(): Promise<void> {
@@ -500,7 +506,12 @@ export async function createService(options: ServiceOptions) {
     stopping = (async () => { await new Promise<void>(resolve => { if (!server.listening) return resolve(); server.close(() => resolve()); server.closeAllConnections(); }); await Promise.allSettled([...jobs]); })();
     return stopping;
   }
-  return { config, server, start, stop };
+  return {
+    config, server, start, stop,
+    get origin() {
+      const addr = server.address();
+      return addr && typeof addr === "object" ? `http://${config.host}:${addr.port}` : config.publicOrigin;
+    },
+  };
 }
 export async function startService(options: ServiceOptions) { const service = await createService(options); await service.start(); return service; }
-export async function stopService(service: { stop(): Promise<void> }) { await service.stop(); }

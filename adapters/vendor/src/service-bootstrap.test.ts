@@ -21,8 +21,7 @@ async function fixture(t:TestContext, initial: Pairing|null = null, overrides:Pa
   const config={...loadServiceConfig({}),port:0};
   const service=await createService({store,config,rosOrigin:`http://127.0.0.1:${address.port}`,robotFactory:()=>({connection:{state:'disconnected',connectedAt:null},close(){},async request(){privateCalls++;return ['ok'];}}),cloudFactory:()=>({async requestCode(){},async loginCameraWithCode(){return login;}}),...overrides});
   await service.start();t.after(()=>service.stop());
-  const bind=service.server.address();assert.ok(bind && typeof bind==='object');
-  const origin=`http://127.0.0.1:${bind.port}`;config.allowedHosts.push(`127.0.0.1:${bind.port}`);config.publicOrigin=origin;
+  const origin=service.origin;
   async function request(path:string, body?:unknown, cookie?:string, headers:Record<string,string|undefined>={}) {
     // node:http preserves custom Host headers; fetch intentionally rewrites Host.
     const result = await new Promise<{status:number;body:any;cookie:string|undefined}>((resolve,reject)=>{

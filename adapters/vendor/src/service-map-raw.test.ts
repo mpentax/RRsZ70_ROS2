@@ -18,8 +18,7 @@ test('authenticated raw map reads preserve exact verified bytes and selected-dev
   const config = { ...loadServiceConfig(), port: 0 };
   const service = await createService({ store, config, robotFactory: () => ({ connection: { state: 'connected', connectedAt: 1 }, close() {}, async request() { throw new Error('Raw map must not contact robot'); } }) });
   await service.start(); t.after(() => service.stop());
-  const address = service.server.address(); assert.ok(address && typeof address === 'object');
-  const origin = `http://127.0.0.1:${address.port}`; config.allowedHosts.push(`127.0.0.1:${address.port}`); config.publicOrigin = origin;
+  const origin = service.origin;
   assert.equal((await fetch(origin + '/api/map/cache/raw')).status, 401);
   const response = await fetch(origin + '/api/map/cache/raw', { headers: { Authorization: `Bearer ${token}` } });
   assert.equal(response.status, 200);
