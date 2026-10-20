@@ -3,8 +3,7 @@ import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import { setTimeout as delay } from "node:timers/promises";
 import { CameraSelector, cameraSource, Go2Rtc } from "./go2rtc.ts";
-import { startService, type ServiceRobot, type ServiceStore } from "./service.ts";
-import { loadServiceConfig } from "./service-config.ts";
+import { loadServiceConfig, startService, type ServiceRobot, type ServiceStore } from "./service.ts";
 import { RpcError, TransportError } from "./robot.ts";
 
 const account = { user: "u", secret: "s", key: "k", mqttUrl: "ssl://mqtt-eu.roborock.com:8883" };

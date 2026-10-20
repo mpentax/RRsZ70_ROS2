@@ -1,5 +1,4 @@
-import { loadServiceConfig } from "./service-config.ts";
-import { startService } from "./service.ts";
+import { loadServiceConfig, startService } from "./service.ts";
 import { SecretStore, safeReason } from "./secret-store.ts";
 
 
