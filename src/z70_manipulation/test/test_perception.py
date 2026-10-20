@@ -20,8 +20,8 @@ import yaml
 from z70_description import arm_model as hand
 from z70_description.arm_model import config_path
 from z70_interfaces.msg import FrameMetadata, GarmentObservations
-from z70_manipulation import garment_worker as w, perception, perception as g, perception as p, planner, planner as placement
-from z70_manipulation.garment_node import GarmentNode, observations_message
+from z70_manipulation import garment_node as w, perception, perception as g, perception as p, planner, planner as placement
+from z70_manipulation.garment_node import GarmentNode, observations_message, seconds
 from z70_manipulation.node import Perception
 from z70_manipulation.perception import FrontCamera
 
@@ -266,7 +266,7 @@ def test_worker_framing_eof_invalid_image_and_contour_backend():
 
 
 def test_persistent_worker_subprocess_two_frames_and_clean_eof():
-    script = ROOT / 'src/z70_manipulation/z70_manipulation/garment_worker.py'
+    script = ROOT / 'src/z70_manipulation/z70_manipulation/garment_node.py'
     image = np.full((120, 160, 3), 180, np.uint8)
     jpeg = cv2.imencode('.jpg', image)[1].tobytes()
     payload = struct.pack('<I', len(jpeg)) + jpeg
@@ -296,7 +296,7 @@ def test_ros_garment_serialization_preserves_provenance_and_unknown_suitability(
 
 
 def test_worker_invalid_jpeg_reports_unavailable_not_a_detection():
-    script = ROOT / 'src/z70_manipulation/z70_manipulation/garment_worker.py'
+    script = ROOT / 'src/z70_manipulation/z70_manipulation/garment_node.py'
     proc = subprocess.run([sys.executable, str(script), '--backend', 'contour_fallback'],
                           input=struct.pack('<I', 3) + b'bad', capture_output=True, timeout=15)
     detections, quality = w.decode_result(w.read_packet(io.BytesIO(proc.stdout)))

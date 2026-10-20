@@ -23,7 +23,7 @@ from z70_mapping.boundary import (
     generate_patrol_waypoints,
 )
 from z70_mapping.decoder import VendorMap, alignment, decode_map, room_names, spatial_context, transform_pose
-from z70_mapping.depth_worker import camera_rays, metric_cloud
+from z70_mapping.depth_node import camera_rays, metric_cloud
 from z70_mapping.node import grid_message, pose_message, markers_message, safe_grid_message
 
 
