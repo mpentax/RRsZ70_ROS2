@@ -1,7 +1,7 @@
 import { test, type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer, request as httpRequest } from 'node:http';
-import { createService, type ServiceOptions, type ServiceStore } from './service.ts';
+import { startService, type ServiceOptions, type ServiceStore } from './service.ts';
 import { loadServiceConfig } from './service-config.ts';
 import type { CameraLogin } from './cloud.ts';
 
@@ -19,8 +19,8 @@ async function fixture(t:TestContext, initial: Pairing|null = null, overrides:Pa
   const address = backend.address();assert.ok(address && typeof address==='object');
   const store:ServiceStore = {async initialize(){},async serviceToken(){return token;},async loadPairing(){return saved;},async savePairing(value){saved=value;writes++;}};
   const config={...loadServiceConfig({}),port:0};
-  const service=await createService({store,config,rosOrigin:`http://127.0.0.1:${address.port}`,robotFactory:()=>({connection:{state:'disconnected',connectedAt:null},close(){},async request(){privateCalls++;return ['ok'];}}),cloudFactory:()=>({async requestCode(){},async loginCameraWithCode(){return login;}}),...overrides});
-  await service.start();t.after(()=>service.stop());
+  const service=await startService({store,config,rosOrigin:`http://127.0.0.1:${address.port}`,robotFactory:()=>({connection:{state:'disconnected',connectedAt:null},close(){},async request(){privateCalls++;return ['ok'];}}),cloudFactory:()=>({async requestCode(){},async loginCameraWithCode(){return login;}}),...overrides});
+  t.after(()=>service.stop());
   const origin=service.origin;
   async function request(path:string, body?:unknown, cookie?:string, headers:Record<string,string|undefined>={}) {
     // node:http preserves custom Host headers; fetch intentionally rewrites Host.
