@@ -74,7 +74,7 @@ See [`src/z70_manipulation/README.md`](../src/z70_manipulation/README.md) for th
 
 ## Optional Depth Worker
 
-The monocular depth node (`z70_mapping/depth_node.py`) runs a persistent worker process against `/camera/front/image_raw/compressed` using Apple Silicon MPS. Provision its isolated virtual environment and model weights once:
+The monocular depth node (`z70_mapping/node.py`) runs a persistent worker process against `/camera/front/image_raw/compressed` using Apple Silicon MPS. Provision its isolated virtual environment and model weights once:
 
 ```sh
 python3 -m venv ~/.venvs/roboclaw-depth

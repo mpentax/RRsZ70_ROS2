@@ -65,7 +65,7 @@ pixi run bringup mapping:=false     # disable vendor map node
 
 ---
 
-## Monocular Depth (`z70_mapping/depth_node.py`)
+## Monocular Depth (`z70_mapping/node.py`)
 
 Runs Depth Anything V2 Metric Indoor Small in `~/.venvs/roboclaw-depth` ([setup instructions](../../docs/ros2.md#optional-depth-worker)) at `depth_hz = 0.2` (`400 x 300` inference resolution). Fits a robust floor-plane scale factor over `0.15..1.2 m` floor rays and publishes `0.05..4.0 m` 3D points on `/camera/front/depth/points`.
 

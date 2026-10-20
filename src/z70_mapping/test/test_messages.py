@@ -14,7 +14,7 @@ from rclpy.qos import DurabilityPolicy, ReliabilityPolicy
 from rclpy.serialization import serialize_message, deserialize_message
 from std_msgs.msg import String
 from visualization_msgs.msg import Marker, MarkerArray
-from z70_mapping import depth_node as dn, node as module
+from z70_mapping import node as module
 from z70_mapping.boundary import (
     BoundaryConfig,
     check_corridor_containment,
@@ -22,8 +22,11 @@ from z70_mapping.boundary import (
     extract_segment_ids,
     generate_patrol_waypoints,
 )
-from z70_mapping.depth_node import camera_rays, metric_cloud
-from z70_mapping.node import VendorMap, alignment, decode_map, grid_message, markers_message, pose_message, room_names, safe_grid_message, spatial_context, transform_pose
+from z70_mapping.node import (
+    VendorMap, alignment, camera_rays, decode_map, grid_message,
+    markers_message, metric_cloud, pose_message, room_names,
+    safe_grid_message, spatial_context, transform_pose,
+)
 
 
 def block(kind, data, extra=b''):
@@ -393,8 +396,8 @@ def _mock_depth_node(monkeypatch, python_override=None):
                             value=python_override if (python_override and name == 'depth_python') else default))
     monkeypatch.setattr(Node, 'create_publisher', publisher)
     monkeypatch.setattr(Node, 'create_timer', Mock())
-    monkeypatch.setattr(dn, 'MatchedFrames', Mock())
-    return dn, publishers
+    monkeypatch.setattr(module, 'MatchedFrames', Mock())
+    return module, publishers
 
 
 def test_depth_node_missing_venv_publishes_unavailable_status_and_closes_cleanly(monkeypatch):
