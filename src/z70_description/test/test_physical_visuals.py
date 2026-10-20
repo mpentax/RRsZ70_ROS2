@@ -69,3 +69,21 @@ def test_first_segment_uses_the_copied_link_length():
     assert float(joint_origin[0]) == pytest.approx(0.1772, abs=1e-4)
     mesh = ROBOT.find("link[@name='arm_link1']").find("visual/geometry/mesh[@filename='package://z70_description/meshes/cad/cad_link1.stl']")
     assert mesh is not None
+
+
+def test_marker_is_distal_and_flat_on_cad_underside():
+    mount = origin(ROBOT.find("joint[@name='pincher_marker_68_mount']/origin"))
+    assert mount[0, 3] == pytest.approx(.024)
+    assert mount[1, 3] == pytest.approx(0.)
+    distal = np.array([1., 0., -.078125]); distal /= np.linalg.norm(distal)
+    assert mount[:3, 1] == pytest.approx(distal, abs=1e-8)
+    assert mount[:3, 2] == pytest.approx(np.cross(mount[:3, 0], distal), abs=1e-8)
+    assert mount[2, 2] < 0
+
+
+@pytest.mark.parametrize('roll', [0., .6, 2.7])
+def test_marker_rotation_recovers_pincher_rotation_without_translation(roll):
+    frames = relative_frames(ROBOT, 'arm_link2', {'m5_joint': -roll})
+    mount = origin(ROBOT.find("joint[@name='pincher_marker_68_mount']/origin"))
+    recovered = frames['pincher_marker_68'][:3, :3] @ mount[:3, :3].T
+    assert recovered == pytest.approx(frames['arm_wrist_link'][:3, :3], abs=1e-10)

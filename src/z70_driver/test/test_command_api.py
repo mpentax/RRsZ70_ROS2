@@ -1,20 +1,29 @@
 """ROS action and service command routing over loopback HTTP transport."""
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import os
+from pathlib import Path
 import queue
 import socket
+import subprocess
 import threading
 import time
 import uuid
 
 import pytest
 import rclpy
+import xacro
+import yaml
 from action_msgs.msg import GoalStatus
+from ament_index_python.packages import get_package_prefix, get_package_share_directory
 from builtin_interfaces.msg import Duration
 from rclpy.action import ActionClient
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.parameter import Parameter
 from rclpy.serialization import serialize_message, deserialize_message
+from rclpy.time import Time
+from sensor_msgs.msg import JointState
+from tf2_ros import Buffer, TransformListener
 from unique_identifier_msgs.msg import UUID
 from z70_interfaces.action import BasePulse, ArmStep, HandStep, ArmOperation, Pick
 from z70_interfaces.msg import CommandEvent, CalibrationState
@@ -326,3 +335,41 @@ def test_actual_http_disconnect_preserves_logical_id_and_never_replays_motion(sy
     assert bytes(result.result.outcome.attempt_id.uuid)==bytes(16) # no fabricated vendor attempt evidence
     assert methods(system).count('app_arm_move')==1
     client.destroy()
+
+
+def test_real_rsp_tf_remains_complete_while_typed_arm_estimate_tracks_planning_validity(system, tmp_path):
+    description = xacro.process_file(str(Path(get_package_share_directory('z70_description')) / 'urdf/z70.urdf.xacro')).toxml()
+    path = tmp_path / 'robot.yaml'
+    path.write_text(yaml.safe_dump({'/**': {'ros__parameters': {'robot_description': description}}}))
+    executable = Path(get_package_prefix('robot_state_publisher')) / 'lib/robot_state_publisher/robot_state_publisher'
+    output = (tmp_path / 'rsp.log').open('w')
+    buffer = Buffer()
+    listener = TransformListener(buffer, system['node'])
+    joints = []
+    sub = system['node'].create_subscription(JointState, '/joint_states', joints.append, 10)
+    process = subprocess.Popen(
+        [str(executable), '--ros-args', '--params-file', str(path)],
+        env=dict(os.environ, ROS_DOMAIN_ID='92'), stdout=output, stderr=output,
+    )
+    try:
+        wait_for(lambda: system['driver'].pub_js.get_subscription_count() > 0)
+        resolved(service(system, SetArmAnchor, '/z70/arm/anchor', SetArmAnchor.Request(anchor=0)))
+        wait_for(lambda: buffer.can_transform('base_footprint', 'arm_wrist_link', Time()) and
+                         buffer.can_transform('base_footprint', 'jaw_left', Time()) and
+                         buffer.can_transform('base_footprint', 'arm_compartment_lid', Time()) and bool(joints))
+        assert set(joints[-1].name) == {'m3_joint', 'm4_joint', 'm5_joint', 'm6_left_joint', 'm6_right_joint', 'shoulder_lift', 'shoulder_yaw', 'arm_lid'}
+        reply = resolved(service(system, SetArmAnchor, '/z70/arm/anchor', SetArmAnchor.Request(anchor=2)))
+        assert reply.estimate.validity.value == 1 and reply.estimate.source == 3
+        assert reply.estimate.joints.name == ['m3_joint', 'm4_joint', 'm5_joint']
+        reply = resolved(service(system, SetArmAnchor, '/z70/arm/anchor', SetArmAnchor.Request(anchor=0)))
+        assert reply.estimate.validity.value == 0 and not reply.estimate.joints.name
+    finally:
+        system['node'].destroy_subscription(sub)
+        listener.unregister()
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+        output.close()
