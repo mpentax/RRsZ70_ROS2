@@ -161,8 +161,16 @@ class PatrolCollector:
         if self.clock()>=self.deadline: raise DeliveryRejected('TIMED_OUT')
         if self.executor and self.executor.hazard(): raise DeliveryRejected('BOUNDARY_ABORT')
 
+    def _status(self):
+        fn=getattr(self.observations,'status',None)
+        return fn() if callable(fn) else self.observations.get('/api/state')['telemetry']['status']['value']
+
+    def _arm(self):
+        fn=getattr(self.observations,'arm_estimate',None)
+        return fn() if callable(fn) else self.observations.get('/api/arm/estimate')
+
     def battery(self):
-        return self.observations.get('/api/state')['telemetry']['status']['value']['battery']
+        return self._status()['battery']
 
     def verify_context(self,refresh=True):
         self.guard(); self.state('LOCALIZE_AND_VERIFY_CONTEXT')
@@ -252,8 +260,8 @@ class PatrolCollector:
             if self.ledger.requires_reconciliation:
                 batch=self.observations.garment_snapshot(after=self.observations.garment_barrier())
                 reconciliation={track_key(g):'PRESENT_ON_FLOOR' for g in batch.garments if g.contact_valid and g.geofence_verified}
-                status=self.observations.get('/api/state')['telemetry']['status']['value']
-                arm=self.observations.get('/api/arm/estimate')
+                status=self._status()
+                arm=self._arm()
                 if (arm.get('state')=='IN_ROBOT' and status.get('in_returning') is False
                         and status.get('in_cleaning') is False and status.get('state') in (3,8)):
                     reconciliation['__robot__']='STOWED_LOCALIZED_STATIONARY'

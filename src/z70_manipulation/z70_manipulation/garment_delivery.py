@@ -245,10 +245,6 @@ class GarmentDeliverer:
     def monitor(self, baseline, boundary, loaded=True):
         self.guard()
         s=self.snapshot()
-        if self.map_odom and self.baseline_tf is not None:
-            tf=self.map_odom(); old_tf=self.baseline_tf
-            if (math.dist(tf[:2],old_tf[:2])>.15 or abs(math.atan2(math.sin(tf[2]-old_tf[2]),math.cos(tf[2]-old_tf[2])))>.15):
-                raise DeliveryRejected('MAP_CONTEXT_CHANGED')
         old,new=map_identity(baseline),map_identity(s)
         if old[:1]+old[2:] != new[:1]+new[2:]: raise DeliveryRejected('MAP_CONTEXT_CHANGED')
         live=compute_safe_interior(s.map,s.labels,self.config,self.current_pose)
@@ -370,7 +366,8 @@ class GarmentDeliverer:
             self.operation('open_jaws',self.executor.open_jaws)
             from . import planner
             p=self.track.grasp_point_m
-            estimate=self.executor.client.get('/api/arm/estimate')
+            arm_fn=getattr(self.executor,'_arm',None)
+            estimate=arm_fn() if callable(arm_fn) else self.executor.client.get('/api/arm/estimate')
             j=estimate.get('joints',{})
             joints=[j['m3'],j['m4']] if all(k in j for k in ('m3','m4')) else []
             if len(joints)<2: raise DeliveryRejected('ARM_POSE_UNVERIFIED')

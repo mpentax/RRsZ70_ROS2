@@ -642,7 +642,7 @@ def test_pickup_client_delegates_observations_without_network_or_token(tmp_path,
 
 def test_simulate_goal_exercises_all_builtin_goals():
     from types import SimpleNamespace
-    from z70_manipulation.goals import BUILTIN_GOALS, simulate_goal
+    from z70_manipulation.goals import BUILTIN_GOALS, GoalSpec, simulate_goal
 
     cases = [
         ('pick', dict(color='yellow', dry_run=False), lambda r: r.verified_hold),
@@ -661,6 +661,14 @@ def test_simulate_goal_exercises_all_builtin_goals():
         assert spec.validate_payload(payload), name
         ok, res = simulate_goal(spec, SimpleNamespace(**payload))
         assert ok and check(res), name
+
+    route_spec = BUILTIN_GOALS['pin_and_go']
+    ok, _ = simulate_goal(
+         GoalSpec('route_check', route_spec.action_cls, '/z70/route_check', 10., lambda _s, _r: True,
+                  lambda ctx, r: (ctx.plan_route(r.target_x_m, r.target_y_m) == [(1., 2.)], route_spec.action_cls.Result())),
+        SimpleNamespace(target_x_m=1., target_y_m=2.),
+    )
+    assert ok
 
 
 
