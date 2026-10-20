@@ -4,6 +4,7 @@ import threading
 import time
 from unique_identifier_msgs.msg import UUID
 from z70_interfaces.srv import RawRpc, SetArmAnchor, Stop, TaskSession
+from .observations import call_service
 
 
 class _Transport:
@@ -44,12 +45,7 @@ class Commands:
     def call(self, kind, request, timeout, cancellable=True):
         client=self.clients[kind]
         if not client.wait_for_service(timeout_sec=1.): raise LookupError('ROS_DRIVER_UNAVAILABLE')
-        future=client.call_async(request); done=threading.Event();future.add_done_callback(lambda _:done.set())
-        deadline=time.monotonic()+max(timeout,10.)
-        while not done.wait(.02):
-            if cancellable and self.cancelled.is_set(): raise InterruptedError('CANCELLED')
-            if time.monotonic()>=deadline: raise TimeoutError('ROS_DEADLINE_UNKNOWN_DISPATCH')
-        return future.result()
+        return call_service(client, request, max(timeout, 10.), lambda: cancellable and self.cancelled.is_set())
 
     def begin(self):
         response=self.call(TaskSession,TaskSession.Request(begin=True),3.)

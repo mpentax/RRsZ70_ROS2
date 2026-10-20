@@ -81,6 +81,15 @@ def track_key(garment):
     return bytes(garment.track_id.uuid).hex()
 
 
+def graspable_garments(garments, category='any', key=None) -> list:
+    return [
+        g for g in garments
+        if (category in ('', 'any') or g.category == category)
+        and all(getattr(g, f) for f in ('reachable_for_grasp', 'inside_geofence', 'geofence_verified', 'grasp_valid', 'contact_valid'))
+        and (key is None or track_key(g) == key)
+    ]
+
+
 def map_identity(snapshot):
     m = snapshot.map
     return [snapshot.map_index, snapshot.map_sequence, list(m.origin), m.width, m.height, m.resolution]
@@ -151,9 +160,7 @@ class GarmentDeliverer:
     def acquire(self, category, after=None, key=None):
         batch=self.observations.garment_snapshot(after=after)
         self.latest_observation=batch.evidence
-        candidates=[g for g in batch.garments if (category in ('','any') or g.category==category)
-            and all(getattr(g,field) for field in ('reachable_for_grasp','inside_geofence','geofence_verified','grasp_valid','contact_valid'))
-            and (key is None or track_key(g)==key)]
+        candidates=graspable_garments(batch.garments, category, key)
         return (min(candidates,key=track_key) if candidates else None),batch
 
     def operation(self, name, fn):

@@ -24,7 +24,7 @@ from z70_mapping.boundary import check_corridor_containment, compute_safe_interi
 from z70_mapping.geometry import spatial_context as compute_spatial_context
 from . import perception, placement, planner
 from .executor import Executor
-from .garment_delivery import GarmentDeliverer, loaded_route
+from .garment_delivery import GarmentDeliverer, graspable_garments, loaded_route
 from .navigation import PinAndGoNavigator
 from .observations import read_arm, read_status
 from .patrol import PatrolCollector, PatrolLedger
@@ -306,11 +306,7 @@ class GoalContext:
     def garments(self, category='any', after=None) -> list:
         batch = self.observations.garment_snapshot(after=after)
         self.latest_observation = batch.evidence
-        return [
-            g for g in batch.garments
-            if (category in ('', 'any') or g.category == category)
-            and all(getattr(g, f) for f in ('reachable_for_grasp', 'inside_geofence', 'geofence_verified', 'grasp_valid', 'contact_valid'))
-        ]
+        return graspable_garments(batch.garments, category)
 
     # --- Motion & Manipulation Primitives ---
 

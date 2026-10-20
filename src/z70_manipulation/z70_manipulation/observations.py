@@ -34,6 +34,17 @@ def read_arm(observations) -> dict:
     return fn() if callable(fn) else observations.get('/api/arm/estimate')
 
 
+def call_service(client, request, timeout_s, cancelled=lambda: False,
+                 timeout_exc=TimeoutError('ROS_DEADLINE_UNKNOWN_DISPATCH')):
+    future = client.call_async(request)
+    done = threading.Event(); future.add_done_callback(lambda _: done.set())
+    deadline = time.monotonic() + timeout_s
+    while not done.wait(.02):
+        if cancelled(): raise InterruptedError('CANCELLED')
+        if time.monotonic() >= deadline: raise timeout_exc
+    return future.result()
+
+
 class Observations:
     def __init__(self, node=None, timeout=5.):
         self.owned = node is None
@@ -112,13 +123,7 @@ class Observations:
         with self.condition: self.map_snapshot = msg; self.condition.notify_all()
 
     def _call_service(self, client, request, timeout_s, timeout_exc):
-        future = client.call_async(request)
-        done = threading.Event(); future.add_done_callback(lambda _: done.set())
-        deadline = time.monotonic() + timeout_s
-        while not done.wait(.02):
-            if self.cancelled(): raise InterruptedError('CANCELLED')
-            if time.monotonic() >= deadline: raise timeout_exc
-        return future.result()
+        return call_service(client, request, timeout_s, self.cancelled, timeout_exc)
 
     def navigation_snapshot(self, refresh=False, max_age_s=5.):
         expected = None
