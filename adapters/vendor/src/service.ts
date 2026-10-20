@@ -9,8 +9,7 @@ import { refreshRooms, RoborockCloud, selectedRooms, type CameraAccount, type Ca
 import { RobotClient, RpcError, type RobotDiagnostic } from "./robot.ts";
 import { CloudControlClient, cloudControlCredentials } from "./cloud-control.ts";
 import { CommandEvents, numericTelemetry, publicRpcValue, pulseParams, summarizeStatus, TransportError, type RpcOutcome } from "./rpc-outcome.ts";
-import { Go2Rtc, publicCameraFailure } from "./go2rtc.ts";
-import { CameraSelector, requestedCamera } from "./camera-selection.ts";
+import { CameraSelector, Go2Rtc, publicCameraFailure, requestedCamera } from "./go2rtc.ts";
 import { loadServiceConfig, proxyRos, rosGatewayOrigin, rosRoute, ServiceAuth, ServiceHttpError, type ServiceConfig } from "./service-config.ts";
 import { jpegImageDimensions } from "@rrsz70/http-contracts";
 import { readSplitMap } from "./photo-protocol.ts";
