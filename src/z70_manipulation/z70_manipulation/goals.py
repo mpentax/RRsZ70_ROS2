@@ -19,7 +19,7 @@ from z70_interfaces.action import (
     DeployArm, AlignToTarget, MoveArm, GraspAndLift, ReleaseAndStow,
     BasePulse, ArmStep, HandStep, ArmOperation,
 )
-from z70_interfaces.msg import CommandOutcome
+from z70_interfaces.msg import ArmEstimate, CommandOutcome
 from z70_mapping.boundary import check_corridor_containment, compute_safe_interior
 from z70_mapping.geometry import spatial_context as compute_spatial_context
 from . import perception, placement, planner
@@ -140,7 +140,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         executor=None,
         status=lambda: {'state': 3, 'error_code': 0, 'battery': 100, 'common_status': 51202},
         arm=lambda: {'state': 'IN_ROBOT', 'joints': {'m3': 270., 'm4': 180., 'm5': 0., 'm6': 0.}},
-        arm_msg=lambda: None,
+        arm_msg=ArmEstimate,
         odom=lambda: {'x': 0., 'y': 0., 'yaw': 0.},
         map_pose=lambda source='base_footprint': (0., 0., 0.),
         map_snapshot=lambda refresh=False, max_age_s=5.: None,
@@ -479,48 +479,43 @@ def _valid_garment_payload(p: dict) -> bool:
             and type(p['dry_run']) is bool)
 
 
-def _goal_curated(ctx: 'GoalContext | SimpleNamespace', fn, build_result):
+def _goal_curated(ctx: 'GoalContext | SimpleNamespace', fn, build_result, ok_pred=lambda _d: True):
     try:
         data = fn(ctx)
-        success = True
+        success = bool(ok_pred(data))
     except Exception as e:
-        data = dict(error=type(e).__name__, reason=str(e))
+        data = dict(error=type(e).__name__, reason=str(e), log_dir=str(ctx.directory))
         ctx.log('failure', **data)
         success = False
     return success, build_result(ctx.outcome(success), success, data)
 
 
 def _goal_pick(ctx: 'GoalContext | SimpleNamespace', req):
-    try:
-        report = ctx.pick(req.color, dry_run=req.dry_run)
-        success = bool(report.get('verified') or (report.get('dry_run') and report.get('target') is not None))
-    except Exception as e:
-        report = dict(error=type(e).__name__, reason=str(e), log_dir=str(ctx.directory))
-        ctx.log('failure', **report)
-        success = False
-    return success, Pick.Result(
-        outcome=ctx.outcome(success),
-        verified_hold=bool(report.get('verified')),
-        dry_run_valid=bool(req.dry_run and success),
-        evidence_uri=ctx.directory.name,
+    return _goal_curated(
+        ctx,
+        lambda c: c.pick(req.color, dry_run=req.dry_run),
+        lambda outcome, ok, report: Pick.Result(
+            outcome=outcome,
+            verified_hold=bool(report.get('verified')),
+            dry_run_valid=bool(req.dry_run and ok),
+            evidence_uri=ctx.directory.name,
+        ),
+        lambda r: r.get('verified') or (r.get('dry_run') and r.get('target') is not None),
     )
 
 
 def _goal_stack(ctx: 'GoalContext | SimpleNamespace', req):
-    try:
-        report = ctx.stack(req.base_color, req.middle_color, req.top_color, dry_run=req.dry_run)
-        success = bool(report.get('stack_verified') or (report.get('dry_run') and report.get('all_targets_visible')))
-    except Exception as e:
-        report = dict(error=type(e).__name__, reason=str(e), log_dir=str(ctx.directory))
-        ctx.log('failure', **report)
-        success = False
-    tiers_done = 3 if (req.dry_run and success) else int(report.get('tiers_completed', 0))
-    return success, Stack.Result(
-        outcome=ctx.outcome(success),
-        tiers_completed=tiers_done,
-        stack_verified=bool(report.get('stack_verified')),
-        dry_run_valid=bool(req.dry_run and success),
-        evidence_uri=ctx.directory.name,
+    return _goal_curated(
+        ctx,
+        lambda c: c.stack(req.base_color, req.middle_color, req.top_color, dry_run=req.dry_run),
+        lambda outcome, ok, report: Stack.Result(
+            outcome=outcome,
+            tiers_completed=3 if (req.dry_run and ok) else int(report.get('tiers_completed', 0)),
+            stack_verified=bool(report.get('stack_verified')),
+            dry_run_valid=bool(req.dry_run and ok),
+            evidence_uri=ctx.directory.name,
+        ),
+        lambda r: r.get('stack_verified') or (r.get('dry_run') and r.get('all_targets_visible')),
     )
 
 
