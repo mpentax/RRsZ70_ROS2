@@ -1,4 +1,4 @@
-import { localProtocol, selectedLocalProtocol } from "./credentials.ts";
+import { localProtocol, selectedLocalProtocol, summarizeStatus, type SavedDevice } from "./credentials.ts";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -7,12 +7,9 @@ import { readFile } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
 import { isIP } from "node:net";
 import { RoborockCloud, type CameraAccount, type HomeAuthorization, type CameraLogin } from "./cloud.ts";
-import type { SavedDevice } from "./credentials.ts";
-import { summarizeStatus } from "./credentials.ts";
 import { RobotClient, RpcError, type RobotDiagnostic } from "./robot.ts";
 import { CloudControlClient, cloudControlCredentials } from "./cloud-control.ts";
 import { TransportError, publicRpcValue, type RpcOutcome } from "./rpc-outcome.ts";
-
 import { Go2Rtc, publicCameraFailure } from "./go2rtc.ts";
 import { CameraSelector, requestedCamera } from "./camera-selection.ts";
 import { loadServiceConfig, type ServiceConfig } from "./service-config.ts";
@@ -260,6 +257,11 @@ export async function createService(options: ServiceOptions) {
     if (!device || !camera) return fail(503, "Authenticated device and camera credentials required.");
     if (!configured) { await driver.configure(camera.account, device, camera.pin); checkCamera(generation); configured = true; }
   }
+  const captureFrame = (generation: number) => async (active: "front" | "gripper") => {
+    await configureCamera(generation);
+    checkCamera(generation);
+    return driver.frame(active);
+  };
   let account: { owner: string; email: string; expiresAt: number; cloud: Pick<RoborockCloud, "requestCode" | "loginCameraWithCode">; login?: CameraLogin; attempts: number } | null = null;
   let lastCode = 0;
   let pairingWrite = Promise.resolve();
@@ -449,7 +451,7 @@ export async function createService(options: ServiceOptions) {
       const selected = requestedCamera((await readJson(req)).camera);
       if (selected === undefined) return fail(400, "Camera is required.");
       const outcomes: { method: string; outcome: RpcOutcome }[] = [];
-      const confirmed = await cameraContext.run(generation, () => selectorOutcomes.run(outcomes, () => cameraSelector.select(selected, async (current) => { await configureCamera(generation); checkCamera(generation); return driver.frame(current); })));
+      const confirmed = await cameraContext.run(generation, () => selectorOutcomes.run(outcomes, () => cameraSelector.select(selected, captureFrame(generation))));
       checkCamera(generation);
       return reply(res, 200, { camera: confirmed, outcomes });
     }
@@ -463,7 +465,7 @@ export async function createService(options: ServiceOptions) {
         if (typeof body.sdp !== "string" || !body.sdp.startsWith("v=0") || body.sdp.length > 131072) return fail(400, "Invalid SDP.");
         return reply(res, 200, await driver.offer(body.sdp));
       }
-      const { frame, camera: activeCamera, sizeCamera } = await cameraContext.run(generation, () => cameraSelector.run(selectedCamera, async (active) => { await configureCamera(generation); checkCamera(generation); return driver.frame(active); }));
+      const { frame, camera: activeCamera, sizeCamera } = await cameraContext.run(generation, () => cameraSelector.run(selectedCamera, captureFrame(generation)));
       checkCamera(generation);
       const dimensions = jpegImageDimensions(frame);
       res.writeHead(200, { "Content-Type": "image/jpeg", "Content-Length": frame.length, "X-Roboclaw-Frame-Id": randomUUID(), "X-Roboclaw-Camera-Session": cameraSession,
