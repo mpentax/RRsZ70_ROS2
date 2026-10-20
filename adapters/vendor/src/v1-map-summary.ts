@@ -44,8 +44,8 @@ export function summarizeV1Map(raw: Buffer) {
       let walls = 0, floor = 0;
       for (let i = data; i < data + length; i++) {
         const pixel = raw[i];
-        if (pixel === 1 || (pixel !== 0 && pixel !== 255 && pixel !== 7 && (pixel & 7) === 1)) walls++;
-        if (pixel === 255 || pixel === 7 || (pixel & 7) === 7) floor++;
+        if ((pixel & 7) === 1) walls++;
+        if ((pixel & 7) === 7) floor++;
         if (pixel !== 255 && pixel !== 7 && (pixel & 7) === 7) rooms.add(pixel >> 3);
       }
       image = { left, top, width, height, metersPerPixel: 0.05, walls, floor, pixels: length,
