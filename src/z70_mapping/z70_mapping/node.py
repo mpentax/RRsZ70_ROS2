@@ -30,8 +30,11 @@ try:
     from std_msgs.msg import String
     from visualization_msgs.msg import Marker, MarkerArray
     from tf2_ros import TransformBroadcaster
+    LATCHED = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL,
+                         reliability=ReliabilityPolicy.RELIABLE)
 except ImportError:
     Node = object
+    LATCHED = None
 
 
 @dataclass
@@ -422,25 +425,23 @@ class MappingNode(Node):
         self.boundary = None
         self.world = SessionWorldMap()
         self._world_dirty = False
-        qos = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL,
-                         reliability=ReliabilityPolicy.RELIABLE)
-        self.pub_map = self.create_publisher(OccupancyGrid, '/map', qos)
-        self.pub_safe_grid = self.create_publisher(OccupancyGrid, '/z70/map/safe_grid', qos)
-        self.pub_dynamic_grid = self.create_publisher(OccupancyGrid, '/z70/map/dynamic_obstacles', qos)
-        self.pub_pose = self.create_publisher(PoseStamped, '/z70/map/robot_pose', qos)
-        self.pub_dock = self.create_publisher(PoseStamped, '/z70/map/dock_pose', qos)
-        self.pub_markers = self.create_publisher(MarkerArray, '/z70/map/markers', qos)
-        self.pub_world_markers = self.create_publisher(MarkerArray, '/z70/world/markers', qos)
-        self.pub_world_objects = self.create_publisher(String, '/z70/world/objects', qos)
-        self.pub_status = self.create_publisher(String, '/z70/map/status', qos)
-        self.pub_spatial = self.create_publisher(String, '/z70/map/spatial_context', qos)
+        self.pub_map = self.create_publisher(OccupancyGrid, '/map', LATCHED)
+        self.pub_safe_grid = self.create_publisher(OccupancyGrid, '/z70/map/safe_grid', LATCHED)
+        self.pub_dynamic_grid = self.create_publisher(OccupancyGrid, '/z70/map/dynamic_obstacles', LATCHED)
+        self.pub_pose = self.create_publisher(PoseStamped, '/z70/map/robot_pose', LATCHED)
+        self.pub_dock = self.create_publisher(PoseStamped, '/z70/map/dock_pose', LATCHED)
+        self.pub_markers = self.create_publisher(MarkerArray, '/z70/map/markers', LATCHED)
+        self.pub_world_markers = self.create_publisher(MarkerArray, '/z70/world/markers', LATCHED)
+        self.pub_world_objects = self.create_publisher(String, '/z70/world/objects', LATCHED)
+        self.pub_status = self.create_publisher(String, '/z70/map/status', LATCHED)
+        self.pub_spatial = self.create_publisher(String, '/z70/map/spatial_context', LATCHED)
         self.tf = TransformBroadcaster(self)
         self.create_subscription(Odometry, '/odom', self.on_odom, 10)
         self.odom = (0.0, 0.0, 0.0); self.anchor = None; self.current = None
         self.pending = None; self.lock = threading.Lock()
         self._last_viz_at = 0.0
-        self.create_subscription(MapSnapshot, '/z70/driver/map_snapshot', self.snapshot, qos)
-        self.create_subscription(GarmentObservations, '/z70/garments/observations', self.on_garments, qos)
+        self.create_subscription(MapSnapshot, '/z70/driver/map_snapshot', self.snapshot, LATCHED)
+        self.create_subscription(GarmentObservations, '/z70/garments/observations', self.on_garments, LATCHED)
         self.create_subscription(String, '/z70/world/update', self.on_world_update, 10)
         self.create_timer(.2, self.publish)
 
@@ -562,15 +563,21 @@ class MappingNode(Node):
         self.pub_status.publish(String(data=json.dumps(diagnostic)))
 
 
-def main():
-    rclpy.init(); node = MappingNode()
+def _spin(node_cls):
+    rclpy.init(); node = node_cls()
     try:
         rclpy.spin(node)
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
         signal.signal(signal.SIGINT, signal.SIG_IGN)
+        if hasattr(node, 'close'):
+            node.close()
         node.destroy_node(); rclpy.try_shutdown()
+
+
+def main():
+    _spin(MappingNode)
 
 
 def camera_rays(cal, width, height):
@@ -682,10 +689,8 @@ class DepthNode(Node):
         cal = self.declare_parameter('calibration', '').value
         device = self.declare_parameter('device', 'mps').value
         hz = float(self.declare_parameter('depth_hz', .2).value)
-        qos = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL,
-                         reliability=ReliabilityPolicy.RELIABLE)
         self.pub = self.create_publisher(PointCloud2, '/camera/front/depth/points', 1)
-        self.status = self.create_publisher(String, '/z70/depth/status', qos)
+        self.status = self.create_publisher(String, '/z70/depth/status', LATCHED)
         self.latest = None; self.result = None; self.last_stamp = None
         self.lock = threading.Lock(); self.stop_event = threading.Event()
         env = worker_env()
@@ -766,14 +771,7 @@ class DepthNode(Node):
 
 
 def depth_main():
-    rclpy.init(); node = DepthNode()
-    try:
-        rclpy.spin(node)
-    except (KeyboardInterrupt, ExternalShutdownException):
-        pass
-    finally:
-        signal.signal(signal.SIGINT, signal.SIG_IGN)
-        node.close(); node.destroy_node(); rclpy.try_shutdown()
+    _spin(DepthNode)
 
 
 if __name__ == '__main__':

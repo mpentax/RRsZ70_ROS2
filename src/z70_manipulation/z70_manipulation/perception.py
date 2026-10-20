@@ -38,10 +38,8 @@ try:
     from visualization_msgs.msg import Marker, MarkerArray
     from tf2_ros import Buffer, TransformListener, TransformException
     from z70_interfaces.msg import GarmentObservation, GarmentObservations
-    from z70_driver.driver import MatchedFrames, read_pipe_exact, stop_worker_process, worker_env
+    from z70_driver.driver import LATCHED, MatchedFrames, read_pipe_exact, stop_worker_process, worker_env
     from z70_mapping.node import quat_yaw
-    LATCHED = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL,
-                         reliability=ReliabilityPolicy.RELIABLE)
 except ImportError:
     Node = object
     LATCHED = None
