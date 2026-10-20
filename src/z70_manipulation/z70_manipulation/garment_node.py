@@ -26,7 +26,7 @@ from tf2_ros import Buffer, TransformListener, TransformException
 from z70_interfaces.msg import GarmentObservation, GarmentObservations
 from z70_driver.frame_subscription import MatchedFrames
 from .perception import front_camera, calibration
-from .garment_geometry import observe, geofence, GarmentTracker, predict
+from .garment_geometry import observe, geofence, GarmentTracker
 from .garment_worker import decode_result, MAX_PACKET, BACKENDS
 
 LATCHED = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL,
@@ -248,8 +248,6 @@ class GarmentNode(Node):
                 proc.stdin.close()
             except OSError:
                 pass
-        if self.worker:
-            self.worker.join(timeout=2.)
         try:
             proc.wait(timeout=5.)
         except subprocess.TimeoutExpired:
