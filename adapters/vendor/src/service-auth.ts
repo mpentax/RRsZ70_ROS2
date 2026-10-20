@@ -94,9 +94,6 @@ export class ServiceAuth {
 
   setup(req: IncomingMessage, res: ServerResponse): void {
     this.checkOrigin(req);
-    // Trust the exact localhost Host + configured Origin, not forwarded headers or
-    // socket peer: Docker's loopback-published port has a bridge peer inside the container.
-    // Deployment must keep the published port loopback-bound during initial setup.
     const hostname = new URL(`http://${req.headers.host}`).hostname;
     if (!["localhost", "127.0.0.1", "[::1]"].includes(hostname) ||
       !["localhost", "127.0.0.1", "[::1]"].includes(new URL(this.#config.publicOrigin).hostname)) {

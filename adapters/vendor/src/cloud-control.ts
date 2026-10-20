@@ -2,7 +2,7 @@
 import { createHash, randomInt, randomUUID } from "node:crypto";
 import { connectAsync, type IClientOptions } from "mqtt";
 import { localProtocolCodec } from "./local.ts";
-import { defaultRpcTimeoutMs } from "./vendor-commands.ts";
+import { defaultRpcTimeoutMs, PRIORITY_STOPS } from "./vendor-commands.ts";
 import { RpcError } from "./robot.ts";
 
 import { TransportError } from "./rpc-outcome.ts";
@@ -196,7 +196,7 @@ export class CloudControlClient {
     if (this.#closed || this.#connectedAt === null || !client?.connected) {
       return Promise.reject(new TransportError("Cloud connection unavailable", "not_sent"));
     }
-    const priority = ['app_rc_stop','app_rc_end','app_stop_grasp','app_stop'].includes(method);
+    const priority = PRIORITY_STOPS.has(method);
     if (this.#pending.size >= (priority ? 8 : 4)) return Promise.reject(new TransportError("Cloud transport capacity exceeded", "not_sent"));
     const id = ++this.#id;
     let frame: Buffer;
