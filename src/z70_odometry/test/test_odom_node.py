@@ -13,7 +13,7 @@ from builtin_interfaces.msg import Time
 
 from z70_odometry import node as odom_node
 from z70_odometry.floor_vo import FloorCamera, render_floor_view
-from z70_odometry.mosaic_node import FloorMosaic
+from z70_odometry.node import FloorMosaic
 
 
 def stamp(ns):

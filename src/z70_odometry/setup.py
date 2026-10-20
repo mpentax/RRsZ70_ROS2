@@ -13,5 +13,5 @@ setup(
     install_requires=["setuptools", "numpy", "PyYAML"], zip_safe=True,
     entry_points={"console_scripts": ["floor_odometry = z70_odometry.node:main",
                                        "chassis_calibrator = z70_odometry.chassis_calibrator:main",
-                                       "floor_mosaic = z70_odometry.mosaic_node:main"]},
+                                       "floor_mosaic = z70_odometry.node:mosaic_main"]},
 )
