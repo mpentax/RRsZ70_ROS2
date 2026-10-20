@@ -3,12 +3,15 @@ import { json } from './api.ts';
 export type Task = { id: string; kind: string; status: string; phase: number; feedback: unknown; result: unknown };
 export type RosState = { available: boolean; session_enabled?: boolean | null; state: { connected: boolean; battery_known: boolean; battery_fraction: number; evidence: { valid: boolean; stale: boolean } } | null; camera: unknown; arm: unknown; calibration: unknown };
 export type Setup = { device: { id: string; name: string; model: string; host: string; localProtocol: string } | null; accountConfigured: boolean; pinConfigured: boolean };
-export type TaskRequest = { kind: 'deliver_garment' | 'patrol_collect' | 'pin_and_go' | 'pick' | 'stack' | 'base_pulse' | 'arm_step' | 'hand_step' | 'arm_operation' | 'deploy_arm' | 'align_target' | 'move_arm' | 'grasp_and_lift' | 'release_and_stow'; goal: Record<string, unknown> };
+export type TaskRequest = { kind: string; goal: Record<string, unknown> };
+export type GoalCatalog = { goals: { kind: string; name: string; topic: string; action: string; fields: string[]; navigation: boolean; description: string }[]; context_primitives: { name: string; signature: string; description: string }[] };
 export const terminal = (task: Task) => ['succeeded', 'failed', 'cancelled', 'rejected'].includes(task.status);
 export const taskPath = (id: string) => {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)) throw new Error('Invalid task ID.');
   return `/api/ros/tasks/${id}`;
 };
+export const listGoals = (signal?: AbortSignal) => json<GoalCatalog>('/api/ros/goals', { signal });
+export const validateGoal = (input: { kind: string; goal: Record<string, unknown>; simulate?: boolean; context?: Record<string, unknown> }) => json('/api/ros/goals/validate', { body: input });
 export const startTask = (task: TaskRequest) => json<Task>('/api/ros/tasks', { body: task, action: true, timeout: 5000 });
 export const listTasks = (signal?: AbortSignal) => json<{tasks:Task[]}>('/api/ros/tasks', {signal});
 export const cancelTask = (id: string) => json<{id:string;cancel_requested:boolean}>(`${taskPath(id)}/cancel`, {body:{}, action:true, timeout:5000});

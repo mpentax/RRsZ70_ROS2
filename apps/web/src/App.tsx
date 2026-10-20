@@ -24,17 +24,14 @@ const ROBOT_STATES: Record<number, string> = {
   39: 'REMOTE_MANUAL', 40: 'PROGRAM_MODE', 41: 'ARM_RESETTING', 42: 'REMOTE_PICKUP', 100: 'CHARGING_COMPLETE',
 };
 
-function fmtDeg(val: unknown): string {
-  return typeof val === 'number' && Number.isFinite(val) ? `${ (val * 180 / Math.PI).toFixed(0) }°` : '—';
+function fmtDeg(val: unknown, transform: (deg: number) => number = d => d): string {
+  return typeof val === 'number' && Number.isFinite(val) ? `${Math.round(transform(val * 180 / Math.PI))}°` : '—';
 }
 
 function urdfToVendorDeg(urdfRad: unknown[]): [string, string, string] {
   if (urdfRad.length < 3) return ['—', '—', '—'];
   const [r3, r4, r5] = urdfRad;
-  const m3 = typeof r3 === 'number' && Number.isFinite(r3) ? `${Math.round(r3 * 180 / Math.PI + 270)}°` : '—';
-  const m4 = typeof r4 === 'number' && Number.isFinite(r4) ? `${Math.round(180 - r4 * 180 / Math.PI)}°` : '—';
-  const m5 = typeof r5 === 'number' && Number.isFinite(r5) ? `${Math.round(-r5 * 180 / Math.PI)}°` : '—';
-  return [m3, m4, m5];
+  return [fmtDeg(r3, d => d + 270), fmtDeg(r4, d => 180 - d), fmtDeg(r5, d => -d)];
 }
 
 export function App({ session }: { session: Promise<SessionStatus> }) {
@@ -119,6 +116,9 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
     setSetupSession(value.scope === 'setup');
     setSetupAvailable(value.setupAvailable === true);
   }
+  function clearControlState() {
+    setAuthenticated(false); setState(null); setOutcome(null); setImage(""); setAutoStream(false);
+  }
   async function setupUpdated() {
     if (setupSession) {
       const status = await json<SessionStatus>('/api/session');
@@ -135,7 +135,7 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
     let active = true;
     void session.then(value => { if (active) applySession(value); }).catch(() => { if (active) setError("Session check failed."); });
     const expired = () => {
-      setAuthenticated(false); setSetupSession(false); setSetupAvailable(false); setPin(''); setState(null); setSetup(null); setTasks([]); setOutcome(null); setImage(""); setAutoStream(false);
+      clearControlState(); setSetupSession(false); setSetupAvailable(false); setPin(''); setSetup(null); setTasks([]);
       void json<SessionStatus>('/api/session').then(value => { if (active) applySession(value); }).catch(() => {});
     };
     window.addEventListener(SESSION_EXPIRED, expired);
@@ -320,7 +320,7 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
         <button className="stop danger-stop" onClick={() => { void stopRobot().then(setOutcome).catch(e => setError(`Stop failed: ${e instanceof Error ? e.message : 'ROS response unavailable.'}`)); }}>STOP ALL</button>
         <button className="stop danger" onClick={() => void controlSession(false)}>Stop control &amp; streams</button>
         {controlStopped && <button className="primary" disabled={sessionBusy} onClick={() => void controlSession(true)}>Resume control &amp; streams</button>}
-        <button className="quiet" disabled={busy} onClick={() => void run(async () => { await deleteSession(); setAuthenticated(false); setState(null); setOutcome(null); setImage(""); setAutoStream(false); })}>Sign out</button>
+        <button className="quiet" disabled={busy} onClick={() => void run(async () => { await deleteSession(); clearControlState(); })}>Sign out</button>
       </div>
     </header>
 
