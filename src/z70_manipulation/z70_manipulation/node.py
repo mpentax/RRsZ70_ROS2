@@ -29,13 +29,14 @@ from z70_driver.frame_subscription import MatchedFrames
 from z70_mapping.boundary import BoundaryConfig
 from . import perception, planner
 from .executor import Client, log_directory
-from .goals import (
-    GoalContext, GoalSpec, BUILTIN_GOALS,
-    _valid_garment_goal, _goal_curated, _goal_pick, _goal_stack, _goal_pin_and_go, _goal_garment,
-)
+from .goals import GoalContext, GoalSpec, BUILTIN_GOALS
 from .observations import Observations, LATCHED
 
 RGB = {'yellow': (1., 1., 0.), 'orange': (1., .4, 0.), 'purple': (.7, 0., 1.), 'blue': (0., .2, 1.), 'green': (0., 1., .2)}
+
+
+def quat_yaw(q) -> float:
+    return math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z))
 
 
 def rotation(q):
@@ -134,13 +135,6 @@ class Perception(Node):
 
 
 class PickServer(Perception):
-    _valid_garment_goal = staticmethod(_valid_garment_goal)
-    _goal_curated = staticmethod(_goal_curated)
-    _goal_pick = staticmethod(_goal_pick)
-    _goal_stack = staticmethod(_goal_stack)
-    _goal_pin_and_go = staticmethod(_goal_pin_and_go)
-    _goal_garment = staticmethod(_goal_garment)
-
     def __init__(self, parameter_overrides=None):
         super().__init__('z70_pick_server', parameter_overrides, subscribe=False)
         self.log_root = self.declare_parameter('log_root', '').value
@@ -150,7 +144,6 @@ class PickServer(Perception):
         self.lock = threading.Lock()
         self.active_handle = None
         self.navigation_active = False
-        self.monitor = None
         self.client = None
         self.gains = {}
         self.deadline = None
@@ -227,7 +220,7 @@ class PickServer(Perception):
                 client.close()
         except Exception as exc:
             self.get_logger().warning(f'{spec.name} failed: {type(exc).__name__}: {exc}')
-            if spec.name == 'pin_and_go' and client and client.commands:
+            if spec.navigation and client and client.commands:
                 try:
                     client.commands.stop()
                 except (LookupError, TimeoutError):
@@ -276,10 +269,9 @@ class PickServer(Perception):
 
     def odometry(self, msg):
         p = msg.pose.pose
-        q = p.orientation
         if msg.pose.covariance[0] > 1000:
             return
-        self.odom_value = dict(x=p.position.x, y=p.position.y, yaw=math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z)))
+        self.odom_value = dict(x=p.position.x, y=p.position.y, yaw=quat_yaw(p.orientation))
         self.odom_at = time.monotonic()
 
     def odom(self):
@@ -307,8 +299,7 @@ class PickServer(Perception):
         if not 0 <= age <= 2.:
             raise LookupError('stale map -> odom -> base TF')
         p = tr.transform.translation
-        q = tr.transform.rotation
-        return (p.x, p.y, math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z)))
+        return (p.x, p.y, quat_yaw(tr.transform.rotation))
 
 
 def run(node_type):
