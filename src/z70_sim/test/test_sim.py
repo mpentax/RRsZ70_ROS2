@@ -403,3 +403,11 @@ def test_patrol_collect_and_drag_garments_to_washing_machine_in_sim(tmp_path: Pa
         pos = world._get_object_pos(str(g['name']))
         assert math.dist(pos[:2], WASHING_MACHINE_DROP_M) <= 0.40
     assert not world.deployed
+
+
+def test_ensure_token_file_matches_gateway_token_contract(tmp_path: Path):
+    path = tmp_path / '.local/service-token'
+    token = ensure_token_file(path)
+    assert len(token) == 43
+    assert read_token(str(path)) == token
+    assert ensure_token_file(path) == token
