@@ -1,6 +1,7 @@
 """Patrol ledger persistence, waypoint coverage, and battery return logic."""
 from types import SimpleNamespace as NS
 import pytest
+from z70_interfaces.action import PatrolCollect
 from z70_manipulation.patrol import PatrolLedger, PatrolCollector
 from z70_mapping.boundary import BoundaryConfig
 from test_garment_delivery import DeliveryFixture, run_dds_dry_action
@@ -104,7 +105,6 @@ def test_tf_jump_invalidates_route_and_coverage(tmp_path):
 
 
 def test_patrol_collect_dds_dry_action(tmp_path,monkeypatch):
-    from z70_interfaces.action import PatrolCollect
     run_dds_dry_action(tmp_path,PatrolCollect,'/z70/patrol_collect',
         PatrolCollect.Goal(drop_x_m=2.,drop_y_m=2.,max_duration_s=10.,max_items=10,allow_towing=False,dry_run=True),monkeypatch)
 

@@ -1,9 +1,22 @@
 """Unit and DDS tests for Pin-and-Go navigation."""
+import hashlib
+import struct
+import threading
+import time
 from types import SimpleNamespace as NS
 
 import numpy as np
 import pytest
+import rclpy
+from rclpy.action import ActionClient
+from rclpy.executors import MultiThreadedExecutor
+from unique_identifier_msgs.msg import UUID
+from z70_interfaces.action import PinAndGo
+from z70_interfaces.msg import ArmEstimate, MapSnapshot, RobotState
+from z70_interfaces.srv import RawRpc, RefreshMap, Stop, TaskSession
 from z70_manipulation.navigation import PinAndGoNavigator
+from z70_manipulation.node import PickServer
+from z70_manipulation.observations import LATCHED
 from z70_mapping.decoder import VendorMap
 
 
@@ -163,20 +176,6 @@ def test_changed_map_index_is_not_arrival():
 
 def test_real_dds_pin_and_go_dry_run_and_unverified_map():
     """Verify PinAndGo action over DDS with PickServer and latched ROS observations."""
-    import hashlib
-    import struct
-    import threading
-    import time
-    import rclpy
-    from rclpy.action import ActionClient
-    from rclpy.executors import MultiThreadedExecutor
-    from z70_interfaces.action import PinAndGo
-    from z70_interfaces.msg import ArmEstimate, RobotState, MapSnapshot
-    from z70_interfaces.srv import TaskSession, RawRpc, Stop, RefreshMap
-    from unique_identifier_msgs.msg import UUID
-    from z70_manipulation.node import PickServer
-    from z70_manipulation.observations import LATCHED
-
     def raw_map(x=1000):
         m = room()
         pixels = m.pixels.tobytes()
@@ -188,11 +187,9 @@ def test_real_dds_pin_and_go_dry_run_and_unverified_map():
 
     def wait(predicate):
         until = time.monotonic() + 8.
-        while time.monotonic() < until:
-            if predicate():
-                return
+        while not predicate():
+            assert time.monotonic() < until, 'offline DDS deadline'
             time.sleep(.02)
-        assert predicate(), 'offline DDS deadline'
 
     rclpy.init(domain_id=96)
     server = peer = action = executor = thread = None

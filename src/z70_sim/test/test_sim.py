@@ -5,6 +5,7 @@ import math
 from pathlib import Path
 import threading
 import time
+from types import SimpleNamespace as NS
 
 import cv2
 import numpy as np
@@ -14,9 +15,16 @@ from rclpy.executors import MultiThreadedExecutor
 from rclpy.parameter import Parameter
 
 from z70_driver.driver import Driver
+from z70_interfaces.msg import FrameMetadata
 from z70_manipulation import perception, placement
 from z70_manipulation.executor import Executor
+from z70_manipulation.garment_delivery import TowingQualificationConfig
+from z70_manipulation.garment_geometry import GarmentTracker, geofence, observe
+from z70_manipulation.garment_node import observations_message
+from z70_manipulation.garment_worker import GarmentModel
 from z70_manipulation.observations import Observations
+from z70_manipulation.patrol import PatrolCollector, PatrolLedger
+from z70_mapping.boundary import BoundaryConfig, compute_safe_interior
 from z70_mapping.decoder import decode_map
 from z70_mapping.node import MappingNode
 from z70_odometry.floor_vo import FloorCamera, FloorOdometry
@@ -32,17 +40,13 @@ from z70_sim import (
 
 def wait_for(predicate, seconds: float = 5.0) -> None:
     deadline = time.monotonic() + seconds
-    while time.monotonic() < deadline:
-        if predicate():
-            return
+    while not predicate():
+        assert time.monotonic() < deadline, 'condition deadline'
         time.sleep(0.02)
-    assert predicate(), 'condition deadline'
 
 
 class DirectSimClient:
     def __init__(self, w: SimWorld, obs_adapter=None):
-        from types import SimpleNamespace as NS
-
         self.w = w
         self.observations = obs_adapter
         self.commands = (
@@ -223,15 +227,6 @@ def test_sim_server_and_ros_driver_integration(tmp_path: Path):
 
 
 def test_patrol_collect_and_drag_garments_to_washing_machine_in_sim(tmp_path: Path):
-    from types import SimpleNamespace as NS
-    from z70_interfaces.msg import FrameMetadata
-    from z70_manipulation.garment_delivery import TowingQualificationConfig
-    from z70_manipulation.garment_geometry import GarmentTracker, geofence, observe
-    from z70_manipulation.garment_node import observations_message
-    from z70_manipulation.garment_worker import GarmentModel
-    from z70_manipulation.patrol import PatrolCollector, PatrolLedger
-    from z70_mapping.boundary import BoundaryConfig, compute_safe_interior
-
     world = SimWorld(objects=DEFAULT_GARMENTS, map_preset='apartment')
     model = GarmentModel('sim_hsv')
     tracker = GarmentTracker()

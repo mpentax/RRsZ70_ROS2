@@ -1,7 +1,15 @@
 """Unit and DDS tests for garment delivery."""
+import threading
+import time
 from types import SimpleNamespace as NS
 import numpy as np
 import pytest
+import rclpy
+from rclpy.action import ActionClient
+from rclpy.executors import MultiThreadedExecutor
+from rclpy.parameter import Parameter
+from z70_interfaces.action import DeliverGarment
+from z70_interfaces.msg import EvidenceStamp, GarmentObservation, GarmentObservations
 from z70_manipulation import planner
 from z70_manipulation.garment_delivery import (
     DeliveryRejected,
@@ -10,6 +18,8 @@ from z70_manipulation.garment_delivery import (
     loaded_route,
     transport_policy,
 )
+from z70_manipulation.node import PickServer
+from z70_manipulation.observations import LATCHED
 from z70_mapping.boundary import BoundaryConfig, compute_safe_interior
 
 
@@ -147,21 +157,11 @@ def test_appearance_verification_requires_floor_reduction_and_elevated_cloth(tmp
 
 
 def run_dds_dry_action(tmp_path, action_type, topic, goal, monkeypatch):
-    import threading
-    import time
-    import rclpy
-    from rclpy.action import ActionClient
-    from rclpy.executors import MultiThreadedExecutor
-    from rclpy.parameter import Parameter
-    from z70_interfaces.msg import GarmentObservations, GarmentObservation, EvidenceStamp
-    from z70_manipulation.node import PickServer
-    from z70_manipulation.observations import LATCHED
     def wait(predicate):
-        deadline=time.monotonic()+8.
-        while time.monotonic()<deadline:
-            if predicate(): return
+        deadline = time.monotonic() + 8.
+        while not predicate():
+            assert time.monotonic() < deadline, 'offline DDS deadline'
             time.sleep(.01)
-        assert predicate(), 'offline DDS deadline'
     rclpy.init(domain_id=94)
     server=peer=executor=thread=action=None
     try:
@@ -222,7 +222,6 @@ def test_unknown_grip_timeout_never_replays_grasp_or_credits_payload(tmp_path,mo
 
 
 def test_deliver_garment_dds_action_uses_typed_observations_without_commands(tmp_path,monkeypatch):
-    from z70_interfaces.action import DeliverGarment
     run_dds_dry_action(tmp_path,DeliverGarment,'/z70/deliver_garment',
         DeliverGarment.Goal(category='sock',drop_x_m=2.,drop_y_m=2.,max_duration_s=10.,allow_towing=False,dry_run=True),monkeypatch)
 
