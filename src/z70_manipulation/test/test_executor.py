@@ -640,3 +640,33 @@ def test_pickup_client_delegates_observations_without_network_or_token(tmp_path,
         client.close()
 
 
+def test_simulate_goal_exercises_pick_stack_and_garment_primitives():
+    from types import SimpleNamespace
+    from z70_interfaces.action import Pick, Stack, DeliverGarment, PatrolCollect
+    from z70_manipulation.goals import GoalSpec, simulate_goal
+    from z70_manipulation.node import PickServer
+
+    pick_spec = GoalSpec('pick', Pick, '/z70/pick', 60., lambda _s, _r: True, PickServer._goal_pick)
+    ok, res = simulate_goal(pick_spec, SimpleNamespace(color='yellow', dry_run=False))
+    assert ok and res.verified_hold
+
+    stack_spec = GoalSpec('stack', Stack, '/z70/stack', 60., lambda _s, _r: True, PickServer._goal_stack)
+    ok, res = simulate_goal(stack_spec, SimpleNamespace(base_color='blue', middle_color='purple', top_color='yellow', dry_run=False))
+    assert ok and res.stack_verified and res.tiers_completed == 3
+
+    deliver_spec = GoalSpec(
+        'deliver_garment', DeliverGarment, '/z70/deliver_garment', 60., lambda _s, _r: True,
+        lambda ctx, r: PickServer._goal_garment(ctx, r, DeliverGarment, patrol=False),
+    )
+    ok, res = simulate_goal(deliver_spec, SimpleNamespace(category='sock', drop_x_m=1., drop_y_m=2., max_duration_s=60., allow_towing=False, dry_run=False))
+    assert ok and res.delivered
+
+    patrol_spec = GoalSpec(
+        'patrol_collect', PatrolCollect, '/z70/patrol_collect', 60., lambda _s, _r: True,
+        lambda ctx, r: PickServer._goal_garment(ctx, r, PatrolCollect, patrol=True),
+    )
+    ok, res = simulate_goal(patrol_spec, SimpleNamespace(drop_x_m=1., drop_y_m=2., max_duration_s=60., max_items=3, allow_towing=False, dry_run=False))
+    assert ok and res.completed
+
+
+

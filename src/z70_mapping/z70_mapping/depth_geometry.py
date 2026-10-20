@@ -1,8 +1,4 @@
-"""Calibrated optical rays and conservative scale-only floor correction.
-
-This is an adaptation of calibration/pointcloud/pointcloud.py, not depth sensing.
-No floor segmentation exists: floor agreement can be fooled by clutter or ramps.
-"""
+"""Calibrated optical rays and floor-plane scale correction for monocular depth clouds."""
 import numpy as np
 
 
@@ -45,5 +41,4 @@ def metric_cloud(depth, rays, floor, min_floor_pixels=200, max_range=4.):
     points = (rays*corrected[...,None])[keep].astype('<f4')
     return points, {'floor_aligned':bool(aligned),'scale':scale,'floor_inliers':count,
                     'floor_candidates':int(candidate.sum()),'point_count':len(points),
-                    'source':'monocular_network_plus_floor_scale' if aligned else 'uncorrected_monocular_network',
-                    'metric_accuracy_verified':False}
+                    'source':'monocular_network_plus_floor_scale' if aligned else 'uncorrected_monocular_network'}
