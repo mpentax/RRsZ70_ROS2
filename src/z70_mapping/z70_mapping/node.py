@@ -156,7 +156,7 @@ class MappingNode(Node):
         if new or dirty or now_mono - self._last_viz_at >= 2.0:
             dyn_mask = self.world.obstacle_mask(
                 m.width, m.height, m.origin, m.resolution,
-                include_piles=False,
+                include_completed=False,
                 protect_xy=robot_map[:2] if robot_map is not None else None,
             )
             self.boundary = compute_safe_interior(m, labels, self.boundary_config, robot_map, dynamic_obstacles=dyn_mask)

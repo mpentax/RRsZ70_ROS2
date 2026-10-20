@@ -278,8 +278,6 @@ def test_real_dds_pin_and_go_dry_run_and_unverified_map():
         if thread is not None:
             thread.join(5.)
         if server is not None:
-            for a in getattr(server, 'action_servers', []):
-                a.destroy()
             server.observations.close(); server.destroy_node()
         if peer is not None:
             peer.destroy_node()

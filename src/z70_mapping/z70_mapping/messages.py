@@ -56,17 +56,22 @@ def world_markers_message(dynamic_layer, saved_at):
     result.markers.append(clear)
     entries = list(dynamic_layer.entries.values()) if hasattr(dynamic_layer, 'entries') else list(dynamic_layer or [])
     for idx, entry in enumerate(entries):
-        status = getattr(entry, 'status', entry['status'] if isinstance(entry, dict) else 'PENDING')
-        category = getattr(entry, 'category', entry.get('category', 'item') if isinstance(entry, dict) else 'item')
+        mobility = getattr(entry, 'mobility', entry.get('mobility', 'stationary') if isinstance(entry, dict) else 'stationary')
+        relevance = getattr(entry, 'relevance', entry.get('relevance', 'ignored') if isinstance(entry, dict) else 'ignored')
+        is_obs = getattr(entry, 'is_obstacle', mobility == 'stationary' or relevance in ('deferred', 'ignored'))
+        category = getattr(entry, 'category', entry.get('category', 'object') if isinstance(entry, dict) else 'object')
         x = float(getattr(entry, 'x', entry['x'] if isinstance(entry, dict) else 0.))
         y = float(getattr(entry, 'y', entry['y'] if isinstance(entry, dict) else 0.))
         r = float(getattr(entry, 'radius_m', entry.get('radius_m', 0.08) if isinstance(entry, dict) else 0.08))
-        if status == 'DELIVERED':
+        if relevance == 'completed':
             color = (0.15, 0.90, 0.35, 0.90)
-            ns = 'world_delivered'
-        elif status in ('SKIPPED_OBSTACLE', 'FAILED_OBSTACLE', 'OBSTACLE'):
+            ns = 'world_completed'
+        elif is_obs:
             color = (0.95, 0.20, 0.20, 0.90)
             ns = 'world_obstacles'
+        elif mobility == 'draggable':
+            color = (0.20, 0.75, 1.0, 0.95)
+            ns = 'world_objectives'
         else:
             color = (1.0, 0.65, 0.10, 0.95)
             ns = 'world_objectives'
@@ -83,7 +88,7 @@ def world_markers_message(dynamic_layer, saved_at):
         lbl.pose.position.x, lbl.pose.position.y, lbl.pose.position.z = x, y, 0.18
         lbl.scale.z = 0.12
         lbl.color.r, lbl.color.g, lbl.color.b, lbl.color.a = color
-        lbl.text = f'{category} [{status}]'
+        lbl.text = f'{category} [{mobility}:{relevance}]'
         result.markers.append(lbl)
     return result
 

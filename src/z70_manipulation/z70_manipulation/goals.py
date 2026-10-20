@@ -21,6 +21,7 @@ from z70_interfaces.action import (
 )
 from z70_interfaces.msg import ArmEstimate, CommandOutcome
 from z70_mapping.boundary import check_corridor_containment, compute_safe_interior
+from z70_mapping.dynamic_layer import mobility_from_suitability
 from z70_mapping.geometry import spatial_context as compute_spatial_context
 from . import perception, placement, planner
 from .executor import Executor
@@ -57,9 +58,10 @@ GOAL_CONTEXT_PRIMITIVES: tuple[dict[str, str], ...] = (
     {'name': 'wrist_pose', 'signature': 'wrist_pose() -> dict | None', 'summary': 'Estimate the elevated ArUco ID68 wrist/jaw pose and grasp reference in base_footprint from the front camera.'},
     {'name': 'fit_wrist_joints', 'signature': 'fit_wrist_joints() -> dict | None', 'summary': 'Fit [M3, M4, M5] joint angles (degrees) to the front-camera ArUco ID68 wrist marker pose.'},
     {'name': 'garments', 'signature': "garments(category='any', after=None) -> list", 'summary': 'Return verified reachable garments from the garment observation pipeline.'},
-    {'name': 'world_objects', 'signature': 'world_objects() -> dict', 'summary': 'Return the session-scoped dynamic world map summary (pending objectives, dynamic obstacles, and delivered laundry piles in the map frame).'},
-    {'name': 'mark_obstacle', 'signature': "mark_obstacle(x_m: float, y_m: float, radius_m: float = 0.12, category: str = 'obstacle', detail: str = 'OBSTACLE') -> dict", 'summary': 'Record a session-scoped dynamic obstacle at (x_m, y_m) in the map frame so safe_interior and route planners avoid it.'},
-    {'name': 'clear_world', 'signature': 'clear_world() -> dict', 'summary': 'Clear all session-scoped dynamic obstacles and tracked objectives from the active session world map.'},
+    {'name': 'world_objects', 'signature': 'world_objects() -> dict', 'summary': 'Return the session-scoped dynamic world map summary (objects classified by mobility: pickupable/draggable/stationary and relevance: objective/completed/deferred/ignored).'},
+    {'name': 'update_world_object', 'signature': "update_world_object(x_m: float, y_m: float, category: str = 'object', mobility: str = 'pickupable', relevance: str = 'objective', radius_m: float = 0.12, detail: str = '') -> dict", 'summary': 'Register or update a session-scoped world object in the map frame with explicit mobility (pickupable/draggable/stationary) and objective relevance (objective/completed/deferred/ignored).'},
+    {'name': 'mark_obstacle', 'signature': "mark_obstacle(x_m: float, y_m: float, radius_m: float = 0.12, category: str = 'obstacle', detail: str = 'OBSTACLE') -> dict", 'summary': 'Record a session-scoped stationary or deferred obstacle at (x_m, y_m) in the map frame so safe_interior and route planners avoid it.'},
+    {'name': 'clear_world', 'signature': 'clear_world() -> dict', 'summary': 'Clear all session-scoped world objects and dynamic obstacles from the active session world map.'},
     {'name': 'navigate', 'signature': 'navigate(target_x_m: float, target_y_m: float, max_duration_s: float = 60., dry_run: bool = False) -> dict', 'summary': 'Navigate the stowed chassis to (target_x_m, target_y_m) via PinAndGo.'},
     {'name': 'pick', 'signature': 'pick(color: str, dry_run: bool = False) -> dict', 'summary': 'Execute a full autonomous object pickup by HSV color.'},
     {'name': 'stack', 'signature': 'stack(base_color: str, middle_color: str, top_color: str, dry_run: bool = False) -> dict', 'summary': 'Execute a 3-object stack by HSV color.'},
@@ -157,9 +159,12 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         fit_wrist_joints=lambda: {'joints': [190., 65., 0.], 'residual_m': 0., 'residual_deg': 0., 'uncertainty_m': 0.015},
         observe_color=lambda camera, color: [],
         garments=lambda category='any', after=None: [],
-        world_objects=lambda: {'session_bound': True, 'objectives': [], 'obstacles': [], 'delivered_piles': [], 'entries': []},
+        world_objects=lambda: {'session_bound': True, 'objectives': [], 'obstacles': [], 'completed': [], 'by_mobility': {'pickupable': [], 'draggable': [], 'stationary': []}, 'entries': []},
+        update_world_object=lambda x_m, y_m, category='object', mobility='pickupable', relevance='objective', radius_m=0.12, detail='': {
+            'x': float(x_m), 'y': float(y_m), 'category': str(category), 'mobility': str(mobility), 'relevance': str(relevance), 'radius_m': float(radius_m), 'detail': str(detail),
+        },
         mark_obstacle=lambda x_m, y_m, radius_m=0.12, category='obstacle', detail='OBSTACLE': {
-            'x': float(x_m), 'y': float(y_m), 'radius_m': float(radius_m), 'category': str(category), 'detail': str(detail), 'status': 'OBSTACLE',
+            'x': float(x_m), 'y': float(y_m), 'radius_m': float(radius_m), 'category': str(category), 'mobility': 'stationary', 'relevance': 'deferred', 'detail': str(detail),
         },
         clear_world=lambda: {'cleared': True},
         navigate=lambda target_x_m, target_y_m, max_duration_s=60., dry_run=False: {
@@ -322,15 +327,19 @@ class GoalContext:
 
     def world_objects(self) -> dict:
         wm = self.observations.world_map() if hasattr(self.observations, 'world_map') else None
-        return wm.summary() if wm is not None else {'session_bound': False, 'objectives': [], 'obstacles': [], 'delivered_piles': [], 'entries': []}
+        return wm.summary() if wm is not None else {'session_bound': False, 'objectives': [], 'obstacles': [], 'completed': [], 'by_mobility': {'pickupable': [], 'draggable': [], 'stationary': []}, 'entries': []}
 
-    def mark_obstacle(self, x_m: float, y_m: float, radius_m: float = 0.12, category: str = 'obstacle', detail: str = 'OBSTACLE') -> dict:
+    def update_world_object(self, x_m: float, y_m: float, category: str = 'object', mobility: str = 'pickupable',
+                            relevance: str = 'objective', radius_m: float = 0.12, detail: str = '') -> dict:
         if hasattr(self.observations, 'record_world_event'):
             self.observations.record_world_event(
-                'obstacle', x=float(x_m), y=float(y_m), radius_m=float(radius_m),
-                category=str(category), detail=str(detail), status='OBSTACLE',
+                'upsert', x=float(x_m), y=float(y_m), radius_m=float(radius_m),
+                category=str(category), mobility=str(mobility), relevance=str(relevance), detail=str(detail),
             )
-        return {'x': float(x_m), 'y': float(y_m), 'radius_m': float(radius_m), 'category': str(category), 'detail': str(detail), 'status': 'OBSTACLE'}
+        return {'x': float(x_m), 'y': float(y_m), 'radius_m': float(radius_m), 'category': str(category), 'mobility': str(mobility), 'relevance': str(relevance), 'detail': str(detail)}
+
+    def mark_obstacle(self, x_m: float, y_m: float, radius_m: float = 0.12, category: str = 'obstacle', detail: str = 'OBSTACLE') -> dict:
+        return self.update_world_object(x_m, y_m, category=category, mobility='stationary', relevance='deferred', radius_m=radius_m, detail=detail)
 
     def clear_world(self) -> dict:
         if hasattr(self.observations, 'record_world_event'):
@@ -389,17 +398,18 @@ class GoalContext:
         ))
         if not dry_run and hasattr(self.observations, 'record_world_event'):
             tid = str(res.get('track_id', ''))
+            mob = mobility_from_suitability(int(getattr(runner.track, 'transport_suitability', 1))) if runner.track is not None else 'pickupable'
             if res.get('delivered'):
                 self.observations.record_world_event(
-                    'delivered', x=float(drop_x_m), y=float(drop_y_m),
-                    track_id=tid, category=str(category), detail='DELIVERED',
+                    'completed', x=float(drop_x_m), y=float(drop_y_m),
+                    track_id=tid, category=str(category), mobility=mob, detail='DELIVERED',
                 )
             elif res.get('status_code') in ('TOWING_UNQUALIFIED_SKIP', 'UNSUPPORTED_GARMENT_SKIP', 'TOWING_REQUIRES_SUPERVISED_TRIAL') and runner.track is not None:
                 p = runner.track.floor_contact_m
                 ox, oy = transform_xy(getattr(runner, 'current_pose', (0., 0., 0.)), (p.x, p.y))
                 self.observations.record_world_event(
-                    'obstacle', x=float(ox), y=float(oy),
-                    radius_m=0.14, category=str(runner.track.category), detail=res['status_code'], track_id=tid, status='SKIPPED_OBSTACLE',
+                    'upsert', x=float(ox), y=float(oy),
+                    radius_m=0.14, category=str(runner.track.category), mobility=mob, relevance='deferred', detail=res['status_code'], track_id=tid,
                 )
         return res
 

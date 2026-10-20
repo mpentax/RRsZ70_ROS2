@@ -425,7 +425,9 @@ def test_patrol_collect_and_drag_garments_to_washing_machine_in_sim(tmp_path: Pa
         assert math.dist(pos[:2], WASHING_MACHINE_DROP_M) <= 0.40
     assert not world.deployed
     summary = obs.world.summary()
-    assert len(summary['delivered_piles']) == 2
+    assert len(summary['completed']) == 2
+    assert len(summary['by_mobility']['pickupable']) >= 1
+    assert len(summary['by_mobility']['draggable']) >= 1
 
 
 def test_session_dynamic_map_opportunistic_sighting_obstacle_avoidance_and_reset(tmp_path: Path):
@@ -437,30 +439,35 @@ def test_session_dynamic_map_opportunistic_sighting_obstacle_avoidance_and_reset
     assert wm.bind_session(b'\x01' * 16, 0, m.origin, m.width, m.height, m.resolution)
 
     # 1. Opportunistic sighting while performing another task:
-    # Suppose the robot spotted a sock in the Bedroom (x=1.55, y=3.65) while driving past.
-    wm.observe_garment(1.55, 3.65, category='sock', width_m=0.05, depth_m=0.06, transport_suitability=1, track_id='bed_sock')
-    assert len(wm.pending_objectives()) == 1
+    # Suppose the robot spotted a pickupable sock in the Bedroom (x=1.55, y=3.65)
+    # and a draggable towel in the Corridor (x=1.18, y=-0.075) while driving past.
+    wm.upsert_object(1.55, 3.65, category='sock', mobility='pickupable', relevance='objective', width_m=0.05, depth_m=0.06, track_id='bed_sock')
+    wm.upsert_object(1.18, -0.075, category='towel', mobility='draggable', relevance='objective', width_m=0.06, depth_m=0.22, track_id='corridor_towel')
+    assert len(wm.pending_objectives()) == 2
+    assert len(wm.pending_objectives(allowed_mobility=('pickupable',))) == 1
 
-    # Verify PatrolCollector prioritizes the waypoint near the sighted Bedroom objective (tier 0)
-    # over closer unvisited waypoints with no sighted objectives (tier 1).
+    # Verify PatrolCollector prioritizes the waypoint near the sighted Bedroom pickupable objective (tier 0)
+    # when allow_towing=False (ignoring the closer draggable Corridor towel), and prioritizes the closer
+    # Corridor draggable towel when allow_towing=True.
     ledger = PatrolLedger(tmp_path / 'priority_ledger')
     b0 = compute_safe_interior(m, labels, BoundaryConfig(allowed_segments=(1, 2, 4, 5, 6)), (0.0, 0.0, 0.0))
     ledger.waypoints(b0.waypoints)
     patrol = PatrolCollector(NS(world_map=lambda: wm), None, ledger, world=wm)
     patrol.position = [0.0, 0.0]
-    best_key = min(ledger.data['waypoints'].keys(), key=patrol._waypoint_priority)
-    best_wp = ledger.data['waypoints'][best_key]
-    assert best_wp['segment_id'] == 5
+    best_no_tow = min(ledger.data['waypoints'].keys(), key=lambda k: patrol._waypoint_priority(k, allow_towing=False))
+    assert ledger.data['waypoints'][best_no_tow]['segment_id'] == 5
+    best_with_tow = min(ledger.data['waypoints'].keys(), key=lambda k: patrol._waypoint_priority(k, allow_towing=True))
+    assert ledger.data['waypoints'][best_with_tow]['segment_id'] == 1
 
-    # 2. Skipped/unsupported garment & dynamic obstacle avoidance:
-    # Place a dynamic obstacle on the direct corridor path between (0.0, 0.0) and Kitchen drop (-3.85, -0.30).
+    # 2. Stationary / deferred obstacle & dynamic obstacle avoidance:
+    # Place a stationary obstacle on the direct corridor path between (0.0, 0.0) and Kitchen drop (-3.85, -0.30).
     base_loaded = compute_safe_interior(
         m, labels, BoundaryConfig(allowed_segments=(1, 2, 4, 5, 6), deployed_arm_extension_m=0.10), (0.0, 0.0, 0.0)
     )
     direct_route = loaded_route(base_loaded, (0.0, 0.0), WASHING_MACHINE_DROP_M)
     assert direct_route is not None and len(direct_route) > 4
     mid_pt = direct_route[len(direct_route) // 2]
-    wm.mark_obstacle(mid_pt[0], mid_pt[1], radius_m=0.12, category='heavy_blanket', detail='UNSUPPORTED_GARMENT_SKIP', status='SKIPPED_OBSTACLE')
+    wm.mark_obstacle(mid_pt[0], mid_pt[1], radius_m=0.12, category='shoe_rack', mobility='stationary', relevance='ignored', detail='STATIONARY_OBSTACLE')
 
     dyn_grid = dynamic_grid_message(m, wm, 1000)
     assert max(dyn_grid.data) == 100
@@ -480,7 +487,7 @@ def test_session_dynamic_map_opportunistic_sighting_obstacle_avoidance_and_reset
     fake_obs = NS(
         world_map=lambda: wm,
         dynamic_obstacles=lambda pose_xy=None: wm.obstacle_mask(protect_xy=pose_xy),
-        record_world_event=lambda action, **kw: wm.clear() if action == 'clear' else wm.mark_obstacle(kw['x'], kw['y'], radius_m=kw.get('radius_m', 0.12)),
+        record_world_event=lambda action, **kw: wm.apply_event(dict(action=action, **kw)),
         navigation_snapshot=lambda refresh=False, max_age_s=5.0: NS(
             map=m, labels=labels, evidence=None, dynamic_obstacles=wm.obstacle_mask(protect_xy=(0.0, 0.0))
         ),
@@ -500,7 +507,8 @@ def test_session_dynamic_map_opportunistic_sighting_obstacle_avoidance_and_reset
         create_executor=False,
     )
     assert len(ctx.world_objects()['obstacles']) == 1
-    assert len(ctx.world_objects()['objectives']) == 1
+    assert len(ctx.world_objects()['objectives']) == 2
+    assert len(ctx.world_objects()['by_mobility']['stationary']) == 1
     _, ctx_boundary = ctx.safe_interior()
     assert not ctx_boundary.reachable_mask[gy, gx]
 
@@ -509,7 +517,7 @@ def test_session_dynamic_map_opportunistic_sighting_obstacle_avoidance_and_reset
     assert len(ctx.world_objects()['entries']) == 0
     _, clean_boundary = ctx.safe_interior()
     assert clean_boundary.reachable_mask[gy, gx]
-    assert 'world_objects' in {p['name'] for p in GOAL_CONTEXT_PRIMITIVES}
+    assert {'world_objects', 'update_world_object', 'mark_obstacle', 'clear_world'} <= {p['name'] for p in GOAL_CONTEXT_PRIMITIVES}
 
     # 4. Simulated session edge case: patrol with allow_towing=False skips the large towel,
     # records it as a SKIPPED_OBSTACLE in the session world map, and delivers the small sock.
@@ -579,8 +587,11 @@ def test_session_dynamic_map_opportunistic_sighting_obstacle_avoidance_and_reset
     ))
     assert skip_res['items_skipped'] == 1
     assert len(wm.obstacle_entries()) == 1
-    assert wm.obstacle_entries()[0].status == 'SKIPPED_OBSTACLE'
-    assert wm.obstacle_entries()[0].detail == 'UNSUPPORTED_GARMENT_SKIP'
+    obs_entry = wm.obstacle_entries()[0]
+    assert obs_entry.mobility == 'draggable'
+    assert obs_entry.relevance == 'deferred'
+    assert obs_entry.is_obstacle is True
+    assert obs_entry.detail == 'UNSUPPORTED_GARMENT_SKIP'
 
 
 def test_ensure_token_file_matches_gateway_token_contract(tmp_path: Path):

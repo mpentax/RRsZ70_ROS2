@@ -251,13 +251,14 @@ def test_dynamic_obstacle_layer_subtracts_cells_and_publishes_world_markers(mapp
     cx = float(m.origin[0] + 1.5 * m.resolution)
     cy = float(m.origin[1] + 0.5 * m.resolution)
     node.on_world_update(String(data=json.dumps({
-        'action': 'obstacle',
+        'action': 'upsert',
         'x': cx,
         'y': cy,
         'radius_m': 0.08,
         'category': 'blanket',
+        'mobility': 'draggable',
+        'relevance': 'deferred',
         'detail': 'UNSUPPORTED_GARMENT_SKIP',
-        'status': 'SKIPPED_OBSTACLE',
     })))
     node.publish()
     dyn_msg = pubs['/z70/map/dynamic_obstacles'].publish.call_args.args[0]
@@ -267,3 +268,5 @@ def test_dynamic_obstacle_layer_subtracts_cells_and_publishes_world_markers(mapp
     world_json = json.loads(pubs['/z70/world/objects'].publish.call_args.args[0].data)
     assert len(world_json['obstacles']) == 1
     assert world_json['obstacles'][0]['category'] == 'blanket'
+    assert world_json['obstacles'][0]['mobility'] == 'draggable'
+    assert world_json['obstacles'][0]['relevance'] == 'deferred'

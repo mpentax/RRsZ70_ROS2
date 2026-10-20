@@ -9,7 +9,7 @@ from dataclasses import replace
 from .garment_delivery import (GarmentDeliverer, TowingQualificationConfig, atomic_json,
     map_identity, same_map_frame, tf_jumped, transport_policy, track_key, loaded_route, DeliveryRejected)
 from z70_mapping.boundary import BoundaryConfig, compute_safe_interior
-from z70_mapping.dynamic_layer import SessionWorldMap
+from z70_mapping.dynamic_layer import SessionWorldMap, mobility_from_suitability
 from .garment_geometry import transform_xy
 from .navigation import PinAndGoNavigator, inside
 from .observations import read_arm, read_status
@@ -276,12 +276,13 @@ class PatrolCollector:
             if batch.garments: return batch
         return batch
 
-    def _waypoint_priority(self, key: str) -> tuple[int, float]:
+    def _waypoint_priority(self, key: str, allow_towing: bool = True) -> tuple[int, float]:
         wp = self.ledger.data['waypoints'][key]
         wx, wy = float(wp['x']), float(wp['y'])
         dist = math.dist(self.position, (wx, wy))
         if self.world is not None:
-            for obj in self.world.pending_objectives(tuple(self.position)):
+            allowed_mob = ('pickupable', 'draggable') if allow_towing else ('pickupable',)
+            for obj in self.world.pending_objectives(tuple(self.position), allowed_mobility=allowed_mob):
                 nearest_key = min(
                     self.ledger.data['waypoints'].keys(),
                     key=lambda k: math.hypot(
@@ -329,7 +330,7 @@ class PatrolCollector:
                 ]
                 if not candidates:
                     break
-                key = min(candidates, key=self._waypoint_priority)
+                key = min(candidates, key=lambda k: self._waypoint_priority(k, allow_towing=bool(goal.allow_towing)))
                 visited_keys.add(key)
                 waypoint=self.ledger.data['waypoints'].get(key)
                 if waypoint is None or waypoint['status'] in ('CLEARED','UNREACHABLE'): continue
@@ -382,10 +383,11 @@ class PatrolCollector:
                     aliases=[k for k,v in self.ledger.data['items'].items() if math.dist(v['position'],location)<.15]
                     if any(not self.ledger.may_attempt(k) for k in aliases): continue
                     rejection=transport_policy(g,goal.allow_towing,self.towing)
+                    mob=mobility_from_suitability(int(getattr(g,'transport_suitability',1)))
                     if rejection:
                         self.ledger.skip_item(item_key,location,rejection)
                         rad = float(max(0.10, 0.5 * max(getattr(g, 'footprint_width_m', 0.16), getattr(g, 'footprint_depth_m', 0.16))))
-                        self._record_world('obstacle', x=location[0], y=location[1], radius_m=rad, category=g.category, detail=rejection, track_id=item_key, status='SKIPPED_OBSTACLE')
+                        self._record_world('upsert', x=location[0], y=location[1], radius_m=rad, category=g.category, mobility=mob, relevance='deferred', detail=rejection, track_id=item_key)
                         continue
                     if not (g.grasp_valid and g.reachable_for_grasp): continue
                     attempted+=1
@@ -399,11 +401,11 @@ class PatrolCollector:
                     status='DELIVERED' if result['delivered'] else 'IN_FLIGHT_UNKNOWN' if uncertain else 'FAILED'
                     self.ledger.finish_item(item_key,status,result['status_code'])
                     if status == 'DELIVERED':
-                        self._record_world('delivered', x=goal.drop_x_m, y=goal.drop_y_m, track_id=item_key, category=g.category, detail='DELIVERED')
+                        self._record_world('completed', x=goal.drop_x_m, y=goal.drop_y_m, track_id=item_key, category=g.category, mobility=mob, detail='DELIVERED')
                     elif status == 'FAILED':
                         self._record_world('failed', x=location[0], y=location[1], track_id=item_key, detail=result['status_code'])
                         if not self.ledger.may_attempt(item_key):
-                            self._record_world('obstacle', x=location[0], y=location[1], radius_m=0.12, category=g.category, detail=result['status_code'], track_id=item_key, status='FAILED_OBSTACLE')
+                            self._record_world('upsert', x=location[0], y=location[1], radius_m=0.12, category=g.category, mobility=mob, relevance='deferred', detail=result['status_code'], track_id=item_key)
                     if result['status_code']=='SAFE_RELEASE_BEFORE_DOCK':
                         self.recharge(delivery)
                         break

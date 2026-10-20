@@ -169,7 +169,7 @@ def test_validation_token_and_closed_error_contract(system, tmp_path):
     goals = catalog['goals']
     assert any(g['kind'] == 'pick' and g['topic'] == '/z70/pick' and g['action'] == 'Pick' and g['fields'] == ['color', 'dry_run'] for g in goals)
     primitives = {p['name'] for p in catalog['context_primitives']}
-    assert {'status', 'arm', 'map_pose', 'safe_interior', 'objects', 'garments', 'world_objects', 'mark_obstacle', 'clear_world', 'navigate', 'deploy_arm', 'align_target', 'move_arm', 'grasp_and_lift', 'release_and_stow', 'pulse', 'rpc', 'feedback', 'outcome'} <= primitives
+    assert {'status', 'arm', 'map_pose', 'safe_interior', 'objects', 'garments', 'world_objects', 'update_world_object', 'mark_obstacle', 'clear_world', 'navigate', 'deploy_arm', 'align_target', 'move_arm', 'grasp_and_lift', 'release_and_stow', 'pulse', 'rpc', 'feedback', 'outcome'} <= primitives
     world_pub = system['peer'].create_publisher(String, '/z70/world/objects', LATCHED)
     dyn_pub = system['peer'].create_publisher(OccupancyGrid, '/z70/map/dynamic_obstacles', LATCHED)
     try:
