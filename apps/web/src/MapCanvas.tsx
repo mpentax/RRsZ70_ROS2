@@ -1,5 +1,5 @@
 import { useEffect, useRef, type MouseEvent } from 'react';
-import { record } from './outcomes.ts';
+import { record } from './api.ts';
 
 export interface MapCanvasProps {
   mapData: Record<string, unknown> | null;

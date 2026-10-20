@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { ApiError, deleteSession, initialSession, json, snapshot } from "../src/api.ts";
-import { actionOutcome, outcomeMessage } from "../src/outcomes.ts";
-import { listGoals, robotRpc, validateGoal } from "../src/ros.ts";
+import { actionOutcome, ApiError, deleteSession, initialSession, json, listGoals, outcomeMessage, robotRpc, snapshot, validateGoal } from "../src/api.ts";
 
 test("JSON requests use same-origin credentials and POST JSON without CSRF or bearer headers", async (context) => {
   context.mock.method(globalThis, "fetch", async (path: string, options: RequestInit) => {

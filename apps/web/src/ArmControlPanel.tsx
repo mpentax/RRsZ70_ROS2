@@ -1,4 +1,4 @@
-import { robotRpc, type TaskRequest } from './ros.ts';
+import { robotRpc, type TaskRequest } from './api.ts';
 
 export interface ArmControlPanelProps {
   busy: boolean;

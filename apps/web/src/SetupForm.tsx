@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { json, ApiError } from './api.ts';
-import type { Setup } from './ros.ts';
+import { json, ApiError, type Setup } from './api.ts';
 
 type Device = {id:string;name:string;model:string};
 export function SetupForm({setup,onUpdated}:{setup:Setup|null;onUpdated:()=>Promise<void>}) {

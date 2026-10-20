@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { ApiError, deleteSession, json, snapshot, SESSION_EXPIRED, type SessionStatus } from "./api.ts";
-import { cancelTask, listTasks, robotRpc, startTask, stopRobot, setControlSession, terminal, type Task, type TaskRequest, type RosState, type Setup } from './ros.ts';
+import {
+  actionOutcome, ApiError, cancelTask, deleteSession, json, listTasks, record,
+  robotRpc, SESSION_EXPIRED, setControlSession, snapshot, startTask, stopRobot,
+  terminal, type RosState, type SessionStatus, type Setup, type Task, type TaskRequest,
+} from "./api.ts";
 import { SetupForm } from './SetupForm.tsx';
 import { ArmControlPanel } from './ArmControlPanel.tsx';
 import { MapCanvas } from './MapCanvas.tsx';
-import { actionOutcome, record } from './outcomes.ts';
 
 const COLORS = ['yellow', 'purple', 'blue', 'green', 'orange'] as const;
 const ARM_STATES: Record<number, string> = { 0: 'UNKNOWN', 1: 'IN_ROBOT', 2: 'IN_PROCESS_POS', 3: 'WORKING_POS', 4: 'TRANSFER_POS' };
