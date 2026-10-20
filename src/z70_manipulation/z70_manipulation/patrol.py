@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import uuid
 from dataclasses import replace
 from .garment_delivery import (GarmentDeliverer, TowingQualificationConfig, atomic_json,
-    map_identity, transport_policy, track_key, loaded_route, DeliveryRejected)
+    map_identity, same_map_frame, tf_jumped, transport_policy, track_key, loaded_route, DeliveryRejected)
 from z70_mapping.boundary import BoundaryConfig, compute_safe_interior
 from .navigation import PinAndGoNavigator, inside
 from .observations import read_arm, read_status
@@ -50,10 +50,9 @@ class PatrolLedger:
 
     def bind_map(self, identity, allowed_segments, tf=None):
         previous=self.data['map_identity']
-        changed=previous is not None and previous[:1]+previous[2:]!=identity[:1]+identity[2:]
+        changed=previous is not None and not same_map_frame(previous, identity)
         previous_tf=self.data.get('map_odom')
-        jumped=(tf is not None and previous_tf is not None and
-                (math.dist(tf[:2],previous_tf[:2])>.15 or abs(math.atan2(math.sin(tf[2]-previous_tf[2]),math.cos(tf[2]-previous_tf[2])))>.15))
+        jumped=tf is not None and previous_tf is not None and tf_jumped(tf, previous_tf)
         if not self.data['allowed_segments']: self.data['allowed_segments']=list(allowed_segments)
         else: self.data['allowed_segments']=[s for s in self.data['allowed_segments'] if s in allowed_segments]
         if changed or jumped:

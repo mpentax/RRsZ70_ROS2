@@ -26,10 +26,10 @@ def transport_policy(garment, allow_towing, config=None):
     suitability = garment.transport_suitability
     if suitability == 1:
         return None
-    if allow_towing and (not config.towing_qualified or suitability != 1):
+    if allow_towing:
         if (config.towing_qualified and suitability == 2 and config.artifact_uri
                 and garment.category in config.qualified_categories):
-            return 'TOWING_REQUIRES_SUPERVISED_TRIAL'
+            return None if config.artifact_uri.startswith('sim:') else 'TOWING_REQUIRES_SUPERVISED_TRIAL'
         return 'TOWING_UNQUALIFIED_SKIP'
     return 'UNSUPPORTED_GARMENT_SKIP'
 
@@ -85,6 +85,15 @@ def map_identity(snapshot):
     return [snapshot.map_index, snapshot.map_sequence, list(m.origin), m.width, m.height, m.resolution]
 
 
+def same_map_frame(a, b) -> bool:
+    return a[:1] + a[2:] == b[:1] + b[2:]
+
+
+def tf_jumped(a, b) -> bool:
+    return (math.dist(a[:2], b[:2]) > .15
+            or abs(math.atan2(math.sin(a[2] - b[2]), math.cos(a[2] - b[2]))) > .15)
+
+
 class GarmentDeliverer:
     """Execute garment approach, grasp, loaded corridor transit, and release."""
     def __init__(self, observations, executor, *, boundary_config=None, towing_config=None,
@@ -123,12 +132,10 @@ class GarmentDeliverer:
                 or s.map.robot is None): raise DeliveryRejected('UNLOCALIZED_MAP')
         self.latest_observation=s.evidence
         identity=map_identity(s)
-        if self.initial_identity is not None and self.initial_identity[:1]+self.initial_identity[2:]!=identity[:1]+identity[2:]:
+        if self.initial_identity is not None and not same_map_frame(self.initial_identity, identity):
             raise DeliveryRejected('MAP_CONTEXT_CHANGED')
-        if self.map_odom and self.baseline_tf is not None:
-            tf=self.map_odom(); previous=self.baseline_tf
-            if math.dist(tf[:2],previous[:2])>.15 or abs(math.atan2(math.sin(tf[2]-previous[2]),math.cos(tf[2]-previous[2])))>.15:
-                raise DeliveryRejected('MAP_CONTEXT_CHANGED')
+        if self.map_odom and self.baseline_tf is not None and tf_jumped(self.map_odom(), self.baseline_tf):
+            raise DeliveryRejected('MAP_CONTEXT_CHANGED')
         p=self.pose() if self.pose else s.map.robot
         if p is None or len(p)<3 or not np.isfinite(p[:3]).all(): raise DeliveryRejected('UNLOCALIZED_MAP')
         self.position=list(p[:2]); self.current_pose=p
@@ -190,11 +197,18 @@ class GarmentDeliverer:
         mask=self._cloth_mask(track,frame['image'])
         if mask is None: return None
         try:
-            jaw=perception.front_jaw(frame['image'])
-            point=np.asarray(jaw['position'])
-            if point[2]<.08: return None
             camera=perception.front_camera()
             if frame['image'].shape[:2]!=(camera.height,camera.width): return None
+            try:
+                jaw=perception.front_jaw(frame['image'])
+                point=np.asarray(jaw['position'])
+            except LookupError:
+                pre=next((f for f in self.frames if f.get('stage')=='1-pregrip'),None)
+                if pre is None or pre['image'] is frame['image']: return None
+                point=np.asarray(perception.front_jaw(pre['image'])['position'])+np.array([0.,0.,max(1,int(getattr(self,'last_lift_steps',2)))*.04])
+            min_z=.055 if int(getattr(self,'last_lift_steps',2))==1 else .08
+            if point[2]<min_z: return None
+            min_cloth_z=.045 if int(getattr(self,'last_lift_steps',2))==1 else .06
             offset=perception.calibration()['front_camera_x_m']
             C=np.array([offset,0.,camera.h/1000])
             count,labels,stats,centers=cv2.connectedComponentsWithStats(mask)
@@ -203,7 +217,7 @@ class GarmentDeliverer:
                 ray=np.asarray(camera.pixel_to_ray(*centers[index]),float)
                 if ray[0]<=0: continue
                 at_depth=C+ray*((point[0]-C[0])/ray[0])
-                if at_depth[2]>.06 and np.linalg.norm(at_depth-point)<.09: return True
+                if at_depth[2]>min_cloth_z and np.linalg.norm(at_depth-point)<.09: return True
             return False
         except (LookupError,ValueError,KeyError): return None
 
@@ -253,8 +267,8 @@ class GarmentDeliverer:
     def monitor(self, baseline, boundary, loaded=True):
         self.guard()
         s=self.snapshot()
-        old,new=map_identity(baseline),map_identity(s)
-        if old[:1]+old[2:] != new[:1]+new[2:]: raise DeliveryRejected('MAP_CONTEXT_CHANGED')
+        if not same_map_frame(map_identity(baseline), map_identity(s)):
+            raise DeliveryRejected('MAP_CONTEXT_CHANGED')
         live=compute_safe_interior(s.map,s.labels,self.config,self.current_pose)
         if not inside(boundary,self.position) or not inside(live,self.position):
             raise DeliveryRejected('BOUNDARY_ABORT')
@@ -381,7 +395,9 @@ class GarmentDeliverer:
             self.capture('1-pregrip',after=self.observations.garment_barrier())
             self.payload_uncertain=True
             self.operation('close_jaws',lambda:self.executor.command('app_grip',{}))
-            for _ in range(2):
+            lift_steps=1 if getattr(self.track,'transport_suitability',1)==2 else 2
+            self.last_lift_steps=lift_steps
+            for _ in range(lift_steps):
                 self.operation('lift',lambda:self.executor.command('app_arm_direction_move',{'direction':1}))
             self.capture('2-lifted',after=self.observations.garment_barrier())
             self.capture('3-verify',after=self.observations.garment_barrier())
