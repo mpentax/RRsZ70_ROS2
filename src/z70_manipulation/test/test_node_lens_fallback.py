@@ -1,4 +1,4 @@
-"""Construct the actual perception node without CameraInfo or any hardware bridge."""
+"""Perception node default gripper camera intrinsics before CameraInfo."""
 import numpy as np
 import pytest
 import rclpy

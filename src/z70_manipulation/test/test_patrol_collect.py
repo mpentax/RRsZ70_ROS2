@@ -1,4 +1,4 @@
-"""Offline crash, coverage, battery and finite completion tests."""
+"""Patrol ledger persistence, waypoint coverage, and battery return logic."""
 from types import SimpleNamespace as NS
 import json
 import pytest

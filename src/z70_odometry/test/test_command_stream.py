@@ -1,4 +1,4 @@
-"""Typed event joining is attempt-based, never recent-history reconstruction."""
+"""CommandEvent attempt joining for online chassis calibration."""
 from copy import deepcopy
 from z70_interfaces.msg import CommandEvent
 from z70_odometry.chassis_calibrator import CommandStream, OnlineCalibration

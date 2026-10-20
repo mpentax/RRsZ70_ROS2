@@ -1,4 +1,4 @@
-"""Synthetic fixtures only: no private household map in git."""
+"""Vendor V1 binary map block decoding and occupancy grid conversion."""
 import hashlib
 import struct
 import pytest

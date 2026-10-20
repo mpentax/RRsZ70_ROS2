@@ -1,4 +1,4 @@
-"""Real Pick server/Commands adapter with shared driver and deliberately absent images."""
+"""PickServer cancellation, manual takeover, and deadline handling."""
 import os
 import subprocess
 import time

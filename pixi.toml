@@ -5,6 +5,8 @@ platforms = ["osx-arm64"]
 
 [dependencies]
 python = "3.12.*"
+go = ">=1.24"
+nodejs = ">=22"
 ros-jazzy-ros-base = "*"
 ros-jazzy-robot-state-publisher = "*"
 ros-jazzy-xacro = "*"
@@ -26,6 +28,6 @@ ROS_AUTOMATIC_DISCOVERY_RANGE = "LOCALHOST"
 [tasks]
 pick = { cmd = "bash -c 'source install/setup.bash && export Z70_REPO=\"$PWD\" && exec ros2 run z70_manipulation pick \"$@\"' --", depends-on = ["build"] }
 stack = { cmd = "bash -c 'source install/setup.bash && export Z70_REPO=\"$PWD\" && exec ros2 run z70_manipulation stack \"$@\"' --", depends-on = ["build"] }
-build = "colcon build --symlink-install --base-paths src"
-bringup = { cmd = "bash -c 'source install/setup.bash && export Z70_REPO=\"$PWD\" && exec ros2 launch z70_bringup bringup.launch.py \"$@\"' --", depends-on = ["build"] }
+build = "bash deploy/build-native.sh"
+bringup = { cmd = "bash -c 'source install/setup.bash && export Z70_REPO=\"$PWD\" && exec ros2 launch z70_bringup bringup.launch.py sidecars:=true manipulation:=true web_gateway:=true \"$@\"' --", depends-on = ["build"] }
 test = { cmd = "bash -c 'source install/setup.bash && export ROS_DOMAIN_ID=91 && exec python -m pytest src --basetemp build/pytest -q \"$@\"' --", depends-on = ["build"] }

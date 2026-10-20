@@ -1,10 +1,11 @@
-"""Live observation/mapping; optional idle pick server commands only on a goal."""
+"""Unified ROS 2 and native sidecar bringup launch description."""
 import os
+import shutil
 import yaml
 from pathlib import Path
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, ExecuteProcess
 from launch.conditions import IfCondition
 from launch.substitutions import Command, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
@@ -17,18 +18,41 @@ def generate_launch_description():
     urdf = ParameterValue(Command(["xacro ", PathJoinSubstitution([desc, "urdf", "z70.urdf.xacro"])]), value_type=str)
     repo = Path(os.environ.get("Z70_REPO", Path.cwd()))
     from ament_index_python.packages import get_package_share_directory
-    calibration = Path(get_package_share_directory('z70_description'))/'config'
-    mount = yaml.safe_load((Path(get_package_share_directory('z70_description'))/'config/mount_calibration.yaml').read_text())
+    calibration = Path(get_package_share_directory('z70_description')) / 'config'
+    mount = yaml.safe_load((Path(get_package_share_directory('z70_description')) / 'config/mount_calibration.yaml').read_text())
     camera_x = mount['front_camera_x_m']
+    node_bin = shutil.which("node") or "node"
     return LaunchDescription([
         DeclareLaunchArgument("origin", default_value="http://127.0.0.1:57010"),
         DeclareLaunchArgument("token_file", default_value=str(repo / ".local/service-token")),
         DeclareLaunchArgument("camera_info", default_value=str(calibration / "z70_front_camera_info.yaml")),
         DeclareLaunchArgument("calibration", default_value=str(calibration / "front_camera.json")),
+        DeclareLaunchArgument("sidecars", default_value="false"),
         DeclareLaunchArgument("manipulation", default_value="false"),
         DeclareLaunchArgument("garment_perception", default_value="false"),
         DeclareLaunchArgument("garment_backend", default_value="grounding_dino_clipseg"),
         DeclareLaunchArgument("garment_python", default_value=str(Path.home() / ".venvs/roboclaw-depth/bin/python")),
+        ExecuteProcess(
+            cmd=[str(repo / ".local/bin/go2rtc"), "-config", str(repo / "deploy/go2rtc.yaml")],
+            additional_env={"ROBOCLAW_WEBRTC_HOST": os.environ.get("ROBOCLAW_WEBRTC_HOST", "127.0.0.1")},
+            condition=IfCondition(LaunchConfiguration("sidecars")),
+            output="log",
+        ),
+        ExecuteProcess(
+            cmd=[node_bin, str(repo / "adapters/vendor/src/service-main.ts")],
+            cwd=str(repo),
+            additional_env={
+                "NODE_ENV": "production",
+                "ROBOCLAW_HOST": os.environ.get("ROBOCLAW_HOST", "127.0.0.1"),
+                "ROBOCLAW_PORT": os.environ.get("ROBOCLAW_PORT", "57010"),
+                "ROBOCLAW_PUBLIC_ORIGIN": os.environ.get("ROBOCLAW_PUBLIC_ORIGIN", "http://127.0.0.1:57010"),
+                "ROBOCLAW_STATE_DIR": str(repo / ".local"),
+                "GO2RTC_ORIGIN": os.environ.get("GO2RTC_ORIGIN", "http://127.0.0.1:57001"),
+                "Z70_ROS_GATEWAY_ORIGIN": os.environ.get("Z70_ROS_GATEWAY_ORIGIN", "http://127.0.0.1:57020"),
+            },
+            condition=IfCondition(LaunchConfiguration("sidecars")),
+            output="screen",
+        ),
         Node(package='z70_manipulation', executable='garment_perception',
              condition=IfCondition(LaunchConfiguration('garment_perception')),
              parameters=[{'backend': LaunchConfiguration('garment_backend'),
@@ -38,9 +62,9 @@ def generate_launch_description():
         Node(package='z70_web_gateway', executable='gateway', condition=IfCondition(LaunchConfiguration('web_gateway')),
              parameters=[{'token_file': LaunchConfiguration('token_file'),
                           'port': ParameterValue(LaunchConfiguration('web_gateway_port'), value_type=int)}]),
-        Node(package='z70_manipulation',executable='perception'),
-        Node(package='z70_manipulation',executable='pick_server',condition=IfCondition(LaunchConfiguration('manipulation')),
-             parameters=[{'repo':str(repo)}]),
+        Node(package='z70_manipulation', executable='perception'),
+        Node(package='z70_manipulation', executable='pick_server', condition=IfCondition(LaunchConfiguration('manipulation')),
+             parameters=[{'repo': str(repo)}]),
         DeclareLaunchArgument("mapping", default_value="true"),
         DeclareLaunchArgument("depth", default_value="true"),
         DeclareLaunchArgument("depth_python", default_value=str(Path.home() / ".venvs/roboclaw-depth/bin/python")),
@@ -60,7 +84,7 @@ def generate_launch_description():
         Node(package="z70_odometry", executable="floor_odometry", parameters=[{
             "calibration": LaunchConfiguration("calibration"), "camera_x_m": camera_x,
         }]),
-        Node(package='z70_odometry',executable='chassis_calibrator'),
+        Node(package='z70_odometry', executable='chassis_calibrator'),
         Node(package="z70_odometry", executable="floor_mosaic", parameters=[{
             "calibration": LaunchConfiguration("calibration"), "camera_x_m": camera_x,
             "resolution": 0.005, "size_m": 4.0, "max_range": 1.2,

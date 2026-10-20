@@ -1,4 +1,4 @@
-"""Installed default models and adopted K/D consistency."""
+"""Installed camera calibration and lens intrinsic resource consistency."""
 import json
 import numpy as np
 import pytest

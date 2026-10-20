@@ -1,4 +1,4 @@
-"""Offline boundary contracts; synthetic grids contain no private map bytes."""
+"""Interior room boundary erosion, connectivity, and obstacle masking."""
 import numpy as np
 import pytest
 from z70_mapping.decoder import VendorMap

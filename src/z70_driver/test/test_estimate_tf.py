@@ -1,4 +1,4 @@
-"""Actual RSP trees: display-only folded poses cannot populate planning joints."""
+"""Robot state publisher TF tree and typed ArmEstimate validity."""
 import os
 from pathlib import Path
 import subprocess

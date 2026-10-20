@@ -1,4 +1,4 @@
-"""Service estimates must drive the same physical joints as the vendor model."""
+"""Vendor arm joint angle to URDF joint rotation mapping."""
 import math
 
 import pytest

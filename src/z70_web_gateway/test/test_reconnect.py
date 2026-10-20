@@ -1,4 +1,4 @@
-"""Additional ROS disconnect and lost-response paths, no real device access."""
+"""Web gateway ROS service and action timeout and reconnect handling."""
 import threading
 import time
 

@@ -34,7 +34,7 @@ from z70_driver.frame_subscription import MatchedFrames
 from z70_mapping.boundary import BoundaryConfig
 from . import perception, planner
 from .executor import Client, log_directory
-from .goals import GoalContext, GoalSpec, load_custom_goals
+from .goals import GoalContext, GoalSpec
 from .observations import Observations, LATCHED
 
 RGB = {'yellow': (1., 1., 0.), 'orange': (1., .4, 0.), 'purple': (.7, 0., 1.), 'blue': (0., .2, 1.), 'green': (0., 1., .2)}
@@ -162,7 +162,6 @@ class PickServer(Perception):
         self.navigation_config = BoundaryConfig(allowed_segments=tuple(
             self.declare_parameter('pin_and_go_allowed_segments', [1, 2, 3, 4, 5, 6]).value))
         self.patrol_directory = Path(self.declare_parameter('patrol_ledger_directory', str(self.repo / '.local/patrol')).value)
-        self.custom_goals_directory = Path(self.declare_parameter('custom_goals_directory', str(self.repo / '.local/goals')).value)
 
         self.action_servers = []
         self.goal_specs = {}
@@ -284,7 +283,6 @@ class PickServer(Perception):
                 description='Optionally open jaws in place, stow the arm into the compartment, and anchor IN_ROBOT.',
             )),
         ]
-        load_custom_goals(self, self.custom_goals_directory)
 
     @staticmethod
     def _valid_garment_goal(_server, request):

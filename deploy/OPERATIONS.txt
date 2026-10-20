@@ -1,38 +1,30 @@
 RRsZ70_ROS2 Operations
 ======================
-Run commands from the repository root on macOS Apple Silicon (Pixi/RoboStack ROS 2 Jazzy + Docker Desktop).
+Run commands from the repository root on macOS Apple Silicon (Pixi/RoboStack ROS 2 Jazzy).
 
 Build and Start
 ---------------
   npm ci
-  npm run build
   pixi install
   pixi run build
-  docker compose -f deploy/compose.yaml build app go2rtc
-  docker compose -f deploy/compose.yaml up -d
+  pixi run bringup
+
+`pixi run build` compiles the patched native `darwin/arm64` `go2rtc` binary into `.local/bin/go2rtc`, builds the web frontend (`dist/web`), and builds all ROS 2 packages. `pixi run bringup` starts all native services (`go2rtc`, the vendor/web HTTP service on `127.0.0.1:57010`, `z70_web_gateway` on `127.0.0.1:57020`, `z70_driver`, `z70_mapping`, `z70_odometry`, `z70_manipulation`, and `foxglove_bridge`).
 
 Open http://127.0.0.1:57010. On first run, click Start local setup to enter your Roborock account login code, select your robot, set its LAN IP and protocol (L01 or 1.0), and save your camera PIN. Credentials are saved in .local/pairing.json (mode 0600).
 
-Start the ROS 2 stack and web/MCP gateway:
-
-  pixi run bringup web_gateway:=true
-  # With manipulation and navigation action servers:
-  pixi run bringup web_gateway:=true manipulation:=true
-
-Stop ROS launch processes with Ctrl-C, and stop Docker sidecars with:
-
-  docker compose -f deploy/compose.yaml stop
+Stop all processes cleanly with Ctrl-C.
 
 Ports and Network Boundaries
 ----------------------------
-  127.0.0.1:57010 -> app:57000 (Web UI & HTTP API)
-  127.0.0.1:57012 TCP/UDP -> go2rtc:57002 (WebRTC media)
-  57001 -> private go2rtc admin (container-internal)
+  127.0.0.1:57010 -> vendor/web HTTP service (Web UI & HTTP API)
+  127.0.0.1:57012 TCP/UDP -> native go2rtc WebRTC media
+  127.0.0.1:57001 -> private go2rtc loopback API
   127.0.0.1:57020 -> native ROS web gateway (z70_web_gateway)
   127.0.0.1:8765  -> Foxglove WebSocket bridge
 
 State Directories
 -----------------
-- .local/ (mounted at /data in the app container): holds service-token and pairing.json.
+- .local/: holds service-token, pairing.json, map-cache.json, and bin/go2rtc.
 - $XDG_DATA_HOME/RRsZ70_ROS2 (default ~/.local/share/RRsZ70_ROS2): holds mutable ROS runtime state (arm-estimate.json and calibration/chassis/online.json).
 - Installed package shares (install/z70_description/share/..., install/z70_odometry/share/...): hold immutable URDF/CAD meshes and calibrated camera/arm/floor configs.

@@ -1,4 +1,4 @@
-"""Real generated DDS actions/services against loopback-only fake HTTP transport."""
+"""ROS action and service command routing over loopback HTTP transport."""
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import queue

@@ -1,4 +1,4 @@
-"""End-to-end ROS command/odom/status -> calibration, isolated synthetic data only."""
+"""Online chassis calibration node stream consumption and persistence."""
 import json
 import math
 import os

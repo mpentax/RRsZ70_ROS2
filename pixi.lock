@@ -143,6 +143,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/osx-arm64/glslang-16.6.0-h1a33c25_0.conda
       - conda: https://prefix.dev/conda-forge/osx-arm64/gmock-1.18.0-hab71263_1.conda
       - conda: https://prefix.dev/conda-forge/osx-arm64/gmp-6.3.0-hf5e55b1_3.conda
+      - conda: https://prefix.dev/conda-forge/osx-arm64/go-1.27.2-nocgo_h773975b_1.conda
       - conda: https://prefix.dev/conda-forge/osx-arm64/graphite2-1.3.15-h784d473_1.conda
       - conda: https://prefix.dev/conda-forge/osx-arm64/graphviz-14.1.2-hec8c438_0.conda
       - conda: https://prefix.dev/conda-forge/osx-arm64/gtest-1.18.0-h3feff0a_1.conda
@@ -239,6 +240,7 @@ environments:
       - conda: https://prefix.dev/conda-forge/osx-arm64/lz4-c-1.10.0-hdca3b7d_2.conda
       - conda: https://prefix.dev/conda-forge/osx-arm64/mpg123-1.33.7-h0e3f465_1.conda
       - conda: https://prefix.dev/conda-forge/osx-arm64/ncurses-6.6-he64c551_1.conda
+      - conda: https://prefix.dev/conda-forge/osx-arm64/nodejs-26.10.0-h8d74fab_0.conda
       - conda: https://prefix.dev/conda-forge/osx-arm64/numpy-2.5.4-py312hff34920_0.conda
       - conda: https://prefix.dev/conda-forge/osx-arm64/opencv-4.13.0-qt6_h3f25391_616.conda
       - conda: https://prefix.dev/conda-forge/osx-arm64/openexr-3.4.15-h3105456_0.conda
@@ -2211,6 +2213,14 @@ packages:
     - gmp >=6.3.0,<7.0a0
   size: 399307
   timestamp: 1786629210135
+- conda: https://prefix.dev/conda-forge/osx-arm64/go-1.27.2-nocgo_h773975b_1.conda
+  sha256: bc4f7532c2d93174a958b9fe825f14f1017f18cbff5b0b128062cd1c2cd7ee07
+  md5: d349c228cef95687af7ea2801b989698
+  license: BSD-3-Clause
+  license_family: BSD
+  run_exports: {}
+  size: 58116220
+  timestamp: 1791789819763
 - conda: https://prefix.dev/conda-forge/osx-arm64/graphite2-1.3.15-h784d473_1.conda
   sha256: 471f34a187fdb4f2df33e26f2e471b16c239a5b277903f643d9c3a8c9a9f44ec
   md5: 0c7b78d9ffff4f5a6ca28d346f734d8f
@@ -3664,6 +3674,32 @@ packages:
     - ncurses >=6.6,<7.0a0
   size: 804298
   timestamp: 1786355189145
+- conda: https://prefix.dev/conda-forge/osx-arm64/nodejs-26.10.0-h8d74fab_0.conda
+  sha256: e08552a430a3683f1cbc3bc8934449e301cd3ad6cc38fe34627de0301893ab44
+  md5: 2f4e4682e0a68bd0e15a7964d6ceb73b
+  depends:
+  - __osx >=12.0
+  - libcxx >=21
+  - c-ares >=1.34.8,<2.0a0
+  - libbrotlicommon >=1.2.0,<1.3.0a0
+  - libbrotlienc >=1.2.0,<1.3.0a0
+  - libbrotlidec >=1.2.0,<1.3.0a0
+  - libsqlite >=3.53.4,<4.0a0
+  - openssl >=3.5.8,<4.0a0
+  - zstd >=1.5.7,<1.6.0a0
+  - icu >=78.3,<79.0a0
+  - libnghttp2 >=1.68.1,<2.0a0
+  - libzlib >=1.3.2,<2.0a0
+  - libuv >=1.52.1,<2.0a0
+  - libabseil >=20260526.0,<20260527.0a0
+  - libabseil * cxx17*
+  license: MIT
+  license_family: MIT
+  run_exports:
+    weak:
+    - nodejs >=26.10.0,<27.0a0
+  size: 18529792
+  timestamp: 1790238394580
 - conda: https://prefix.dev/conda-forge/osx-arm64/numpy-2.5.4-py312hff34920_0.conda
   sha256: 7a72f5345e7e9f2ed8385986de8d96e321301726dfd6c1a7d0a0d2106ccf204b
   md5: f1c8bb69dfcbbdd01e7ea79c8ae31934

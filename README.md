@@ -6,27 +6,21 @@ ROS 2 Jazzy stack, 3D visualization, web operator console, and MCP control plane
 
 ## Getting Started
 
-Target platform: **macOS Apple Silicon (`osx-arm64`)** with [Pixi](https://pixi.sh) on `PATH`, **Node.js >= 24**, and **Docker Desktop**. Run commands from the repository root:
+Target platform: **macOS Apple Silicon (`osx-arm64`)** with [Pixi](https://pixi.sh) on `PATH`. Run commands from the repository root:
 
 ```sh
 npm ci
-npm run build
 pixi install
 pixi run build
-docker compose -f deploy/compose.yaml build app go2rtc
-docker compose -f deploy/compose.yaml up -d
+pixi run bringup
 ```
+
+`pixi run build` compiles the native `darwin/arm64` `go2rtc` binary into `.local/bin/go2rtc`, builds the web frontend (`dist/web`), and builds all ROS 2 packages. `pixi run bringup` launches the entire stack natively (`go2rtc`, the local vendor/web HTTP service on `127.0.0.1:57010`, `z70_web_gateway` on `127.0.0.1:57020`, `z70_driver`, `z70_mapping`, `z70_odometry`, `z70_manipulation`, and `foxglove_bridge` on `127.0.0.1:8765`).
 
 Open **`http://127.0.0.1:57010`**. On first run, click **Start local setup** to authenticate your Roborock account, select your robot, enter its LAN IP and local protocol (`L01` or `1.0`), and save your camera PIN. Credentials and session tokens are stored locally in `.local/` (mode `0600`) and are redacted from ROS topics and MCP responses. See [`deploy/OPERATIONS.txt`](deploy/OPERATIONS.txt).
 
-Start the ROS 2 stack and web/MCP gateway:
-
-```sh
-pixi run bringup web_gateway:=true manipulation:=true
-```
-
 - Connect **Foxglove Studio** to `ws://127.0.0.1:8765` and import [`src/z70_bringup/foxglove/z70-dashboard.json`](src/z70_bringup/foxglove/z70-dashboard.json).
-- Monocular depth is enabled by default when `~/.venvs/roboclaw-depth` is provisioned ([setup instructions](docs/ros2.md#optional-depth)); pass `depth:=false` to disable it.
+- Monocular depth is enabled by default when `~/.venvs/roboclaw-depth` is provisioned ([setup instructions](docs/ros2.md#optional-depth-worker)); pass `depth:=false` to disable it.
 
 ## Architecture Overview
 
@@ -38,7 +32,7 @@ pixi run bringup web_gateway:=true manipulation:=true
 - **`src/z70_manipulation`** — HSV perception, coordinated multi-axis joint planner, and manipulation/navigation action servers ([`src/z70_manipulation/README.md`](src/z70_manipulation/README.md)).
 - **`src/z70_web_gateway`** — Loopback `rclpy` HTTP bridge (`127.0.0.1:57020`) backing both the web console and MCP server ([`docs/thin-api.md`](docs/thin-api.md)).
 - **`apps/web` & `apps/mcp`** — React operator console (with manual arm lifecycle, press-and-hold jogging, and live telemetry) and stdio MCP server.
-- **`adapters/vendor` & `deploy`** — Local Roborock LAN/MQTT transport sidecar and `go2rtc` WebRTC/MJPEG media container.
+- **`adapters/vendor` & `deploy`** — Local Roborock LAN/MQTT transport service (`127.0.0.1:57010`) and native `go2rtc` WebRTC/MJPEG media sidecar (`127.0.0.1:57001`, WebRTC `:57012`).
 
 ## MCP Configuration
 

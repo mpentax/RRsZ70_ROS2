@@ -1,6 +1,6 @@
 # ROS 2 Jazzy Guide
 
-Commands run from the repository root. `pixi.toml` targets `osx-arm64` and pins RoboStack ROS 2 Jazzy and Python dependencies in `pixi.lock`.
+Commands run from the repository root. `pixi.toml` targets `osx-arm64` and pins RoboStack ROS 2 Jazzy, Python, Go, and Node.js dependencies in `pixi.lock`.
 
 ```sh
 pixi install
@@ -14,21 +14,20 @@ pixi run test
 
 ## Launch
 
-After starting the Docker sidecars (`docker compose -f deploy/compose.yaml up -d`) and completing setup at `http://127.0.0.1:57010`:
+Start the full native stack (`go2rtc`, the vendor/web HTTP service on `127.0.0.1:57010`, `z70_web_gateway` on `127.0.0.1:57020`, `z70_driver`, `z70_mapping`, `z70_odometry`, `z70_manipulation`, and `foxglove_bridge` on `127.0.0.1:8765`):
 
 ```sh
-pixi run bringup web_gateway:=true
-# With manipulation and navigation action servers enabled:
-pixi run bringup web_gateway:=true manipulation:=true
+pixi run bringup
 ```
 
-| Launch Argument | Default | Description |
+| Launch Argument | Default (`bringup.launch.py` / `pixi run bringup`) | Description |
 | :--- | :--- | :--- |
-| `origin` | `http://127.0.0.1:57010` | Local vendor transport sidecar URL |
+| `origin` | `http://127.0.0.1:57010` | Local vendor transport service URL |
 | `token_file` | `$Z70_REPO/.local/service-token` | Path to bearer token file (`Z70_REPO` defaults to `$PWD`) |
+| `sidecars` | `false` (`true` in `pixi run bringup`) | Launch native `go2rtc` (`:57001` / `:57012`) and vendor/web HTTP service (`:57010`) |
+| `manipulation`, `web_gateway` | `false`, `false` (`true` in `pixi run bringup`) | Enable manipulation action servers and HTTP gateway (`:57020`) |
 | `camera_hz` | `3.0` | Active camera polling rate in Hz (`0` disables polling) |
 | `mapping`, `depth` | `true`, `true` | Enable vendor LiDAR map node and MPS monocular depth worker |
-| `manipulation`, `web_gateway` | `false`, `false` | Enable manipulation action servers and HTTP gateway (`:57020`) |
 | `web_gateway_port` | `57020` | Loopback port for `z70_web_gateway` |
 | `foxglove_port` | `8765` | Loopback WebSocket port for `foxglove_bridge` |
 | `camera_info`, `calibration` | Installed `z70_description` config | Front camera intrinsics and floor/extrinsics JSON |

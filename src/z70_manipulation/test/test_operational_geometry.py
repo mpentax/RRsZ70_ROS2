@@ -1,4 +1,4 @@
-"""Operational geometry, not merely URDF tags or a single legacy TCP."""
+"""Hand collision body floor clearance and operational grasp planning."""
 import pytest
 from z70_manipulation import planner as p
 

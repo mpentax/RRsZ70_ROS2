@@ -1,4 +1,4 @@
-"""No ROS or transport needed for scheduler invariants."""
+"""Single-owner task session and command reservation scheduler."""
 import threading
 from z70_driver.dispatcher import Dispatcher, ZERO
 

@@ -1,4 +1,4 @@
-"""Exercise the real ROS messages and publishers without HTTP or robot access."""
+"""Dashboard diagnostic status and telemetry publishers."""
 import rclpy
 from rclpy.node import Node
 from z70_driver.dashboard import Dashboard

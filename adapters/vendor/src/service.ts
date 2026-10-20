@@ -12,7 +12,6 @@ import { summarizeStatus } from "./credentials.ts";
 import { RobotClient, RpcError, type RobotDiagnostic } from "./robot.ts";
 import { CloudControlClient, cloudControlCredentials } from "./cloud-control.ts";
 import { TransportError, publicRpcValue, type RpcOutcome } from "./rpc-outcome.ts";
-import { cameraBrokerDiagnostic } from "./camera-broker-diagnostic.ts";
 
 import { Go2Rtc, publicCameraFailure } from "./go2rtc.ts";
 import { CameraSelector, requestedCamera } from "./camera-selection.ts";
@@ -350,11 +349,6 @@ export async function createService(options: ServiceOptions) {
           sourceAudit: device && camera && driver.configurationMatches
             ? await driver.configurationMatches(camera.account, device, camera.pin) : { available: false } } });
     }
-    if (req.method === "POST" && ["/api/status", "/api/arm", "/api/arm/observe", "/api/camera/status"].includes(path)) {
-      await readJson(req);
-      const readings = await telemetry();
-      return reply(res, 200, path === "/api/status" ? readings.status : path === "/api/camera/status" ? readings.camera : readings.arm);
-    }
     if (path === "/api/home/rooms") return reply(res, 200, home && home.deviceId === device?.duid ? selectedRooms(home) : { source: "unavailable", rooms: [] });
     if (path === "/api/home/rooms/refresh" && req.method === "POST") {
       await readJson(req); if (!device || !camera || !home || home.deviceId !== device.duid) return fail(503, "Account authorization unavailable.");
@@ -449,11 +443,6 @@ export async function createService(options: ServiceOptions) {
         pinConfigured = true; auth.revokeSetup();
       });
       return reply(res, 200, { pinCached: true });
-    }
-    if (path === "/api/camera/diagnostic" && req.method === "POST") {
-      await readJson(req);
-      if (!device || !camera) return fail(503, "Authenticated camera account required.");
-      return reply(res, 200, await cameraBrokerDiagnostic(camera.account, device));
     }
     if (path === "/api/driver/camera/select" && req.method === "POST") {
       if (!req.headers.authorization?.startsWith("Bearer ")) return fail(403, "Private driver bearer authentication required.");

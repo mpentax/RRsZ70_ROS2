@@ -602,7 +602,41 @@ def test_stow_polls_common_status_instead_of_blind_10s_sleep(tmp_path):
     sleeps = []
     ex = Executor(client, lambda *_: [], tmp_path / 'stow', sleep=lambda d: sleeps.append(d))
     ex.snap = lambda _: None
-    res = ex.stow()
-    assert res == {'stowed': True, 'state': 'IN_ROBOT'}
+    assert ex.stow() == {'stowed': True, 'state': 'IN_ROBOT'}
     assert 10. not in sleeps and sleeps == [.5, 1.]
+
+
+def test_pickup_client_delegates_observations_without_network_or_token(tmp_path, monkeypatch):
+    Client, _ = api()
+    calls = []
+
+    class Shared:
+        def get(self, path):
+            calls.append(('get', path))
+            return {'shared': True}
+
+        def frame(self):
+            calls.append(('frame',))
+            return 'image', 'front'
+
+        def select(self, camera):
+            calls.append(('select', camera))
+            return {'camera': camera}
+
+    def no_network(*args, **kwargs):
+        raise AssertionError('independent HTTP observation')
+
+    monkeypatch.setattr('requests.Session.request', no_network)
+    client = Client('http://not-contacted.invalid', tmp_path / 'does-not-exist', read_only=True, observations=Shared())
+    try:
+        assert client.get('/api/state') == {'shared': True}
+        assert client.frame() == ('image', 'front')
+        with pytest.raises(PermissionError):
+            client.select('front')
+        with pytest.raises(PermissionError):
+            client.rpc('get_status', [])
+        assert calls == [('get', '/api/state'), ('frame',)]
+    finally:
+        client.close()
+
 

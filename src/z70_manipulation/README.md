@@ -90,9 +90,9 @@ ros2 action send_goal /z70/patrol_collect z70_interfaces/action/PatrolCollect \
 All action servers on `PickServer` (`z70_manipulation/node.py`) are registered declaratively via `GoalSpec` and executed through a shared `GoalContext` (`ctx`) that manages single-owner locking, `TaskSession` (`begin()` / `end()`), deadline watchdogs, task-local cancellation, and `CommandOutcome` reporting:
 
 ```python
-from z70_manipulation.goals import GoalContext, GoalSpec
+from z70_manipulation.goals import GoalContext, GoalSpec, simulate_goal
 
-self.register_goal(GoalSpec(
+spec = GoalSpec(
     name='my_goal',
     action_cls=MyGoal,
     topic='/z70/my_goal',
@@ -101,12 +101,13 @@ self.register_goal(GoalSpec(
     run=self._goal_my_goal,
     fields=('max_duration_s', 'dry_run'),
     description='Custom ROS 2 action goal.',
-))
+)
+self.register_goal(spec)
 ```
 
 - **Runtime Goal Catalog (`GET /api/ros/goals`, `GOAL_CONTEXT_PRIMITIVES` & `GoalSpec.describe()`):** `z70_web_gateway` exposes `GET /api/ros/goals` returning `{goals: [{kind, topic, action, fields}, ...], context_primitives: [{name, signature, summary}, ...]}` (`GOAL_CONTEXT_PRIMITIVES` in `goals.py`) for all registered gateway actions and `GoalContext` primitives, and `PickServer.goal_specs[name].describe()` returns `{name, topic, action, fields, navigation, description}` for each manipulation/navigation `GoalSpec`.
 - **Dry-Run Goal Validation (`POST /api/ros/goals/validate` & MCP `validateOnly: true`):** `POST /api/ros/goals/validate` validates a `{kind, goal}` request payload against the gateway's ROS action goal schema without dispatching it to the robot, returning `200 {valid: true, kind, topic, action}` or `400 {valid: false, error}`. In MCP, `start_task` accepts `validateOnly: true` (as well as custom `{kind, goal}` schemas) to invoke `POST /api/ros/goals/validate` before live execution.
-- **Dynamic Custom Goal Plugins (`.local/goals/*.py`):** On startup, `PickServer` calls `load_custom_goals(self, self.custom_goals_directory)` (default `<repo>/.local/goals`, configurable via the `custom_goals_directory` ROS parameter). Any non-underscored `*.py` module in that directory that defines `register(server)` or `GOAL_SPECS = [GoalSpec(...), ...]` is automatically loaded and registered on `PickServer` without modifying `node.py`.
+- **Pure-Python Goal Simulation (`simulate_goal(spec, request, **overrides)`):** `simulate_goal()` constructs a lightweight in-memory mock `GoalContext` with sensible defaults for all `GOAL_CONTEXT_PRIMITIVES` (overridable via keyword arguments) and invokes `spec.run(ctx, request)` so `GoalSpec` handlers authored in `z70_manipulation` can be unit-tested offline without spinning up DDS or hardware.
 
 Inside a goal handler `def _goal_my_goal(self, ctx: GoalContext, req) -> tuple[bool, MyGoal.Result]`, `ctx` provides:
 - **State & Perception:** `ctx.status()`, `ctx.arm()`, `ctx.arm_msg()`, `ctx.odom()`, `ctx.map_pose()`, `ctx.map_snapshot(refresh=False)`, `ctx.safe_interior(refresh=False, deployed_arm_extension_m=0.0)`, `ctx.objects(camera='front', color=None)`, `ctx.garments(category='any')`, `ctx.frame()`

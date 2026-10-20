@@ -1,4 +1,4 @@
-"""Standard ROS launch exercised exclusively against an inert loopback backend."""
+"""Control session suspend and resume across ROS launch."""
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os

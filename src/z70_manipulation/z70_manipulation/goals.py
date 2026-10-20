@@ -6,7 +6,6 @@ and for invoking navigation, base pulses, and multi-axis arm primitives.
 """
 from copy import deepcopy
 from dataclasses import dataclass, replace
-import importlib.util
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Callable
@@ -46,7 +45,7 @@ class GoalSpec:
     topic: str
     timeout_s: float | Callable[[Any], float]
     validate: Callable[[Any, Any], bool]
-    run: Callable[['GoalContext', Any], tuple[bool, Any]]
+    run: Callable[['GoalContext | SimpleNamespace', Any], tuple[bool, Any]]
     read_only: Callable[[Any], bool] = lambda req: bool(getattr(req, 'dry_run', False))
     needs_executor: Callable[[Any], bool] = lambda req: True
     navigation: bool = False
@@ -64,27 +63,43 @@ class GoalSpec:
         }
 
 
-def load_custom_goals(server, directory: Path) -> list[str]:
-    """Load any custom ROS 2 goal plugins (`*.py`) from `directory` onto `server`."""
-    loaded = []
-    if not directory or not directory.is_dir():
-        return loaded
-    for path in sorted(directory.glob('*.py')):
-        if path.name.startswith('_'):
-            continue
-        spec = importlib.util.spec_from_file_location(f'z70_custom_goal_{path.stem}', path)
-        if spec is None or spec.loader is None:
-            continue
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        if hasattr(mod, 'register') and callable(mod.register):
-            mod.register(server)
-            loaded.append(path.stem)
-        elif hasattr(mod, 'GOAL_SPECS'):
-            for goal_spec in mod.GOAL_SPECS:
-                server.register_goal(goal_spec)
-            loaded.append(path.stem)
-    return loaded
+def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
+    """Run `spec.run(ctx, request)` against a lightweight in-memory mock `GoalContext`."""
+    defaults = dict(
+        request=request,
+        action_cls=spec.action_cls,
+        directory=Path('.'),
+        latest_observation=None,
+        commands=None,
+        status=lambda: {'state': 3, 'error_code': 0, 'battery': 100, 'common_status': 51202},
+        arm=lambda: {'state': 'IN_ROBOT', 'joints': {'m3': 270., 'm4': 180., 'm5': 0., 'm6': 0.}},
+        arm_msg=lambda: None,
+        odom=lambda: {'x': 0., 'y': 0., 'yaw': 0.},
+        map_pose=lambda source='base_footprint': (0., 0., 0.),
+        map_snapshot=lambda refresh=False, max_age_s=5.: None,
+        safe_interior=lambda refresh=False, deployed_arm_extension_m=0.: (None, None),
+        objects=lambda camera='front', color=None: [],
+        observe_color=lambda camera, color: [],
+        garments=lambda category='any', after=None: [],
+        navigate=lambda target_x_m, target_y_m, max_duration_s=60., dry_run=False: {
+            'arrived': not dry_run, 'dry_run_valid': bool(dry_run), 'status_code': 'ARRIVED', 'detail': '',
+        },
+        deploy_arm=lambda settle=True: {'ready': True},
+        align_target=lambda color: {'position': [0.35, 0., 0.04], 'bearing_error_deg': 0., 'range_error_m': 0.},
+        move_arm=lambda m3_deg, m4_deg, m5_deg=0.: {'steps_executed': 1},
+        grasp_and_lift=lambda lift_steps=2, verify_color='': {'verified': True},
+        release_and_stow=lambda put_down=True: {'stowed': True},
+        pulse=lambda velocity=0., omega=0., duration=300: {'ok': True},
+        rpc=lambda method, params=None, timeout_ms=5000: {'result': ['ok']},
+        stop=lambda: None,
+        hazard=lambda: None,
+        is_cancelled=lambda: False,
+        sleep=lambda duration: None,
+        feedback=lambda **fields: None,
+        outcome=lambda success: CommandOutcome(error_code='NONE' if success else 'OBSERVATION_GAP'),
+    )
+    defaults.update(overrides)
+    return spec.run(SimpleNamespace(**defaults), request)
 
 
 class GoalContext:

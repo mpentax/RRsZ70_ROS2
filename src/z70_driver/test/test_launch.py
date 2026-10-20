@@ -1,4 +1,4 @@
-"""Standard ros2 launch against a fake backend, isolated DDS and test-owned data."""
+"""Standard ROS launch image, map, and state acquisition."""
 import os
 import signal
 import subprocess

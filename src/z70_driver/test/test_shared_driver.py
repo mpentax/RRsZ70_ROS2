@@ -1,4 +1,4 @@
-"""Offline fake transport -> actual generated rosidl/DDS -> multiple ROS consumers."""
+"""Shared driver state, camera frame, and map publishing across ROS consumers."""
 from copy import deepcopy
 import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer

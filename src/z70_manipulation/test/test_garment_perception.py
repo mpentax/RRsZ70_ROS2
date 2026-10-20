@@ -1,4 +1,4 @@
-"""Offline garment geometry and worker contract; never accesses hardware/network."""
+"""Garment silhouette projection, tracking, and worker framing."""
 import io
 import json
 from pathlib import Path
