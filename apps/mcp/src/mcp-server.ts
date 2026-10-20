@@ -8,7 +8,7 @@ import { jpegImageDimensions, CAMERA_NAMES, rosRoute } from "@rrsz70/http-contra
 
 export type TaskInput = { kind: string; goal?: Record<string, unknown>; [key: string]: unknown };
 export interface GoalCatalogResponse {
-  goals: { kind: string; topic: string; action: string; fields: string[] }[];
+  goals: { kind: string; topic: string; action: string; fields: string[]; description?: string }[];
   context_primitives?: { name: string; signature: string; summary: string }[];
 }
 export interface GoalValidationResponse {
@@ -135,10 +135,10 @@ export class RoboClawMcpClient {
       const camera = response.headers.get("x-roboclaw-camera");
       const sizeCamera = response.headers.get("x-roboclaw-size-camera");
       const sampleReceivedAt = Number(response.headers.get('x-roboclaw-received-at'));
-      const metadata: Record<string, unknown> = { receivedAt: response.headers.has('x-roboclaw-received-at') && Number.isSafeInteger(sampleReceivedAt) && sampleReceivedAt > 0 ? sampleReceivedAt : null, capturedAt: null,
+      const metadata: Record<string, unknown> = { receivedAt: response.headers.has('x-roboclaw-received-at') && Number.isSafeInteger(sampleReceivedAt) && sampleReceivedAt > 0 ? sampleReceivedAt : null,
         ...(camera === "front" || camera === "gripper" ? { camera } : {}),
         ...(sizeCamera === "front" || sizeCamera === "gripper" ? { sizeCamera } : {}),
-        captureProvenance: null, lensVerification: "unknown", mimeType: "image/jpeg", feedLensVerified: false,
+        mimeType: "image/jpeg",
         ...(opaque(frameId) && opaque(sessionId) ? { frameId, cameraSessionId: sessionId } : {}) };
       try { metadata.dimensions = jpegImageDimensions(bytes); } catch { /* No dimensions claim from a byte-only JPEG. */ }
       this.frameMetadata.set(bytes, metadata);
@@ -242,8 +242,7 @@ export function createRoboClawMcp(client: RoboClawMcpClient): McpServer {
     try {
       const frame = await client.request("/api/ros/frame", 5000, camera === undefined ? {} : { camera });
       if (!Buffer.isBuffer(frame)) throw new Error("No frame.");
-      const metadata = client.frameMetadata.get(frame) ?? { receivedAt: Date.now(), capturedAt: null,
-        captureProvenance: null, mimeType: "image/jpeg", feedLensVerified: false, lensVerification: "unknown" };
+      const metadata = client.frameMetadata.get(frame) ?? { receivedAt: Date.now(), mimeType: "image/jpeg" };
       if (process.env.ROBOCLAW_MCP_IMAGE_HANDOFF === "private-file") {
         return textResult({ ...metadata,
           imagePath: await privateMcpFrame(frame), temporaryPrivateFile: true,

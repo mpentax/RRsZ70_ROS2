@@ -28,7 +28,7 @@ test("MCP camera selection forwards its camera argument without treating it as a
     const metadata = JSON.parse((reply.content as {text:string}[])[0]!.text);
     assert.equal(metadata.camera, "gripper");
     assert.equal(metadata.defaultRestored, undefined);
-    assert.equal(metadata.feedLensVerified, false);
+    assert.equal(metadata.mimeType, "image/jpeg");
   } finally { await client.close(); await server.close(); }
 });
 
@@ -123,7 +123,7 @@ test("bounded camera JPEG and private image handoff retain metadata", async () =
   const value = await client.request("/api/ros/frame");
   assert.ok(Buffer.isBuffer(value));
   assert.equal(client.frameMetadata.get(value)?.frameId, "frame_1");
-  assert.equal(client.frameMetadata.get(value)?.feedLensVerified, false);
+  assert.equal(client.frameMetadata.get(value)?.mimeType, "image/jpeg");
   const { privateMcpFrame } = await import("./mcp-server.ts");
   const { readFile, stat } = await import("node:fs/promises");
   const path = await privateMcpFrame(value);
