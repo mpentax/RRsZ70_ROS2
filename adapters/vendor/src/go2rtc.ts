@@ -220,22 +220,6 @@ export class Go2Rtc {
     return result;
   }
 
-  async configured(): Promise<boolean> {
-    try {
-      const response = await fetch(`${this.#origin}/api/streams?src=${GO2RTC_STREAM}`, {
-        redirect: "error", signal: AbortSignal.timeout(3000),
-      });
-      if (response.status === 404) { await response.body?.cancel(); return false; }
-      if (!response.ok) throw new DriverError("Cannot inspect go2rtc configuration.");
-      const value: unknown = JSON.parse(await responseText(response));
-      if (!value || typeof value !== "object" || !("producers" in value) || !Array.isArray(value.producers)) return false;
-      return value.producers.some((producer: unknown) => producer !== null && typeof producer === "object" &&
-        "url" in producer && typeof producer.url === "string" && producer.url.startsWith("roborock://"));
-    } catch {
-      throw new DriverError("Cannot inspect local go2rtc configuration.");
-    }
-  }
-
   async configurationMatches(account: CameraAccount, device: DeviceCredentials, pin: string) {
     try {
       const response = await fetch(`${this.#origin}/api/streams?src=${GO2RTC_STREAM}`, {
@@ -361,18 +345,6 @@ export class Go2Rtc {
     } catch (error) {
       if (error instanceof DriverError) throw error;
       throw new DriverError("go2rtc camera exchange failed or timed out; no image was received.");
-    }
-  }
-
-  async health(): Promise<boolean> {
-    try {
-      const response = await fetch(`${this.#origin}/api`, {
-        redirect: "error", signal: AbortSignal.timeout(3000),
-      });
-      await response.body?.cancel();
-      return response.ok;
-    } catch {
-      return false;
     }
   }
 

@@ -105,9 +105,7 @@ async function sanitized<T>(operation: () => Promise<T>, message: string): Promi
   catch (error) { throw new Error(message, { cause: safeReason(error) }); }
 }
 
-/**
- * Plaintext private volume storage. Set ROBOCLAW_STATE_DIR=/data for a persistent container volume.
- */
+/** Private state directory storage for pairing, service token, and map cache. */
 export class SecretStore {
   #directory: string;
 

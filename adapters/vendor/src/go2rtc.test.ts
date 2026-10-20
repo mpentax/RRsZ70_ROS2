@@ -214,12 +214,3 @@ test("camera source audit compares account and device fields without returning c
   assert.equal(changed.deviceMatches, true);
   assert.equal(JSON.stringify(changed).includes("private"), false);
 });
-
-test("configured status never exports a credential-bearing source URL", async (t) => {
-  t.mock.method(globalThis, "fetch", async () => Response.json({
-    producers: [{ url: "roborock://mqtt.roborock.com:8883?key=private" }],
-  }));
-  assert.equal(await new Go2Rtc().configured(), true);
-  t.mock.method(globalThis, "fetch", async () => Response.json({ producers: [{ url: "{input}" }] }));
-  assert.equal(await new Go2Rtc().configured(), false);
-});
