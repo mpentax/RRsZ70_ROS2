@@ -2,7 +2,7 @@ import math
 from types import SimpleNamespace
 import pytest
 from z70_odometry.calibration_state import calibrated_camera_x, fill_state
-from z70_odometry.chassis_calibrator import OnlineCalibration
+from z70_odometry.chassis_calibrator import OnlineCalibration, _arc
 
 
 def motion(c, index, velocity=0, omega=.5, rejected=False, silent=False, dispatch='sent'):
@@ -17,8 +17,9 @@ def motion(c, index, velocity=0, omega=.5, rejected=False, silent=False, dispatc
         fraction = max(0, min(1, (t - start) / duration))
         angle = th * fraction
         distance = velocity * duration * .55 * fraction
-        dx = distance * (math.sin(angle) / angle if angle else 1) + (x - old) * (math.cos(angle) - 1)
-        dy = distance * ((1 - math.cos(angle)) / angle if angle else 0) + (x - old) * math.sin(angle)
+        arc_x, arc_y = _arc(angle)
+        dx = distance * arc_x + (x - old) * (math.cos(angle) - 1)
+        dy = distance * arc_y + (x - old) * math.sin(angle)
         c.add_pose(dict(t=t, x=dx, y=dy, yaw=angle, camera_x_m=old, rejected=rejected and j == 6))
     command = dict(
         id=str(index),

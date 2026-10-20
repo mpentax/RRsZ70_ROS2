@@ -110,8 +110,9 @@ def test_calibrated_command_arc_without_camera(odom, omega, gain):
     odom.test.clock.ns += 500_000_000
     odom.on_command(command(2, 2, omega=omega))
     angle = omega * .5 * gain
-    local_x = .2 * .5 * 1.2 * (math.sin(angle) / angle if angle else 1.)
-    local_y = .2 * .5 * 1.2 * ((1. - math.cos(angle)) / angle if angle else 0.)
+    arc_x, arc_y = odom_node._arc(angle)
+    local_x = .2 * .5 * 1.2 * arc_x
+    local_y = .2 * .5 * 1.2 * arc_y
     assert (odom.x, odom.y, odom.th) == pytest.approx(
         (1. + math.cos(.3) * local_x - math.sin(.3) * local_y,
          -1. + math.sin(.3) * local_x + math.cos(.3) * local_y, .3 + angle))

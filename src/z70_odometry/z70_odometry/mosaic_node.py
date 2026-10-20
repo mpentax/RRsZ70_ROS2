@@ -1,7 +1,6 @@
 """Stamp-exact /camera/front/image_raw + /odom -> appearance-only floor mosaic."""
 from collections import OrderedDict
 import json
-import math
 import numpy as np
 import rclpy
 from nav_msgs.msg import Odometry
@@ -10,6 +9,7 @@ from rclpy.node import Node
 from rclpy.qos import QoSProfile, DurabilityPolicy
 from sensor_msgs.msg import CameraInfo, Image
 from std_msgs.msg import String
+from z70_odometry.chassis_calibrator import quat_yaw
 from z70_odometry.floor_vo import FloorCamera
 from z70_odometry.mosaic import FloorMosaic
 from z70_odometry.calibration_state import calibrated_camera_x
@@ -78,9 +78,8 @@ class FloorMosaicNode(Node):
         if image.width!=self.mosaic.cam.W or image.height!=self.mosaic.cam.H: return
         if image.step<image.width*3 or len(image.data)!=image.height*image.step: return
         view=np.frombuffer(image.data,np.uint8).reshape(image.height,image.step)[:,:image.width*3].reshape(image.height,image.width,3)
-        pose=odom.pose.pose; q=pose.orientation
-        yaw=math.atan2(2*(q.w*q.z+q.x*q.y),1-2*(q.y*q.y+q.z*q.z))
-        stats=self.mosaic.update(view,(pose.position.x,pose.position.y,yaw))
+        pose=odom.pose.pose
+        stats=self.mosaic.update(view,(pose.position.x,pose.position.y,quat_yaw(pose.orientation)))
         self._publish_outputs(image.header.stamp)
         stats.update(stamp_ns=key,resolution=self.mosaic.resolution,origin_xy=list(self.mosaic.origin),
                      frame_id='odom',width=self.mosaic.n,height=self.mosaic.n)

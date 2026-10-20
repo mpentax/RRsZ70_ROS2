@@ -15,6 +15,10 @@ def local_delta(a,b):
     return math.cos(th)*dx+math.sin(th)*dy,-math.sin(th)*dx+math.cos(th)*dy,math.atan2(math.sin(b['yaw']-th),math.cos(b['yaw']-th))
 
 
+def quat_yaw(q) -> float:
+    return math.atan2(2*(q.w*q.z+q.x*q.y),1-2*(q.y*q.y+q.z*q.z))
+
+
 def _arc(angle: float) -> tuple[float, float]:
     return (math.sin(angle)/angle, (1.-math.cos(angle))/angle) if abs(angle)>1e-8 else (1., 0.)
 
@@ -209,8 +213,8 @@ def main():
         def commands(self,msg):
             self.command_stream.add(msg)
         def odom(self,msg):
-            p=msg.pose.pose; q=p.orientation; stamp=msg.header.stamp.sec*10**9+msg.header.stamp.nanosec; t=stamp/1e9
-            entry=dict(t=t,stamp_ns=stamp,x=p.position.x,y=p.position.y,yaw=math.atan2(2*(q.w*q.z+q.x*q.y),1-2*(q.y*q.y+q.z*q.z)),rejected=msg.pose.covariance[0]>1000,camera_x_m=None)
+            p=msg.pose.pose; stamp=msg.header.stamp.sec*10**9+msg.header.stamp.nanosec; t=stamp/1e9
+            entry=dict(t=t,stamp_ns=stamp,x=p.position.x,y=p.position.y,yaw=quat_yaw(p.orientation),rejected=msg.pose.covariance[0]>1000,camera_x_m=None)
             status=self.status.get(stamp)
             if status: entry['camera_x_m']=status.get('camera_x_m')
             self.estimator.add_pose(entry)
