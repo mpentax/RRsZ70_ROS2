@@ -5,7 +5,7 @@ the camera is calibrated and sits 68 mm above a flat floor, so every floor pixel
 Steps: ORB features on the floor region -> match -> map both sides to floor coordinates ->
 RANSAC rigid 2-D fit (2-point minimal sets) -> camera-floor motion -> robot base motion via the camera offset.
 
-Floor frame of a camera pose: origin on the floor under the camera, x forward, y left (see floor_geometry.py).
+Floor frame of a camera pose: origin on the floor under the camera, x forward, y left.
 Static floor points obey p1 = R^T (p0 - t) when the camera moves by (t, R) from frame 0 to frame 1.
 """
 from __future__ import annotations
@@ -21,7 +21,7 @@ from .calibration_state import front_calibration_path, initial_camera_x_m
 
 
 class FloorCamera:
-    """Vectorised pixel <-> floor mapping (same model as z70_description.floor_geometry)."""
+    """Vectorised pixel <-> floor mapping for the front camera."""
 
     def __init__(self, cal: dict):
         self.f, self.cx, self.cy = cal["f_px"], cal["cx"], cal["cy"]
