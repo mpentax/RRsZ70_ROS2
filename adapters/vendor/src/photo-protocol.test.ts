@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { gzipSync } from "node:zlib";
 import { createBlobSecurity, decodeMapResponse, type BlobSecurity } from "./photo-protocol.ts";
 
-function mapResponse(data: Buffer, security: BlobSecurity, requestId = 20009): Buffer {
+export function mapResponse(data: Buffer, security: BlobSecurity, requestId = 20009): Buffer {
   const cipher = createCipheriv("aes-128-cbc", security.nonce, Buffer.alloc(16));
   const encrypted = Buffer.concat([cipher.update(gzipSync(data)), cipher.final()]);
   const header = Buffer.alloc(24);

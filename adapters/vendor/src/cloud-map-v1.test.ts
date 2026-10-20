@@ -1,17 +1,13 @@
 import assert from "node:assert/strict";
-import { createCipheriv } from "node:crypto";
 import { test } from "node:test";
-import { gzipSync } from "node:zlib";
 import { localProtocolCodec } from "./local.ts";
 import { decodeCloudMapResponse, inspectMapFrame, MAX_CLOUD_MAP_FRAME_BYTES } from "./cloud-map-v1.ts";
 import { createBlobSecurity } from "./photo-protocol.ts";
+import { mapResponse } from "./photo-protocol.test.ts";
 
 const LOCAL_KEY = "0123456789abcdef";
 function response(data: Buffer, security = createBlobSecurity("map-test-key"), requestId = 20009): Buffer {
-  const cipher = createCipheriv("aes-128-cbc", security.nonce, Buffer.alloc(16));
-  const payload = Buffer.concat([Buffer.from(security.endpoint), Buffer.alloc(8), (() => {
-    const id = Buffer.alloc(2); id.writeUInt16LE(requestId); return id;
-  })(), Buffer.alloc(6), cipher.update(gzipSync(data)), cipher.final()]);
+  const payload = mapResponse(data, security, requestId);
   const frame = Buffer.alloc(23 + Math.ceil((payload.length + 1) / 16) * 16);
   frame.write("1.0"); frame.writeUInt32BE(1753606905, 11); frame.writeUInt16BE(301, 15);
   const encrypted = localProtocolCodec.encryptPayload(payload, {
