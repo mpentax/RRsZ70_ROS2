@@ -9,10 +9,8 @@ def front_calibration_path():
 
 
 def runtime_calibration_path():
-    """Compute, but do not create, the durable mutable state file."""
     base = Path(os.environ.get('XDG_DATA_HOME') or Path.home() / '.local/share').expanduser()
     if not base.is_absolute():
-        # XDG requires absolute paths; relative values are treated as unset.
         base = Path.home() / '.local/share'
     return base / 'RRsZ70_ROS2/calibration/chassis/online.json'
 
@@ -29,7 +27,6 @@ def _package_root():
 
 
 def initial_camera_x_m():
-    """Retained historical initial guess, not the model preview mount offset."""
     import yaml
     return float(yaml.safe_load((_package_root() / 'config/odometry.yaml').read_text())['camera_x_m'])
 

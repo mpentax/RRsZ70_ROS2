@@ -83,8 +83,7 @@ class FloorMosaicNode(Node):
         stats=self.mosaic.update(view,(pose.position.x,pose.position.y,yaw))
         self._publish_outputs(image.header.stamp)
         stats.update(stamp_ns=key,resolution=self.mosaic.resolution,origin_xy=list(self.mosaic.origin),
-                     frame_id='odom',width=self.mosaic.n,height=self.mosaic.n,
-                     axes='columns +x, rows +y; cell centres origin+(index+0.5)*resolution')
+                     frame_id='odom',width=self.mosaic.n,height=self.mosaic.n)
         self.status_pub.publish(String(data=json.dumps(stats)))
 
 
