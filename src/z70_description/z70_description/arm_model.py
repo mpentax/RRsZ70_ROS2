@@ -67,10 +67,6 @@ def vendor_inverse(x, y, prefer_current=None):
     return sols[0]
 
 
-forward = vendor_forward
-inverse = vendor_inverse
-
-
 def vendor_check(m3, m4, m5):
     """Evaluate `checkArmInvalidAction` workspace and joint limits; returns fault code or 'SUCCESS'."""
     for k, v in (("m3", m3), ("m4", m4), ("m5", m5)):
@@ -91,7 +87,4 @@ def vendor_check(m3, m4, m5):
     if m4 - m3 + 90 > A4_MAX_DEG:
         return "FAULT_A4_ANGLE"
     return "SUCCESS"
-
-
-check = vendor_check  # Compatibility for executor/node firmware-admission callers.
 

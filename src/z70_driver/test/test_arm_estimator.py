@@ -1,11 +1,8 @@
 """Unit tests for ArmEstimator command and status tracking."""
-import hashlib
-import json
 import math
-from pathlib import Path
 import pytest
 from z70_driver.estimator import ArmEstimator
-from z70_description.arm_model import forward, inverse
+from z70_description.arm_model import vendor_forward, vendor_inverse
 
 
 def deployed(now=lambda:100.):
@@ -38,7 +35,7 @@ def test_nominal_vendor_endpoint_is_not_the_cad_wrist():
 
 def test_nominal_fk_ik_and_hand_not_physical_transform():
     for m3,m4 in ((150,45),(200,90),(240,130)):
-        assert inverse(*forward(m3,m4)[1],(m3,m4))==pytest.approx((m3,m4))
+        assert vendor_inverse(*vendor_forward(m3,m4)[1],(m3,m4))==pytest.approx((m3,m4))
     e=deployed();before=e.snapshot()['wrist']
     for direction in (3,3,2): e.observe('app_arm_direction_move',dict(direction=direction),'received')
     assert e.snapshot()['wrist']==pytest.approx(dict(x=before['x']+.08,y=before['y']-.04))
@@ -96,7 +93,7 @@ def test_program_priority_steps_and_autonomous_unknown():
         dict(cmd_id='arm_joints',value=[0,1,1,2],step=2),dict(cmd_id='delay'),
         dict(cmd_id='arm_move',direction=1,step=1)]),'received')
     d=e.snapshot();assert d['stepsSinceAnchor']==3 and d['joints']['m5']==20 and d['joints']['m6']==0
-    assert d['wrist']['y']==pytest.approx(forward(150,65)[1][1]+.04)
+    assert d['wrist']['y']==pytest.approx(vendor_forward(150,65)[1][1]+.04)
     e.observe('app_start_program',dict(cmd_ids=[dict(cmd_id='arm_grasp')]),'received')
     assert e.snapshot()['state']=='UNKNOWN'
     e.observe('app_start_program',dict(cmd_ids=[dict(cmd_id='arm_in')]),'received')
