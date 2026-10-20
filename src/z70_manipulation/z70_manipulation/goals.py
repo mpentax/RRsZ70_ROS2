@@ -521,10 +521,8 @@ def _goal_stack(ctx: 'GoalContext | SimpleNamespace', req):
 
 def _goal_pin_and_go(ctx: 'GoalContext | SimpleNamespace', req):
     data = ctx.navigate(req.target_x_m, req.target_y_m, req.max_duration_s, dry_run=req.dry_run)
-    result = PinAndGo.Result(**data)
-    if ctx.commands and ctx.commands.latest_outcome is not None:
-        result.outcome = ctx.commands.latest_outcome
-    return bool(result.arrived or result.dry_run_valid), result
+    success = bool(data.get('arrived') or data.get('dry_run_valid'))
+    return success, PinAndGo.Result(outcome=ctx.outcome(success), **data)
 
 
 def _goal_garment(ctx: 'GoalContext | SimpleNamespace', req, action_cls, patrol=False):

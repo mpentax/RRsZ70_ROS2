@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import cv2
 import numpy as np
 import pytest
+from rosidl_runtime_py.convert import message_to_ordereddict
 from z70_manipulation import perception, placement, planner
 from z70_manipulation.executor import Client, Executor
 from z70_manipulation.goals import ALL_GOALS, BUILTIN_GOALS, GoalContext, GoalSpec, simulate_goal
@@ -633,7 +634,7 @@ def test_simulate_goal_exercises_all_builtin_goals():
         spec = ALL_GOALS[name]
         assert spec.validate_payload(payload), name
         ok, res = simulate_goal(spec, SimpleNamespace(**payload))
-        assert ok and check(res), name
+        assert ok and check(res) and isinstance(message_to_ordereddict(res), dict), name
 
     route_spec = BUILTIN_GOALS['pin_and_go']
     ok, _ = simulate_goal(
