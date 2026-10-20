@@ -18,6 +18,8 @@ function unwrapGrid(mapData: Record<string, unknown> | null): Record<string, unk
 export function MapCanvas({ mapData, busy, onReadMap, selectedTarget, onSelectTarget }: MapCanvasProps) {
   const mapCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const grid = unwrapGrid(mapData);
+  const worldObjects = record(mapData?.world_objects);
+  const entries = Array.isArray(worldObjects.entries) ? worldObjects.entries.map(record) : [];
   const info = record(grid?.info);
   const originPos = record(record(info.origin).position);
   const width = Number(info.width) || 0;
@@ -43,6 +45,18 @@ export function MapCanvas({ mapData, busy, onReadMap, selectedTarget, onSelectTa
       }
     }
     ctx.putImageData(img, 0, 0);
+    for (const entry of entries) {
+      const ex = Number(entry.x), ey = Number(entry.y), r = Math.max(1.5, (Number(entry.radius_m) || 0.12) / resolution);
+      if (!Number.isFinite(ex) || !Number.isFinite(ey)) continue;
+      const px = (ex - originX) / resolution;
+      const py = height - 1 - (ey - originY) / resolution;
+      if (px < 0 || px > width || py < 0 || py > height) continue;
+      ctx.strokeStyle = entry.relevance === 'completed' ? '#4ade80' : entry.relevance === 'objective' ? '#38bdf8' : '#f59e0b';
+      ctx.lineWidth = 1.25;
+      ctx.beginPath();
+      ctx.arc(px, py, r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
     if (selectedTarget && Number.isFinite(selectedTarget.x) && Number.isFinite(selectedTarget.y)) {
       const px = (selectedTarget.x - originX) / resolution;
       const py = height - 1 - (selectedTarget.y - originY) / resolution;
@@ -56,7 +70,7 @@ export function MapCanvas({ mapData, busy, onReadMap, selectedTarget, onSelectTa
         ctx.stroke();
       }
     }
-  }, [grid, width, height, resolution, originX, originY, selectedTarget]);
+  }, [grid, entries, width, height, resolution, originX, originY, selectedTarget]);
 
   function handleCanvasClick(event: MouseEvent<HTMLCanvasElement>) {
     if (!onSelectTarget || width <= 0 || height <= 0) return;
@@ -91,7 +105,7 @@ export function MapCanvas({ mapData, busy, onReadMap, selectedTarget, onSelectTa
             />
           </div>
           <figcaption className="caption">
-            Grid {String(width)}×{String(height)} cells @ {resolution.toFixed(2)} m/cell
+            Grid {String(width)}×{String(height)} cells @ {resolution.toFixed(2)} m/cell{entries.length > 0 ? ` · ${entries.length} world objects` : ''}
           </figcaption>
         </figure>
       </div>
