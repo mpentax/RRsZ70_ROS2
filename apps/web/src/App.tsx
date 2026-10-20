@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { ApiError, deleteSession, json, snapshot, SESSION_EXPIRED, type SessionStatus } from "./api.ts";
-import { cancelTask, listTasks, startTask, stopRobot, setControlSession, terminal, type Task, type TaskRequest, type RosState, type Setup } from './ros.ts';
+import { cancelTask, listTasks, robotRpc, startTask, stopRobot, setControlSession, terminal, type Task, type TaskRequest, type RosState, type Setup } from './ros.ts';
 import { SetupForm } from './SetupForm.tsx';
 import { ArmControlPanel } from './ArmControlPanel.tsx';
 import { MapCanvas } from './MapCanvas.tsx';
-import { robotRpc } from './rpc.ts';
 import { actionOutcome } from './outcomes.ts';
 import { record } from './helpers.ts';
 
