@@ -262,23 +262,10 @@ export function createRoboClawMcp(client: RoboClawMcpClient): McpServer {
     inputSchema: rpcSchema, annotations: ACTUATION,
   }, jsonTool((payload) => client.request('/api/ros/rpc', (payload.timeoutMs ?? 12000) + 18000, payload)));
   const idSchema = z.string().uuid();
-  const colorSchema = z.string().regex(/^[A-Za-z0-9_-]{1,32}$/);
-  const taskSchema = z.discriminatedUnion('kind', [
-    z.object({kind: z.literal('deliver_garment'), goal: z.object({category: z.string().max(32), drop_x_m: z.number().min(-100).max(100), drop_y_m: z.number().min(-100).max(100), max_duration_s: z.number().min(1).max(3600), allow_towing: z.boolean(), dry_run: z.boolean()}).strict()}).strict(),
-    z.object({kind: z.literal('patrol_collect'), goal: z.object({drop_x_m: z.number().min(-100).max(100), drop_y_m: z.number().min(-100).max(100), max_duration_s: z.number().min(1).max(3600), max_items: z.number().int().min(1).max(1000), allow_towing: z.boolean(), dry_run: z.boolean()}).strict()}).strict(),
-    z.object({kind: z.literal('pin_and_go'), goal: z.object({target_x_m: z.number().min(-100).max(100), target_y_m: z.number().min(-100).max(100), max_duration_s: z.number().min(1).max(600), dry_run: z.boolean()}).strict()}).strict(),
-    z.object({kind: z.literal('pick'), goal: z.object({color: colorSchema, dry_run: z.boolean()}).strict()}).strict(),
-    z.object({kind: z.literal('stack'), goal: z.object({base_color: colorSchema, middle_color: colorSchema, top_color: colorSchema, dry_run: z.boolean()}).strict()}).strict(),
-    z.object({kind: z.literal('base_pulse'), goal: z.object({linear_mps: z.number().min(-.1).max(.1), angular_radps: z.number().min(-.5).max(.5), duration: z.object({sec: z.literal(0), nanosec: z.number().int().min(1).max(800000000)}).strict()}).strict()}).strict(),
-    z.object({kind: z.literal('arm_step'), goal: z.object({joint: z.union([z.literal(3), z.literal(4), z.literal(5), z.literal(34), z.literal(43)]), direction: z.union([z.literal(-1), z.literal(1)])}).strict()}).strict(),
-    z.object({kind: z.literal('hand_step'), goal: z.object({direction: z.number().int().min(1).max(4)}).strict()}).strict(),
-    z.object({kind: z.literal('arm_operation'), goal: z.object({operation: z.number().int().min(1).max(9)}).strict()}).strict(),
-    z.object({kind: z.literal('deploy_arm'), goal: z.object({settle: z.boolean()}).strict()}).strict(),
-    z.object({kind: z.literal('align_target'), goal: z.object({color: colorSchema}).strict()}).strict(),
-    z.object({kind: z.literal('move_arm'), goal: z.object({m3_deg: z.number().min(90).max(270), m4_deg: z.number().min(35).max(170), m5_deg: z.number().min(0).max(155)}).strict()}).strict(),
-    z.object({kind: z.literal('grasp_and_lift'), goal: z.object({lift_steps: z.number().int().min(0).max(10), verify_color: z.string().regex(/^[A-Za-z0-9_-]{0,32}$/)}).strict()}).strict(),
-    z.object({kind: z.literal('release_and_stow'), goal: z.object({put_down: z.boolean()}).strict()}).strict(),
-  ]).or(z.object({ kind: z.string().min(1) }).passthrough());
+  const taskSchema = z.object({
+    kind: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]{0,63}$/),
+    goal: z.record(z.string(), z.unknown()),
+  }).strict();
   server.registerTool('list_goals', {title: 'List ROS goals and GoalContext primitives', description: 'List all registered ROS 2 action goals, their required fields, and GoalContext authoring primitives.', annotations: READONLY},
     jsonTool(() => client.listGoals()));
   server.registerTool('start_task', {title: 'Start bounded ROS action', description: 'Start a ROS action or manipulation primitive and return its goal UUID (or validate/simulate without actuation).', inputSchema: {task: taskSchema, validateOnly: z.boolean().optional(), simulate: z.boolean().optional(), context: z.record(z.string(), z.unknown()).optional()}, annotations: ACTUATION},
