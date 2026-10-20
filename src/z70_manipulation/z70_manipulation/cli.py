@@ -95,14 +95,18 @@ def run(argv=None):
     )
 
 
-def main():
+def _cli_main(fn, dry_key: str):
     try:
-        report = run()
+        report = fn()
         print(json.dumps(report, indent=2))
-        if not report.get('target') and report.get('dry_run') or report.get('success') is False:
+        if (report.get('dry_run') and not report.get(dry_key)) or report.get('success') is False:
             raise SystemExit(1)
-    except (RuntimeError, LookupError) as e:
+    except (RuntimeError, LookupError, ValueError) as e:
         raise SystemExit(str(e))
+
+
+def main():
+    _cli_main(run, 'target')
 
 
 def run_stack(argv=None):
@@ -132,13 +136,7 @@ def run_stack(argv=None):
 
 
 def stack_main():
-    try:
-        report = run_stack()
-        print(json.dumps(report, indent=2))
-        if (report.get('dry_run') and not report.get('all_targets_visible')) or report.get('success') is False:
-            raise SystemExit(1)
-    except (RuntimeError, LookupError, ValueError) as e:
-        raise SystemExit(str(e))
+    _cli_main(run_stack, 'all_targets_visible')
 
 
 if __name__ == '__main__':

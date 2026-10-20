@@ -249,19 +249,21 @@ class PickServer(Perception):
     def calibration(self, msg):
         self.gains = gains_from_state(msg)
 
+    def _revoke_commands(self):
+        if self.client and self.client.commands and not self.client.commands.cancelled.is_set():
+            self.client.commands.cancelled.set()
+            threading.Thread(target=self.client.commands.stop, daemon=True).start()
+
     def watchdog(self):
         expired = self.deadline is not None and time.monotonic() >= self.deadline
         navigation_hazard = self.navigation_active and self.safety_stop
-        if (expired or navigation_hazard) and self.client and self.client.commands and not self.client.commands.cancelled.is_set():
-            self.client.commands.cancelled.set()
-            threading.Thread(target=self.client.commands.stop, daemon=True).start()
+        if expired or navigation_hazard:
+            self._revoke_commands()
 
     def cancel(self, handle):
         if self.active_handle is not None and handle != self.active_handle:
             return CancelResponse.REJECT
-        if self.client and self.client.commands:
-            self.client.commands.cancelled.set()
-            threading.Thread(target=self.client.commands.stop, daemon=True).start()
+        self._revoke_commands()
         return CancelResponse.ACCEPT
 
     def stop_signal(self, msg):
