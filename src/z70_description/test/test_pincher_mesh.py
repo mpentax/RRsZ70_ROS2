@@ -12,12 +12,25 @@ from test_physical_visuals import SOURCE, origin, relative_frames
 PACKAGE = SOURCE.parents[1]
 
 
-def triangles(path):
+def stl_records(path):
     data = path.read_bytes()
     count = struct.unpack_from('<I', data, 80)[0]
     assert len(data) == 84 + 50*count
     records = np.dtype([('normal', '<f4', (3,)), ('points', '<f4', (3, 3)), ('attr', '<u2')])
-    return np.frombuffer(data, dtype=records, offset=84)['points'].astype(float)
+    return np.frombuffer(data, dtype=records, offset=84)
+
+
+def triangles(path):
+    return stl_records(path)['points'].astype(float)
+
+
+def manifold_edges(points):
+    vertices, indices = np.unique(np.round(points.reshape(-1, 3), 8), axis=0, return_inverse=True)
+    faces = indices.reshape(-1, 3)
+    edges = np.sort(np.concatenate([faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [2, 0]]]), axis=1)
+    _, counts = np.unique(edges, axis=0, return_counts=True)
+    assert np.all(counts == 2)
+    return vertices, edges
 
 
 OPERATIONAL = {
@@ -51,11 +64,7 @@ def visual_triangles(robot, link):
 def test_one_connected_housing_has_recess_with_clear_calibrated_optical_ray():
     robot = ET.fromstring(xacro.process_file(str(SOURCE)).toxml())
     shell = visual_triangles(robot, 'arm_wrist_link')
-    vertices, indices = np.unique(np.round(shell.reshape(-1, 3), 8), axis=0, return_inverse=True)
-    faces = indices.reshape(-1, 3)
-    edges = np.sort(np.concatenate([faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [2, 0]]]), axis=1)
-    _, counts = np.unique(edges, axis=0, return_counts=True)
-    assert np.all(counts == 2), 'housing must be a closed manifold including pocket walls/back'
+    vertices, edges = manifold_edges(shell)
     neighbors = {i: set() for i in range(len(vertices))}
     for a, b in edges:
         neighbors[a].add(b)
@@ -86,20 +95,15 @@ def test_package_meshes_are_installed_for_foxglove_asset_lookup():
 
 def test_all_mesh_normals_match_non_degenerate_positive_manifold_geometry():
     for path in (PACKAGE / 'meshes').glob('*.stl'):
-        points = triangles(path)
-        data = path.read_bytes()
-        records = np.dtype([('normal', '<f4', (3,)), ('points', '<f4', (3, 3)), ('attr', '<u2')])
-        stored_normals = np.frombuffer(data, dtype=records, offset=84)['normal']
+        rec = stl_records(path)
+        points = rec['points'].astype(float)
+        stored_normals = rec['normal']
         cross = np.cross(points[:, 1]-points[:, 0], points[:, 2]-points[:, 0])
         area = np.linalg.norm(cross, axis=1)
         assert area.min() > 1e-12
         assert np.einsum('ij,ij->i', stored_normals, cross/area[:, None]) == pytest.approx(np.ones(len(points)), abs=1e-5)
         assert np.einsum('ij,ij->', points[:, 0], np.cross(points[:, 1], points[:, 2]))/6 > 0
-        _, indices = np.unique(np.round(points.reshape(-1, 3), 8), axis=0, return_inverse=True)
-        faces = indices.reshape(-1, 3)
-        edges = np.sort(np.concatenate([faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [2, 0]]]), axis=1)
-        _, counts = np.unique(edges, axis=0, return_counts=True)
-        assert np.all(counts == 2), path.name
+        manifold_edges(points)
 
 
 def test_offline_generator_reproduces_every_installed_triangle(tmp_path):

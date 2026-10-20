@@ -1,5 +1,4 @@
 """URDF visual link lengths and relative frame transforms."""
-from itertools import product
 import math
 from pathlib import Path
 import xml.etree.ElementTree as ET
@@ -7,7 +6,7 @@ import xml.etree.ElementTree as ET
 import numpy as np
 import pytest
 import xacro
-import yaml
+from z70_description.pincher_geometry import rpy
 
 
 SOURCE = Path(__file__).resolve().parents[1] / 'urdf/z70.urdf.xacro'
@@ -25,10 +24,7 @@ def origin(element):
     transform = np.eye(4)
     if element is not None:
         transform[:3, 3] = np.fromstring(element.get('xyz', '0 0 0'), sep=' ')
-        roll, pitch, yaw = np.fromstring(element.get('rpy', '0 0 0'), sep=' ')
-        transform[:3, :3] = (rotation([0, 0, 1], yaw)
-                                 @ rotation([0, 1, 0], pitch)
-                                 @ rotation([1, 0, 0], roll))
+        transform[:3, :3] = rpy(np.fromstring(element.get('rpy', '0 0 0'), sep=' '))
     return transform
 
 
