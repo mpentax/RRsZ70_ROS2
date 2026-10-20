@@ -1,6 +1,6 @@
-import { test } from "node:test";
+import { test, type TestContext } from "node:test";
 import assert from "node:assert/strict";
-import { createService, type ServiceRobot, type ServiceStore } from "./service.ts";
+import { startService, type ServiceRobot, type ServiceStore } from "./service.ts";
 import { loadServiceConfig } from "./service-config.ts";
 import { RpcError } from "./robot.ts";
 import { TransportError } from "./rpc-outcome.ts";
@@ -8,24 +8,23 @@ const token = "t".repeat(43), key = "1234567890abcdef";
 const camera = { account: { user: "u", secret: "s", key: "k", mqttUrl: "ssl://mqtt-eu.roborock.com:8883" }, pin: "1234" };
 const home = { deviceId: "robot1", homeId: 1, realApi: "https://api-eu.roborock.com", user: "u", secret: "s", hawkKey: "k", rooms: [] };
 
-async function fixture(t: import("node:test").TestContext, behavior?: (method: string) => unknown) {
+async function fixture(t: TestContext, behavior?: (method: string) => unknown, useMockRobot = true) {
   const calls: { method: string; params: unknown }[] = [];
   const robot: ServiceRobot = { connection: { state: "connected", connectedAt: 1 }, close() {}, async request(method, params) {
     calls.push({ method, params }); return behavior ? behavior(method) : ["ok"];
   } };
   const store: ServiceStore = { async initialize() {}, async serviceToken() { return token; },
-    async loadPairing() { return { device: { duid: "robot1", host: "127.0.0.1", localKey: key, name: "test", model: "a179", protocolVersion: "L01" }, camera, home }; },
+    async loadPairing() { return { device: { duid: "robot1", host: "127.0.0.1", localKey: key, name: "test", model: "a179", protocolVersion: "1.0", localProtocol: "L01" }, camera, home }; },
     async savePairing() {} };
-  const config = { ...loadServiceConfig(), port: 0 };
-  const service = await createService({ store, config, robotFactory: () => robot });
-  await service.start(); t.after(() => service.stop());
+  const service = await startService({ store, config: { ...loadServiceConfig(), port: 0 }, ...(useMockRobot ? { robotFactory: () => robot } : {}) });
+  t.after(() => service.stop());
   const origin = service.origin;
   async function post(path: string, body: unknown, authorized = true) {
-    const res = await fetch(origin + path, { method: "POST", headers: { Host: "127.0.0.1:57000", "Content-Type": "application/json", ...(authorized ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body) });
+    const res = await fetch(origin + path, { method: "POST", headers: { "Content-Type": "application/json", ...(authorized ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body) });
     return { status: res.status, body: await res.json() as Record<string, unknown> };
   }
   async function get(path: string) {
-    const res = await fetch(origin + path, { headers: { Host: "127.0.0.1:57000", Authorization: `Bearer ${token}` } });
+    const res = await fetch(origin + path, { headers: { Authorization: `Bearer ${token}` } });
     return await res.json() as Record<string, any>;
   }
   return { calls, post, get, service };
@@ -67,15 +66,8 @@ test("explicit null params pass unchanged rather than becoming an empty list", a
   assert.deepEqual(calls, [{ method: "vendor_method", params: null }]);
 });
 test("service uses explicit local protocol independently of cloud inventory", async t => {
-  const store: ServiceStore = { async initialize() {}, async serviceToken() { return token; },
-    async loadPairing() { return { device: { duid: "robot1", host: "127.0.0.1", localKey: key, name: "test", model: "a179", protocolVersion: "1.0", localProtocol: "L01" }, camera, home }; },
-    async savePairing() {} };
-  const config = { ...loadServiceConfig(), port: 0 };
-  const service = await createService({ store, config });
-  t.after(() => service.stop());
-  await service.start();
-  const response = await fetch(`${service.origin}/api/state`, { headers: { Host: "127.0.0.1:57000", Authorization: ["Bearer", token].join(" ") } });
-  const state = await response.json() as { connection: { protocol: string }; device: { cloudProtocolVersion: string; localProtocol: string } };
+  const { get } = await fixture(t, undefined, false);
+  const state = await get("/api/state");
   assert.equal(state.connection.protocol, "L01"); assert.equal(state.device.cloudProtocolVersion, "1.0"); assert.equal(state.device.localProtocol, "L01");
 });
 test("repeat-safe commands retry once; a move that may have run is never re-sent; a move that never left is", async t => {

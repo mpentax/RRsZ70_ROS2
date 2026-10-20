@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createService, type ServiceStore } from './service.ts';
+import { createHash } from 'node:crypto';
+import { startService, type ServiceStore } from './service.ts';
 import { loadServiceConfig } from './service-config.ts';
 import { syntheticV1Image } from './map-raster-fixture.ts';
 import { mapMetadataFromRead } from './map-cache-status.ts';
-import { createHash } from 'node:crypto';
 
 test('authenticated raw map reads preserve exact verified bytes and selected-device binding', async t => {
   const token = 'x'.repeat(43), raw = syntheticV1Image();
@@ -15,9 +15,8 @@ test('authenticated raw map reads preserve exact verified bytes and selected-dev
   const home = { deviceId: device.duid, homeId: 1, realApi: 'https://api-eu.roborock.com', user: 'u', secret: 's', hawkKey: 'k', rooms: [] };
   const store: ServiceStore = { async initialize() {}, async serviceToken() { return token; }, async loadPairing() { return { device, camera, home }; }, async savePairing() {},
     async loadMapRasterSource() { return { raw, metadata: { ...metadata, deviceId: selected ? device.duid : 'other' } }; } };
-  const config = { ...loadServiceConfig(), port: 0 };
-  const service = await createService({ store, config, robotFactory: () => ({ connection: { state: 'connected', connectedAt: 1 }, close() {}, async request() { throw new Error('Raw map must not contact robot'); } }) });
-  await service.start(); t.after(() => service.stop());
+  const service = await startService({ store, config: { ...loadServiceConfig(), port: 0 }, robotFactory: () => ({ connection: { state: 'connected', connectedAt: 1 }, close() {}, async request() { throw new Error('Raw map must not contact robot'); } }) });
+  t.after(() => service.stop());
   const origin = service.origin;
   assert.equal((await fetch(origin + '/api/map/cache/raw')).status, 401);
   const response = await fetch(origin + '/api/map/cache/raw', { headers: { Authorization: `Bearer ${token}` } });
