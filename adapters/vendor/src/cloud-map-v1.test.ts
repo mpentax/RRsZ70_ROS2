@@ -3,11 +3,11 @@ import { test } from "node:test";
 import { localProtocolCodec } from "./local.ts";
 import { decodeCloudMapResponse, inspectMapFrame, MAX_CLOUD_MAP_FRAME_BYTES } from "./cloud-map-v1.ts";
 import { createBlobSecurity } from "./photo-protocol.ts";
-import { mapResponse } from "./photo-protocol.test.ts";
+import { encodeMapResponse } from "./map-raster-fixture.ts";
 
 const LOCAL_KEY = "0123456789abcdef";
 function response(data: Buffer, security = createBlobSecurity("map-test-key"), requestId = 20009): Buffer {
-  const payload = mapResponse(data, security, requestId);
+  const payload = encodeMapResponse(data, security, requestId);
   const frame = Buffer.alloc(23 + Math.ceil((payload.length + 1) / 16) * 16);
   frame.write("1.0"); frame.writeUInt32BE(1753606905, 11); frame.writeUInt16BE(301, 15);
   const encrypted = localProtocolCodec.encryptPayload(payload, {

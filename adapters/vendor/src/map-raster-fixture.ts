@@ -1,4 +1,6 @@
-import { createHash } from "node:crypto";
+import { createCipheriv, createHash } from "node:crypto";
+import { gzipSync } from "node:zlib";
+import type { BlobSecurity } from "./photo-protocol.ts";
 
 /** Synthetic-only V1 bytes for raster/cache tests; never loads a private map. */
 export function syntheticV1Image(pixels = Buffer.from([1, 31, 255, 0]), width = 2, height = 2): Buffer {
@@ -12,4 +14,13 @@ export function syntheticV1Image(pixels = Buffer.from([1, 31, 255, 0]), width = 
   const raw = Buffer.concat([header, image, position, digest]); raw.writeUInt32LE(raw.length - 20, 4);
   createHash("sha1").update(raw.subarray(0, -20)).digest().copy(raw, raw.length - 20);
   return raw;
+}
+
+export function encodeMapResponse(data: Buffer, security: BlobSecurity, requestId = 20009): Buffer {
+  const cipher = createCipheriv("aes-128-cbc", security.nonce, Buffer.alloc(16));
+  const encrypted = Buffer.concat([cipher.update(gzipSync(data)), cipher.final()]);
+  const header = Buffer.alloc(24);
+  header.write(security.endpoint, 0, "ascii");
+  header.writeUInt16LE(requestId, 16);
+  return Buffer.concat([header, encrypted]);
 }
