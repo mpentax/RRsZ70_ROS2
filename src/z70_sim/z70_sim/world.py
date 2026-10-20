@@ -247,14 +247,13 @@ class SimWorld:
         for obj in self.objects_spec:
             rgba = ' '.join(map(str, COLOR_RGBA.get(obj['color'], (1.0, 0.7, 0.0, 1.0))))
             gtype = obj.get('shape', 'cylinder')
+            z0 = obj.get('z', self._object_half_z(obj))
             if gtype == 'box':
                 sx, sy, sz = obj.get('size', (0.03, 0.03, 0.008))
-                z0 = obj.get('z', sz)
                 geom_xml = f'type="box" size="{sx} {sy} {sz}"'
             else:
                 r = float(obj.get('radius', OBJECT_SIZE_M / 2))
                 h = float(obj.get('half_height', r))
-                z0 = obj.get('z', h)
                 geom_xml = f'type="cylinder" size="{r} {h}"'
             object_bodies.append(f"""
     <body name="obj_{obj['name']}" pos="{obj['x']} {obj['y']} {z0}">
@@ -371,7 +370,7 @@ class SimWorld:
             self.joints = dict(POSES['IN_ROBOT'])
             self.pose = [0.0, 0.0, 0.0]
             for obj in self.objects_spec:
-                self._set_object_pose(obj['name'], [obj['x'], obj['y'], obj.get('z', OBJECT_SIZE_M / 2)])
+                self._set_object_pose(obj['name'], [obj['x'], obj['y'], obj.get('z', self._object_half_z(obj))])
             self._sync_kinematics()
 
     def _joint_qpos_adr(self, name: str) -> int:
@@ -389,13 +388,13 @@ class SimWorld:
         adr = self._joint_qpos_adr(f'joint_obj_{name}')
         return self.data.qpos[adr : adr + 3].copy()
 
+    def _active_joints(self) -> tuple[float, float, float, float]:
+        if not self.deployed or self.joints['m3'] < LIMITS['m3'][0]:
+            return (90.0, 170.0, 0.0, 0.0)
+        return (self.joints['m3'], self.joints['m4'], self.joints['m5'], self.joints['m6'])
+
     def _world_hand_pose(self) -> np.ndarray:
-        st = (
-            (90.0, 170.0, 0.0, 0.0)
-            if not self.deployed or self.joints['m3'] < LIMITS['m3'][0]
-            else (self.joints['m3'], self.joints['m4'], self.joints['m5'], self.joints['m6'])
-        )
-        T_base_hand = hand.hand_pose(st)
+        T_base_hand = hand.hand_pose(self._active_joints())
         x, y, yaw = self.pose
         c, s = math.cos(yaw), math.sin(yaw)
         T_world_base = np.array(
@@ -412,11 +411,7 @@ class SimWorld:
         self.data.qpos[self._joint_qpos_adr('base_x')] = self.pose[0]
         self.data.qpos[self._joint_qpos_adr('base_y')] = self.pose[1]
         self.data.qpos[self._joint_qpos_adr('base_yaw')] = self.pose[2]
-        if not self.deployed or self.joints['m3'] < LIMITS['m3'][0]:
-            # Stowed inside compartment (out of front camera FOV)
-            q = app_to_urdf(90.0, 170.0, 0.0, 0.0)
-        else:
-            q = app_to_urdf(self.joints['m3'], self.joints['m4'], self.joints['m5'], self.joints['m6'])
+        q = app_to_urdf(*self._active_joints())
         self.data.qpos[self._joint_qpos_adr('m3_joint')] = q['m3_joint']
         self.data.qpos[self._joint_qpos_adr('m4_joint')] = q['m4_joint']
         self.data.qpos[self._joint_qpos_adr('m5_joint')] = q['m5_joint']
@@ -528,15 +523,10 @@ class SimWorld:
                     self.robot_state = 3
                 self._sync_kinematics()
                 return 'ok', ['ok']
-            if method == 'app_open_gripper':
+            if method in ('app_open_gripper', 'app_put_down'):
                 self.joints['m6'] = 90.0
                 self._release_object()
-                self._sync_kinematics()
-                return 'ok', ['ok']
-            if method == 'app_put_down':
-                self.joints['m6'] = 90.0
-                self._release_object()
-                if self.grab_mode == 2:
+                if method == 'app_put_down' and self.grab_mode == 2:
                     self.joints = dict(POSES['WORKING_POS'])
                 self._sync_kinematics()
                 return 'ok', ['ok']
