@@ -5,8 +5,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { CameraSelector, cameraSource, Go2Rtc } from "./go2rtc.ts";
 import { startService, type ServiceRobot, type ServiceStore } from "./service.ts";
 import { loadServiceConfig } from "./service-config.ts";
-import { RpcError } from "./robot.ts";
-import { TransportError } from "./rpc-outcome.ts";
+import { RpcError, TransportError } from "./robot.ts";
 
 const account = { user: "u", secret: "s", key: "k", mqttUrl: "ssl://mqtt-eu.roborock.com:8883" };
 const device = { duid: "d", localKey: "0123456789abcdef", name: "Z70", model: "roborock.vacuum.a179", protocolVersion: "1.0" };

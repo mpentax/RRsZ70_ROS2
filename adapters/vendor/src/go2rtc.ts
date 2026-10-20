@@ -1,8 +1,7 @@
 import { setTimeout as delay } from "node:timers/promises";
 import { CAMERA_NAMES, jpegImageDimensions } from "@rrsz70/http-contracts";
 import type { CameraAccount, DeviceCredentials } from "./cloud.ts";
-import { RpcError } from "./robot.ts";
-import { TransportError } from "./rpc-outcome.ts";
+import { RpcError, TransportError } from "./robot.ts";
 import { localServiceOrigin, ServiceHttpError } from "./service-config.ts";
 
 export { CAMERA_NAMES } from "@rrsz70/http-contracts";

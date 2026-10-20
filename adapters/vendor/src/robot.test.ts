@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { Socket } from "node:net";
 import { test, type TestContext } from "node:test";
-import { localProtocolCodec, RobotClient, RpcError, type RobotDiagnostic } from "./robot.ts";
-import { TransportError } from "./rpc-outcome.ts";
+import { localProtocolCodec, RobotClient, RpcError, TransportError, type RobotDiagnostic } from "./robot.ts";
 
 const KEY = "b8Hj5mFk3QzT7rLp";
 const ACK_NONCE = 485592656;

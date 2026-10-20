@@ -2,8 +2,7 @@
 import { createDecipheriv, createHash, randomBytes, randomInt, randomUUID } from "node:crypto";
 import { gunzipSync } from "node:zlib";
 import { connectAsync, type IClientOptions } from "mqtt";
-import { localProtocolCodec, RobotClient, RpcError } from "./robot.ts";
-import { defaultRpcTimeoutMs, PRIORITY_STOPS, TransportError } from "./rpc-outcome.ts";
+import { defaultRpcTimeoutMs, localProtocolCodec, PRIORITY_STOPS, RobotClient, RpcError, TransportError } from "./robot.ts";
 import type { CameraAccount } from "./cloud.ts";
 import { MAX_MAP_BYTES, summarizeV1Map, type SavedDevice } from "./secret-store.ts";
 
