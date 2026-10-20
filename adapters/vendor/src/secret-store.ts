@@ -3,9 +3,9 @@ import { link, lstat, mkdir, open, rename, unlink } from "node:fs/promises";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { isIP } from "node:net";
 import { join, parse, resolve, sep } from "node:path";
-import { validateHomeAuthorization, type CameraAccount, type DeviceCredentials, type HomeAuthorization } from "./cloud.ts";
+import { MAX_MAP_BYTES, validateHomeAuthorization, type CameraAccount, type DeviceCredentials, type HomeAuthorization } from "./cloud.ts";
 
-export const MAX_MAP_BYTES = 32 * 1024 * 1024;
+export { MAX_MAP_BYTES };
 export type LocalProtocol = "1.0" | "L01";
 export function localProtocol(value: unknown): LocalProtocol {
   if (value !== "1.0" && value !== "L01") throw new Error("Unsupported local protocol");

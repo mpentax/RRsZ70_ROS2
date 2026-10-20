@@ -6,9 +6,8 @@ import { readFile } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
 import { isIP } from "node:net";
 import { fileURLToPath } from "node:url";
-import { refreshRooms, RoborockCloud, selectedRooms, type CameraAccount, type CameraLogin, type HomeAuthorization } from "./cloud.ts";
+import { CloudControlClient, cloudControlCredentials, readSplitMap, refreshRooms, RoborockCloud, selectedRooms, type CameraAccount, type CameraLogin, type HomeAuthorization } from "./cloud.ts";
 import { CommandEvents, numericTelemetry, publicRpcValue, pulseParams, RobotClient, RpcError, summarizeStatus, TransportError, type RobotDiagnostic, type RpcOutcome } from "./robot.ts";
-import { CloudControlClient, cloudControlCredentials, readSplitMap } from "./cloud-control.ts";
 import { CameraSelector, Go2Rtc, localServiceOrigin, publicCameraFailure, requestedCamera, ServiceHttpError } from "./go2rtc.ts";
 import { jpegImageDimensions, rosRoute } from "@rrsz70/http-contracts";
 

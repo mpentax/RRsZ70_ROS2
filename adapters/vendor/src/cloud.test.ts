@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import { createHash, createHmac } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { test, type TestContext } from "node:test";
-import { CloudControlClient, decodeCloudRpc, encodeCloudRpc, encodeV1MqttFrame, mqttOptions, type CloudMqttPeer } from "./cloud-control.ts";
-import { refreshRooms, RoborockCloud, selectedRooms, validateHomeAuthorization } from "./cloud.ts";
+import { CloudControlClient, decodeCloudRpc, encodeCloudRpc, encodeV1MqttFrame, mqttOptions, refreshRooms, RoborockCloud, selectedRooms, validateHomeAuthorization, type CloudMqttPeer } from "./cloud.ts";
 import { localProtocolCodec } from "./robot.ts";
 
 const EMAIL = "test@example.invalid";

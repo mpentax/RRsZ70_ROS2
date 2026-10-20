@@ -13,7 +13,7 @@ import {
   encodeV1MqttFrame,
   inspectMapFrame,
   MAX_CLOUD_MAP_FRAME_BYTES,
-} from "./cloud-control.ts";
+} from "./cloud.ts";
 import { localProtocolCodec } from "./robot.ts";
 import {
   mapMetadataFromRead,
