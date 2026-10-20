@@ -40,12 +40,12 @@ class Client:
         return self.observations.get(path)
 
     def status(self) -> dict:
-        fn = getattr(self.observations, 'status', None)
-        return (fn() if callable(fn) else self.get('/api/state')['telemetry']['status']['value'])  # type: ignore[return-value]
+        from .observations import read_status
+        return read_status(self.observations)
 
     def arm_estimate(self) -> dict:
-        fn = getattr(self.observations, 'arm_estimate', None)
-        return (fn() if callable(fn) else self.get('/api/arm/estimate'))  # type: ignore[return-value]
+        from .observations import read_arm
+        return read_arm(self.observations)
 
     def frame(self):
         # Keep timing metadata paired with the image returned by Observations.

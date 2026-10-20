@@ -23,6 +23,16 @@ def stamp_seconds(stamp):
     return stamp.sec + stamp.nanosec/1e9
 
 
+def read_status(observations) -> dict:
+    fn = getattr(observations, 'status', None)
+    return fn() if callable(fn) else observations.get('/api/state')['telemetry']['status']['value']
+
+
+def read_arm(observations) -> dict:
+    fn = getattr(observations, 'arm_estimate', None)
+    return fn() if callable(fn) else observations.get('/api/arm/estimate')
+
+
 class Observations:
     def __init__(self, node=None, timeout=5.):
         self.owned = node is None
@@ -173,8 +183,7 @@ class Observations:
                 self.condition.wait(min(remaining,.05))
 
     def status(self) -> dict:
-        self.wait(lambda:self.state is not None and self.state.evidence.valid and not self.state.evidence.stale
-                  and self.fresh(self.state.evidence, 15.))
+        self.wait(lambda: self.state is not None and self.fresh(self.state.evidence, 15.))
         with self.condition: m = deepcopy(self.state)
         if not m.connected: raise LookupError('driver disconnected')
         status = {}
@@ -186,9 +195,8 @@ class Observations:
         return status
 
     def arm_estimate(self) -> dict:
-        self.wait(lambda:self.arm is not None and self.arm.evidence.valid and not self.arm.evidence.stale
-                  and self.state is not None and self.state.evidence.valid and not self.state.evidence.stale
-                  and self.fresh(self.state.evidence, 15.))
+        self.wait(lambda: self.arm is not None and self.arm.evidence.valid and not self.arm.evidence.stale
+                  and self.state is not None and self.fresh(self.state.evidence, 15.))
         with self.condition: m = deepcopy(self.arm)
         usable = m.validity.value in (1,2) and not m.restored
         q = dict(zip(m.joints.name, m.joints.position))

@@ -10,6 +10,7 @@ from .garment_delivery import (GarmentDeliverer, TowingQualificationConfig, atom
     map_identity, transport_policy, track_key, loaded_route, DeliveryRejected)
 from z70_mapping.boundary import BoundaryConfig, compute_safe_interior
 from .navigation import PinAndGoNavigator, inside
+from .observations import read_arm, read_status
 
 
 class PatrolLedger:
@@ -162,12 +163,10 @@ class PatrolCollector:
         if self.executor and self.executor.hazard(): raise DeliveryRejected('BOUNDARY_ABORT')
 
     def _status(self):
-        fn=getattr(self.observations,'status',None)
-        return fn() if callable(fn) else self.observations.get('/api/state')['telemetry']['status']['value']
+        return read_status(self.observations)
 
     def _arm(self):
-        fn=getattr(self.observations,'arm_estimate',None)
-        return fn() if callable(fn) else self.observations.get('/api/arm/estimate')
+        return read_arm(self.observations)
 
     def battery(self):
         return self._status()['battery']
