@@ -416,7 +416,7 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
             </div>
             <span className={`badge ${selectedCam ? 'good' : ''}`}>
               <span className="dot" />
-              {selectedCam === 'gripper' ? 'GRIPPER LENS · 1600×896' : selectedCam === 'front' ? 'FRONT LENS · 1600×1200' : 'LENS UNVERIFIED'}
+              {selectedCam === 'gripper' ? 'GRIPPER LENS · 1600×896' : selectedCam === 'front' ? 'FRONT LENS · 1600×1200' : 'LENS UNKNOWN'}
             </span>
           </div>
           <p className="caption" style={{marginBottom: 12}}>Reads latest shared ROS sample, without opening a preview or switching lens.</p>
@@ -580,7 +580,7 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
 
           <div className="subdetails">
             <h3>Task History &amp; Live Queue</h3>
-            <TaskList tasks={tasks} cancel={id => { void cancelTask(id).then(setOutcome).catch(e => setError(e instanceof Error ? e.message : 'Cancellation unverified.')); }} />
+            <TaskList tasks={tasks} cancel={id => { void cancelTask(id).then(setOutcome).catch(e => setError(e instanceof Error ? e.message : 'Cancellation failed.')); }} />
           </div>
         </section>
 

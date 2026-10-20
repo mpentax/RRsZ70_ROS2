@@ -752,7 +752,7 @@ class Executor:
                 mode = (int(status['common_status']) >> 10) & 3
             if mode == 1:
                 reply = self.command('app_put_down', {'flag': 0})
-                self.log('in_place_open_dispatched', mode=mode, detachment='unverified')
+                self.log('in_place_open_dispatched', mode=mode)
                 return dict(release_dispatched=bool(reply), detached=False)
             self.sleep(.5)
         raise LookupError('manual grabMode 1 not observed; no put_down dispatched')
@@ -785,7 +785,7 @@ class Executor:
             try:
                 estimate = self._arm()
                 if estimate.get('state') == 'IN_ROBOT':
-                    self.log('stow_estimate', state='IN_ROBOT', physical_completion='unverified')
+                    self.log('stow_estimate', state='IN_ROBOT')
                     for _ in range(40):
                         reason = self.hazard()
                         if reason:
@@ -959,7 +959,7 @@ class Executor:
                 if not placed['verified']:
                     result = dict(tiers_completed=tiers_completed, stack_verified=False,
                                   reason='supported-placement-unresolved', placement=placed,
-                                  holding_unverified=self.gripped, log_dir=str(self.directory))
+                                  holding=self.gripped, log_dir=str(self.directory))
                     self.log('stack_incomplete', **result)
                     return result
                 tiers_completed = tier_idx
@@ -969,7 +969,7 @@ class Executor:
         except (LookupError, ValueError, UncertainMotion, requests.RequestException) as e:
             result = dict(tiers_completed=tiers_completed, stack_verified=False,
                           reason='supported-placement-unresolved', detail=str(e),
-                          holding_unverified=self.gripped, log_dir=str(self.directory))
+                          holding=self.gripped, log_dir=str(self.directory))
             self.log('stack_incomplete', **result)
             return result
         except BaseException as e:

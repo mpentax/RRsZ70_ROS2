@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-/** Bounded, read-only V1 map geometry summary. No planner coordinates are emitted. */
+/** Bounded, read-only V1 map geometry summary. */
 export function summarizeV1Map(raw: Buffer) {
   if (raw.length < 40 || raw.length > 32 * 1024 * 1024 || raw.toString("ascii", 0, 2) !== "rr" ||
       raw.readUInt16LE(2) !== 20 || raw.readUInt32LE(4) !== raw.length - 20 ||
@@ -69,28 +69,5 @@ export function summarizeV1Map(raw: Buffer) {
   };
   return { blocks, image, vacuumPosition, chargerPosition,
     embeddedVacuumRoomSegment: getVacuumRoom(),
-    positionIsIndependentFreshTelemetry: false,
-    coordinateConvention: "Android plugin raw-image indexing: floor(position / 50 - image origin), row-major; orientation and independent localization require validation",
   };
-}
-
-/** A verified V1 image block, without interpreting embedded positions as live telemetry.
- * The caller must keep both this buffer and its pixels private.
- */
-export function verifiedV1Image(raw: Buffer): { width: number; height: number; pixels: Buffer } {
-  // Reuse the strict digest, block extent and image-size checks above; do not
-  // accept a merely plausible header from an unverified cache file.
-  const summary = summarizeV1Map(raw);
-  let offset = 20;
-  while (offset < raw.length) {
-    const type = raw.readUInt16LE(offset);
-    const headerSize = raw.readUInt16LE(offset + 2);
-    const length = raw.readUInt32LE(offset + 4);
-    if (type === 2) return {
-      width: summary.image.width, height: summary.image.height,
-      pixels: raw.subarray(offset + headerSize, offset + headerSize + length),
-    };
-    offset += headerSize + length;
-  }
-  throw new Error("Incomplete V1 map block sequence");
 }

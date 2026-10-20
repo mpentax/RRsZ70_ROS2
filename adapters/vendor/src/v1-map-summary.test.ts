@@ -22,12 +22,11 @@ function sample(vacuumX = 200, vacuumY = 100): Buffer {
   createHash("sha1").update(raw.subarray(0, -20)).digest().copy(raw, raw.length - 20);
   return raw;
 }
-test("bounded V1 summary extracts image extent, segment and embedded position without claiming fresh pose", () => {
+test("bounded V1 summary extracts image extent, segment and embedded position", () => {
   const result = summarizeV1Map(sample());
   assert.deepEqual(result.image.roomSegments, [3]);
   assert.deepEqual(result.vacuumPosition, { x: 200, y: 100, angle: 0 });
   assert.equal(result.embeddedVacuumRoomSegment, null);
-  assert.equal(result.positionIsIndependentFreshTelemetry, false);
   assert.equal(result.image.pixels, 4);
 });
 test("fractional embedded position uses Android plugin's floor grid index, not rounding", () => {
