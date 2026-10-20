@@ -116,6 +116,10 @@ class PinAndGoNavigator:
                 or type(goal.dry_run) is not bool):
             return self.result('INVALID_INPUT')
         moving, deadline = False, None
+        def abort(code):
+            nonlocal moving
+            if moving: self.stop(); moving = False
+            return self.result(code)
         try:
             if not self.stowed(self.status()):
                 return self.result('ARM_NOT_STOWED')
@@ -136,20 +140,19 @@ class PinAndGoNavigator:
             try:
                 reply = self.commands.rpc('app_goto_target', [round(v * 1000) for v in self.target], 5000)
             except TimeoutError:
-                self.stop(); moving = False; return self.result('UNKNOWN_DISPATCH')
+                return abort('UNKNOWN_DISPATCH')
             if reply.get('dispatch') == 'unknown':
-                self.stop(); moving = False; return self.result('UNKNOWN_DISPATCH')
+                return abort('UNKNOWN_DISPATCH')
             if reply.get('response') == 'vendor_error':
                 moving = False; return self.result('VENDOR_REJECTED')
             if reply.get('dispatch') != 'sent' or reply.get('response') != 'received':
-                self.stop(); moving = False; return self.result('DISPATCH_FAILED')
+                return abort('DISPATCH_FAILED')
             saw_motion = False
             while self.clock() < deadline:
                 if self.cancelled():
-                    timed_out = self.clock() >= deadline
-                    self.stop(); moving = False; return self.result('TIMED_OUT' if timed_out else 'CANCELLED')
+                    return abort('TIMED_OUT' if self.clock() >= deadline else 'CANCELLED')
                 if self.hazard() or not self.stowed(status := self.status()):
-                    self.stop(); moving = False; return self.result('BOUNDARY_ABORT')
+                    return abort('BOUNDARY_ABORT')
                 s = self.snapshot(refresh=True)
                 self.monitor_boundary(baseline, boundary, s)
                 state = status.get('state')
@@ -160,16 +163,15 @@ class PinAndGoNavigator:
                     final = self.snapshot(refresh=True)
                     self.monitor_boundary(baseline, boundary, final)
                     if self.cancelled() or self.clock() >= deadline:
-                        timed_out = self.clock() >= deadline
-                        self.stop(); moving = False; return self.result('TIMED_OUT' if timed_out else 'CANCELLED')
+                        return abort('TIMED_OUT' if self.clock() >= deadline else 'CANCELLED')
                     final_status = self.status()
                     if self.hazard() or final_status.get('state') != 3 or not self.stowed(final_status):
-                        self.stop(); moving = False; return self.result('BOUNDARY_ABORT')
+                        return abort('BOUNDARY_ABORT')
                     moving = False
                     error = math.dist(self.position, self.target)
                     return self.result('ARRIVED' if error <= self.arrival_tolerance_m else 'STOPPED_SHORT')
                 self.sleep(self.poll_s)
-            self.stop(); moving = False; return self.result('TIMED_OUT')
+            return abort('TIMED_OUT')
         except InterruptedError:
             timed_out = deadline is not None and self.clock() >= deadline
             if moving:
