@@ -261,7 +261,25 @@
           "alpha": 0.7,
           "frameLocked": true
         },
+        "/z70/map/safe_grid": {
+          "visible": false,
+          "colorMode": "map",
+          "alpha": 0.4,
+          "frameLocked": true
+        },
+        "/z70/map/dynamic_obstacles": {
+          "visible": false,
+          "colorMode": "map",
+          "alpha": 0.5,
+          "frameLocked": true
+        },
         "/z70/map/markers": {
+          "visible": true
+        },
+        "/z70/world/markers": {
+          "visible": true
+        },
+        "/z70/garments/markers": {
           "visible": true
         },
         "/z70/objects": {
@@ -342,30 +360,50 @@
         "near": 0.01,
         "far": 100
       },
+      "followMode": "follow-none",
       "followTf": "odom",
       "fixedFrame": "map",
-      "followMode": "follow-none",
       "title": "Robot map and depth"
     },
     "Image!Front-live": {
       "imageMode": {
         "imageTopic": "/camera/front/image_raw/compressed",
-        "imageSchemaName": "sensor_msgs/msg/CompressedImage",
         "calibrationTopic": "/camera/front/camera_info",
-        "synchronize": false
+        "synchronize": false,
+        "flipHorizontal": false,
+        "flipVertical": false,
+        "rotation": 0,
+        "annotations": {},
+        "colorMode": "gradient",
+        "gradient": [
+          "#000000",
+          "#ffffff"
+        ],
+        "colorMap": "turbo",
+        "valueMin": 0,
+        "valueMax": 1,
+        "imageSchemaName": "sensor_msgs/msg/CompressedImage"
       },
       "title": "Front live"
     },
     "RawMessages!Robot-status": {
-      "defaultExpanded": true,
+      "diffEnabled": false,
+      "diffMethod": "custom",
+      "diffTopicPath": "",
+      "showFullMessageForDiff": false,
       "topicPath": "/z70/state",
       "fontSize": 12,
+      "defaultExpanded": true,
       "title": "Robot status"
     },
     "RawMessages!Spatial-context": {
-      "defaultExpanded": true,
+      "diffEnabled": false,
+      "diffMethod": "custom",
+      "diffTopicPath": "",
+      "showFullMessageForDiff": false,
       "topicPath": "/z70/map/spatial_context",
       "fontSize": 12,
+      "defaultExpanded": true,
       "title": "Spatial context"
     },
     "Indicator!Active-lens": {
@@ -393,37 +431,73 @@
     "Image!Front-camera": {
       "imageMode": {
         "imageTopic": "/camera/front/image_raw/compressed",
-        "imageSchemaName": "sensor_msgs/msg/CompressedImage",
         "calibrationTopic": "/camera/front/camera_info",
-        "synchronize": false
+        "synchronize": false,
+        "flipHorizontal": false,
+        "flipVertical": false,
+        "rotation": 0,
+        "annotations": {},
+        "colorMode": "gradient",
+        "gradient": [
+          "#000000",
+          "#ffffff"
+        ],
+        "colorMap": "turbo",
+        "valueMin": 0,
+        "valueMax": 1,
+        "imageSchemaName": "sensor_msgs/msg/CompressedImage"
       },
       "title": "Front camera"
     },
     "Image!Gripper-camera": {
       "imageMode": {
         "imageTopic": "/camera/gripper/image_raw/compressed",
-        "imageSchemaName": "sensor_msgs/msg/CompressedImage",
         "calibrationTopic": "/camera/gripper/camera_info",
-        "synchronize": false
+        "synchronize": false,
+        "flipHorizontal": false,
+        "flipVertical": false,
+        "rotation": 0,
+        "annotations": {},
+        "colorMode": "gradient",
+        "gradient": [
+          "#000000",
+          "#ffffff"
+        ],
+        "colorMap": "turbo",
+        "valueMin": 0,
+        "valueMax": 1,
+        "imageSchemaName": "sensor_msgs/msg/CompressedImage"
       },
       "title": "Gripper camera"
     },
     "RawMessages!Detected-objects": {
-      "defaultExpanded": true,
+      "diffEnabled": false,
+      "diffMethod": "custom",
+      "diffTopicPath": "",
+      "showFullMessageForDiff": false,
       "topicPath": "/z70/objects/json",
       "fontSize": 12,
+      "defaultExpanded": true,
       "title": "Detected objects"
     },
     "RawMessages!Camera-state": {
-      "defaultExpanded": true,
+      "diffEnabled": false,
+      "diffMethod": "custom",
+      "diffTopicPath": "",
+      "showFullMessageForDiff": false,
       "topicPath": "/z70/camera/state",
       "fontSize": 12,
+      "defaultExpanded": true,
       "title": "Camera state"
     },
     "RawMessages!Front-metadata": {
-      "defaultExpanded": true,
+      "diffEnabled": false,
+      "diffMethod": "custom",
+      "diffTopicPath": "",
+      "showFullMessageForDiff": false,
       "topicPath": "/camera/front/metadata",
       "fontSize": 12,
+      "defaultExpanded": true,
       "title": "Front metadata"
     },
     "Indicator!Arm-estimate-state": {
@@ -528,7 +602,25 @@
           "alpha": 0.7,
           "frameLocked": true
         },
+        "/z70/map/safe_grid": {
+          "visible": false,
+          "colorMode": "map",
+          "alpha": 0.4,
+          "frameLocked": true
+        },
+        "/z70/map/dynamic_obstacles": {
+          "visible": false,
+          "colorMode": "map",
+          "alpha": 0.5,
+          "frameLocked": true
+        },
         "/z70/map/markers": {
+          "visible": false
+        },
+        "/z70/world/markers": {
+          "visible": false
+        },
+        "/z70/garments/markers": {
           "visible": false
         },
         "/z70/objects": {
@@ -609,112 +701,120 @@
         "near": 0.01,
         "far": 100
       },
+      "followMode": "follow-none",
       "followTf": "base_footprint",
       "fixedFrame": "odom",
-      "followMode": "follow-none",
       "title": "Arm closeup"
     },
     "Plot!App-joint-estimates": {
       "paths": [
         {
-          "enabled": true,
-          "color": "#38bdf8",
-          "label": "M3",
-          "lineSize": 2,
-          "showLine": true,
           "value": "/z70/arm/m3_deg.data",
-          "timestampMethod": "receiveTime"
+          "enabled": true,
+          "timestampMethod": "receiveTime",
+          "label": "M3",
+          "color": "#38bdf8",
+          "lineSize": 2,
+          "showLine": true
         },
         {
-          "enabled": true,
-          "color": "#a78bfa",
-          "label": "M4",
-          "lineSize": 2,
-          "showLine": true,
           "value": "/z70/arm/m4_deg.data",
-          "timestampMethod": "receiveTime"
+          "enabled": true,
+          "timestampMethod": "receiveTime",
+          "label": "M4",
+          "color": "#a78bfa",
+          "lineSize": 2,
+          "showLine": true
         },
         {
-          "enabled": true,
-          "color": "#34d399",
-          "label": "M5",
-          "lineSize": 2,
-          "showLine": true,
           "value": "/z70/arm/m5_deg.data",
-          "timestampMethod": "receiveTime"
+          "enabled": true,
+          "timestampMethod": "receiveTime",
+          "label": "M5",
+          "color": "#34d399",
+          "lineSize": 2,
+          "showLine": true
         },
         {
-          "enabled": true,
-          "color": "#fb923c",
-          "label": "M6",
-          "lineSize": 2,
-          "showLine": true,
           "value": "/z70/arm/m6_deg.data",
-          "timestampMethod": "receiveTime"
+          "enabled": true,
+          "timestampMethod": "receiveTime",
+          "label": "M6",
+          "color": "#fb923c",
+          "lineSize": 2,
+          "showLine": true
         }
       ],
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
       "showLegend": true,
       "legendDisplay": "top",
       "showPlotValuesInLegend": true,
-      "showXAxisLabels": true,
-      "showYAxisLabels": true,
       "isSynced": true,
       "xAxisVal": "timestamp",
-      "yAxisLabel": "degrees",
       "followingViewWidth": 60,
+      "yAxisLabel": "degrees",
       "title": "App joint estimates"
     },
     "Plot!Joint-uncertainty": {
       "paths": [
         {
-          "enabled": true,
-          "color": "#38bdf8",
-          "label": "M3 sigma",
-          "lineSize": 2,
-          "showLine": true,
           "value": "/z70/arm/sigma_m3_deg.data",
-          "timestampMethod": "receiveTime"
+          "enabled": true,
+          "timestampMethod": "receiveTime",
+          "label": "M3 sigma",
+          "color": "#38bdf8",
+          "lineSize": 2,
+          "showLine": true
         },
         {
-          "enabled": true,
-          "color": "#a78bfa",
-          "label": "M4 sigma",
-          "lineSize": 2,
-          "showLine": true,
           "value": "/z70/arm/sigma_m4_deg.data",
-          "timestampMethod": "receiveTime"
+          "enabled": true,
+          "timestampMethod": "receiveTime",
+          "label": "M4 sigma",
+          "color": "#a78bfa",
+          "lineSize": 2,
+          "showLine": true
         },
         {
-          "enabled": true,
-          "color": "#34d399",
-          "label": "M5 sigma",
-          "lineSize": 2,
-          "showLine": true,
           "value": "/z70/arm/sigma_m5_deg.data",
-          "timestampMethod": "receiveTime"
+          "enabled": true,
+          "timestampMethod": "receiveTime",
+          "label": "M5 sigma",
+          "color": "#34d399",
+          "lineSize": 2,
+          "showLine": true
         }
       ],
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
       "showLegend": true,
       "legendDisplay": "top",
       "showPlotValuesInLegend": true,
-      "showXAxisLabels": true,
-      "showYAxisLabels": true,
       "isSynced": true,
       "xAxisVal": "timestamp",
-      "yAxisLabel": "sigma \u00b7 degrees",
       "followingViewWidth": 60,
+      "yAxisLabel": "sigma \u00b7 degrees",
       "title": "Joint uncertainty"
     },
     "RawMessages!UNKNOWN-reason": {
-      "defaultExpanded": true,
+      "diffEnabled": false,
+      "diffMethod": "custom",
+      "diffTopicPath": "",
+      "showFullMessageForDiff": false,
       "topicPath": "/z70/arm/unknown_reason",
       "fontSize": 12,
+      "defaultExpanded": true,
       "title": "UNKNOWN reason"
     },
     "RawMessages!Arm-source-detail": {
-      "defaultExpanded": true,
+      "diffEnabled": false,
+      "diffMethod": "custom",
+      "diffTopicPath": "",
+      "showFullMessageForDiff": false,
       "topicPath": "/z70/arm_estimate",
       "fontSize": 12,
+      "defaultExpanded": true,
       "title": "Arm source detail"
     },
     "3D!Odometry-trail": {
@@ -779,7 +879,25 @@
           "alpha": 0.7,
           "frameLocked": true
         },
+        "/z70/map/safe_grid": {
+          "visible": false,
+          "colorMode": "map",
+          "alpha": 0.4,
+          "frameLocked": true
+        },
+        "/z70/map/dynamic_obstacles": {
+          "visible": false,
+          "colorMode": "map",
+          "alpha": 0.5,
+          "frameLocked": true
+        },
         "/z70/map/markers": {
+          "visible": false
+        },
+        "/z70/world/markers": {
+          "visible": false
+        },
+        "/z70/garments/markers": {
           "visible": false
         },
         "/z70/objects": {
@@ -860,129 +978,145 @@
         "near": 0.01,
         "far": 100
       },
+      "followMode": "follow-none",
       "followTf": "odom",
       "fixedFrame": "odom",
-      "followMode": "follow-none",
       "title": "Odometry trail"
     },
     "Image!Floor-mosaic": {
       "imageMode": {
         "imageTopic": "/z70/floor_mosaic",
-        "imageSchemaName": "sensor_msgs/msg/Image",
         "calibrationTopic": "/z70/camera_info",
-        "synchronize": false
+        "synchronize": false,
+        "flipHorizontal": false,
+        "flipVertical": false,
+        "rotation": 0,
+        "annotations": {},
+        "colorMode": "gradient",
+        "gradient": [
+          "#000000",
+          "#ffffff"
+        ],
+        "colorMap": "turbo",
+        "valueMin": 0,
+        "valueMax": 1,
+        "imageSchemaName": "sensor_msgs/msg/Image"
       },
       "title": "Floor mosaic"
     },
     "Plot!VO-accept-reject": {
       "paths": [
         {
-          "enabled": true,
-          "color": "#38bdf8",
-          "label": "accepted",
-          "lineSize": 2,
-          "showLine": true,
           "value": "/z70/calibration/vo_accepted.data",
-          "timestampMethod": "receiveTime"
+          "enabled": true,
+          "timestampMethod": "receiveTime",
+          "label": "accepted",
+          "color": "#38bdf8",
+          "lineSize": 2,
+          "showLine": true
         },
         {
-          "enabled": true,
-          "color": "#a78bfa",
-          "label": "rejected",
-          "lineSize": 2,
-          "showLine": true,
           "value": "/z70/calibration/vo_rejected.data",
-          "timestampMethod": "receiveTime"
+          "enabled": true,
+          "timestampMethod": "receiveTime",
+          "label": "rejected",
+          "color": "#a78bfa",
+          "lineSize": 2,
+          "showLine": true
         }
       ],
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
       "showLegend": true,
       "legendDisplay": "top",
       "showPlotValuesInLegend": true,
-      "showXAxisLabels": true,
-      "showYAxisLabels": true,
       "isSynced": true,
       "xAxisVal": "timestamp",
-      "yAxisLabel": "frames",
       "followingViewWidth": 60,
+      "yAxisLabel": "frames",
       "title": "VO accept reject"
     },
     "Plot!Chassis-gains": {
       "paths": [
         {
-          "enabled": true,
-          "color": "#38bdf8",
-          "label": "yaw +",
-          "lineSize": 2,
-          "showLine": true,
           "value": "/z70/calibration/yaw_positive_gain.data",
-          "timestampMethod": "receiveTime"
+          "enabled": true,
+          "timestampMethod": "receiveTime",
+          "label": "yaw +",
+          "color": "#38bdf8",
+          "lineSize": 2,
+          "showLine": true
         },
         {
-          "enabled": true,
-          "color": "#a78bfa",
-          "label": "yaw \u2212",
-          "lineSize": 2,
-          "showLine": true,
           "value": "/z70/calibration/yaw_negative_gain.data",
-          "timestampMethod": "receiveTime"
+          "enabled": true,
+          "timestampMethod": "receiveTime",
+          "label": "yaw \u2212",
+          "color": "#a78bfa",
+          "lineSize": 2,
+          "showLine": true
         }
       ],
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
       "showLegend": true,
       "legendDisplay": "top",
       "showPlotValuesInLegend": true,
-      "showXAxisLabels": true,
-      "showYAxisLabels": true,
       "isSynced": true,
       "xAxisVal": "timestamp",
-      "yAxisLabel": "gain",
       "followingViewWidth": 60,
+      "yAxisLabel": "gain",
       "title": "Chassis gains"
     },
     "Plot!Camera-x": {
       "paths": [
         {
-          "enabled": true,
-          "color": "#38bdf8",
-          "label": "fit",
-          "lineSize": 2,
-          "showLine": true,
           "value": "/z70/calibration/camera_x_m.data",
-          "timestampMethod": "receiveTime"
+          "enabled": true,
+          "timestampMethod": "receiveTime",
+          "label": "fit",
+          "color": "#38bdf8",
+          "lineSize": 2,
+          "showLine": true
         },
         {
-          "enabled": true,
-          "color": "#a78bfa",
-          "label": "active",
-          "lineSize": 2,
-          "showLine": true,
           "value": "/z70/calibration/active_camera_x_m.data",
-          "timestampMethod": "receiveTime"
+          "enabled": true,
+          "timestampMethod": "receiveTime",
+          "label": "active",
+          "color": "#a78bfa",
+          "lineSize": 2,
+          "showLine": true
         },
         {
-          "enabled": true,
-          "color": "#34d399",
-          "label": "fit sigma",
-          "lineSize": 2,
-          "showLine": true,
           "value": "/z70/calibration/camera_x_sigma_m.data",
-          "timestampMethod": "receiveTime"
+          "enabled": true,
+          "timestampMethod": "receiveTime",
+          "label": "fit sigma",
+          "color": "#34d399",
+          "lineSize": 2,
+          "showLine": true
         }
       ],
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
       "showLegend": true,
       "legendDisplay": "top",
       "showPlotValuesInLegend": true,
-      "showXAxisLabels": true,
-      "showYAxisLabels": true,
       "isSynced": true,
       "xAxisVal": "timestamp",
-      "yAxisLabel": "meters",
       "followingViewWidth": 60,
+      "yAxisLabel": "meters",
       "title": "Camera x"
     },
     "RawMessages!Calibration-source": {
-      "defaultExpanded": true,
+      "diffEnabled": false,
+      "diffMethod": "custom",
+      "diffTopicPath": "",
+      "showFullMessageForDiff": false,
       "topicPath": "/z70/chassis_calibration",
       "fontSize": 12,
+      "defaultExpanded": true,
       "title": "Calibration source"
     },
     "DiagnosticStatusPanel!Robot-diagnostics": {
@@ -993,57 +1127,61 @@
       "title": "Robot diagnostics"
     },
     "RawMessages!Diagnostics-raw": {
-      "defaultExpanded": true,
+      "diffEnabled": false,
+      "diffMethod": "custom",
+      "diffTopicPath": "",
+      "showFullMessageForDiff": false,
       "topicPath": "/diagnostics",
       "fontSize": 12,
+      "defaultExpanded": true,
       "title": "Diagnostics raw"
     },
     "Plot!Battery-history": {
       "paths": [
         {
-          "enabled": true,
-          "color": "#38bdf8",
-          "label": "battery",
-          "lineSize": 2,
-          "showLine": true,
           "value": "/z70/battery.data",
-          "timestampMethod": "receiveTime"
+          "enabled": true,
+          "timestampMethod": "receiveTime",
+          "label": "battery",
+          "color": "#38bdf8",
+          "lineSize": 2,
+          "showLine": true
         }
       ],
-      "minYValue": 0,
-      "maxYValue": 100,
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
       "showLegend": true,
       "legendDisplay": "top",
       "showPlotValuesInLegend": true,
-      "showXAxisLabels": true,
-      "showYAxisLabels": true,
       "isSynced": true,
       "xAxisVal": "timestamp",
-      "yAxisLabel": "%",
       "followingViewWidth": 60,
+      "yAxisLabel": "%",
+      "minYValue": 0,
+      "maxYValue": 100,
       "title": "Battery history"
     },
     "Plot!Last-RC-command-age": {
       "paths": [
         {
-          "enabled": true,
-          "color": "#38bdf8",
-          "label": "age",
-          "lineSize": 2,
-          "showLine": true,
           "value": "/z70/last_command/age_s.data",
-          "timestampMethod": "receiveTime"
+          "enabled": true,
+          "timestampMethod": "receiveTime",
+          "label": "age",
+          "color": "#38bdf8",
+          "lineSize": 2,
+          "showLine": true
         }
       ],
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
       "showLegend": true,
       "legendDisplay": "top",
       "showPlotValuesInLegend": true,
-      "showXAxisLabels": true,
-      "showYAxisLabels": true,
       "isSynced": true,
       "xAxisVal": "timestamp",
-      "yAxisLabel": "seconds",
       "followingViewWidth": 60,
+      "yAxisLabel": "seconds",
       "title": "Last RC command age"
     },
     "Tab!z70-dashboard": {

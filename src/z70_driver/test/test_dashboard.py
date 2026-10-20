@@ -223,6 +223,8 @@ def test_3d_and_image_configs_use_real_fields_and_sources():
     assert scene['topics']['/z70/odom_path']['lineWidth'] == 0.02
     assert scene['topics']['/z70/floor_mosaic']['cameraInfoTopic'] == '/z70/camera_info'
     assert scene['topics']['/map']['visible'] is True
+    assert scene['topics']['/z70/world/markers']['visible'] is True
+    assert scene['topics']['/z70/garments/markers']['visible'] is True
     assert scene['cameraState']['distance'] == 8.0
     dock = scene['topics']['/z70/map/dock_pose']
     assert dock['visible'] is True
