@@ -36,6 +36,14 @@ def read_arm(observations) -> dict:
     return fn() if callable(fn) else observations.get('/api/arm/estimate')
 
 
+def yaw_gain(gains: dict | None, angle: float, default: float = 1.) -> float:
+    return float((gains or {}).get('yaw_positive' if angle > 0 else 'yaw_negative', {}).get('gain') or default)
+
+
+def forward_gain(gains: dict | None, default: float = 1.) -> float:
+    return float((gains or {}).get('forward', {}).get('gain') or default)
+
+
 def log_directory(repo):
     return Path(repo) / '.local/pickup' / (datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ') + '-ros')
 
@@ -89,10 +97,10 @@ class Executor:
         return read_arm(self.client)
 
     def _yaw_gain(self, angle: float, default: float = .68) -> float:
-        return float(self.gains.get('yaw_positive' if angle > 0 else 'yaw_negative', {}).get('gain') or default)
+        return yaw_gain(self.gains, angle, default)
 
     def _forward_gain(self, default: float = .65) -> float:
-        return float(self.gains.get('forward', {}).get('gain') or default)
+        return forward_gain(self.gains, default)
 
     def safety(self):
         reason = self.hazard()
@@ -179,12 +187,7 @@ class Executor:
 
     def predict(self, p):
         """Target position in the current base frame after the last pulse (odometry), or unchanged without odom."""
-        if not getattr(self, 'last_motion', None):
-            return list(p)
-        dx, dy, dth = self.last_motion
-        x, y = p[0] - dx, p[1] - dy
-        c, sn = math.cos(dth), math.sin(dth)
-        return [c * x + sn * y, -sn * x + c * y, 0.]
+        return perception.predict(p, self.last_motion) if getattr(self, 'last_motion', None) else list(p)
 
     def start_rc(self):
         if not self.rc:

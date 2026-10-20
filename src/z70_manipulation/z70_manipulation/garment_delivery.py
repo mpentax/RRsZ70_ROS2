@@ -13,7 +13,7 @@ import cv2
 import numpy as np
 from z70_mapping.boundary import BoundaryConfig, SessionWorldMap, check_corridor_containment, compute_safe_interior, mobility_from_suitability
 from . import perception, planner
-from .executor import read_arm, read_status
+from .executor import forward_gain, read_arm, read_status, yaw_gain
 from .perception import transform_xy
 
 
@@ -443,12 +443,10 @@ class GarmentDeliverer:
         return True
 
     def _yaw_gain(self, angle):
-        gains = getattr(self.executor, 'gains', None) or {}
-        return gains.get('yaw_positive' if angle > 0 else 'yaw_negative', {}).get('gain') or 1.
+        return yaw_gain(getattr(self.executor, 'gains', None), angle)
 
     def _forward_gain(self):
-        gains = getattr(self.executor, 'gains', None) or {}
-        return gains.get('forward', {}).get('gain') or 1.
+        return forward_gain(getattr(self.executor, 'gains', None))
 
     def monitor(self, baseline, boundary, loaded=True):
         self.guard()
