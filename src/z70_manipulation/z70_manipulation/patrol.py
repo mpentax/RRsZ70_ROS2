@@ -328,7 +328,6 @@ class PatrolCollector:
                     if any(not self.ledger.may_attempt(k) for k in aliases): continue
                     rejection=transport_policy(g,goal.allow_towing,self.towing)
                     if rejection:
-                        attempted+=1
                         self.ledger.skip_item(item_key,location,rejection); continue
                     if not (g.grasp_valid and g.reachable_for_grasp): continue
                     attempted+=1

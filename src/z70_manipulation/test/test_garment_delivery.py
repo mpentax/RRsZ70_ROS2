@@ -2,8 +2,30 @@
 from types import SimpleNamespace as NS
 import numpy as np
 import pytest
-from z70_manipulation.garment_delivery import TowingQualificationConfig, transport_policy, loaded_route
+from z70_manipulation import planner
+from z70_manipulation.garment_delivery import (
+    DeliveryRejected,
+    GarmentDeliverer,
+    TowingQualificationConfig,
+    loaded_route,
+    transport_policy,
+)
 from z70_mapping.boundary import BoundaryConfig, compute_safe_interior
+
+
+def _grid_map(size=30, pose=(1., 1., 0.)):
+    return NS(
+        width=size,
+        height=size,
+        resolution=.1,
+        origin=(0., 0.),
+        pixels=np.full((size, size), 15, np.uint8),
+        occupancy=np.zeros((size, size), np.int8),
+        rooms=[1],
+        zones=[],
+        virtual_walls=[],
+        robot=pose,
+    )
 
 
 def test_towing_is_not_implicitly_qualified():
@@ -13,20 +35,15 @@ def test_towing_is_not_implicitly_qualified():
 
 
 def test_loaded_route_is_four_connected_and_respects_deployed_envelope():
-    pixels=np.full((30,30),15,np.uint8)
-    m=NS(width=30,height=30,resolution=.1,origin=(0.,0.),pixels=pixels,
-         occupancy=np.zeros((30,30),np.int8),rooms=[1],zones=[],virtual_walls=[],robot=(1.,1.,0.))
-    b=compute_safe_interior(m,{1:'room'},BoundaryConfig(allowed_segments=(1,),deployed_arm_extension_m=.1),m.robot)
-    route=loaded_route(b,(1.,1.),(2.,2.))
-    assert route and route[-1]==(2.,2.)
-    assert loaded_route(b,(1.,1.),(.15,.15)) is None
+    m = _grid_map()
+    b = compute_safe_interior(m, {1: 'room'}, BoundaryConfig(allowed_segments=(1,), deployed_arm_extension_m=.1), m.robot)
+    route = loaded_route(b, (1., 1.), (2., 2.))
+    assert route and route[-1] == (2., 2.)
+    assert loaded_route(b, (1., 1.), (.15, .15)) is None
 
 
 def test_delivery_dry_run_is_read_only_and_loaded_route_blocked():
-    from z70_manipulation.garment_delivery import GarmentDeliverer
-    pixels=np.full((30,30),15,np.uint8)
-    m=NS(width=30,height=30,resolution=.1,origin=(0.,0.),pixels=pixels,
-         occupancy=np.zeros((30,30),np.int8),rooms=[1],zones=[],virtual_walls=[],robot=(1.,1.,0.))
+    m = _grid_map()
     garment=NS(category='sock',transport_suitability=1,reachable_for_grasp=True,
         inside_geofence=True,geofence_verified=True,grasp_valid=True,contact_valid=True,track_id=NS(uuid=list(range(16))))
     obs=NS(navigation_snapshot=lambda **_:NS(map=m,labels={1:'room'},map_index=1,map_sequence=1,
@@ -45,9 +62,7 @@ class DeliveryFixture:
         self.garment=NS(category='sock',transport_suitability=1,reachable_for_grasp=True,
             inside_geofence=True,geofence_verified=True,grasp_valid=True,contact_valid=True,
             grasp_point_m=NS(x=.4,y=0.,z=0.),track_id=NS(uuid=list(range(16))))
-        pixels=np.full((50,50),15,np.uint8)
-        self.map=NS(width=50,height=50,resolution=.1,origin=(0.,0.),pixels=pixels,
-            occupancy=np.zeros((50,50),np.int8),rooms=[1],zones=[],virtual_walls=[],robot=self.pose)
+        self.map=_grid_map(50, self.pose)
         self.obs=NS(navigation_snapshot=lambda **_:NS(map=self.map,labels={},map_index=1,map_sequence=1,
             current_pose_verified=True,active_floor_verified=True,cache_age_s=0.,evidence=None),
             garment_snapshot=self.batch,garment_barrier=lambda: self.sequence,garment_frame=self.frame)
@@ -66,8 +81,6 @@ class DeliveryFixture:
     def pulse(self,velocity=0.,omega=0.,duration=500):
         self.pose[0]+=velocity*duration/1000; self.calls.append('pulse')
     def runner(self,monkeypatch,held=True,support=True):
-        from z70_manipulation import planner
-        from z70_manipulation.garment_delivery import GarmentDeliverer
         monkeypatch.setattr(planner,'grasp_goal',lambda *_,**__:dict(state=[150,45]))
         runner=GarmentDeliverer(self.obs,self.ex,boundary_config=BoundaryConfig(allowed_segments=(1,)),
             held_check=lambda *_:held,support_check=lambda *_:support)
@@ -145,7 +158,9 @@ def run_dds_dry_action(tmp_path, action_type, topic, goal, monkeypatch):
     from z70_manipulation.observations import LATCHED
     def wait(predicate):
         deadline=time.monotonic()+8.
-        while not predicate() and time.monotonic()<deadline: time.sleep(.01)
+        while time.monotonic()<deadline:
+            if predicate(): return
+            time.sleep(.01)
         assert predicate(), 'offline DDS deadline'
     rclpy.init(domain_id=94)
     server=peer=executor=thread=action=None
@@ -188,7 +203,6 @@ def run_dds_dry_action(tmp_path, action_type, topic, goal, monkeypatch):
 
 
 def test_loaded_monitor_rejects_tf_jump_before_any_pulse(tmp_path,monkeypatch):
-    from z70_manipulation.garment_delivery import DeliveryRejected
     fixture=DeliveryFixture(tmp_path); runner=fixture.runner(monkeypatch)
     baseline,b=runner.context(); runner.baseline_tf=(0.,0.,0.); runner.map_odom=lambda:(.3,0.,0.)
     with pytest.raises(DeliveryRejected,match='MAP_CONTEXT_CHANGED'): runner.monitor(baseline,b,loaded=False)
@@ -214,8 +228,6 @@ def test_deliver_garment_dds_action_uses_typed_observations_without_commands(tmp
 
 
 def test_transit_and_approach_use_calibrated_gains(tmp_path,monkeypatch):
-    from z70_manipulation import planner
-    from z70_manipulation.garment_delivery import GarmentDeliverer
     fixture=DeliveryFixture(tmp_path)
     fixture.ex.gains={'forward':{'gain':.5},'yaw_positive':{'gain':.5},'yaw_negative':{'gain':.5}}
     durations=[]
