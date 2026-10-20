@@ -20,8 +20,7 @@ from nav_msgs.msg import OccupancyGrid, Odometry
 from std_msgs.msg import String
 from visualization_msgs.msg import Marker, MarkerArray
 from tf2_ros import TransformBroadcaster
-from .dynamic_layer import SessionWorldMap
-from .boundary import BoundaryConfig, compute_safe_interior
+from .boundary import BoundaryConfig, SessionWorldMap, compute_safe_interior
 
 
 @dataclass

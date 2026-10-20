@@ -20,7 +20,7 @@ import yaml
 from z70_description import arm_model as hand
 from z70_description.arm_model import config_path
 from z70_interfaces.msg import FrameMetadata, GarmentObservations
-from z70_manipulation import garment_node as w, perception, perception as g, perception as p, planner, planner as placement
+from z70_manipulation import garment_node as w, perception, perception as g, perception as p, planner
 from z70_manipulation.garment_node import GarmentNode, observations_message, seconds
 from z70_manipulation.node import Perception
 from z70_manipulation.perception import FrontCamera
@@ -607,7 +607,7 @@ def _placement_scene(monkeypatch, gap=.020, elevated=False):
 
 def test_measures_held_bottom_to_elevated_support_without_floor_projection(monkeypatch):
     image = _placement_scene(monkeypatch, elevated=True)
-    sample = placement.measure(image, 'green', 'purple', 'yellow', [.5, 0., 0.], [0., 0., 0.])
+    sample = planner.measure(image, 'green', 'purple', 'yellow', [.5, 0., 0.], [0., 0., 0.])
     assert sample['gap_m'] == pytest.approx(.020, abs=.001)
     assert sample['held_bottom_m'][2] == pytest.approx(.152, abs=.001)
     assert sample['support_top_m'][2] == pytest.approx(.132, abs=.001)
@@ -621,14 +621,14 @@ def test_placement_keeps_pale_held_facets_in_contact_geometry(monkeypatch):
     hsv[204:265, 275:326] = (60, 95, 170)
     hsv[204:235, 275:326] = (60, 220, 170)
     image = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
-    sample = placement.measure(image, 'green', 'yellow', 'yellow', [.5, 0., 0.], [0., 0., 0.])
+    sample = planner.measure(image, 'green', 'yellow', 'yellow', [.5, 0., 0.], [0., 0., 0.])
     assert sample['gap_m'] == pytest.approx(.020, abs=.001)
 
 
 def test_held_depth_uses_retained_object_transform_not_jaw_origin(monkeypatch):
     image = _placement_scene(monkeypatch)
-    baseline = placement.measure(image, 'green', 'yellow', 'yellow', [.5, 0., 0.], [0., 0., 0.])
-    shifted = placement.measure(image, 'green', 'yellow', 'yellow', [.5, 0., 0.], [.010, 0., 0.])
+    baseline = planner.measure(image, 'green', 'yellow', 'yellow', [.5, 0., 0.], [0., 0., 0.])
+    shifted = planner.measure(image, 'green', 'yellow', 'yellow', [.5, 0., 0.], [.010, 0., 0.])
     assert shifted['held_center_m'][0] - baseline['held_center_m'][0] == pytest.approx(.010)
 
 
@@ -636,33 +636,33 @@ def test_rejects_same_hue_background_instead_of_assuming_object_depth(monkeypatc
     image = _placement_scene(monkeypatch)
     cv2.rectangle(image, (220, 180), (380, 283), (0, 200, 0), -1)
     with pytest.raises(LookupError, match='contour'):
-        placement.measure(image, 'green', 'yellow', 'yellow', [.5, 0., 0.], [0., 0., 0.])
+        planner.measure(image, 'green', 'yellow', 'yellow', [.5, 0., 0.], [0., 0., 0.])
 
 
 def test_observation_recovers_local_pose_not_stale_pregrip_angles():
     current = [210., 75., 10.]
     observed = hand.hand_pose(current)
-    recovered = placement.observed_joints(observed)
+    recovered = planner.observed_joints(observed)
     assert recovered['joints'] == pytest.approx(current)
     bad = observed.copy(); bad[1, 3] += .05
-    assert placement.observed_joints(bad) is None
+    assert planner.observed_joints(bad) is None
 
 
 def test_descent_never_substitutes_40mm_for_20mm_gap():
     sample = dict(gap_m=.020, lateral_error_m=[0., 0.])
-    assert placement.descent_step(sample, None) is None
+    assert planner.descent_step(sample, None) is None
     sample['gap_m'] = .060
-    assert placement.descent_step(sample, None) == dict(method='app_arm_direction_move', params={'direction': 2}, descent_m=.04)
+    assert planner.descent_step(sample, None) == dict(method='app_arm_direction_move', params={'direction': 2}, descent_m=.04)
     sample['gap_m'] = .030
-    step = placement.descent_step(sample, [210., 75., 0.])
+    step = planner.descent_step(sample, [210., 75., 0.])
     assert step is not None and step['method'] == 'app_arm_move'
     assert .002 < step['descent_m'] <= .030
     assert set(step['params']['m']) <= {0, 1, 2} and step['params']['m'][2] == 0 and any(step['params']['m'][:2])
     sample['gap_m'] = .025
-    coord_step = placement.descent_step(sample, [210., 75., 0.])
+    coord_step = planner.descent_step(sample, [210., 75., 0.])
     assert coord_step is not None and coord_step['params']['m'] == [1, 1, 0]
     sample['gap_m'] = .022
-    assert placement.descent_step(sample, [210., 75., 0.]) is None
+    assert planner.descent_step(sample, [210., 75., 0.]) is None
     sample['gap_m'] = .050
     sample['uncertainty_m'] = .015
-    assert placement.descent_step(sample, None) is None
+    assert planner.descent_step(sample, None) is None

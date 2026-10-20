@@ -17,20 +17,16 @@ from rclpy.parameter import Parameter
 from z70_driver.driver import Driver
 from z70_interfaces.action import PatrolCollect
 from z70_interfaces.msg import FrameMetadata
-from z70_manipulation import perception, planner as placement
+from z70_manipulation import perception, planner
 from z70_manipulation.executor import Executor
 from z70_manipulation.garment_delivery import TowingQualificationConfig, loaded_route
 from z70_manipulation.perception import GarmentTracker, geofence, observe
-from z70_manipulation.garment_node import observations_message
-from z70_manipulation.garment_node import GarmentModel
+from z70_manipulation.garment_node import GarmentModel, observations_message
 from z70_manipulation.goals import BUILTIN_GOALS, GOAL_CONTEXT_PRIMITIVES, GoalContext
 from z70_manipulation.observations import Observations
 from z70_manipulation.patrol import PatrolCollector, PatrolLedger
-from z70_mapping.boundary import BoundaryConfig, compute_safe_interior
-from z70_mapping.node import decode_map
-from z70_mapping.dynamic_layer import SessionWorldMap
-from z70_mapping.node import dynamic_grid_message, world_markers_message
-from z70_mapping.node import MappingNode
+from z70_mapping.boundary import BoundaryConfig, SessionWorldMap, compute_safe_interior
+from z70_mapping.node import MappingNode, decode_map, dynamic_grid_message, world_markers_message
 from z70_odometry.node import FloorCamera, FloorOdometry
 from z70_sim import (
     APARTMENT_ROOMS,
@@ -111,7 +107,7 @@ def test_mujoco_cameras_marker_68_floor_vo_and_v1_map():
     img_arm = cv2.imdecode(np.frombuffer(jpeg_arm, np.uint8), cv2.IMREAD_COLOR)
     jaw = perception.front_jaw(img_arm)
     assert jaw['marker_id'] == 68 and jaw['rms_px'] < 0.5
-    fit = placement.observed_joints(jaw['hand_pose_base'])
+    fit = planner.observed_joints(jaw['hand_pose_base'])
     assert fit is not None
     assert fit['joints'] == pytest.approx([250.0, 95.0, 0.0], abs=1.0)
 

@@ -8,8 +8,7 @@ import uuid
 from dataclasses import replace
 from .garment_delivery import (GarmentDeliverer, PinAndGoNavigator, TowingQualificationConfig, atomic_json,
     inside, map_identity, same_map_frame, tf_jumped, transport_policy, track_key, loaded_route, DeliveryRejected)
-from z70_mapping.boundary import BoundaryConfig, compute_safe_interior
-from z70_mapping.dynamic_layer import SessionWorldMap, mobility_from_suitability
+from z70_mapping.boundary import BoundaryConfig, SessionWorldMap, compute_safe_interior, mobility_from_suitability
 from .perception import transform_xy
 from .observations import read_arm, read_status
 

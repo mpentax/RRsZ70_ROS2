@@ -16,7 +16,6 @@ from std_msgs.msg import String
 from visualization_msgs.msg import MarkerArray
 from z70_interfaces.action import AlignToTarget, DeployArm, GraspAndLift, MoveArm, Pick, ReleaseAndStow, Stack
 from z70_manipulation import perception, planner
-from z70_manipulation import planner as placement
 from z70_manipulation.executor import Client, Executor
 from z70_manipulation.goals import ALL_GOALS, BUILTIN_GOALS, GoalContext, GoalSpec, simulate_goal
 from z70_manipulation.node import PickServer, run, run_stack
@@ -541,7 +540,7 @@ def test_placement_post_command_frames_reject_earlier_receipts(tmp_path,monkeypa
         client.frame_received_at=9.
         return np.zeros((10,10,3),np.uint8),'front'
     ex.fresh_frame=old_frame
-    monkeypatch.setattr(placement,'measure',lambda *a,**kw:pytest.fail('old frame used'))
+    monkeypatch.setattr(planner,'measure',lambda *a,**kw:pytest.fail('old frame used'))
     with pytest.raises(LookupError,match='after command'):
         ex.placement_sample('purple','blue','blue',[.5,0.,0.],released=True,after=10.)
 

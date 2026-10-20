@@ -20,11 +20,9 @@ from z70_interfaces.action import (
     BasePulse, ArmStep, HandStep, ArmOperation,
 )
 from z70_interfaces.msg import ArmEstimate, CommandOutcome
-from z70_mapping.boundary import check_corridor_containment, compute_safe_interior
+from z70_mapping.boundary import check_corridor_containment, compute_safe_interior, mobility_from_suitability
 from z70_mapping.node import spatial_context as compute_spatial_context
-from z70_mapping.dynamic_layer import mobility_from_suitability
 from . import perception, planner
-from . import planner as placement
 from .executor import Executor
 from .garment_delivery import GarmentDeliverer, PinAndGoNavigator, graspable_garments, loaded_route
 from .perception import transform_xy
@@ -318,7 +316,7 @@ class GoalContext:
 
     def fit_wrist_joints(self) -> dict | None:
         jaw = self.wrist_pose()
-        return placement.observed_joints(jaw['hand_pose_base']) if jaw and 'hand_pose_base' in jaw else None
+        return planner.observed_joints(jaw['hand_pose_base']) if jaw and 'hand_pose_base' in jaw else None
 
     def garments(self, category='any', after=None) -> list:
         batch = self.observations.garment_snapshot(after=after)

@@ -10,7 +10,6 @@ import numpy as np
 import requests
 from z70_description.arm_model import LIMITS
 from . import perception, planner
-from . import planner as placement
 from .observations import Commands, Observations, read_arm, read_status
 
 TRACK_GATE_M = .12
@@ -614,7 +613,7 @@ class Executor:
         image, tag = self.fresh_frame()
         if tag != 'front':
             raise LookupError('unknown arm pose; front marker observation needed')
-        fit = placement.observed_joints(perception.front_jaw(image)['hand_pose_base'])
+        fit = planner.observed_joints(perception.front_jaw(image)['hand_pose_base'])
         self.log('arm_pose_recovery', fit=fit, estimator_anchored=False)
         if fit is None:
             raise LookupError('observed hand pose cannot resolve current nominal joints')
@@ -632,7 +631,7 @@ class Executor:
                 continue
             if tag != 'front':
                 raise LookupError('front placement frame expected')
-            sample = placement.measure(image, color, support_color, base_color, tower_spot,
+            sample = planner.measure(image, color, support_color, base_color, tower_spot,
                                        getattr(self, 'pregrip_object_in_hand', None), released=released)
             sample['frame_received_at'] = received
             sample['exposure_time_known'] = getattr(self.client, 'frame_exposure_known', False)
@@ -671,7 +670,7 @@ class Executor:
                 gap = sample['gap_m']
                 if gap < -.005:
                     return incomplete('silhouettes overlap; support depth/contact ambiguous')
-                if np.linalg.norm(error) > placement.LATERAL_TOL_M:
+                if np.linalg.norm(error) > planner.LATERAL_TOL_M:
                     contacts = 0
                     if gap < .008:
                         return incomplete('lateral correction requires clearance from support')
@@ -686,16 +685,16 @@ class Executor:
                     self.end_rc()
                     motion_after = time.time()
                     continue
-                if abs(gap) <= placement.CONTACT_GAP_M:
+                if abs(gap) <= planner.CONTACT_GAP_M:
                     contacts += 1
                     if contacts >= 2:
                         break
                     self.sleep(.8)
                     continue
                 contacts = 0
-                fit = placement.observed_joints(sample['jaw']['hand_pose_base'])
+                fit = planner.observed_joints(sample['jaw']['hand_pose_base'])
                 self.log('placement_pose_fit', fit=fit)
-                step = placement.descent_step(sample, fit['joints'] if fit else None)
+                step = planner.descent_step(sample, fit['joints'] if fit else None)
                 if step is None:
                     return incomplete('no legal real step fits remaining visual gap')
                 self.log('placement_descent', **step, gap_m=gap)
