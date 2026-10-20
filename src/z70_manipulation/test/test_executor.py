@@ -17,10 +17,9 @@ from visualization_msgs.msg import MarkerArray
 from z70_interfaces.action import AlignToTarget, DeployArm, GraspAndLift, MoveArm, Pick, ReleaseAndStow, Stack
 from z70_manipulation import perception, planner
 from z70_manipulation import planner as placement
-from z70_manipulation.cli import run, run_stack
 from z70_manipulation.executor import Client, Executor
 from z70_manipulation.goals import ALL_GOALS, BUILTIN_GOALS, GoalContext, GoalSpec, simulate_goal
-from z70_manipulation.node import PickServer
+from z70_manipulation.node import PickServer, run, run_stack
 
 ROOT = Path(__file__).resolve().parents[3]
 
