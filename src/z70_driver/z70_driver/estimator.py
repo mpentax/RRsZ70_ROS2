@@ -152,29 +152,33 @@ class ArmEstimator:
         for key in ('m3','m4'): self.data['sigmaDeg'][key] = math.hypot(self.data['sigmaDeg'][key],2.5*math.sqrt(n))
         return self._commit(method, 'HEURISTIC_UNCERTAINTY')
 
+    def _set_jaws(self, m6, method, allow_unknown=True):
+        if not self._movable():
+            if allow_unknown and self.data['state'] != 'IN_ROBOT':
+                self.data['joints']['m6'] = m6
+            return False
+        self.data['joints']['m6'] = m6
+        return self._commit(method, 'GRIPPER_COMMAND_ONLY')
+
     def observe(self, method, params, outcome, command_id=None):
         if command_id:
             if command_id in self.seen: return False
             self.seen.add(command_id)
             if len(self.seen)>4096: self.seen = {command_id}
         if outcome in ('not_sent','vendor_error'): return False
+        p = params[0] if isinstance(params,list) and len(params)==1 else params
         if method not in ARM_METHODS:
             if method == 'app_pick_up_enter_exit':
-                p = params[0] if isinstance(params,list) and len(params)==1 else params
                 if outcome == 'received' and isinstance(p,dict) and type(p.get('flag')) is int and p['flag'] in (0,1,2):
                     self.grab_mode = p['flag']
                 return False
             if method.startswith(('get_','app_get_','app_rc_')) or method == 'app_change_camera': return False
             if method in ('app_goto_target','stop_goto_target','app_charge','app_pause','app_stop','app_stop_grasp') and self.data['state']=='IN_ROBOT': return False
             return self.invalidate('UNOBSERVED_MOTION')
-        p = params[0] if isinstance(params,list) and len(params)==1 else params
         if method == 'app_grip':
             if self.grab_mode == 1 and isinstance(p,dict) and p.get('flag') == 0:
                 if outcome == 'unknown': return False
-                if not self._movable():
-                    if self.data['state'] != 'IN_ROBOT': self.data['joints']['m6'] = 0
-                    return False
-                self.data['joints']['m6'] = 0; return self._commit(method, 'GRIPPER_COMMAND_ONLY')
+                return self._set_jaws(0, method)
             return self.invalidate('GRIP_POSE_UNVERIFIED')
         if outcome == 'unknown':
             if method == 'app_open_gripper': return False
@@ -186,13 +190,9 @@ class ArmEstimator:
             self.data['joints'] = dict(POSES['WORKING_POS'])
             return False
         if method == 'app_open_gripper':
-            if not self._movable(): return False
-            self.data['joints']['m6']=90; return self._commit(method,'GRIPPER_COMMAND_ONLY')
+            return self._set_jaws(90, method, allow_unknown=False)
         if method == 'app_put_down' and self.grab_mode == 1 and isinstance(p,dict) and p.get('flag') == 0:
-            if not self._movable():
-                if self.data['state'] != 'IN_ROBOT': self.data['joints']['m6'] = 90
-                return False
-            self.data['joints']['m6']=90; return self._commit(method,'GRIPPER_COMMAND_ONLY')
+            return self._set_jaws(90, method)
         if method == 'app_arm_move':
             if not isinstance(p,dict) or not isinstance(p.get('m'),list) or len(p['m']) not in (3,5): return self.invalidate('INVALID_COMMAND')
             return self._joints(p['m'][:3],1,method)

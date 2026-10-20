@@ -44,11 +44,12 @@ def decode_command(envelope, now):
 
 def decode_arm(estimate):
     state = estimate.get('state', 'UNKNOWN')
+    joints, sigma = estimate.get('joints') or {}, estimate.get('sigmaDeg') or {}
     values = dict(state=state, unknown_reason=estimate.get('unknownReason') or '',
                   steps_since_anchor=number(estimate.get('stepsSinceAnchor')))
     for joint in ('m3', 'm4', 'm5', 'm6'):
-        values[joint + '_deg'] = number((estimate.get('joints') or {}).get(joint)) if state not in ('UNKNOWN', 'IN_ROBOT') else math.nan
-        values['sigma_' + joint + '_deg'] = number((estimate.get('sigmaDeg') or {}).get(joint))
+        values[joint + '_deg'] = number(joints.get(joint)) if state not in ('UNKNOWN', 'IN_ROBOT') else math.nan
+        values['sigma_' + joint + '_deg'] = number(sigma.get(joint))
     return values
 
 

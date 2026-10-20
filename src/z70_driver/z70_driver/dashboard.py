@@ -129,11 +129,12 @@ class Dashboard:
                         ('/z70/arm/', arm, self.arm_received, 5),
                         ('/z70/last_command/', command, self.commands_received, math.inf),
                         ('/z70/calibration/', calibration, self.cal_received or self.odom_received, math.inf)]:
+            stale = not received or now - received >= ttl
             for key, value in values.items():
                 topic = prefix + key
                 kind = self.types[topic]
-                if kind == Float32 and (not received or now-received >= ttl): value = math.nan
-                if prefix == '/z70/' and (not received or now-received >= ttl):
+                if kind == Float32 and stale: value = math.nan
+                if prefix == '/z70/' and stale:
                     if key in ('connected', 'status_valid'): value = False
                     elif key == 'connection_state': value = 'unavailable'
                     elif key in ('cleaning','returning','charging'): continue
