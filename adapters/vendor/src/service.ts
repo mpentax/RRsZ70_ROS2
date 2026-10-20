@@ -182,6 +182,13 @@ export async function createService(options: ServiceOptions) {
         dispatch, response, errorCode, ...(vendorCode !== undefined ? {vendorCode} : {}),
         ...(pulseParams(input.method as string, input.params) ? {params: pulseParams(input.method as string, input.params)} : {})});
     };
+    const emitError = (phase: 'replied' | 'finished', error: unknown) => {
+      const vendor = error instanceof RpcError;
+      event(phase, vendor ? 'sent' : error instanceof TransportError ? error.dispatch : 'unknown',
+        vendor ? 'vendor_error' : 'transport_error',
+        vendor ? 'VENDOR_REJECTED' : error instanceof TransportError && error.reason === 'cancelled' ? 'CANCELLED' : error instanceof TransportError && /timeout|timed out/i.test(error.message) ? 'TIMEOUT' : 'TRANSPORT',
+        vendor ? error.code : undefined);
+    };
     event('accepted', 'not_sent', 'none');
     const requestSecrets = secrets();
     const base = { requestId, startedAt, deviceId: device?.duid ?? null, transport: input.transport ?? "local" };
@@ -208,10 +215,7 @@ export async function createService(options: ServiceOptions) {
           event('replied', 'sent', 'received');
           return value;
         } catch (error) {
-          event('replied', error instanceof RpcError ? 'sent' : error instanceof TransportError ? error.dispatch : 'unknown',
-            error instanceof RpcError ? 'vendor_error' : 'transport_error',
-            error instanceof RpcError ? 'VENDOR_REJECTED' : error instanceof TransportError && error.reason === 'cancelled' ? 'CANCELLED' : error instanceof TransportError && /timeout|timed out/i.test(error.message) ? 'TIMEOUT' : 'TRANSPORT',
-            error instanceof RpcError ? error.code : undefined);
+          emitError('replied', error);
           throw error;
         }
       };
@@ -227,8 +231,7 @@ export async function createService(options: ServiceOptions) {
       return { ...base, commandId: requestId, attemptId, attemptIndex: Math.max(0, attemptIndex), finishedAt: Date.now(), dispatch: "sent", response: "received", ...(retried ? { retried } : {}), result: publicRpcValue(result, requestSecrets) };
     } catch (error) {
       const vendor = error instanceof RpcError;
-      event('finished', vendor ? 'sent' : error instanceof TransportError ? error.dispatch : 'unknown', vendor ? 'vendor_error' : 'transport_error',
-        vendor ? 'VENDOR_REJECTED' : error instanceof TransportError && error.reason === 'cancelled' ? 'CANCELLED' : error instanceof TransportError && /timeout|timed out/i.test(error.message) ? 'TIMEOUT' : 'TRANSPORT', vendor ? error.code : undefined);
+      emitError('finished', error);
       return { ...base, commandId: requestId, attemptId, attemptIndex: Math.max(0, attemptIndex), finishedAt: Date.now(), dispatch: vendor ? "sent" : error instanceof TransportError ? error.dispatch : "unknown",
         response: vendor ? "vendor_error" : "transport_error",
         ...(!vendor ? { transportReason: error instanceof TransportError ? (error.reason === 'cancelled' ? 'cancelled' as const : /timed out|timeout/i.test(error.message) ? "timeout" as const : /capacity|queue is full|buffer limit/i.test(error.message) ? "capacity" as const : /Invalid|serializable/i.test(error.message) ? "invalid-input" as const : /connection|selected|account|transport/i.test(error.message) ? "unavailable" as const : "transport" as const) : "transport" as const } : {}), error: vendor ? "Robot rejected RPC" : "Device transport failed", ...(vendor && error.code !== undefined ? { vendorCode: error.code } : {}) };
@@ -312,8 +315,11 @@ export async function createService(options: ServiceOptions) {
     // use the shared ROS cache and cannot open additional previews or workflows.
     if (caller.kind === 'cookie' && !path.startsWith('/api/account/') && path !== '/api/camera/pin')
       return fail(410, 'Use the shared /api/ros interfaces; account and camera input remain in web setup.');
+    const requireBearer = () => {
+      if (!req.headers.authorization?.startsWith("Bearer ")) fail(403, "Private driver bearer authentication required.");
+    };
     if (path === '/api/driver/control/session' && req.method === 'POST') {
-      if (!req.headers.authorization?.startsWith('Bearer ')) return fail(403, 'Private driver bearer authentication required.');
+      requireBearer();
       const body = await readJson(req);
       if (Object.keys(body).length !== 1 || typeof body.enabled !== 'boolean') return fail(400, 'Boolean enabled required.');
       // Fence queued captures and in-flight configuration before awaiting cleanup.
@@ -327,7 +333,7 @@ export async function createService(options: ServiceOptions) {
       return reply(res, 200, {enabled: cameraEnabled, streams_released: !cameraEnabled});
     }
     if (path === "/api/driver/rpc") {
-      if (!req.headers.authorization?.startsWith("Bearer ")) return fail(403, "Private driver bearer authentication required.");
+      requireBearer();
       if (req.method !== "POST") return fail(405, "Method not allowed.");
       const outcome = await dispatch(await readJson(req));
       return reply(res, outcome.response === "received" ? 200 : 502, outcome);
@@ -438,7 +444,7 @@ export async function createService(options: ServiceOptions) {
       return reply(res, 200, { pinCached: true });
     }
     if (path === "/api/driver/camera/select" && req.method === "POST") {
-      if (!req.headers.authorization?.startsWith("Bearer ")) return fail(403, "Private driver bearer authentication required.");
+      requireBearer();
       const generation = cameraGeneration; checkCamera(generation);
       const selected = requestedCamera((await readJson(req)).camera);
       if (selected === undefined) return fail(400, "Camera is required.");
@@ -453,7 +459,6 @@ export async function createService(options: ServiceOptions) {
       const selectedCamera = requestedCamera(body.camera);
       if (selectedCamera !== undefined) return fail(503, "Camera selection moved to ROS /z70/camera/select; frame reads follow the shared lens.");
       if (path.endsWith("/offer")) {
-        if (selectedCamera !== undefined) return fail(422, "Persistent browser offers use the shared active camera; use /api/camera/select to switch.");
         await configureCamera(generation);
         if (typeof body.sdp !== "string" || !body.sdp.startsWith("v=0") || body.sdp.length > 131072) return fail(400, "Invalid SDP.");
         return reply(res, 200, await driver.offer(body.sdp));
