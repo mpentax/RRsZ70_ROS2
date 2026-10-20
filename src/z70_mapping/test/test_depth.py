@@ -1,48 +1,53 @@
+import io
+import json
+import struct
+from types import SimpleNamespace
+from unittest.mock import Mock
 import numpy as np
 import pytest
+from rclpy.node import Node
+from rclpy.qos import DurabilityPolicy
+import z70_mapping.depth_node as dn
 from z70_mapping.depth_geometry import camera_rays, metric_cloud
 
-CAL = {'width':4, 'height':4, 'f_px':10., 'cx':1.5, 'cy':1.5, 'k1':0., 'k2':0.,
-       'camera_height_mm':50., 'R_floor_to_cam':[[0.,-1.,0.],[0.,0.,-1.],[1.,0.,0.]]}
+CAL = {'width': 4, 'height': 4, 'f_px': 10., 'cx': 1.5, 'cy': 1.5, 'k1': 0., 'k2': 0.,
+       'camera_height_mm': 50., 'R_floor_to_cam': [[0., -1., 0.], [0., 0., -1.], [1., 0., 0.]]}
+RAYS, FLOOR = camera_rays(CAL, 4, 4)
 
 
 def test_pinhole_optical_backprojection_and_floor_scale():
-    rays, floor = camera_rays(CAL, 4, 4)
     # The two bottom rows hit a plane; upper rows have no floor intersection.
-    depth = np.where(np.isfinite(floor), floor * 2, 2.)
-    points, quality = metric_cloud(depth, rays, floor, min_floor_pixels=2)
+    depth = np.where(np.isfinite(FLOOR), FLOOR * 2, 2.)
+    points, quality = metric_cloud(depth, RAYS, FLOOR, min_floor_pixels=2)
     assert quality['floor_aligned']
     assert quality['scale'] == pytest.approx(.5)
     assert np.isfinite(points).all()
-    assert rays[3,3].tolist() == pytest.approx([.15,.15,1.])
-    assert any(np.allclose(p, rays[3,3] * floor[3,3]) for p in points)
+    assert RAYS[3, 3].tolist() == pytest.approx([.15, .15, 1.])
+    assert any(np.allclose(p, RAYS[3, 3] * FLOOR[3, 3]) for p in points)
 
 
 def test_absent_floor_is_not_reported_as_metric_alignment():
-    rays, floor = camera_rays(CAL, 4, 4)
-    points, quality = metric_cloud(np.ones((4,4)), rays, np.full((4,4),np.inf))
+    points, quality = metric_cloud(np.ones((4, 4)), RAYS, np.full((4, 4), np.inf))
     assert not quality['floor_aligned']
     assert quality['scale'] == 1.
     assert len(points) == 16
 
 
 def test_reject_nonfinite_and_out_of_range_cloud_points():
-    rays, floor = camera_rays(CAL, 4, 4)
-    depth = np.full((4,4),np.nan); depth[0,0] = 10.; depth[0,1] = -.5
-    points, _ = metric_cloud(depth,rays,np.full((4,4),np.inf))
-    assert points.shape == (0,3)
+    depth = np.full((4, 4), np.nan)
+    depth[0, 0] = 10.
+    depth[0, 1] = -.5
+    points, _ = metric_cloud(depth, RAYS, np.full((4, 4), np.inf))
+    assert points.shape == (0, 3)
 
 
 def _mock_depth_node(monkeypatch, python_override=None):
-    from types import SimpleNamespace
-    from unittest.mock import Mock
-    from rclpy.node import Node
-    import z70_mapping.depth_node as dn
-
     publishers = {}
+
     def publisher(self, kind, topic, qos):
         publishers[topic] = Mock(qos=qos)
         return publishers[topic]
+
     monkeypatch.setattr(Node, '__init__', lambda self, name: None)
     monkeypatch.setattr(Node, 'declare_parameter',
                         lambda self, name, default: SimpleNamespace(
@@ -54,9 +59,6 @@ def _mock_depth_node(monkeypatch, python_override=None):
 
 
 def test_depth_node_missing_venv_publishes_unavailable_status_and_closes_cleanly(monkeypatch):
-    import json
-    from rclpy.qos import DurabilityPolicy
-
     dn, publishers = _mock_depth_node(monkeypatch, '/nonexistent/roboclaw-depth/python')
     node = dn.DepthNode()
     assert node.process is None
@@ -70,12 +72,6 @@ def test_depth_node_missing_venv_publishes_unavailable_status_and_closes_cleanly
 
 
 def test_depth_node_bad_packet_recovers_on_subsequent_frame(monkeypatch):
-    import io
-    import json
-    import struct
-    from types import SimpleNamespace
-    from unittest.mock import Mock
-
     dn, publishers = _mock_depth_node(monkeypatch)
 
     good_packet = io.BytesIO()
@@ -100,10 +96,12 @@ def test_depth_node_bad_packet_recovers_on_subsequent_frame(monkeypatch):
         node.latest = SimpleNamespace(header=SimpleNamespace(frame_id='camera_optical_frame',
                                                              stamp=SimpleNamespace(sec=sec, nanosec=0)),
                                       data=b'jpeg')
+
         class OneShotEvent(dn.threading.Event):
             def wait(self, timeout=None):
                 self.set()
                 return True
+
         node.stop_event = OneShotEvent()
         node.run_worker(0.01)
 
