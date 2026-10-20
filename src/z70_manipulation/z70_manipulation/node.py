@@ -815,21 +815,21 @@ def _common_parser(description: str) -> argparse.ArgumentParser:
     return p
 
 
-def _run_dry(args, execute_fn, *, filter_by_color=False) -> dict:
+def _run_dry(args, execute_fn) -> dict:
     directory = args.log_dir or log_directory(args.repo)
     client = Client(args.origin, args.token_file or args.repo / '.local/service-token', read_only=True)
     cached_objects = None
 
     def observe(camera, color):
         nonlocal cached_objects
-        if not filter_by_color or cached_objects is None:
+        if cached_objects is None:
             image, tag = client.frame()
             if tag != 'front':
                 raise LookupError('dry-run requires an already-selected front camera; no selection was sent')
             directory.mkdir(parents=True, exist_ok=True)
             cv2.imwrite(str(directory / 'front.jpg'), image)
             cached_objects = perception.front_objects(image)
-        return [b for b in cached_objects if b.get('color') == color] if filter_by_color else cached_objects
+        return [b for b in cached_objects if color is None or b.get('color') == color]
 
     executor = Executor(client, observe, directory)
     try:
@@ -909,11 +909,7 @@ def run_stack(argv=None):
     if len({args.base_color, args.middle_color, args.top_color}) != 3:
         p.error('stack requires 3 distinct colors')
     if args.dry_run:
-        return _run_dry(
-            args,
-            lambda ex: ex.stack(args.base_color, args.middle_color, args.top_color, dry_run=True),
-            filter_by_color=True,
-        )
+        return _run_dry(args, lambda ex: ex.stack(args.base_color, args.middle_color, args.top_color, dry_run=True))
     return _run_action(
         p, args, 'z70_stack_client', Stack, '/z70/stack',
         Stack.Goal(base_color=args.base_color, middle_color=args.middle_color, top_color=args.top_color, dry_run=False),

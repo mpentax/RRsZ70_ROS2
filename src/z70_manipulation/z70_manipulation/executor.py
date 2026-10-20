@@ -779,7 +779,7 @@ class Executor:
         if dry_run:
             self._status()
             estimate = self._arm()
-            blobs = self.observe('front', color) or []
+            blobs = self.observe('front', None) or self.observe('front', color) or []
             candidates = [b for b in blobs if b['color'] == color]
             target = max(candidates, key=lambda b: b['area_px']) if candidates else None
             result = dict(
@@ -834,14 +834,15 @@ class Executor:
         if dry_run:
             self._status()
             estimate = self._arm()
-            all_blobs = []
-            seen_ids = set()
-            for c in colors:
-                for b in (self.observe('front', c) or []):
-                    key = (b.get('color'), tuple(b.get('bbox', ())))
-                    if key not in seen_ids:
-                        seen_ids.add(key)
-                        all_blobs.append(b)
+            all_blobs = list(self.observe('front', None) or [])
+            if not all_blobs:
+                seen_ids = set()
+                for c in colors:
+                    for b in (self.observe('front', c) or []):
+                        key = (b.get('color'), tuple(b.get('bbox', ())))
+                        if key not in seen_ids:
+                            seen_ids.add(key)
+                            all_blobs.append(b)
             targets = {}
             for c in colors:
                 candidates = [b for b in all_blobs if b.get('color') == c]
