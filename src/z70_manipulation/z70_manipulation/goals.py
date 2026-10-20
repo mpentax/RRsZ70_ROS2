@@ -552,16 +552,22 @@ class GoalContext:
 
 # --- Canonical Built-in Goal Handlers & Registry ---
 
-def _valid_garment_goal(_server, request) -> bool:
-    return (all(math.isfinite(v) and -100 <= v <= 100 for v in (request.drop_x_m, request.drop_y_m))
-            and math.isfinite(request.max_duration_s) and 1 <= request.max_duration_s <= 3600
-            and (not hasattr(request, 'max_items') or 1 <= request.max_items <= 1000))
+def _valid_pin_and_go_payload(p: dict) -> bool:
+    return (_num_in(p['target_x_m'], -100., 100.) and _num_in(p['target_y_m'], -100., 100.)
+            and _num_in(p['max_duration_s'], 1., 600.) and type(p['dry_run']) is bool)
 
 
 def _valid_garment_payload(p: dict) -> bool:
     return (_num_in(p['drop_x_m'], -100., 100.) and _num_in(p['drop_y_m'], -100., 100.)
             and _num_in(p['max_duration_s'], 1., 3600.) and type(p['allow_towing']) is bool
             and type(p['dry_run']) is bool)
+
+
+def _valid_garment_goal(_server, r) -> bool:
+    return (_valid_garment_payload({
+        'drop_x_m': r.drop_x_m, 'drop_y_m': r.drop_y_m, 'max_duration_s': r.max_duration_s,
+        'allow_towing': bool(r.allow_towing), 'dry_run': bool(r.dry_run),
+    }) and (not hasattr(r, 'max_items') or _int_in(int(r.max_items), 1, 1000)))
 
 
 def _goal_curated(ctx: 'GoalContext | SimpleNamespace', fn, build_result, ok_pred=lambda _d: True):
@@ -648,13 +654,15 @@ BUILTIN_GOALS: dict[str, GoalSpec] = {
         ),
         GoalSpec(
             'pin_and_go', PinAndGo, '/z70/nav/pin_and_go', lambda r: r.max_duration_s,
-            lambda s, r: all(math.isfinite(v) and -100 <= v <= 100 for v in (r.target_x_m, r.target_y_m)) and math.isfinite(r.max_duration_s) and 1 <= r.max_duration_s <= 600,
+            lambda _s, r: _valid_pin_and_go_payload({
+                'target_x_m': r.target_x_m, 'target_y_m': r.target_y_m,
+                'max_duration_s': r.max_duration_s, 'dry_run': bool(r.dry_run),
+            }),
             _goal_pin_and_go,
             needs_executor=lambda _: False,
             navigation=True,
             fields=('target_x_m', 'target_y_m', 'max_duration_s', 'dry_run'),
-            validate_payload=lambda p: (_num_in(p['target_x_m'], -100., 100.) and _num_in(p['target_y_m'], -100., 100.)
-                                        and _num_in(p['max_duration_s'], 1., 600.) and type(p['dry_run']) is bool),
+            validate_payload=_valid_pin_and_go_payload,
         ),
         GoalSpec(
             'deliver_garment', DeliverGarment, '/z70/deliver_garment', lambda r: r.max_duration_s,
@@ -715,7 +723,10 @@ BUILTIN_GOALS: dict[str, GoalSpec] = {
             ),
             read_only=lambda _: False,
             fields=('m3_deg', 'm4_deg', 'm5_deg'),
-            validate_payload=lambda p: _num_in(p['m3_deg'], 90, 270) and _num_in(p['m4_deg'], 35, 170) and _num_in(p['m5_deg'], 0, 155),
+            validate_payload=lambda p: (
+                _num_in(p['m3_deg'], 90, 270) and _num_in(p['m4_deg'], 35, 170) and _num_in(p['m5_deg'], 0, 155)
+                and planner.safe((p['m3_deg'], p['m4_deg'], p['m5_deg'], 90))
+            ),
         ),
         GoalSpec(
             'grasp_and_lift', GraspAndLift, '/z70/arm/grasp_and_lift', 90.,
