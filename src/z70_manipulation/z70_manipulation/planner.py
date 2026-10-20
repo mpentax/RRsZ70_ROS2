@@ -21,8 +21,6 @@ def vendor_endpoint(state):
     return vendor_forward(*state[:2])[1]
 
 
-wrist = vendor_endpoint
-
 def measured_point(state,endpoint):
     """Transform a Link2-relative point into base_footprint coordinates."""
     a1=math.radians(270-state[0]+_CALIBRATION['measured_M3_offset_deg'])

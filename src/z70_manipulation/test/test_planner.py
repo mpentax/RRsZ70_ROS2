@@ -10,7 +10,6 @@ def test_firmware_endpoint_is_separate_from_cad_hand_and_camera():
     endpoint = (.0475 + .1775*math.cos(a1) + .205*math.cos(a2),
                 .14 + .1775*math.sin(a1) + .205*math.sin(a2))
     assert p.vendor_endpoint((150, 45)) == pytest.approx(endpoint)
-    assert p.wrist((150, 45)) == pytest.approx(endpoint)
     T = hand.hand_pose((150, 45))
     assert not np.allclose(T[[0, 2], 3], endpoint)
     C, R = p.camera_pose((150, 45))
@@ -58,7 +57,7 @@ def test_approach_places_target_on_arm_plane():
     x=math.cos(th)*.9+math.sin(th)*.20-d
     y=-math.sin(th)*.9+math.cos(th)*.20
     assert [x,y]==pytest.approx(grasp[:2],abs=1e-8)
-    assert .25<=p.wrist(p.GRASP)[0]<=p.REACH_LIMIT-.003
+    assert .25<=p.vendor_endpoint(p.GRASP)[0]<=p.REACH_LIMIT-.003
     aligned=p.approach(grasp,grasp)
     assert abs(aligned['yaw'])<1e-9 and abs(aligned['forward'])<1e-9
 
