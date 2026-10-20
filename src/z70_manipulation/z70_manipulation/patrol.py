@@ -184,29 +184,7 @@ class PatrolCollector:
         if callable(fn):
             fn(action, **fields)
         elif self.world is not None:
-            if action == 'obstacle':
-                self.world.mark_obstacle(
-                    float(fields['x']), float(fields['y']),
-                    radius_m=float(fields.get('radius_m', 0.12)),
-                    category=str(fields.get('category', 'obstacle')),
-                    detail=str(fields.get('detail', 'OBSTACLE')),
-                    track_id=str(fields.get('track_id', '')),
-                    status=str(fields.get('status', 'OBSTACLE')),
-                )
-            elif action == 'delivered':
-                self.world.mark_delivered(
-                    float(fields['x']), float(fields['y']),
-                    track_id=str(fields.get('track_id', '')),
-                    category=str(fields.get('category', 'garment')),
-                    radius_m=float(fields.get('radius_m', 0.12)),
-                    detail=str(fields.get('detail', 'DELIVERED')),
-                )
-            elif action == 'failed':
-                self.world.mark_attempt_failed(
-                    float(fields['x']), float(fields['y']),
-                    track_id=str(fields.get('track_id', '')),
-                    detail=str(fields.get('detail', 'FAILED')),
-                )
+            self.world.apply_event(dict(action=action, **fields))
 
     def _dynamic_obstacles(self, snapshot, pose_xy=None):
         dyn = getattr(snapshot, 'dynamic_obstacles', None)
