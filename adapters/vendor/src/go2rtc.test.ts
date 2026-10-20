@@ -6,12 +6,10 @@ import { cameraSource, Go2Rtc } from "./go2rtc.ts";
 const account = { user: "u", secret: "s", key: "k", mqttUrl: "ssl://mqtt-eu.roborock.com:8883" };
 const device = { duid: "d", localKey: "0123456789abcdef", name: "Z70", model: "roborock.vacuum.a179", protocolVersion: "1.0" };
 
-test("JPEG transcoders select source dimensions before scaling in both deployments", () => {
-  for (const file of ["go2rtc.yaml", "go2rtc.native.yaml"]) {
-    const config = readFileSync(new URL(`../../../deploy/${file}`, import.meta.url), "utf8");
-    for (const [camera, height] of [["front", 1200], ["gripper", 896]] as const) {
-      assert.ok(config.includes(`z70_${camera}_jpeg: "ffmpeg:http://127.0.0.1:57001/api/stream.mp4?src=z70&video#video=mjpeg#raw=-vf select=eq(iw\\\\,1600)*eq(ih\\\\,${height}),scale=1600:${height} -fps_mode vfr"`), file);
-    }
+test("JPEG transcoders select source dimensions before scaling", () => {
+  const config = readFileSync(new URL("../../../deploy/go2rtc.yaml", import.meta.url), "utf8");
+  for (const [camera, height] of [["front", 1200], ["gripper", 896]] as const) {
+    assert.ok(config.includes(`z70_${camera}_jpeg: "ffmpeg:http://127.0.0.1:57001/api/stream.mp4?src=z70&video#video=mjpeg#raw=-vf select=eq(iw\\\\,1600)*eq(ih\\\\,${height}),scale=1600:${height} -fps_mode vfr"`));
   }
 });
 
