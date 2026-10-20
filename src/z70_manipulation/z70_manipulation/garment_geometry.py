@@ -85,13 +85,23 @@ def observe(mask, camera, *, bbox=None, category='garment', confidence=0.,
     # Nearest forward contact, with centred tie-breaking to avoid arbitrary corners.
     px, p = min(candidates, key=lambda item: (item[1][0], abs(item[1][1])))
     points = np.array([p for _, p in candidates])
+    dense_bottom = [((int(u), int(v)), project(camera, (int(u), int(v)), camera_x_m))
+                    for u, v in zip(columns, bottom)
+                    if np.count_nonzero(mask[max(0, int(v)-3):int(v)+1, max(0, int(u)-2):int(u)+3]) >= 10]
+    dense_bottom = [(q, bp) for q, bp in dense_bottom if bp is not None]
+    bottom_pts = np.array([bp for _, bp in dense_bottom])
+    width_m = float(max(np.ptp(points[:, 1]), np.ptp(bottom_pts[:, 1]) if len(bottom_pts) else 0.))
+    if len(dense_bottom) >= 5 and width_m > .15:
+        px, p = min(dense_bottom, key=lambda item: (abs(item[1][1] - -.012), item[1][0]))
     result.update(contact_px=list(map(float, px)), floor_contact_m=p.tolist(), contact_valid=True,
                   position_uncertainty_m=position_uncertainty(camera, px),
-                  footprint_width_m=float(np.ptp(points[:, 1])), footprint_depth_m=float(np.ptp(points[:, 0])))
+                  footprint_width_m=width_m, footprint_depth_m=float(np.ptp(points[:, 0])))
     # Leading edge = dense local lower contour with enough lateral support to pinch.
-    reachable = [(q, p) for q, p in candidates if .26 <= p[0] <= .45 and abs(p[1]) <= .15]
+    pool = dense_bottom if len(dense_bottom) >= 5 and width_m > .15 else candidates
+    reachable = [(q, p) for q, p in pool if .26 <= p[0] <= .45 and abs(p[1]) <= .15]
     if reachable and not box_only and result['footprint_width_m'] >= .008:
-        q, gp = min(reachable, key=lambda item: (item[1][0], abs(item[1][1])))
+        key_fn = (lambda item: (abs(item[1][1] - -.012), item[1][0])) if width_m > .15 else (lambda item: (item[1][0], abs(item[1][1])))
+        q, gp = min(reachable, key=key_fn)
         result.update(grasp_px=list(map(float, q)), grasp_point_m=gp.tolist(), grasp_valid=True,
                       reachable_for_grasp=True)
     result['transport_suitability'], result['suitability_reason'] = suitability(

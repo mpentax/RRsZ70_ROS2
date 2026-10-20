@@ -326,10 +326,7 @@ class SimServer:
                         200,
                         dict(
                             source='cached',
-                            rooms=[
-                                dict(id=10, name='Living Room'),
-                                dict(id=11, name='Study'),
-                            ],
+                            rooms=sim.world.home_rooms(),
                         ),
                     )
                     return

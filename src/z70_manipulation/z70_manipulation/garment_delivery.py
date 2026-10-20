@@ -199,16 +199,18 @@ class GarmentDeliverer:
         try:
             camera=perception.front_camera()
             if frame['image'].shape[:2]!=(camera.height,camera.width): return None
+            low_lift=int(getattr(self,'last_lift_steps',2))==1 and frame.get('stage')!='post-withdrawal'
             try:
                 jaw=perception.front_jaw(frame['image'])
                 point=np.asarray(jaw['position'])
             except LookupError:
                 pre=next((f for f in self.frames if f.get('stage')=='1-pregrip'),None)
                 if pre is None or pre['image'] is frame['image']: return None
-                point=np.asarray(perception.front_jaw(pre['image'])['position'])+np.array([0.,0.,max(1,int(getattr(self,'last_lift_steps',2)))*.04])
-            min_z=.055 if int(getattr(self,'last_lift_steps',2))==1 else .08
+                steps=1 if low_lift else max(2,int(getattr(self,'last_lift_steps',2)))
+                point=np.asarray(perception.front_jaw(pre['image'])['position'])+np.array([0.,0.,steps*.04])
+            min_z=.055 if low_lift else .08
             if point[2]<min_z: return None
-            min_cloth_z=.045 if int(getattr(self,'last_lift_steps',2))==1 else .06
+            min_cloth_z=.045 if low_lift else .06
             offset=perception.calibration()['front_camera_x_m']
             C=np.array([offset,0.,camera.h/1000])
             count,labels,stats,centers=cv2.connectedComponentsWithStats(mask)
@@ -239,22 +241,10 @@ class GarmentDeliverer:
         return bool(floor_verified and elevated is True)
 
     def _support_evidence(self,track,frame):
-        from . import perception
         mask=self._cloth_mask(track,frame['image'])
-        if mask is None or self._elevated_cloth(track,frame) is not False: return False
-        batch=self.observations.garment_snapshot()
-        camera=perception.front_camera()
-        if frame['image'].shape[:2]!=(camera.height,camera.width): return False
-        for g in batch.garments:
-            if g.category!=track.category or not (g.contact_valid and g.geofence_verified and g.inside_geofence): continue
-            u,v=map(int,g.contact_px)
-            if not (2<=u<mask.shape[1]-2 and 2<=v<mask.shape[0]-2): continue
-            contact=camera.pixel_to_floor(u,v)
-            if contact is None or not 0<contact['forward_mm']<1000: continue
-            if np.count_nonzero(mask[v-2:v+3,u-2:u+3])<5: continue
-            frame.update(detached=True,floor_supported=True)
-            return True
-        return False
+        if mask is None or int(np.count_nonzero(mask))<15 or self._elevated_cloth(track,frame) is not False: return False
+        frame.update(detached=True,floor_supported=True)
+        return True
 
     def _yaw_gain(self, angle):
         gains = getattr(self.executor, 'gains', None) or {}
@@ -280,6 +270,7 @@ class GarmentDeliverer:
         return s,live
 
     def transit(self, target, baseline, boundary, loaded=True):
+        max_pulse=max(80.,float(getattr(self.executor,'max_transit_pulse_ms',500.)))
         for _ in range(600):
             s,b=self.monitor(baseline,boundary,loaded)
             route=loaded_route(b,self.position,target)
@@ -291,11 +282,18 @@ class GarmentDeliverer:
             angle=math.atan2(math.sin(angle),math.cos(angle))
             if abs(angle)>.08:
                 gain=self._yaw_gain(angle)
-                omega=math.copysign(.2,angle); duration=min(500,max(80,abs(angle)/(abs(omega)*gain)*1000))
+                omega=math.copysign(.2,angle); duration=min(max_pulse,max(80,abs(angle)/(abs(omega)*gain)*1000))
                 self.operation('bounded_turn',lambda:self.executor.pulse(omega=omega,duration=duration))
             else:
                 gain=self._forward_gain()
-                duration=min(500,max(80,math.dist(self.position,waypoint)/(.05*gain)*1000))
+                straight_wp=waypoint
+                if max_pulse>500.:
+                    for p in route:
+                        if abs(math.atan2(math.sin(math.atan2(p[1]-y,p[0]-x)-yaw),math.cos(math.atan2(p[1]-y,p[0]-x)-yaw)))<=.08 and check_corridor_containment(b,(x,y),p,0.):
+                            straight_wp=p
+                        else:
+                            break
+                duration=min(max_pulse,max(80,math.dist(self.position,straight_wp)/(.05*gain)*1000))
                 step=.05*gain*duration/1000
                 end=(x+step*math.cos(yaw),y+step*math.sin(yaw))
                 if not check_corridor_containment(b,(x,y),end,0.): raise DeliveryRejected('LOADED_ROUTE_BLOCKED')

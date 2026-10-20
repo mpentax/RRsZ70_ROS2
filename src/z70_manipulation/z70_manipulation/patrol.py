@@ -314,6 +314,7 @@ class PatrolCollector:
                 self.state('SELECT_SUPPORTED_GARMENT')
                 for g in sorted(batch.garments,key=track_key):
                     self.guard()
+                    if not (g.contact_valid and g.inside_geofence and g.geofence_verified): continue
                     item_key=track_key(g)
                     if not self.ledger.may_attempt(item_key): continue
                     if attempted>=goal.max_items: return self.ledger.completion()
@@ -321,12 +322,16 @@ class PatrolCollector:
                     pose=self._pose(max_age_s=5.)
                     c,s=math.cos(pose[2]),math.sin(pose[2])
                     location=[pose[0]+c*p.x-s*p.y,pose[1]+s*p.x+c*p.y]
+                    if any(v['status']=='DELIVERED' for v in self.ledger.data['items'].values()) and math.dist(location,(goal.drop_x_m,goal.drop_y_m))<=.45:
+                        continue
                     aliases=[k for k,v in self.ledger.data['items'].items() if math.dist(v['position'],location)<.15]
                     if any(not self.ledger.may_attempt(k) for k in aliases): continue
-                    attempted+=1
                     rejection=transport_policy(g,goal.allow_towing,self.towing)
                     if rejection:
+                        attempted+=1
                         self.ledger.skip_item(item_key,location,rejection); continue
+                    if not (g.grasp_valid and g.reachable_for_grasp): continue
+                    attempted+=1
                     self.ledger.begin_item(item_key,location)
                     delivery=self.delivery_factory(self.observations,self.executor,boundary_config=self.config,towing_config=self.towing,
                         pose=self.pose,map_odom=self.map_odom,target_track_id=item_key,journal=self.ledger.journal,reserve_check=lambda:self.battery()<self.reserve,

@@ -15,7 +15,12 @@ DINO_ID = 'IDEA-Research/grounding-dino-tiny'
 DINO_REV = 'a2bb814dd30d776dcf7e30523b00659f4f141c71'
 CLIP_ID = 'CIDAS/clipseg-rd64-refined'
 CLIP_REV = '999e0328d9e10b484360c477313983f9afdd7050'
-BACKENDS = ('grounding_dino_clipseg', 'grounding_dino', 'clipseg', 'contour_fallback')
+BACKENDS = ('grounding_dino_clipseg', 'grounding_dino', 'clipseg', 'sim_hsv', 'contour_fallback')
+SIM_GARMENT_HSV = (
+    ('sock', (5, 110, 65), (17, 255, 255)),
+    ('towel', (39, 75, 45), (85, 255, 255)),
+    ('shirt', (127, 65, 45), (168, 255, 255)),
+)
 PROMPTS = ['sock or shirt or towel or pants on floor', 'bare floor tile wood carpet',
            'furniture wall cabinet door']
 MAX_PACKET = 8*1024*1024
@@ -98,7 +103,7 @@ class GarmentModel:
         # No hub/telemetry network even if a future upstream API ignores a flag.
         os.environ['HF_HUB_OFFLINE'] = '1'; os.environ['TRANSFORMERS_OFFLINE'] = '1'
         os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
-        if backend == 'contour_fallback':
+        if backend in ('contour_fallback', 'sim_hsv'):
             return
         try:
             with contextlib.redirect_stdout(sys.stderr):
@@ -130,6 +135,16 @@ class GarmentModel:
             hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
             mask = ((hsv[:, :, 1] > 65) & (np.indices(image.shape[:2])[0] > image.shape[0]*.45)).astype(np.uint8)
             detections = components(mask, confidence=.1, category='unqualified_contour', min_area=50)
+        elif self.backend == 'sim_hsv':
+            hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+            floor_band = (np.indices(image.shape[:2])[0] > image.shape[0] * .38).astype(np.uint8)
+            kernel = np.ones((3, 3), np.uint8)
+            min_area = max(50, image.shape[0] * image.shape[1] // 10000)
+            for category, lo, hi in SIM_GARMENT_HSV:
+                raw = cv2.inRange(hsv, np.array(lo, np.uint8), np.array(hi, np.uint8)) > 0
+                cleaned = cv2.morphologyEx((raw & (floor_band > 0)).astype(np.uint8), cv2.MORPH_OPEN, kernel)
+                cleaned = cv2.morphologyEx(cleaned, cv2.MORPH_CLOSE, kernel)
+                detections.extend(components(cleaned, confidence=.95, category=category, min_area=min_area))
         else:
             from PIL import Image
             rgb = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))

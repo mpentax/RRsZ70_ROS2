@@ -68,6 +68,9 @@ class GarmentNode(Node):
         device = self.declare_parameter('device', 'mps').value
         hz = float(self.declare_parameter('garment_hz', .5).value)
         self.max_age = float(self.declare_parameter('max_frame_age_s', 5.).value)
+        qual_small = bool(self.declare_parameter('qualified_small_lift', backend == 'sim_hsv').value)
+        allow_tow = bool(self.declare_parameter('allow_tow', backend == 'sim_hsv').value)
+        self.qualified_policy = dict(qualified_small_lift=qual_small, allow_tow=allow_tow) if (qual_small or allow_tow) else None
         self.cam = front_camera(); self.camera_x = calibration()['front_camera_x_m']
         self.pub = self.create_publisher(GarmentObservations, '/z70/garments/observations', LATCHED)
         self.markers = self.create_publisher(MarkerArray, '/z70/garments', 1)
@@ -202,7 +205,8 @@ class GarmentNode(Node):
             try:
                 item = observe(detection['mask'], self.cam, category=detection['category'],
                                confidence=detection['confidence'], camera_x_m=self.camera_x,
-                               calibration_id=meta.calibration_id)
+                               calibration_id=meta.calibration_id,
+                               qualified_policy=getattr(self, 'qualified_policy', None))
             except (ValueError, KeyError):
                 continue
             if item['contact_valid']:

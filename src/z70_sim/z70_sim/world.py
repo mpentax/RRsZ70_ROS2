@@ -46,8 +46,8 @@ DEFAULT_OBJECTS = (
 )
 WASHING_MACHINE_DROP_M = (-3.85, -0.30)
 DEFAULT_GARMENTS = (
-    dict(name='sock_living', color='orange', category='sock', shape='box', size=(0.025, 0.030, 0.008), x=0.28, y=-0.12, z=0.008),
-    dict(name='towel_corridor', color='green', category='towel', shape='box', size=(0.030, 0.110, 0.008), x=1.18, y=-0.07, z=0.008),
+    dict(name='sock_living', color='orange', category='sock', shape='box', size=(0.025, 0.030, 0.008), x=-0.125, y=-0.55, z=0.008),
+    dict(name='towel_corridor', color='green', category='towel', shape='box', size=(0.030, 0.110, 0.008), x=1.18, y=-0.075, z=0.008),
 )
 APARTMENT_ROOMS = (
     dict(id=49977281, segment_id=1, name='Corridor'),
@@ -62,7 +62,12 @@ _APARTMENT_PIXELS_B64 = (
     'eNrt3L3OgyAYBWCYvjgZJuNkOhkm4tT7v7NPbW2V+gMKAi/nLKYxGp9AUF+wjCFI0PDOIgkzn+YBE8wo0oEJJphRKjNhPsEEk7Ay'
     'D2Y/WoFJqM+CCWZiSkrMbpf5jBdaruVdBnLErNZe1zl/8MdR2q0MO4vL6S+C63RzpjDItsA8pY9YMKvjxKo0YE7OpJllYTD4dmCC'
     'CSaYNzK1mhhZ5hNMMMEE8y5mnzyYmbSmvqyCaqf9JPRT0JZzWSDQtj/7fg8vd+YH52tm7mJueItrZSJuetztTHWJyZJhLlJI0yyZ'
-    '7w6cCtM4OtOyM6TMtOjrqTHnVupMZs9cJhEms2UuZxaSYhb0mQM0ZqZyxWRgUmKej2+mOh8wwQQQQTTDBTYoosmNz3i1gUTFHFzFSZ'[8:]  # wait, fix typo below
+    '7w6cCtM4OtOyM6TMtOjrqTHnVupMZs9cJhEms2UuZxaSYhb0mQM0ZqZyxWRgUmKej2+mOh8wwQQTTDBTYoosmNz3i1gUTFHFzFSZ'
+    'MJXKgel5mAWTFlMYrLIkMNKK9/62JcHkG5W9L3NcHJv+UxDbZb6sYIIJJphgXnzhFDkwq+qIycAEE0www420FJjV8X0TTDDBBNNP'
+    'OXqTWZG7oYCZGXNer7X8Zj4hZv/Kyfjrqv/+VlcncydMKeW0na+Ovo85lWzbrbO4YSq5+B2CObYY88rUE4S5m8tMKQMwKyHuZnoD'
+    '7s4WgQnmSaaUfHafostcuBJknnneuY8pOHfCVJEzbc/ikuklPpnfZ1Wzb/sSZyoWPD6ZzRQqzAeY1JkNOSZfq5XQYw51FL1NG4rM'
+    'sU3rumnmPJrMHtqsJjyTr/4H5unTxcqcJhnGXD9P3EpnyYTZj0L1MBARZ46ps1CyPBpTd4JJiMnAJOQEM/k75yeM0W9NhiAO8g+i'
+    'mXBS'
 )
 
 
@@ -106,20 +111,28 @@ def encode_v1_map(
     height: int = 120,
     origin: tuple[float, float] = (-3.0, -3.0),
     resolution: float = 0.05,
+    preset: str = 'two_room',
 ) -> bytes:
     """Encode a valid Roborock V1 LiDAR map with segmented rooms, walls, robot pose, and dock."""
-    pixels = np.zeros((height, width), dtype=np.uint8)
-    # Interior floor: segment 1 (left half: Living Room) and segment 2 (right half: Study)
-    # Segment pixel encoding: (segment_id << 3) | 7
-    seg1 = (1 << 3) | 7  # 15
-    seg2 = (2 << 3) | 7  # 23
-    pixels[4 : height - 4, 4 : width // 2] = seg1
-    pixels[4 : height - 4, width // 2 : width - 4] = seg2
-    # Outer walls: (pixel & 7) == 1
-    pixels[3, 3 : width - 3] = 1
-    pixels[height - 4, 3 : width - 3] = 1
-    pixels[3 : height - 3, 3] = 1
-    pixels[3 : height - 3, width - 4] = 1
+    if preset == 'apartment':
+        origin = _APARTMENT_ORIGIN
+        height, width = _APARTMENT_SHAPE
+        pixels = np.frombuffer(zlib.decompress(base64.b64decode(_APARTMENT_PIXELS_B64)), dtype=np.uint8).reshape(
+            height, width
+        )
+    else:
+        pixels = np.zeros((height, width), dtype=np.uint8)
+        # Interior floor: segment 1 (left half: Living Room) and segment 2 (right half: Study)
+        # Segment pixel encoding: (segment_id << 3) | 7
+        seg1 = (1 << 3) | 7  # 15
+        seg2 = (2 << 3) | 7  # 23
+        pixels[4 : height - 4, 4 : width // 2] = seg1
+        pixels[4 : height - 4, width // 2 : width - 4] = seg2
+        # Outer walls: (pixel & 7) == 1
+        pixels[3, 3 : width - 3] = 1
+        pixels[height - 4, 3 : width - 3] = 1
+        pixels[3 : height - 3, 3] = 1
+        pixels[3 : height - 3, width - 4] = 1
 
     def block(kind: int, data: bytes, extra: bytes = b'') -> bytes:
         return struct.pack('<HHI', kind, 8 + len(extra), len(data)) + extra + data
@@ -142,8 +155,13 @@ def encode_v1_map(
 class SimWorld:
     """Thread-safe MuJoCo world & Roborock Saros Z70 firmware emulator."""
 
-    def __init__(self, objects: list[dict[str, Any]] | tuple[dict[str, Any], ...] = DEFAULT_OBJECTS):
+    def __init__(
+        self,
+        objects: list[dict[str, Any]] | tuple[dict[str, Any], ...] = DEFAULT_OBJECTS,
+        map_preset: str = 'apartment',
+    ):
         self.lock = threading.RLock()
+        self.map_preset = map_preset
         self.objects_spec = [dict(o) for o in objects]
         desc_share = Path(get_package_share_directory('z70_description'))
         self.mesh_dir = desc_share / 'meshes/cad'
@@ -189,7 +207,7 @@ class SimWorld:
         self._renderer_front: mujoco.Renderer | None = None
         self._renderer_gripper: mujoco.Renderer | None = None
         self._renderer_thread_id: int | None = None
-        self.dock = (-1.2, 0.0)
+        self.dock = (0.832, 0.041) if self.map_preset == 'apartment' else (-1.2, 0.0)
         self.map_sequence = 1
         self.map_saved_at = int(time.time() * 1000)
         self.reset()
@@ -269,11 +287,11 @@ class SimWorld:
   </asset>
   <worldbody>
     <light pos="0 0 2.5" dir="0 0 -1" diffuse="0.22 0.22 0.22" directional="true" castshadow="false"/>
-    <geom name="floor" type="plane" size="4 4 0.05" material="floor_mat" friction="1.0 0.01 0.002"/>
-    <geom name="wall_n" type="box" pos="0 2.8 0.25" size="2.8 0.05 0.25" material="wall_mat"/>
-    <geom name="wall_s" type="box" pos="0 -2.8 0.25" size="2.8 0.05 0.25" material="wall_mat"/>
-    <geom name="wall_e" type="box" pos="2.8 0 0.25" size="0.05 2.8 0.25" material="wall_mat"/>
-    <geom name="wall_w" type="box" pos="-2.8 0 0.25" size="0.05 2.8 0.25" material="wall_mat"/>
+    <geom name="floor" type="plane" size="8 8 0.05" material="floor_mat" friction="1.0 0.01 0.002"/>
+    <geom name="wall_n" type="box" pos="1.0 4.5 0.25" size="6.5 0.05 0.25" material="wall_mat"/>
+    <geom name="wall_s" type="box" pos="1.0 -2.8 0.25" size="6.5 0.05 0.25" material="wall_mat"/>
+    <geom name="wall_e" type="box" pos="7.2 0.8 0.25" size="0.05 4.0 0.25" material="wall_mat"/>
+    <geom name="wall_w" type="box" pos="-4.8 0.8 0.25" size="0.05 4.0 0.25" material="wall_mat"/>
 
     <body name="base_footprint" pos="0 0 0">
       <inertial pos="0 0 0.045" mass="4.8" diaginertia="0.06 0.06 0.09"/>
@@ -360,10 +378,10 @@ class SimWorld:
         jid = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, name)
         return int(self.model.jnt_qposadr[jid])
 
-    def _set_object_pose(self, name: str, xyz: list[float] | np.ndarray) -> None:
+    def _set_object_pose(self, name: str, xyz: list[float] | np.ndarray, yaw: float = 0.0) -> None:
         adr = self._joint_qpos_adr(f'joint_obj_{name}')
         self.data.qpos[adr : adr + 3] = xyz
-        self.data.qpos[adr + 3 : adr + 7] = [1.0, 0.0, 0.0, 0.0]
+        self.data.qpos[adr + 3 : adr + 7] = [math.cos(yaw / 2.0), 0.0, 0.0, math.sin(yaw / 2.0)]
         vadr = int(self.model.jnt_dofadr[mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, f'joint_obj_{name}')])
         self.data.qvel[vadr : vadr + 6] = 0.0
 
@@ -409,8 +427,9 @@ class SimWorld:
         if self.gripped_object is not None:
             T_wh = self._world_hand_pose()
             world_pt = T_wh[:3, :3] @ self.gripped_local_offset + T_wh[:3, 3]
-            world_pt[2] = max(OBJECT_SIZE_M / 2, float(world_pt[2]))
-            self._set_object_pose(self.gripped_object, world_pt)
+            world_pt[2] = max(self._object_half_z(self.gripped_object), float(world_pt[2]))
+            obj_yaw = float(self.pose[2]) + float(getattr(self, 'gripped_rel_yaw', 0.0))
+            self._set_object_pose(self.gripped_object, world_pt, yaw=obj_yaw)
 
         mujoco.mj_forward(self.model, self.data)
 
@@ -428,8 +447,8 @@ class SimWorld:
                 battery=self.battery,
                 common_status=cs,
                 grab_status=(cs >> 6) & 0xF,
-                in_cleaning=self.in_cleaning,
-                in_returning=self.in_returning,
+                in_cleaning=bool(self.in_cleaning),
+                in_returning=bool(self.in_returning),
             )
 
     def camera_status_int(self) -> int:
@@ -478,6 +497,8 @@ class SimWorld:
             if method == 'get_camera_status':
                 return 'ok', [self.camera_status_int()]
             if method == 'get_room_mapping':
+                if self.map_preset == 'apartment':
+                    return 'ok', [[r['segment_id'], str(r['id'])] for r in APARTMENT_ROOMS]
                 return 'ok', [[1, 10], [2, 11]]
             if method == 'get_homesec_connect_status':
                 return 'ok', [dict(status=self.preview_status, client_id=self.preview_client)]
@@ -616,6 +637,14 @@ class SimWorld:
             self.gripped_object = best_name
             pos = self._get_object_pos(best_name)
             self.gripped_local_offset = T_wh[:3, :3].T @ (pos - T_wh[:3, 3])
+            adr = self._joint_qpos_adr(f'joint_obj_{best_name}')
+            qw, qx, qy, qz = self.data.qpos[adr + 3 : adr + 7]
+            cur_yaw = math.atan2(2.0 * (qw * qz + qx * qy), 1.0 - 2.0 * (qy * qy + qz * qz))
+            self.gripped_rel_yaw = cur_yaw - float(self.pose[2])
+
+    def _object_half_z(self, target: str | dict[str, Any]) -> float:
+        spec = target if isinstance(target, dict) else next((o for o in self.objects_spec if o['name'] == target), None)
+        return float(spec['size'][2]) if spec and spec.get('shape') == 'box' else OBJECT_SIZE_M / 2
 
     def _release_object(self) -> None:
         if self.gripped_object is None:
@@ -623,6 +652,7 @@ class SimWorld:
         name = self.gripped_object
         pos = self._get_object_pos(name)
         self.gripped_object = None
+        half_z = self._object_half_z(name)
         # Settle onto floor or onto a supporting object directly below
         support_z = 0.0
         for other in self.objects_spec:
@@ -631,11 +661,17 @@ class SimWorld:
             opos = self._get_object_pos(other['name'])
             if math.hypot(float(pos[0] - opos[0]), float(pos[1] - opos[1])) < OBJECT_SIZE_M * 0.75:
                 if opos[2] < pos[2]:
-                    support_z = max(support_z, float(opos[2]) + OBJECT_SIZE_M / 2)
-        pos[2] = support_z + OBJECT_SIZE_M / 2
-        self._set_object_pose(name, pos)
+                    support_z = max(support_z, float(opos[2]) + self._object_half_z(other))
+        pos[2] = support_z + half_z
+        obj_yaw = float(self.pose[2]) + float(getattr(self, 'gripped_rel_yaw', 0.0))
+        self._set_object_pose(name, pos, yaw=obj_yaw)
         for _ in range(25):
             mujoco.mj_step(self.model, self.data)
+
+    def home_rooms(self) -> list[dict[str, Any]]:
+        if self.map_preset == 'apartment':
+            return [dict(id=r['id'], name=r['name']) for r in APARTMENT_ROOMS]
+        return [dict(id=10, name='Living Room'), dict(id=11, name='Study')]
 
     def raw_map(self, refresh: bool = False) -> tuple[bytes, int, int]:
         with self.lock:
@@ -645,5 +681,6 @@ class SimWorld:
             raw = encode_v1_map(
                 robot_pose=(self.pose[0], self.pose[1], self.pose[2]),
                 dock_pose=self.dock,
+                preset=self.map_preset,
             )
             return raw, self.map_sequence, self.map_saved_at

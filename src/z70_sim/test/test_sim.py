@@ -20,12 +20,21 @@ from z70_manipulation.observations import Observations
 from z70_mapping.decoder import decode_map
 from z70_mapping.node import MappingNode
 from z70_odometry.floor_vo import FloorCamera, FloorOdometry
-from z70_sim import SimWorld, create_sim_server, encode_v1_map
+from z70_sim import (
+    APARTMENT_ROOMS,
+    DEFAULT_GARMENTS,
+    WASHING_MACHINE_DROP_M,
+    SimWorld,
+    create_sim_server,
+    encode_v1_map,
+)
 
 
 def wait_for(predicate, seconds: float = 5.0) -> None:
     deadline = time.monotonic() + seconds
-    while not predicate() and time.monotonic() < deadline:
+    while time.monotonic() < deadline:
+        if predicate():
+            return
         time.sleep(0.02)
     assert predicate(), 'condition deadline'
 
@@ -151,21 +160,20 @@ def test_sim_server_and_ros_driver_integration(tmp_path: Path):
             Parameter('origin', value=server.origin),
             Parameter('token_file', value=str(token_file)),
             Parameter('arm_estimate_path', value=''),
-            Parameter('camera_hz', value=5.0),
+            Parameter('camera_hz', value=2.0),
             Parameter('state_hz', value=5.0),
             Parameter('map_refresh_s', value=60.0),
         ]
     )
     mapping = MappingNode()
     consumer = rclpy.create_node('sim_test_consumer')
+    obs = Observations(consumer, timeout=4.0)
     executor = MultiThreadedExecutor(num_threads=6)
     for node in (driver, mapping, consumer):
         executor.add_node(node)
     spin_thread = threading.Thread(target=executor.spin, daemon=True)
     spin_thread.start()
-    obs = None
     try:
-        obs = Observations(consumer, timeout=4.0)
         wait_for(lambda: 'state' in driver.samples and 'camera' in driver.samples and 'map' in driver.samples)
         status = obs.status()
         assert status['state'] == 3 and status['battery'] == 100
@@ -173,7 +181,13 @@ def test_sim_server_and_ros_driver_integration(tmp_path: Path):
         assert tag == 'front' and img.shape == (1200, 1600, 3)
         nav_snap = obs.navigation_snapshot(refresh=False)
         assert nav_snap.active_floor_verified and nav_snap.current_pose_verified
-        assert nav_snap.labels == {1: 'Living Room', 2: 'Study'}
+        assert nav_snap.labels == {
+            1: 'Corridor',
+            2: 'Kitchen',
+            4: 'Living room',
+            5: 'Bedroom',
+            6: 'Bathroom',
+        }
 
         # Deploy arm via driver_rpc and switch to gripper camera via SelectCamera
         driver.driver_rpc('app_pick_up_enter_exit', {'flag': 2}, 3000)
@@ -198,3 +212,232 @@ def test_sim_server_and_ros_driver_integration(tmp_path: Path):
         rclpy.try_shutdown()
         spin_thread.join(timeout=3.0)
         server.stop()
+
+
+def test_patrol_collect_and_drag_garments_to_washing_machine_in_sim(tmp_path: Path):
+    from types import SimpleNamespace as NS
+    from z70_interfaces.msg import FrameMetadata
+    from z70_manipulation.garment_delivery import TowingQualificationConfig
+    from z70_manipulation.garment_geometry import GarmentTracker, geofence, observe
+    from z70_manipulation.garment_node import observations_message
+    from z70_manipulation.garment_worker import GarmentModel
+    from z70_manipulation.patrol import PatrolCollector, PatrolLedger
+    from z70_mapping.boundary import BoundaryConfig, compute_safe_interior
+
+    world = SimWorld(objects=DEFAULT_GARMENTS, map_preset='apartment')
+    model = GarmentModel('sim_hsv')
+    tracker = GarmentTracker()
+    labels = {r['segment_id']: r['name'] for r in APARTMENT_ROOMS}
+    seq = 0
+    last_pose: tuple[float, float, float] | None = None
+
+    class SimGarmentObservations:
+        def __init__(self, w: SimWorld):
+            self.w = w
+            self.last_msg = None
+            self.last_img = None
+            self.last_pose_used = None
+            self.last_frame_seq = None
+
+        def status(self):
+            return self.w.status_dict()
+
+        def arm_estimate(self):
+            return dict(
+                state='IN_PROCESS_POS' if self.w.deployed else 'IN_ROBOT',
+                joints=dict(self.w.joints),
+            )
+
+        def get(self, path: str):
+            if path == '/api/state':
+                return {'telemetry': {'status': {'value': self.status()}}}
+            if path == '/api/arm/estimate':
+                return self.arm_estimate()
+            raise ValueError(path)
+
+        def navigation_snapshot(self, refresh: bool = False, max_age_s: float = 5.0):
+            raw, mseq, _ = self.w.raw_map(refresh=refresh)
+            return NS(
+                map=decode_map(raw),
+                labels=labels,
+                sequence=mseq,
+                map_index=0,
+                map_sequence=mseq,
+                session_id=b'\x01' * 16,
+                active_floor_verified=True,
+                current_pose_verified=True,
+                cache_age_s=0.0,
+                evidence=None,
+            )
+
+        def garment_barrier(self):
+            return dict(garment=seq, image=seq)
+
+        def _step_perception(self):
+            nonlocal seq, last_pose
+            seq += 1
+            jpeg, _, w, h = self.w.render_jpeg('front')
+            img = cv2.imdecode(np.frombuffer(jpeg, np.uint8), cv2.IMREAD_COLOR)
+            detections, quality = model.infer(img)
+            snap = self.navigation_snapshot(refresh=False)
+            b = compute_safe_interior(snap.map, snap.labels, BoundaryConfig(), tuple(self.w.pose))
+            grid = NS(origin=b.origin, resolution=b.resolution, safe_grid=b.safe_grid)
+            pose = (float(self.w.pose[0]), float(self.w.pose[1]), float(self.w.pose[2]))
+            if last_pose is None:
+                delta = (0.0, 0.0, 0.0)
+            else:
+                ox, oy, oyaw = last_pose
+                dx, dy = pose[0] - ox, pose[1] - oy
+                delta = (
+                    math.cos(oyaw) * dx + math.sin(oyaw) * dy,
+                    -math.sin(oyaw) * dx + math.cos(oyaw) * dy,
+                    math.atan2(math.sin(pose[2] - oyaw), math.cos(pose[2] - oyaw)),
+                )
+            last_pose = pose
+            items = []
+            for d in detections:
+                item = observe(
+                    d['mask'],
+                    self.w.front_cam,
+                    category=d['category'],
+                    confidence=d['confidence'],
+                    camera_x_m=0.275,
+                    calibration_id='sim-front',
+                    qualified_policy=dict(qualified_small_lift=True, allow_tow=True),
+                )
+                if item['contact_valid']:
+                    item['inside_geofence'], item['geofence_verified'] = geofence(
+                        item['floor_contact_m'], pose, grid
+                    )
+                items.append(item)
+            items = tracker.update(items, delta)
+            for item in items:
+                item['reachable_for_grasp'] = bool(
+                    item['reachable_for_grasp']
+                    and item['confirmed']
+                    and item['inside_geofence']
+                    and item['geofence_verified']
+                )
+            meta = FrameMetadata()
+            meta.width, meta.height = w, h
+            meta.calibration_id = 'sim-front'
+            meta.evidence.valid = True
+            meta.evidence.sequence = seq
+            meta.evidence.session_id.uuid = [1] * 16
+            msg = observations_message(items, meta, quality, True)
+            self.last_msg = msg
+            self.last_img = img
+            return img, msg
+
+        def garment_snapshot(self, after=None, max_age_s: float = 6.0):
+            prior = after.get('garment') if isinstance(after, dict) else after
+            if self.last_msg is not None and prior is None and self.last_pose_used == tuple(self.w.pose):
+                return self.last_msg
+            _, msg = self._step_perception()
+            if not any(g.reachable_for_grasp for g in msg.garments) and msg.garments:
+                _, msg = self._step_perception()
+            self.last_msg = msg
+            self.last_pose_used = tuple(self.w.pose)
+            return msg
+
+        def garment_frame(self, after=None):
+            prior = after.get('image') if isinstance(after, dict) else after
+            if (
+                self.last_msg is not None
+                and (prior is None or self.last_msg.evidence.sequence != prior)
+                and self.last_frame_seq != self.last_msg.evidence.sequence
+                and self.last_pose_used == tuple(self.w.pose)
+            ):
+                img, msg = self.last_img, self.last_msg
+            else:
+                img, msg = self._step_perception()
+                self.last_msg = msg
+                self.last_pose_used = tuple(self.w.pose)
+            self.last_frame_seq = msg.evidence.sequence
+            assert img is not None
+            visible = float(img.mean()) > 8.0 and float(np.percentile(img, 95) - np.percentile(img, 5)) > 12.0
+            return dict(
+                image=img,
+                source_id=('sim', msg.evidence.sequence),
+                evidence=msg.evidence,
+                coverage_valid=visible,
+            )
+
+    class DirectSimClient:
+        def __init__(self, w: SimWorld, obs_adapter: SimGarmentObservations):
+            self.w = w
+            self.observations = obs_adapter
+            self.commands = NS(
+                rpc=self.rpc,
+                stop=lambda: None,
+                cancelled=NS(is_set=lambda: False),
+            )
+            self.frame_received_at = 0.0
+            self.frame_exposure_known = False
+
+        def status(self):
+            return self.w.status_dict()
+
+        def arm_estimate(self):
+            return self.observations.arm_estimate()
+
+        def get(self, path: str):
+            return self.observations.get(path)
+
+        def frame(self):
+            jpeg, cam, _, _ = self.w.render_jpeg()
+            self.frame_received_at = time.time()
+            return cv2.imdecode(np.frombuffer(jpeg, np.uint8), cv2.IMREAD_COLOR), cam
+
+        def select(self, camera: str):
+            self.w.camera = camera
+            return {'camera': camera}
+
+        def rpc(self, method: str, params, timeout_ms: int = 5000):
+            kind, val = self.w.handle_rpc(method, params)
+            if kind == 'ok':
+                return {'dispatch': 'sent', 'response': 'received', 'result': val}
+            return {'dispatch': 'unknown', 'response': 'transport_error', 'transportReason': 'timeout'}
+
+    obs = SimGarmentObservations(world)
+    client = DirectSimClient(world, obs)
+    ex = Executor(
+        client,
+        lambda *_: [],
+        tmp_path / 'patrol_exec',
+        sleep=lambda _: None,
+        odom=lambda: {'x': world.pose[0], 'y': world.pose[1], 'yaw': world.pose[2]},
+        calibration={'forward': {'gain': 0.65}, 'yaw_positive': {'gain': 0.70}, 'yaw_negative': {'gain': 0.65}},
+    )
+    ex.max_transit_pulse_ms = 5000.0  # type: ignore[attr-defined]
+    ledger = PatrolLedger(tmp_path / 'patrol_ledger')
+    towing_cfg = TowingQualificationConfig(
+        towing_qualified=True,
+        qualified_categories=('towel', 'shirt', 'pants'),
+        artifact_uri='sim:mujoco-qualified',
+    )
+    patrol = PatrolCollector(
+        obs,
+        ex,
+        ledger,
+        boundary_config=BoundaryConfig(allowed_segments=(1, 2, 4, 5, 6)),
+        towing_config=towing_cfg,
+        sleep=lambda _: None,
+    )
+    goal = NS(
+        drop_x_m=WASHING_MACHINE_DROP_M[0],
+        drop_y_m=WASHING_MACHINE_DROP_M[1],
+        max_duration_s=600.0,
+        max_items=2,
+        allow_towing=True,
+        dry_run=False,
+    )
+    res = patrol.execute(goal)
+    assert res['items_attempted'] == 2
+    assert res['items_delivered'] == 2
+    assert res['items_failed'] == 0
+    assert all(item['status'] == 'DELIVERED' for item in ledger.data['items'].values())
+    for g in DEFAULT_GARMENTS:
+        pos = world._get_object_pos(str(g['name']))
+        assert math.dist(pos[:2], WASHING_MACHINE_DROP_M) <= 0.40
+    assert not world.deployed
