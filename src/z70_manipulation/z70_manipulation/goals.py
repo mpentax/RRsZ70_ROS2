@@ -14,7 +14,6 @@ from typing import Any, Callable
 import time
 
 from tf2_ros import TransformException
-from z70_description.arm_model import check as check_arm_limits
 from z70_interfaces.action import (
     DeliverGarment, PatrolCollect, PinAndGo, Pick, Stack,
     DeployArm, AlignToTarget, MoveArm, GraspAndLift, ReleaseAndStow,
@@ -472,6 +471,12 @@ def _valid_garment_goal(_server, request) -> bool:
             and (not hasattr(request, 'max_items') or 1 <= request.max_items <= 1000))
 
 
+def _valid_garment_payload(p: dict) -> bool:
+    return (_num_in(p['drop_x_m'], -100., 100.) and _num_in(p['drop_y_m'], -100., 100.)
+            and _num_in(p['max_duration_s'], 1., 3600.) and type(p['allow_towing']) is bool
+            and type(p['dry_run']) is bool)
+
+
 def _goal_curated(ctx: 'GoalContext | SimpleNamespace', fn, build_result):
     try:
         data = fn(ctx)
@@ -578,9 +583,7 @@ BUILTIN_GOALS: dict[str, GoalSpec] = {
             needs_executor=lambda r: not r.dry_run,
             navigation=True,
             fields=('category', 'drop_x_m', 'drop_y_m', 'max_duration_s', 'allow_towing', 'dry_run'),
-            validate_payload=lambda p: (_num_in(p['drop_x_m'], -100., 100.) and _num_in(p['drop_y_m'], -100., 100.)
-                                        and _num_in(p['max_duration_s'], 1., 3600.) and type(p['allow_towing']) is bool
-                                        and type(p['dry_run']) is bool and isinstance(p['category'], str) and len(p['category']) <= 32),
+            validate_payload=lambda p: _valid_garment_payload(p) and isinstance(p['category'], str) and len(p['category']) <= 32,
         ),
         GoalSpec(
             'patrol_collect', PatrolCollect, '/z70/patrol_collect', lambda r: r.max_duration_s,
@@ -589,9 +592,7 @@ BUILTIN_GOALS: dict[str, GoalSpec] = {
             needs_executor=lambda r: not r.dry_run,
             navigation=True,
             fields=('drop_x_m', 'drop_y_m', 'max_duration_s', 'max_items', 'allow_towing', 'dry_run'),
-            validate_payload=lambda p: (_num_in(p['drop_x_m'], -100., 100.) and _num_in(p['drop_y_m'], -100., 100.)
-                                        and _num_in(p['max_duration_s'], 1., 3600.) and type(p['allow_towing']) is bool
-                                        and type(p['dry_run']) is bool and _int_in(p['max_items'], 1, 1000)),
+            validate_payload=lambda p: _valid_garment_payload(p) and _int_in(p['max_items'], 1, 1000),
         ),
         GoalSpec(
             'deploy_arm', DeployArm, '/z70/arm/deploy', 90.,
@@ -623,9 +624,7 @@ BUILTIN_GOALS: dict[str, GoalSpec] = {
         ),
         GoalSpec(
             'move_arm', MoveArm, '/z70/arm/move', 120.,
-            lambda s, r: (all(math.isfinite(x) for x in (r.m3_deg, r.m4_deg, r.m5_deg))
-                          and check_arm_limits(r.m3_deg, r.m4_deg, r.m5_deg) == 'SUCCESS'
-                          and planner.safe((r.m3_deg, r.m4_deg, r.m5_deg, 90))),
+            lambda s, r: planner.safe((r.m3_deg, r.m4_deg, r.m5_deg, 90)),
             lambda ctx, r: _goal_curated(
                 ctx, lambda c: c.move_arm(r.m3_deg, r.m4_deg, r.m5_deg),
                 lambda outcome, ok, data: MoveArm.Result(
