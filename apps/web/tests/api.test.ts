@@ -16,8 +16,7 @@ registerHooks({
   },
 });
 
-const { App, TaskList } = await import("../src/App.tsx");
-const { SetupForm } = await import("../src/SetupForm.tsx");
+const { App, TaskList, SetupForm } = await import("../src/App.tsx");
 
 function dom(t?: { after(fn: () => unknown): void }, url = "http://127.0.0.1:57000") {
   const window = new Window({ url });

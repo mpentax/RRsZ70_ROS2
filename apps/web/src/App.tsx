@@ -1,12 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import {
   actionOutcome, ApiError, cancelTask, deleteSession, json, listTasks, record,
   robotRpc, SESSION_EXPIRED, setControlSession, snapshot, startTask, stopRobot,
   terminal, type RosState, type SessionStatus, type Setup, type Task, type TaskRequest,
 } from "./api.ts";
-import { SetupForm } from './SetupForm.tsx';
-import { ArmControlPanel } from './ArmControlPanel.tsx';
-import { MapCanvas } from './MapCanvas.tsx';
 
 const COLORS = ['yellow', 'purple', 'blue', 'green', 'orange'] as const;
 const ARM_STATES: Record<number, string> = { 0: 'UNKNOWN', 1: 'IN_ROBOT', 2: 'IN_PROCESS_POS', 3: 'WORKING_POS', 4: 'TRANSFER_POS' };
@@ -32,6 +29,337 @@ function urdfToVendorDeg(urdfRad: unknown[]): [string, string, string] {
   if (urdfRad.length < 3) return ['—', '—', '—'];
   const [r3, r4, r5] = urdfRad;
   return [fmtDeg(r3, d => d + 270), fmtDeg(r4, d => 180 - d), fmtDeg(r5, d => -d)];
+}
+
+type Device = { id: string; name: string; model: string };
+
+export function SetupForm({ setup, onUpdated }: { setup: Setup | null; onUpdated: () => Promise<void> }) {
+  const [email, setEmail] = useState('');
+  const [region, setRegion] = useState('eu');
+  const [code, setCode] = useState('');
+  const [pin, setPin] = useState('');
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [id, setId] = useState('');
+  const [host, setHost] = useState('');
+  const [protocol, setProtocol] = useState('L01');
+  const [stage, setStage] = useState('account');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+  async function submit(work: () => Promise<void>) {
+    setBusy(true); setMessage('');
+    try { await work(); }
+    catch (e) {
+      if (e instanceof ApiError && e.status === 410) { setStage('account'); setDevices([]); setCode(''); setPin(''); }
+      setMessage(e instanceof Error ? e.message : 'Setup unavailable. Check the account region, verification code, literal device IP and existing camera pattern.');
+    } finally { setBusy(false); }
+  }
+  const configured = Boolean(setup?.device && setup?.accountConfigured && setup?.pinConfigured);
+  return <section className="card setup">
+    <div className="section-heading">
+      <div>
+        <p className="eyebrow">DEVICE &amp; CLOUD PAIRING</p>
+        <h2>Account and device setup</h2>
+      </div>
+      <div className="button-row" style={{ margin: 0 }}>
+        <span className={`badge ${setup?.accountConfigured ? 'good' : 'warning'}`}>
+          <span className="dot" />Account {setup?.accountConfigured ? 'configured' : 'required'}
+        </span>
+        <span className={`badge ${setup?.pinConfigured ? 'good' : 'warning'}`}>
+          <span className="dot" />Camera pattern {setup?.pinConfigured ? 'saved server-side' : 'required'}
+        </span>
+      </div>
+    </div>
+    <p className="caption">
+      {setup?.device ? `Selected robot: ${setup.device.name} (${setup.device.model}) at ${setup.device.host} · protocol ${setup.device.localProtocol}` : 'No selected device.'}{' '}
+      Authenticate your Roborock account, select your robot and LAN IP, and save your existing camera pattern.
+    </p>
+    <div className="setup-grid">
+      <form onSubmit={e => { e.preventDefault(); void submit(async () => { await json('/api/account/code', { body: { email, region } }); setStage('code'); setCode(''); setMessage('Code sent. Enter it here within 20 minutes.'); }); }}>
+        <h3><span className="step">1</span>Roborock account code</h3>
+        <div className="form-grid">
+          <label>Account email<input type="email" placeholder="you@example.com" required autoComplete="off" value={email} onChange={e => setEmail(e.target.value)} /></label>
+          <label>Region<select value={region} onChange={e => setRegion(e.target.value)}>{['eu', 'us', 'cn', 'asia'].map(r => <option key={r} value={r}>{r.toUpperCase()}</option>)}</select></label>
+        </div>
+        <button className={configured ? 'quiet' : 'primary'} disabled={busy}>Send sign-in / reauthentication code</button>
+      </form>
+
+      <div>
+        <h3><span className="step">2</span>Verify &amp; bind robot</h3>
+        {stage === 'code' && <form onSubmit={e => { e.preventDefault(); const value = code; setCode(''); void submit(async () => { const result = await json<{ devices: Device[] }>('/api/account/login', { body: { code: value } }); setDevices(result.devices); setId(result.devices[0]?.id ?? ''); setEmail(''); setStage('device'); if (!result.devices.length) setMessage('No supported devices in this account/region. Request a new code for the correct account.'); }); }}>
+          <label>Verification code (6 digits)<input type="password" placeholder="000000" autoComplete="off" required pattern="[0-9]{6}" value={code} onChange={e => setCode(e.target.value)} /></label>
+          <button className="primary" disabled={busy}>Verify account</button>
+        </form>}
+        {stage === 'device' && devices.length > 0 && <form onSubmit={e => { e.preventDefault(); const value = pin; setPin(''); void submit(async () => { await json('/api/account/select', { body: { id, host, localProtocol: protocol, ...(value ? { pin: value } : {}) } }); setDevices([]); setStage('account'); await onUpdated(); setMessage('Device selected. ROS acquisition will report connection status.'); }); }}>
+          <label>Device<select value={id} onChange={e => setId(e.target.value)}>{devices.map(d => <option key={d.id} value={d.id}>{d.name} ({d.model})</option>)}</select></label>
+          <div className="form-grid">
+            <div>
+              <label>Device IP (literal IPv4/IPv6)<input required placeholder="192.168.1.x" value={host} onChange={e => setHost(e.target.value)} /></label>
+              <p className="caption" style={{ marginTop: 6 }}>In the Roborock app: Settings &gt; Product Info &gt; Wi-Fi Name.</p>
+            </div>
+            <label>Local protocol<select value={protocol} onChange={e => setProtocol(e.target.value)}><option>L01</option><option>1.0</option></select></label>
+          </div>
+          <label>Existing camera pattern (digits 1–9)<input type="password" autoComplete="off" pattern="[1-9]{4,12}" value={pin} onChange={e => setPin(e.target.value)} /></label>
+          <button className="primary" disabled={busy}>Save selected device</button>
+        </form>}
+        {stage === 'account' && <p className="caption" style={{ marginTop: 14 }}>Request a verification code in Step 1 when switching accounts or refreshing expired cloud camera credentials.</p>}
+      </div>
+
+      <form onSubmit={e => { e.preventDefault(); const value = pin; setPin(''); void submit(async () => { await json('/api/camera/pin', { body: { pin: value } }); await onUpdated(); setMessage('Camera pattern saved server-side. Read ROS camera status for admission errors.'); }); }}>
+        <h3><span className="step">3</span>Camera pattern (PIN)</h3>
+        <label>Update existing camera pattern<input type="password" placeholder="4–12 digits (1–9)" autoComplete="off" required pattern="[1-9]{4,12}" value={pin} onChange={e => setPin(e.target.value)} /></label>
+        <button className="quiet" disabled={busy}>Save camera pattern</button>
+      </form>
+    </div>
+    {message && <p role="status" className="notice" style={{ marginTop: 16, marginBottom: 0 }}>{message}</p>}
+  </section>;
+}
+
+export interface MapCanvasProps {
+  mapData: Record<string, unknown> | null;
+  busy: boolean;
+  onReadMap: () => void;
+  selectedTarget?: { x: number; y: number } | null;
+  onSelectTarget?: (x: number, y: number) => void;
+}
+
+function unwrapGrid(mapData: Record<string, unknown> | null): Record<string, unknown> | null {
+  if (!mapData) return null;
+  const nested = record(mapData.map);
+  return Object.keys(nested).length > 0 ? nested : mapData;
+}
+
+export function MapCanvas({ mapData, busy, onReadMap, selectedTarget, onSelectTarget }: MapCanvasProps) {
+  const mapCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const grid = unwrapGrid(mapData);
+  const worldObjects = record(mapData?.world_objects);
+  const entries = Array.isArray(worldObjects.entries) ? worldObjects.entries.map(record) : [];
+  const info = record(grid?.info);
+  const originPos = record(record(info.origin).position);
+  const width = Number(info.width) || 0;
+  const height = Number(info.height) || 0;
+  const resolution = Number(info.resolution) || 0.05;
+  const originX = Number(originPos.x) || 0;
+  const originY = Number(originPos.y) || 0;
+
+  useEffect(() => {
+    const canvas = mapCanvasRef.current;
+    if (!canvas || !grid) return;
+    const data = Array.isArray(grid.data) ? grid.data as number[] : [];
+    if (width <= 0 || height <= 0 || data.length < width * height) return;
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const img = ctx.createImageData(width, height);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const val = data[(height - 1 - y) * width + x];
+        img.data.set(val === 100 ? [166, 227, 203, 255] : val === 0 ? [30, 58, 66, 255] : [11, 18, 21, 255], (y * width + x) * 4);
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    for (const entry of entries) {
+      const ex = Number(entry.x), ey = Number(entry.y), r = Math.max(1.5, (Number(entry.radius_m) || 0.12) / resolution);
+      if (!Number.isFinite(ex) || !Number.isFinite(ey)) continue;
+      const px = (ex - originX) / resolution;
+      const py = height - 1 - (ey - originY) / resolution;
+      if (px < 0 || px > width || py < 0 || py > height) continue;
+      ctx.strokeStyle = entry.relevance === 'completed' ? '#4ade80' : entry.relevance === 'objective' ? '#38bdf8' : '#f59e0b';
+      ctx.lineWidth = 1.25;
+      ctx.beginPath();
+      ctx.arc(px, py, r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    if (selectedTarget && Number.isFinite(selectedTarget.x) && Number.isFinite(selectedTarget.y)) {
+      const px = (selectedTarget.x - originX) / resolution;
+      const py = height - 1 - (selectedTarget.y - originY) / resolution;
+      if (px >= 0 && px <= width && py >= 0 && py <= height) {
+        ctx.strokeStyle = '#ff6b6b';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(px, py, 3, 0, Math.PI * 2);
+        ctx.moveTo(px - 5, py); ctx.lineTo(px + 5, py);
+        ctx.moveTo(px, py - 5); ctx.lineTo(px, py + 5);
+        ctx.stroke();
+      }
+    }
+  }, [grid, entries, width, height, resolution, originX, originY, selectedTarget]);
+
+  function handleCanvasClick(event: MouseEvent<HTMLCanvasElement>) {
+    if (!onSelectTarget || width <= 0 || height <= 0) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+    const px = ((event.clientX - rect.left) / rect.width) * width;
+    const py = ((event.clientY - rect.top) / rect.height) * height;
+    const x_m = originX + px * resolution;
+    const y_m = originY + (height - 1 - py) * resolution;
+    onSelectTarget(Math.round(x_m * 100) / 100, Math.round(y_m * 100) / 100);
+  }
+
+  return <section className="card map-cache-card" style={{ marginTop: 0 }}>
+    <div className="section-heading">
+      <div>
+        <p className="eyebrow">VENDOR V1 OCCUPANCY GRID</p>
+        <h2>Map</h2>
+      </div>
+      <button className="quiet" disabled={busy} onClick={onReadMap}>Read ROS map</button>
+    </div>
+    <p className="caption">
+      Click the map to set target / drop coordinates{selectedTarget ? ` (${selectedTarget.x.toFixed(2)}, ${selectedTarget.y.toFixed(2)} m)` : ''}.
+    </p>
+    {grid && width > 0 && height > 0 && (
+      <div className="map-panel" style={{ marginTop: 12, paddingTop: 12 }}>
+        <figure className="map-figure">
+          <div className="map-image-wrap">
+            <canvas
+              ref={mapCanvasRef}
+              onClick={handleCanvasClick}
+              style={{ display: 'block', width: '100%', maxHeight: '340px', imageRendering: 'pixelated', cursor: onSelectTarget ? 'crosshair' : 'default' }}
+            />
+          </div>
+          <figcaption className="caption">
+            Grid {String(width)}×{String(height)} cells @ {resolution.toFixed(2)} m/cell{entries.length > 0 ? ` · ${entries.length} world objects` : ''}
+          </figcaption>
+        </figure>
+      </div>
+    )}
+  </section>;
+}
+
+export interface ArmControlPanelProps {
+  busy: boolean;
+  controlStopped: boolean;
+  color: string;
+  targetM3: string;
+  targetM4: string;
+  targetM5: string;
+  setTargetM3: (value: string) => void;
+  setTargetM4: (value: string) => void;
+  setTargetM5: (value: string) => void;
+  grabModeCode: number | null;
+  grabModeLabel: string;
+  grabActionLabel: string;
+  holdToJog: boolean;
+  setHoldToJog: (value: boolean) => void;
+  startHoldJog: (command: { method: string; params: Record<string, unknown> }) => void;
+  stopHoldJog: (sendStop?: boolean) => void;
+  launchTask: (task: TaskRequest) => void;
+  setOutcome: (outcome: unknown) => void;
+}
+
+export function ArmControlPanel({
+  busy, controlStopped, color, targetM3, targetM4, targetM5,
+  setTargetM3, setTargetM4, setTargetM5, grabModeCode, grabModeLabel, grabActionLabel,
+  holdToJog, setHoldToJog, startHoldJog, stopHoldJog, launchTask, setOutcome,
+}: ArmControlPanelProps) {
+  const disabled = busy || controlStopped;
+  const launch = (task: TaskRequest) => () => launchTask(task);
+  const jogProps = (command: { method: string; params: Record<string, unknown> }, task: TaskRequest) => ({
+    type: 'button' as const,
+    className: 'quiet',
+    disabled,
+    onPointerDown: () => startHoldJog(command),
+    onPointerUp: () => stopHoldJog(true),
+    onPointerLeave: () => stopHoldJog(true),
+    onPointerCancel: () => stopHoldJog(true),
+    onClick: () => { if (!holdToJog) launch(task)(); },
+  });
+
+  return <>
+    <div className="task-panel-box">
+      <h3>Curated Manipulation Stages</h3>
+      <div className="button-row" style={{ margin: '10px 0 0' }}>
+        <button disabled={disabled} onClick={launch({ kind: 'deploy_arm', goal: { settle: true } })}>Deploy Arm</button>
+        <button disabled={disabled} onClick={launch({ kind: 'align_target', goal: { color } })}>Align to Target</button>
+        <button disabled={disabled} onClick={launch({ kind: 'move_arm', goal: { m3_deg: 190, m4_deg: 65, m5_deg: 0 } })}>Move Arm (Hover 190/65)</button>
+        <button disabled={disabled} onClick={launch({ kind: 'grasp_and_lift', goal: { lift_steps: 2, verify_color: color } })}>Grasp &amp; Lift</button>
+        <button disabled={disabled} onClick={launch({ kind: 'release_and_stow', goal: { put_down: true } })}>Release &amp; Stow</button>
+      </div>
+      <div className="angle-bar">
+        <label>M3°<input type="number" min={90} max={270} step={10} value={targetM3} onChange={e => setTargetM3(e.target.value)} /></label>
+        <label>M4°<input type="number" min={35} max={170} step={10} value={targetM4} onChange={e => setTargetM4(e.target.value)} /></label>
+        <label>M5°<input type="number" min={0} max={155} step={10} value={targetM5} onChange={e => setTargetM5(e.target.value)} /></label>
+        <button type="button" className="quiet" disabled={disabled} onClick={launch({
+          kind: 'move_arm',
+          goal: { m3_deg: Number(targetM3), m4_deg: Number(targetM4), m5_deg: Number(targetM5) },
+        })}>Move to angles</button>
+      </div>
+    </div>
+
+    <div className="task-panel-box">
+      <h3>Manual Mode Lifecycle &amp; Gripper (<code>/z70/arm/operation</code>)</h3>
+      <p className="caption" style={{ marginBottom: 8 }}>
+        Active grab mode: <strong>{grabModeLabel}</strong> · Action: <strong>{grabActionLabel}</strong>
+      </p>
+      <div className="button-row" style={{ margin: '6px 0 0' }}>
+        {([
+          [6, 'Enter Manual Mode (flag=1)', grabModeCode === 1],
+          [7, 'Remote Pickup Mode (flag=2)', grabModeCode === 2],
+          [8, 'Exit Arm Mode (flag=0)', false],
+          [1, 'Unstow Arm', false],
+          [2, 'Stow Arm', false],
+          [9, 'Recover Arm', false],
+        ] as const).map(([operation, label, active]) => (
+          <button key={operation} type="button" className={active ? 'primary' : 'quiet'} disabled={disabled} onClick={launch({ kind: 'arm_operation', goal: { operation } })}>{label}</button>
+        ))}
+      </div>
+      <div className="button-row" style={{ margin: '8px 0 0' }}>
+        {([
+          [4, 'Close Gripper (Grip)'],
+          [5, 'Release Jaws In-Place (Put Down)'],
+          [3, 'Open Gripper (Recovery)'],
+        ] as const).map(([operation, label]) => (
+          <button key={operation} type="button" className="quiet" disabled={disabled} onClick={launch({ kind: 'arm_operation', goal: { operation } })}>{label}</button>
+        ))}
+        <button type="button" className="danger" disabled={controlStopped} onClick={() => { stopHoldJog(false); void robotRpc({ method: 'app_stop_grasp', params: [], timeoutMs: 5000 }).then(setOutcome).catch(() => {}); }}>Stop Arm (app_stop_grasp)</button>
+      </div>
+    </div>
+
+    <div className="task-panel-box">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <h3 style={{ margin: 0 }}>Joint Steps, Coordinated Multi-Axis &amp; Cartesian IK Jog</h3>
+        <label className="checkbox-row" style={{ margin: 0 }}>
+          <input type="checkbox" checked={holdToJog} onChange={e => { setHoldToJog(e.target.checked); if (!e.target.checked) stopHoldJog(false); }} />
+          <span>Hold-to-Jog (continuous press &amp; hold, stop on release)</span>
+        </label>
+      </div>
+      <div className="joint-grid" style={{ marginTop: 10 }}>
+        {[3, 4, 5].map(joint => [-1, 1].map(direction => {
+          const m = [0, 0, 0];
+          m[joint - 3] = direction === 1 ? 1 : 2;
+          return (
+            <button key={`${joint}/${direction}`} {...jogProps({ method: 'app_arm_move', params: { m } }, { kind: 'arm_step', goal: { joint, direction } })}>
+              M{joint} {direction > 0 ? '+' : '−'} nominal step
+            </button>
+          );
+        }))}
+      </div>
+      <div className="button-row" style={{ margin: '10px 0 0' }}>
+        {([
+          ['M3+ & M4+ Down-Out', 34, 1, [1, 1, 0]],
+          ['M3− & M4− Up-In', 34, -1, [2, 2, 0]],
+          ['M3+ & M4− Reach-Level', 43, 1, [1, 2, 0]],
+          ['M3− & M4+ Retract-Level', 43, -1, [2, 1, 0]],
+        ] as const).map(([label, joint, direction, m]) => (
+          <button key={label} {...jogProps({ method: 'app_arm_move', params: { m: [...m] } }, { kind: 'arm_step', goal: { joint, direction } })}>
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="button-row" style={{ margin: '10px 0 0' }}>
+        {([
+          [1, 'Hand Up +40mm (IK)'],
+          [2, 'Hand Down −40mm (IK)'],
+          [3, 'Hand Forward +40mm (IK)'],
+          [4, 'Hand Back −40mm (IK)'],
+        ] as const).map(([dir, label]) => (
+          <button key={dir} {...jogProps({ method: 'app_arm_direction_move', params: { direction: dir } }, { kind: 'hand_step', goal: { direction: dir } })}>
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
+  </>;
 }
 
 export function App({ session }: { session: Promise<SessionStatus> }) {
