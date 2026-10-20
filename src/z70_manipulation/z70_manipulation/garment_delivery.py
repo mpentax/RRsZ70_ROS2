@@ -242,6 +242,14 @@ class GarmentDeliverer:
             return True
         return False
 
+    def _yaw_gain(self, angle):
+        gains = getattr(self.executor, 'gains', None) or {}
+        return gains.get('yaw_positive' if angle > 0 else 'yaw_negative', {}).get('gain') or 1.
+
+    def _forward_gain(self):
+        gains = getattr(self.executor, 'gains', None) or {}
+        return gains.get('forward', {}).get('gain') or 1.
+
     def monitor(self, baseline, boundary, loaded=True):
         self.guard()
         s=self.snapshot()
@@ -258,7 +266,6 @@ class GarmentDeliverer:
         return s,live
 
     def transit(self, target, baseline, boundary, loaded=True):
-        gains=getattr(self.executor,'gains',None) or {}
         for _ in range(600):
             s,b=self.monitor(baseline,boundary,loaded)
             route=loaded_route(b,self.position,target)
@@ -269,11 +276,11 @@ class GarmentDeliverer:
             angle=math.atan2(waypoint[1]-y,waypoint[0]-x)-yaw
             angle=math.atan2(math.sin(angle),math.cos(angle))
             if abs(angle)>.08:
-                gain=gains.get('yaw_positive' if angle>0 else 'yaw_negative',{}).get('gain') or 1.
+                gain=self._yaw_gain(angle)
                 omega=math.copysign(.2,angle); duration=min(500,max(80,abs(angle)/(abs(omega)*gain)*1000))
                 self.operation('bounded_turn',lambda:self.executor.pulse(omega=omega,duration=duration))
             else:
-                gain=gains.get('forward',{}).get('gain') or 1.
+                gain=self._forward_gain()
                 duration=min(500,max(80,math.dist(self.position,waypoint)/(.05*gain)*1000))
                 step=.05*gain*duration/1000
                 end=(x+step*math.cos(yaw),y+step*math.sin(yaw))
@@ -283,7 +290,6 @@ class GarmentDeliverer:
 
     def approach(self, category):
         from . import planner
-        gains=getattr(self.executor,'gains',None) or {}
         barrier=self.observations.garment_barrier()
         for _ in range(40):
             self.guard()
@@ -295,14 +301,13 @@ class GarmentDeliverer:
             if abs(plan['yaw'])<.035 and abs(plan['forward'])<.015: return
             angle=plan['yaw']; v=0. if abs(angle)>.035 else math.copysign(.05,plan['forward'])
             omega=math.copysign(.2,angle) if not v else 0.
+            f_gain=self._forward_gain()
             if omega:
-                gain=gains.get('yaw_positive' if angle>0 else 'yaw_negative',{}).get('gain') or 1.
-                duration=min(500,max(80,abs(angle)/(abs(omega)*gain)*1000))
+                duration=min(500,max(80,abs(angle)/(abs(omega)*self._yaw_gain(angle))*1000))
             else:
-                gain=gains.get('forward',{}).get('gain') or 1.
-                duration=min(500,max(80,abs(plan['forward'])/(abs(v)*gain)*1000))
+                duration=min(500,max(80,abs(plan['forward'])/(abs(v)*f_gain)*1000))
             x,y,yaw=self.current_pose[:3]
-            step=v*(gains.get('forward',{}).get('gain') or 1.)*duration/1000
+            step=v*f_gain*duration/1000
             end=(x+step*math.cos(yaw),y+step*math.sin(yaw))
             if not check_corridor_containment(b,(x,y),end,0.): raise DeliveryRejected('LOADED_ROUTE_BLOCKED')
             self.operation('leading_edge_approach',lambda:self.executor.pulse(velocity=v,omega=omega,duration=duration))
@@ -401,9 +406,6 @@ class GarmentDeliverer:
                     self.stowed=bool(self.executor.stow().get('stowed'))
             return self.result(code)
         except (LookupError,TimeoutError,ValueError,InterruptedError) as exc:
-            if self.executor:
-                try: self.executor.end_rc()
-                except (LookupError,TimeoutError,InterruptedError): pass
             return self.result('OBSERVATION_GAP',str(exc))
         finally:
             if self.executor:

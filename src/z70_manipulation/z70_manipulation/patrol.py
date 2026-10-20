@@ -172,11 +172,17 @@ class PatrolCollector:
     def battery(self):
         return self._status()['battery']
 
+    def _pose(self, snapshot=None, max_age_s=None):
+        if self.pose:
+            return self.pose()
+        snap = snapshot or self.observations.navigation_snapshot(refresh=False, max_age_s=max_age_s)
+        return snap.map.robot
+
     def verify_context(self,refresh=True):
         self.guard(); self.state('LOCALIZE_AND_VERIFY_CONTEXT')
         s=self.observations.navigation_snapshot(refresh=refresh,max_age_s=5.)
         if not s.active_floor_verified or not s.current_pose_verified or not 0<=s.cache_age_s<=5.: raise DeliveryRejected('UNLOCALIZED_MAP')
-        pose=self.pose() if self.pose else s.map.robot
+        pose=self._pose(s)
         if pose is None: raise DeliveryRejected('UNLOCALIZED_MAP')
         self.position=list(pose[:2]); self.latest_observation=s.evidence
         tf=self.map_odom() if self.map_odom else None
@@ -214,13 +220,13 @@ class PatrolCollector:
         for heading in range(2):
             self.guard()
             if heading:
-                start=(self.pose() if self.pose else self.observations.navigation_snapshot(refresh=False,max_age_s=None).map.robot)[2]
+                start=self._pose()[2]
                 command_id=str(uuid.uuid4())
                 self.ledger.journal(operation='observe_turn',status='IN_FLIGHT',command_id=command_id)
                 for _ in range(24):
                     self.guard()
                     self.verify_context(refresh=True)
-                    yaw=(self.pose() if self.pose else self.observations.navigation_snapshot(refresh=False,max_age_s=None).map.robot)[2]
+                    yaw=self._pose()[2]
                     if abs(math.atan2(math.sin(yaw-start),math.cos(yaw-start)))>=.8: break
                     self.executor.pulse(omega=.35,duration=600)
                 else:
@@ -230,7 +236,7 @@ class PatrolCollector:
                 self.ledger.journal(operation='observe_turn',status='OBSERVED',command_id=command_id)
             barrier=self.observations.garment_barrier()
             batch=self.observations.garment_snapshot(after=barrier)
-            pose=self.pose() if self.pose else self.observations.navigation_snapshot(refresh=False,max_age_s=None).map.robot
+            pose=self._pose()
             valid=batch.model_available and batch.geofence_active
             source=bytes(batch.evidence.session_id.uuid).hex()+':'+str(batch.evidence.sequence)
             frame=self.observations.garment_frame(after=barrier)
@@ -250,7 +256,7 @@ class PatrolCollector:
         attempted=0
         try:
             snapshot,b=self.verify_context(refresh=not goal.dry_run)
-            pose=self.pose() if self.pose else snapshot.map.robot
+            pose=self._pose(snapshot)
             loaded_boundary=compute_safe_interior(snapshot.map,snapshot.labels,
                 replace(self.config,deployed_arm_extension_m=.10),pose)
             if loaded_route(loaded_boundary,pose[:2],(goal.drop_x_m,goal.drop_y_m)) is None:
@@ -314,7 +320,7 @@ class PatrolCollector:
                     if not self.ledger.may_attempt(item_key): continue
                     if attempted>=goal.max_items: return self.ledger.completion()
                     p=g.floor_contact_m
-                    pose=self.pose() if self.pose else self.observations.navigation_snapshot().map.robot
+                    pose=self._pose(max_age_s=5.)
                     c,s=math.cos(pose[2]),math.sin(pose[2])
                     location=[pose[0]+c*p.x-s*p.y,pose[1]+s*p.x+c*p.y]
                     aliases=[k for k,v in self.ledger.data['items'].items() if math.dist(v['position'],location)<.15]
