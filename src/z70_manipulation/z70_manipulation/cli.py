@@ -4,6 +4,9 @@ import json
 import os
 from pathlib import Path
 import cv2
+import rclpy
+from rclpy.action import ActionClient
+from z70_interfaces.action import Pick, Stack
 from . import perception
 from .executor import Client, Executor, log_directory
 
@@ -48,8 +51,6 @@ def _run_dry(args, execute_fn, *, filter_by_color=False) -> dict:
 def _run_action(p, args, node_name, action_cls, topic, goal, reject_msg, format_result) -> dict:
     if args.origin != p.get_default('origin') or args.token_file or args.log_dir:
         p.error('connection/log options configure --dry-run only; configure the ROS pick server for live execution')
-    import rclpy
-    from rclpy.action import ActionClient
     rclpy.init()
     node = rclpy.create_node(node_name)
     action = ActionClient(node, action_cls, topic)
@@ -82,7 +83,6 @@ def run(argv=None):
     args = p.parse_args(argv)
     if args.dry_run:
         return _run_dry(args, lambda ex: ex.pick(args.color, dry_run=True))
-    from z70_interfaces.action import Pick
     return _run_action(
         p, args, 'z70_pick_client', Pick, '/z70/pick',
         Pick.Goal(color=args.color, dry_run=False),
@@ -122,7 +122,6 @@ def run_stack(argv=None):
             lambda ex: ex.stack(args.base_color, args.middle_color, args.top_color, dry_run=True),
             filter_by_color=True,
         )
-    from z70_interfaces.action import Stack
     return _run_action(
         p, args, 'z70_stack_client', Stack, '/z70/stack',
         Stack.Goal(base_color=args.base_color, middle_color=args.middle_color, top_color=args.top_color, dry_run=False),

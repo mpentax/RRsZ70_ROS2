@@ -13,6 +13,7 @@ import numpy as np
 from z70_mapping.boundary import BoundaryConfig, compute_safe_interior, check_corridor_containment
 from . import perception, planner
 from .navigation import inside, cell
+from .observations import read_arm
 
 
 @dataclass(frozen=True)
@@ -388,8 +389,7 @@ class GarmentDeliverer:
             self.state('GRASP_AND_VERIFY')
             self.operation('open_jaws',self.executor.open_jaws)
             p=self.track.grasp_point_m
-            arm_fn=getattr(self.executor,'_arm',None)
-            estimate=arm_fn() if callable(arm_fn) else self.executor.client.get('/api/arm/estimate')
+            estimate=read_arm(self.executor.client)
             j=estimate.get('joints',{})
             joints=[j['m3'],j['m4']] if all(k in j for k in ('m3','m4')) else []
             if len(joints)<2: raise DeliveryRejected('ARM_POSE_UNVERIFIED')

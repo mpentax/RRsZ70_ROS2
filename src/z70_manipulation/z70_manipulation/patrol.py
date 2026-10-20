@@ -9,6 +9,7 @@ from dataclasses import replace
 from .garment_delivery import (GarmentDeliverer, TowingQualificationConfig, atomic_json,
     map_identity, same_map_frame, tf_jumped, transport_policy, track_key, loaded_route, DeliveryRejected)
 from z70_mapping.boundary import BoundaryConfig, compute_safe_interior
+from .garment_geometry import transform_xy
 from .navigation import PinAndGoNavigator, inside
 from .observations import read_arm, read_status
 
@@ -320,8 +321,7 @@ class PatrolCollector:
                     if attempted>=goal.max_items: return self.ledger.completion()
                     p=g.floor_contact_m
                     pose=self._pose(max_age_s=5.)
-                    c,s=math.cos(pose[2]),math.sin(pose[2])
-                    location=[pose[0]+c*p.x-s*p.y,pose[1]+s*p.x+c*p.y]
+                    location=transform_xy((p.x,p.y),pose).tolist()
                     if any(v['status']=='DELIVERED' for v in self.ledger.data['items'].values()) and math.dist(location,(goal.drop_x_m,goal.drop_y_m))<=.45:
                         continue
                     aliases=[k for k,v in self.ledger.data['items'].items() if math.dist(v['position'],location)<.15]
