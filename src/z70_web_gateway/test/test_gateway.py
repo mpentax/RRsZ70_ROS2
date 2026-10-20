@@ -22,12 +22,11 @@ TOKEN = 'f'*43  # Synthetic fixture token, not a credential.
 
 
 def wait(predicate, seconds=5):
-    deadline = time.monotonic()+seconds
-    while time.monotonic() < deadline:
-        result = predicate()
-        if result: return result
+    deadline = time.monotonic() + seconds
+    while not (result := predicate()):
+        assert time.monotonic() < deadline, 'condition deadline'
         time.sleep(.02)
-    assert predicate(), 'condition deadline'
+    return result
 
 
 @pytest.fixture

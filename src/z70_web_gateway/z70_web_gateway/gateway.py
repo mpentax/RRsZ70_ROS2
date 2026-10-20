@@ -18,15 +18,16 @@ from rclpy.action import ActionClient
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, DurabilityPolicy, ReliabilityPolicy
-from rosidl_runtime_py.convert import message_to_ordereddict
+from rosidl_runtime_py.convert import message_to_ordereddict as data
 from rosidl_runtime_py.set_message import set_message_fields
 from sensor_msgs.msg import CompressedImage
 from nav_msgs.msg import OccupancyGrid
 from unique_identifier_msgs.msg import UUID
+from z70_driver.frame_subscription import frame_key
 from z70_interfaces.msg import RobotState, CameraState, ArmEstimate, CalibrationState, FrameMetadata
 from z70_interfaces.srv import RawRpc, Stop, SelectCamera, SetArmAnchor, SetControlSession
 from z70_manipulation.goals import ALL_GOALS, GOAL_CONTEXT_PRIMITIVES, simulate_goal
+from z70_manipulation.observations import LATCHED
 from std_msgs.msg import Bool
 
 ACTIONS = {name: (spec.action_cls, spec.topic) for name, spec in ALL_GOALS.items()}
@@ -54,10 +55,6 @@ class ApiError(Exception):
         self.status = status
         self.body = {'error': code, 'dispatch': dispatch}
         if task_id: self.body['id'] = task_id
-
-
-def data(message):
-    return message_to_ordereddict(message)
 
 
 def checked(body, allowed, required=()):
@@ -98,9 +95,8 @@ class Gateway(Node):
         self.group = ReentrantCallbackGroup()
         self.actions = {k: ActionClient(self, cls, path, callback_group=self.group) for k, (cls, path) in ACTIONS.items()}
         self.ros_clients = {k: self.create_client(cls, path, callback_group=self.group) for k, cls, path in SERVICES}
-        qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.subscriptions_owned = [
-            self.create_subscription(cls, topic, partial(self.sample, key), qos, callback_group=self.group)
+            self.create_subscription(cls, topic, partial(self.sample, key), LATCHED, callback_group=self.group)
             for key, cls, topic in TOPICS
         ]
         for camera in ('front', 'gripper'):
@@ -120,9 +116,7 @@ class Gateway(Node):
         self.actions.clear()
         return super().destroy_node()
 
-    @staticmethod
-    def frame_key(message):
-        return (message.header.stamp.sec, message.header.stamp.nanosec, message.header.frame_id)
+    frame_key = staticmethod(frame_key)
 
     def image(self, camera, message):
         if len(message.data) > 5*1024*1024: return

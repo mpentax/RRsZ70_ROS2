@@ -63,7 +63,13 @@ def stop_worker_process(proc, worker, stop_event) -> None:
         proc.stdout.close()
 
 
+def frame_key(msg):
+    return (msg.header.stamp.sec, msg.header.stamp.nanosec, msg.header.frame_id)
+
+
 class MatchedFrames:
+    key = staticmethod(frame_key)
+
     def __init__(self, node, camera, callback, compressed=False, on_session=None):
         self.callback=callback; self.on_session=on_session
         self.frame=None; self.metadata=None; self.used=None; self.session=None
@@ -73,10 +79,6 @@ class MatchedFrames:
             node.create_subscription(CompressedImage if compressed else Image,
                 topic+('/image_raw/compressed' if compressed else '/image_raw'), self.image, 2, callback_group=self.group),
             node.create_subscription(FrameMetadata,topic+'/metadata',self.info,2,callback_group=self.group)]
-
-    @staticmethod
-    def key(msg):
-        return (msg.header.stamp.sec,msg.header.stamp.nanosec,msg.header.frame_id)
 
     def image(self, msg):
         self.frame=msg;self.match()

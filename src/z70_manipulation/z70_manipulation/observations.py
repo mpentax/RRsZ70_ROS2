@@ -12,6 +12,7 @@ from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallb
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.qos import QoSProfile, DurabilityPolicy, ReliabilityPolicy
 from sensor_msgs.msg import CompressedImage
+from z70_driver.frame_subscription import frame_key
 from z70_interfaces.msg import RobotState, ArmEstimate, FrameMetadata, MapSnapshot, GarmentObservations
 from z70_interfaces.srv import SelectCamera, RefreshMap
 from z70_mapping.decoder import decode_map
@@ -157,9 +158,7 @@ class Observations:
     def on_arm(self, msg):
         with self.condition: self.arm = msg; self.condition.notify_all()
 
-    @staticmethod
-    def key(msg):
-        return (msg.header.stamp.sec, msg.header.stamp.nanosec, msg.header.frame_id)
+    key = staticmethod(frame_key)
 
     def match_frame(self, camera):
         frame, meta = self.frames.get(camera), self.metadata.get(camera)
