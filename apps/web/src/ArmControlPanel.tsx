@@ -1,4 +1,4 @@
-import { startTask } from './ros.ts';
+import { startTask, type TaskRequest } from './ros.ts';
 import { robotRpc } from './rpc.ts';
 
 export interface ArmControlPanelProps {
@@ -27,22 +27,36 @@ export function ArmControlPanel({
   setTargetM3, setTargetM4, setTargetM5, grabModeCode, grabModeLabel, grabActionLabel,
   holdToJog, setHoldToJog, startHoldJog, stopHoldJog, run, setOutcome,
 }: ArmControlPanelProps) {
+  const disabled = busy || controlStopped;
+  const launch = (task: TaskRequest) => () => void run(async () => { setOutcome(await startTask(task)); });
+  const jogProps = (command: { method: string; params: Record<string, unknown> }, task: TaskRequest) => ({
+    type: 'button' as const,
+    className: 'quiet',
+    disabled,
+    onPointerDown: () => startHoldJog(command),
+    onPointerUp: () => stopHoldJog(true),
+    onPointerLeave: () => stopHoldJog(true),
+    onPointerCancel: () => stopHoldJog(true),
+    onClick: () => { if (!holdToJog) launch(task)(); },
+  });
+
   return <>
     <div className="task-panel-box">
       <h3>Curated Manipulation Stages</h3>
       <div className="button-row" style={{margin: '10px 0 0'}}>
-        <button disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'deploy_arm',goal:{settle:true}})); })}>Deploy Arm</button>
-        <button disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'align_target',goal:{color}})); })}>Align to Target</button>
-        <button disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'move_arm',goal:{m3_deg:190,m4_deg:65,m5_deg:0}})); })}>Move Arm (Hover 190/65)</button>
-        <button disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'grasp_and_lift',goal:{lift_steps:2,verify_color:color}})); })}>Grasp &amp; Lift</button>
-        <button disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'release_and_stow',goal:{put_down:true}})); })}>Release &amp; Stow</button>
+        <button disabled={disabled} onClick={launch({kind:'deploy_arm',goal:{settle:true}})}>Deploy Arm</button>
+        <button disabled={disabled} onClick={launch({kind:'align_target',goal:{color}})}>Align to Target</button>
+        <button disabled={disabled} onClick={launch({kind:'move_arm',goal:{m3_deg:190,m4_deg:65,m5_deg:0}})}>Move Arm (Hover 190/65)</button>
+        <button disabled={disabled} onClick={launch({kind:'grasp_and_lift',goal:{lift_steps:2,verify_color:color}})}>Grasp &amp; Lift</button>
+        <button disabled={disabled} onClick={launch({kind:'release_and_stow',goal:{put_down:true}})}>Release &amp; Stow</button>
       </div>
       <div className="angle-bar">
         <label>M3°<input type="number" min={90} max={270} step={10} value={targetM3} onChange={e => setTargetM3(e.target.value)} /></label>
         <label>M4°<input type="number" min={35} max={170} step={10} value={targetM4} onChange={e => setTargetM4(e.target.value)} /></label>
         <label>M5°<input type="number" min={0} max={155} step={10} value={targetM5} onChange={e => setTargetM5(e.target.value)} /></label>
-        <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => {
-          setOutcome(await startTask({kind:'move_arm',goal:{m3_deg:Number(targetM3),m4_deg:Number(targetM4),m5_deg:Number(targetM5)}}));
+        <button type="button" className="quiet" disabled={disabled} onClick={launch({
+          kind: 'move_arm',
+          goal: { m3_deg: Number(targetM3), m4_deg: Number(targetM4), m5_deg: Number(targetM5) },
         })}>Move to angles</button>
       </div>
     </div>
@@ -53,17 +67,17 @@ export function ArmControlPanel({
         Active grab mode: <strong>{grabModeLabel}</strong> · Action: <strong>{grabActionLabel}</strong>
       </p>
       <div className="button-row" style={{margin: '6px 0 0'}}>
-        <button type="button" className={grabModeCode === 1 ? 'primary' : 'quiet'} disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'arm_operation',goal:{operation:6}})); })}>Enter Manual Mode (flag=1)</button>
-        <button type="button" className={grabModeCode === 2 ? 'primary' : 'quiet'} disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'arm_operation',goal:{operation:7}})); })}>Remote Pickup Mode (flag=2)</button>
-        <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'arm_operation',goal:{operation:8}})); })}>Exit Arm Mode (flag=0)</button>
-        <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'arm_operation',goal:{operation:1}})); })}>Unstow Arm</button>
-        <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'arm_operation',goal:{operation:2}})); })}>Stow Arm</button>
-        <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'arm_operation',goal:{operation:9}})); })}>Recover Arm</button>
+        <button type="button" className={grabModeCode === 1 ? 'primary' : 'quiet'} disabled={disabled} onClick={launch({kind:'arm_operation',goal:{operation:6}})}>Enter Manual Mode (flag=1)</button>
+        <button type="button" className={grabModeCode === 2 ? 'primary' : 'quiet'} disabled={disabled} onClick={launch({kind:'arm_operation',goal:{operation:7}})}>Remote Pickup Mode (flag=2)</button>
+        <button type="button" className="quiet" disabled={disabled} onClick={launch({kind:'arm_operation',goal:{operation:8}})}>Exit Arm Mode (flag=0)</button>
+        <button type="button" className="quiet" disabled={disabled} onClick={launch({kind:'arm_operation',goal:{operation:1}})}>Unstow Arm</button>
+        <button type="button" className="quiet" disabled={disabled} onClick={launch({kind:'arm_operation',goal:{operation:2}})}>Stow Arm</button>
+        <button type="button" className="quiet" disabled={disabled} onClick={launch({kind:'arm_operation',goal:{operation:9}})}>Recover Arm</button>
       </div>
       <div className="button-row" style={{margin: '8px 0 0'}}>
-        <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'arm_operation',goal:{operation:4}})); })}>Close Gripper (Grip)</button>
-        <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'arm_operation',goal:{operation:5}})); })}>Release Jaws In-Place (Put Down)</button>
-        <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => { setOutcome(await startTask({kind:'arm_operation',goal:{operation:3}})); })}>Open Gripper (Recovery)</button>
+        <button type="button" className="quiet" disabled={disabled} onClick={launch({kind:'arm_operation',goal:{operation:4}})}>Close Gripper (Grip)</button>
+        <button type="button" className="quiet" disabled={disabled} onClick={launch({kind:'arm_operation',goal:{operation:5}})}>Release Jaws In-Place (Put Down)</button>
+        <button type="button" className="quiet" disabled={disabled} onClick={launch({kind:'arm_operation',goal:{operation:3}})}>Open Gripper (Recovery)</button>
         <button type="button" className="danger" disabled={controlStopped} onClick={() => { stopHoldJog(false); void robotRpc({method:'app_stop_grasp',params:[],timeoutMs:5000}).then(setOutcome).catch(() => {}); }}>Stop Arm (app_stop_grasp)</button>
       </div>
     </div>
@@ -81,16 +95,7 @@ export function ArmControlPanel({
           const m = [0, 0, 0];
           m[joint - 3] = direction === 1 ? 1 : 2;
           return (
-            <button
-              key={`${joint}/${direction}`}
-              className="quiet"
-              disabled={busy || controlStopped}
-              onPointerDown={() => startHoldJog({ method: 'app_arm_move', params: { m } })}
-              onPointerUp={() => stopHoldJog(true)}
-              onPointerLeave={() => stopHoldJog(true)}
-              onPointerCancel={() => stopHoldJog(true)}
-              onClick={() => { if (!holdToJog) void run(async () => { setOutcome(await startTask({kind:'arm_step',goal:{joint,direction}})); }); }}
-            >
+            <button key={`${joint}/${direction}`} {...jogProps({ method: 'app_arm_move', params: { m } }, { kind: 'arm_step', goal: { joint, direction } })}>
               M{joint} {direction > 0 ? '+' : '−'} nominal step
             </button>
           );
@@ -103,17 +108,7 @@ export function ArmControlPanel({
           ['M3+ & M4− Reach-Level', 43, 1, [1, 2, 0]],
           ['M3− & M4+ Retract-Level', 43, -1, [2, 1, 0]],
         ] as const).map(([label, joint, direction, m]) => (
-          <button
-            key={label}
-            type="button"
-            className="quiet"
-            disabled={busy || controlStopped}
-            onPointerDown={() => startHoldJog({ method: 'app_arm_move', params: { m: [...m] } })}
-            onPointerUp={() => stopHoldJog(true)}
-            onPointerLeave={() => stopHoldJog(true)}
-            onPointerCancel={() => stopHoldJog(true)}
-            onClick={() => { if (!holdToJog) void run(async () => { setOutcome(await startTask({kind:'arm_step',goal:{joint,direction}})); }); }}
-          >
+          <button key={label} {...jogProps({ method: 'app_arm_move', params: { m: [...m] } }, { kind: 'arm_step', goal: { joint, direction } })}>
             {label}
           </button>
         ))}
@@ -125,17 +120,7 @@ export function ArmControlPanel({
           [3, 'Hand Forward +40mm (IK)'],
           [4, 'Hand Back −40mm (IK)'],
         ] as const).map(([dir, label]) => (
-          <button
-            key={dir}
-            type="button"
-            className="quiet"
-            disabled={busy || controlStopped}
-            onPointerDown={() => startHoldJog({ method: 'app_arm_direction_move', params: { direction: dir } })}
-            onPointerUp={() => stopHoldJog(true)}
-            onPointerLeave={() => stopHoldJog(true)}
-            onPointerCancel={() => stopHoldJog(true)}
-            onClick={() => { if (!holdToJog) void run(async () => { setOutcome(await startTask({kind:'hand_step',goal:{direction:dir}})); }); }}
-          >
+          <button key={dir} {...jogProps({ method: 'app_arm_direction_move', params: { direction: dir } }, { kind: 'hand_step', goal: { direction: dir } })}>
             {label}
           </button>
         ))}

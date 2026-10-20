@@ -22,7 +22,7 @@ if [[ ! -x "$GO2RTC_BIN" ]]; then
   )
 fi
 
-if [[ ! -s "$ROOT/dist/web/index.html" ]]; then
+if [[ ! -s "$ROOT/dist/web/index.html" ]] || [[ -n "$(find "$ROOT/apps/web" "$ROOT/packages/http-contracts" -newer "$ROOT/dist/web/index.html" 2>/dev/null)" ]]; then
   npm run build
 fi
 
