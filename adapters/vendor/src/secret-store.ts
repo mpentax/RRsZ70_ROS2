@@ -9,6 +9,7 @@ import { join, parse, resolve, sep } from "node:path";
 import type { CameraAccount, HomeAuthorization } from "./cloud.ts";
 import { validateHomeAuthorization } from "./home-account.ts";
 import { localProtocol, type SavedDevice } from "./credentials.ts";
+import { savePrivateV1Map } from "./private-map-cache.ts";
 
 export interface PersistentCamera {
   account: CameraAccount;
@@ -27,6 +28,22 @@ type StateFile = typeof FILES[number];
 
 export function hasCode(error: unknown, code: string): boolean {
   return error instanceof Error && "code" in error && error.code === code;
+}
+
+export function resolveStateDir(directory: string, message = "Invalid private state directory."): string {
+  if (typeof directory !== "string" || !directory.trim() || directory.includes("\0")) throw new Error(message);
+  const resolved = resolve(directory);
+  if (resolved === parse(resolved).root) throw new Error(message);
+  return resolved;
+}
+
+export async function writePrivateTempFile(path: string, contents: string | Buffer): Promise<void> {
+  const handle = await open(path, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
+  try {
+    await handle.chmod(0o600);
+    await handle.writeFile(contents);
+    await handle.sync();
+  } finally { await handle.close(); }
 }
 
 export async function ensurePrivateDir(directory: string, message = "Unsafe state directory."): Promise<void> {
@@ -131,13 +148,7 @@ export class SecretStore {
   #directory: string;
 
   constructor(directory = process.env.ROBOCLAW_STATE_DIR ?? ".local") {
-    if (typeof directory !== "string" || !directory.trim() || directory.includes("\0")) {
-      throw new Error("Invalid private state directory.");
-    }
-    this.#directory = resolve(directory);
-    if (this.#directory === parse(this.#directory).root) {
-      throw new Error("Invalid private state directory.");
-    }
+    this.#directory = resolveStateDir(directory);
   }
 
   async initialize(): Promise<void> {
@@ -201,7 +212,6 @@ export class SecretStore {
   }
 
   async saveMapBytes(raw: Buffer): Promise<void> {
-    const { savePrivateV1Map } = await import("./private-map-cache.ts");
     await savePrivateV1Map(raw, this.#directory);
   }
 
@@ -275,14 +285,8 @@ export class SecretStore {
     await this.#prepare();
     await this.#checkFile(file);
     const temporary = join(this.#directory, `.${file}-${randomUUID()}.tmp`);
-    const handle = await open(temporary,
-      constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
     try {
-      try {
-        await handle.chmod(0o600);
-        await handle.writeFile(contents, "utf8");
-        await handle.sync();
-      } finally { await handle.close(); }
+      await writePrivateTempFile(temporary, contents);
       await this.#prepare();
       await this.#checkFile(file);
       if (exclusive) {

@@ -1,9 +1,9 @@
 import { createHash, randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import { link, open, unlink } from "node:fs/promises";
-import { join, parse, resolve } from "node:path";
+import { join } from "node:path";
 import { MAX_MAP_BYTES } from "./photo-protocol.ts";
-import { ensurePrivateDir, hasCode, syncPrivateDir } from "./secret-store.ts";
+import { ensurePrivateDir, hasCode, resolveStateDir, syncPrivateDir, writePrivateTempFile } from "./secret-store.ts";
 import { summarizeV1Map } from "./v1-map-summary.ts";
 
 /** Save a verified V1 map binary into the private state directory. */
@@ -12,11 +12,7 @@ export async function savePrivateV1Map(raw: Buffer, stateDirectory: string): Pro
   if (!Buffer.isBuffer(raw) || raw.length > MAX_MAP_BYTES) throw new Error("Invalid private V1 map.");
   try { summarizeV1Map(raw); } catch { throw new Error("Invalid private V1 map."); }
   const sha256 = createHash("sha256").update(raw).digest("hex");
-  if (typeof stateDirectory !== "string" || !stateDirectory.trim() || stateDirectory.includes("\0")) {
-    throw new Error("Cannot save private V1 map.");
-  }
-  const root = resolve(stateDirectory);
-  if (root === parse(root).root) throw new Error("Cannot save private V1 map.");
+  const root = resolveStateDir(stateDirectory, "Cannot save private V1 map.");
   const directory = join(root, "maps");
   const destination = join(directory, `v1-${sha256}.bin`);
   const temporary = join(directory, `.v1-${randomUUID()}.tmp`);
@@ -24,13 +20,7 @@ export async function savePrivateV1Map(raw: Buffer, stateDirectory: string): Pro
     await ensurePrivateDir(root, "Unsafe private map directory.");
     await ensurePrivateDir(directory, "Unsafe private map directory.");
     let saved = false;
-    const handle = await open(temporary,
-      constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600);
-    try {
-      await handle.chmod(0o600);
-      await handle.writeFile(raw);
-      await handle.sync();
-    } finally { await handle.close(); }
+    await writePrivateTempFile(temporary, raw);
     try { await link(temporary, destination); saved = true; }
     catch (error) {
       if (!hasCode(error, "EEXIST")) throw error;
