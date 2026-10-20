@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hmac
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
@@ -205,8 +206,7 @@ class SimServer:
             def _check_auth(self) -> bool:
                 if not sim.token:
                     return True
-                auth = self.headers.get('Authorization', '')
-                if auth == f'Bearer {sim.token}':
+                if hmac.compare_digest(self.headers.get('Authorization', ''), f'Bearer {sim.token}'):
                     return True
                 self._json(403, {'error': 'Private driver bearer authentication required.', 'dispatch': 'not_sent'})
                 return False

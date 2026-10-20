@@ -52,13 +52,7 @@ class Dispatcher:
             self._cancel_task(task)
         return ticket
 
-    def stop(self, scope=3, ticket=None):
-        # Concurrent callbacks for the same cancellation share its single stop.
-        with self.lock:
-            if ticket is not None and ticket.cancelled.is_set():
-                return ticket.stop_outcomes
-            self.stopping += 1
-            previous = self._revoke()
+    def _finish_stop(self, previous, scope=3):
         try:
             outcomes = self._stop(scope)
             with self.lock:
@@ -72,27 +66,40 @@ class Dispatcher:
                     previous.stop_done.set()
                 self.stopping -= 1
 
+    def stop(self, scope=3, ticket=None):
+        # Concurrent callbacks for the same cancellation share its single stop.
+        with self.lock:
+            if ticket is not None and ticket.cancelled.is_set():
+                return ticket.stop_outcomes
+            self.stopping += 1
+            previous = self._revoke()
+        return self._finish_stop(previous, scope)
+
+    def _guarded_takeover(self, on_ready):
+        with self.lock:
+            if not self.session_enabled or self.stopping:
+                return False, None
+            self.stopping += 1
+        try:
+            self.stop(3)
+            with self.lock:
+                if not self.session_enabled or self.blocked:
+                    return True, None
+                return True, on_ready()
+        finally:
+            with self.lock:
+                self.stopping -= 1
+
     def begin(self, task_id=ZERO, takeover=False):
         if not self.session_enabled:
             return False, ZERO, 'SESSION_STOPPED'
         if takeover:
             if task_id != ZERO:
                 return False, ZERO, 'INVALID_INPUT'
-            # Guard the entire transition, including the stop network wait.
-            with self.lock:
-                if not self.session_enabled or self.stopping:
-                    return False, ZERO, 'BUSY'
-                self.stopping += 1
-            try:
-                self.stop(3)
-                with self.lock:
-                    if not self.session_enabled or self.blocked:
-                        return False, ZERO, 'STOP_UNVERIFIED'
-                    self.task_id = uuid.uuid4().bytes
-                    return True, self.task_id, 'NONE'
-            finally:
-                with self.lock:
-                    self.stopping -= 1
+            entered, token = self._guarded_takeover(lambda: setattr(self, 'task_id', uuid.uuid4().bytes) or self.task_id)
+            if not entered:
+                return False, ZERO, 'BUSY'
+            return (True, token, 'NONE') if token else (False, ZERO, 'STOP_UNVERIFIED')
         with self.lock:
             if not self.session_enabled or self.stopping or self.blocked:
                 return False, ZERO, 'BUSY'
@@ -104,16 +111,6 @@ class Dispatcher:
                 return False, ZERO, 'INVALID_INPUT'
             self.task_id = uuid.uuid4().bytes
             return True, self.task_id, 'NONE'
-
-    def _finish_stop(self, ticket):
-        try:
-            ticket.stop_outcomes = self._stop(3)
-            with self.lock:
-                self.blocked = not self._stop_ok(ticket.stop_outcomes)
-        finally:
-            with self.lock:
-                ticket.stop_done.set()
-                self.stopping -= 1
 
     def end(self, task_id):
         with self.lock:
@@ -137,17 +134,5 @@ class Dispatcher:
     def takeover(self):
         # Return a reserved manual ticket only after stop has completed, with no
         # gap in which another caller could dispatch before this transition.
-        with self.lock:
-            if not self.session_enabled or self.stopping:
-                return None
-            self.stopping += 1
-        try:
-            self.stop(3)
-            with self.lock:
-                if not self.session_enabled or self.blocked:
-                    return None
-                self.active = Ticket()
-                return self.active
-        finally:
-            with self.lock:
-                self.stopping -= 1
+        _, ticket = self._guarded_takeover(lambda: setattr(self, 'active', Ticket()) or self.active)
+        return ticket
