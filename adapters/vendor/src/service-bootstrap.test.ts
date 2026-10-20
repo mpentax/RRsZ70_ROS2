@@ -3,8 +3,7 @@ import assert from 'node:assert/strict';
 import { createServer, request as httpRequest, type IncomingMessage, type ServerResponse } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { startService, type ServiceOptions, type ServiceStore } from './service.ts';
-import { ServiceAuth } from './service-auth.ts';
-import { loadServiceConfig, localOrigin, localServiceOrigin, rosGatewayOrigin, rosRoute } from './service-config.ts';
+import { loadServiceConfig, localOrigin, localServiceOrigin, rosGatewayOrigin, rosRoute, ServiceAuth } from './service-config.ts';
 import type { CameraLogin } from './cloud.ts';
 
 test('localhost browser setup works through a loopback-published container network peer',()=>{

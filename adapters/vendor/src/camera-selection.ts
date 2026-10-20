@@ -1,5 +1,5 @@
 import { setTimeout as delay } from "node:timers/promises";
-import { ServiceHttpError } from "./service-auth.ts";
+import { ServiceHttpError } from "./service-config.ts";
 import { RpcError } from "./robot.ts";
 import { TransportError } from "./rpc-outcome.ts";
 import { jpegImageDimensions, CAMERA_NAMES } from "@rrsz70/http-contracts";
