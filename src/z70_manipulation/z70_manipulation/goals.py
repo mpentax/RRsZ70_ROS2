@@ -439,7 +439,7 @@ def _goal_curated(ctx: 'GoalContext | SimpleNamespace', fn, build_result):
 def _goal_pick(ctx: 'GoalContext | SimpleNamespace', req):
     try:
         report = ctx.pick(req.color, dry_run=req.dry_run)
-        success = bool(report.get('verified', report.get('dry_run') and report.get('target') is not None))
+        success = bool(report.get('verified') or (report.get('dry_run') and report.get('target') is not None))
     except Exception as e:
         report = dict(error=type(e).__name__, reason=str(e), log_dir=str(ctx.directory))
         ctx.log('failure', **report)
@@ -455,7 +455,7 @@ def _goal_pick(ctx: 'GoalContext | SimpleNamespace', req):
 def _goal_stack(ctx: 'GoalContext | SimpleNamespace', req):
     try:
         report = ctx.stack(req.base_color, req.middle_color, req.top_color, dry_run=req.dry_run)
-        success = bool(report.get('stack_verified', report.get('dry_run') and report.get('all_targets_visible')))
+        success = bool(report.get('stack_verified') or (report.get('dry_run') and report.get('all_targets_visible')))
     except Exception as e:
         report = dict(error=type(e).__name__, reason=str(e), log_dir=str(ctx.directory))
         ctx.log('failure', **report)

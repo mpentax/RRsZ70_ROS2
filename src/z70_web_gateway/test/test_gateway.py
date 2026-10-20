@@ -174,6 +174,8 @@ def test_validation_token_and_closed_error_contract(system, tmp_path):
     assert {'status', 'arm', 'map_pose', 'safe_interior', 'objects', 'garments', 'navigate', 'deploy_arm', 'align_target', 'move_arm', 'grasp_and_lift', 'release_and_stow', 'pulse', 'rpc', 'feedback', 'outcome'} <= primitives
     valid = request('POST', '/api/ros/goals/validate', {'kind': 'pick', 'goal': {'color': 'yellow', 'dry_run': True}})
     assert valid.status_code == 200 and valid.json() == {'valid': True, 'kind': 'pick', 'topic': '/z70/pick', 'action': 'Pick'}
+    simulated = request('POST', '/api/ros/goals/validate', {'kind': 'pick', 'goal': {'color': 'yellow', 'dry_run': True}, 'simulate': True})
+    assert simulated.status_code == 200 and simulated.json()['simulated']['ok'] is True and simulated.json()['simulated']['result']['dry_run_valid'] is True
     invalid = request('POST', '/api/ros/goals/validate', {'kind': 'pick', 'goal': {'color': 'yellow', 'dry_run': 1}})
     assert invalid.status_code == 400 and invalid.json()['valid'] is False and invalid.json()['error'] == 'INVALID_INPUT'
     assert request('GET','/api/ros/state',token='wrong').status_code == 401

@@ -16,6 +16,7 @@ export interface GoalValidationResponse {
   kind?: string;
   topic?: string;
   action?: string;
+  simulated?: { ok: boolean; result: Record<string, unknown> };
   error?: string;
 }
 
@@ -296,12 +297,11 @@ export function createRoboClawMcp(client: RoboClawMcpClient): McpServer {
     z.object({kind: z.literal('grasp_and_lift'), goal: z.object({lift_steps: z.number().int().min(0).max(10), verify_color: z.string().regex(/^[A-Za-z0-9_-]{0,32}$/)}).strict()}).strict(),
     z.object({kind: z.literal('release_and_stow'), goal: z.object({put_down: z.boolean()}).strict()}).strict(),
   ]).or(z.object({ kind: z.string().min(1) }).passthrough());
-  const goalSchema = taskSchema;
   server.registerTool('list_goals', {title: 'List ROS goals and GoalContext primitives', description: 'List all registered ROS 2 action goals, their required fields, and GoalContext authoring primitives.', annotations: READONLY}, async () => {
     try {return textResult(await client.listGoals());} catch (error) {return toolError(error);}
   });
-  server.registerTool('start_task', {title: 'Start bounded ROS action', description: 'Start a ROS action or manipulation primitive and return its goal UUID.', inputSchema: {task: goalSchema, validateOnly: z.boolean().optional()}, annotations: ACTUATION}, async ({task, validateOnly}) => {
-    try {return textResult(validateOnly === true ? await client.validateGoal(task) : await client.startTask(task));} catch (error) {return toolError(error);}
+  server.registerTool('start_task', {title: 'Start bounded ROS action', description: 'Start a ROS action or manipulation primitive and return its goal UUID (or validate/simulate without actuation).', inputSchema: {task: taskSchema, validateOnly: z.boolean().optional(), simulate: z.boolean().optional()}, annotations: ACTUATION}, async ({task, validateOnly, simulate}) => {
+    try {return textResult(validateOnly === true || simulate === true ? await client.validateGoal(simulate === true ? {...task, simulate: true} : task) : await client.startTask(task));} catch (error) {return toolError(error);}
   });
   server.registerTool('list_tasks', {title:'List shared tasks', description:'List active and recent ROS tasks.', annotations:READONLY}, async () => {
     try {return textResult(await client.request('/api/ros/tasks'));} catch (error) {return toolError(error);}
