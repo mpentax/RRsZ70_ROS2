@@ -23,6 +23,7 @@ from visualization_msgs.msg import Marker, MarkerArray
 from tf2_ros import Buffer, TransformListener, TransformException
 from z70_interfaces.msg import GarmentObservation, GarmentObservations
 from z70_driver.frame_subscription import MatchedFrames, read_pipe_exact, stop_worker_process, worker_env
+from z70_mapping.geometry import quat_yaw
 from .perception import front_camera, calibration
 from .garment_geometry import observe, geofence, GarmentTracker
 from .garment_worker import decode_result, MAX_PACKET, BACKENDS
@@ -147,10 +148,9 @@ class GarmentNode(Node):
     def pose_at(self, stamp):
         try:
             tf = self.tf.lookup_transform('map', 'base_footprint', Time.from_msg(stamp), timeout=Duration(seconds=0.))
-            q = tf.transform.rotation; t = tf.transform.translation
-            yaw = math.atan2(2*(q.w*q.z+q.x*q.y), 1-2*(q.y*q.y+q.z*q.z))
+            t = tf.transform.translation
             age = abs(seconds(tf.header.stamp)-seconds(stamp))
-            return (t.x, t.y, yaw), age
+            return (t.x, t.y, quat_yaw(tf.transform.rotation)), age
         except TransformException:
             return None, float('inf')
 

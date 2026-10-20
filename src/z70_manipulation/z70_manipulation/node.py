@@ -1,7 +1,6 @@
 """ROS image/TF perception and single-owner manipulation/navigation action servers."""
 from copy import deepcopy
 import json
-import math
 import os
 from pathlib import Path
 import threading
@@ -27,6 +26,7 @@ from z70_interfaces.msg import ArmEstimate, CalibrationState, CommandOutcome
 from z70_odometry.calibration_state import gains_from_state
 from z70_driver.frame_subscription import MatchedFrames
 from z70_mapping.boundary import BoundaryConfig
+from z70_mapping.geometry import quat_yaw
 from . import perception, planner
 from .executor import Client, log_directory
 from .garment_delivery import TowingQualificationConfig
@@ -34,10 +34,6 @@ from .goals import GoalContext, GoalSpec, BUILTIN_GOALS
 from .observations import Observations, LATCHED
 
 RGB = {'yellow': (1., 1., 0.), 'orange': (1., .4, 0.), 'purple': (.7, 0., 1.), 'blue': (0., .2, 1.), 'green': (0., 1., .2)}
-
-
-def quat_yaw(q) -> float:
-    return math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z))
 
 
 def rotation(q):

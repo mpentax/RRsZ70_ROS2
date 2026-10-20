@@ -15,7 +15,7 @@ from std_msgs.msg import String
 from visualization_msgs.msg import MarkerArray
 from tf2_ros import TransformBroadcaster
 from .decoder import decode_map
-from .geometry import alignment, spatial_context, transform_pose
+from .geometry import alignment, quat_yaw, spatial_context, transform_pose
 from .boundary import BoundaryConfig, compute_safe_interior
 from .messages import grid_message, safe_grid_message, markers_message, pose_message
 
@@ -75,8 +75,8 @@ class MappingNode(Node):
     def on_odom(self, msg):
         if msg.header.frame_id != 'odom' or msg.child_frame_id != 'base_footprint':
             return
-        q, p = msg.pose.pose.orientation, msg.pose.pose.position
-        self.odom = (p.x, p.y, math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y*q.y + q.z*q.z)))
+        p = msg.pose.pose.position
+        self.odom = (p.x, p.y, quat_yaw(msg.pose.pose.orientation))
 
     def publish(self):
         with self.lock:

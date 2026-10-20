@@ -2,6 +2,10 @@
 import math
 
 
+def quat_yaw(q) -> float:
+    return math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z))
+
+
 def transform_pose(t, p):
     x, y, yaw = t
     c, s = math.cos(yaw), math.sin(yaw)
