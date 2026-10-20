@@ -102,10 +102,13 @@ class ArmEstimator:
     def _movable(self):
         return self.data['state'] not in ('UNKNOWN','IN_ROBOT') and not self.data['restored']
 
-    def _apply(self, joints, n, method):
+    def _within_reach(self, joints):
         current = self.data['joints']
         new_x = vendor_forward(joints['m3'], joints['m4'])[1][0]
-        if new_x > .367 and new_x > vendor_forward(current['m3'], current['m4'])[1][0]: return False
+        return not (new_x > .367 and new_x > vendor_forward(current['m3'], current['m4'])[1][0])
+
+    def _apply(self, joints, n, method):
+        if not self._within_reach(joints): return False
         self.data.update(joints=joints, state='IN_PROCESS_POS', stepsSinceAnchor=self.data['stepsSinceAnchor']+n)
         fault = vendor_check(joints['m3'],joints['m4'],joints['m5'])
         self.data['lastFault'] = None if fault == 'SUCCESS' else fault
@@ -120,11 +123,8 @@ class ArmEstimator:
                 joints[key] = max(lo, min(hi, joints[key]+direction*JOINT_STEP_DEG*n)); moved.append(key)
         if not moved: return False
         if not self._movable():
-            if self.data['state'] != 'IN_ROBOT' and float(self.data['joints'].get('m3', 0)) >= LIMITS['m3'][0]:
-                current = self.data['joints']
-                new_x = vendor_forward(joints['m3'], joints['m4'])[1][0]
-                if not (new_x > .367 and new_x > vendor_forward(current['m3'], current['m4'])[1][0]):
-                    self.data['joints'] = joints
+            if self.data['state'] != 'IN_ROBOT' and float(self.data['joints'].get('m3', 0)) >= LIMITS['m3'][0] and self._within_reach(joints):
+                self.data['joints'] = joints
             return False
         if not self._apply(joints,n,method): return False
         for key in moved: self.data['sigmaDeg'][key] = math.hypot(self.data['sigmaDeg'][key],2.5*math.sqrt(n))
@@ -145,9 +145,7 @@ class ArmEstimator:
                 self.data['lastFault']='FAULT_IK'; return self._commit(method,'UNREACHABLE_NOMINAL')
             joints['m3'],joints['m4'] = solution
         if not self._movable():
-            current = self.data['joints']
-            new_x = vendor_forward(joints['m3'], joints['m4'])[1][0]
-            if not (new_x > .367 and new_x > vendor_forward(current['m3'], current['m4'])[1][0]):
+            if self._within_reach(joints):
                 self.data['joints'] = joints
             return False
         if not self._apply(joints,n,method): return False
