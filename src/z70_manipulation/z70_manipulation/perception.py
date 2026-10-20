@@ -58,6 +58,16 @@ def front_objects(image,thresholds=None):
         mask=b.pop('_mask')
         u,v=b['contact_px']; point=cam.pixel_to_floor(u*sx,v*sy)
         if point is None or not 0<point['forward_mm']<3000: continue
+        def apply_trim(sub,nx,ny,nw,nh,tag):
+            ys,xs=np.nonzero(sub)
+            if len(xs)==0: return None
+            bottom=ys.max()
+            b['bbox']=[nx,ny,nw,nh]; b['trimmed']=tag
+            b['pixel']=[nx+float(xs.mean()),ny+float(ys.mean())]
+            b['contact_px']=[nx+float(np.median(xs[ys>=bottom-3])),float(ny+bottom)]
+            b['size_px']=float(max(nw,nh))
+            cu,cv=b['contact_px']
+            return cu,cv,cam.pixel_to_floor(cu*sx,cv*sy),len(xs)
         # Trim merged reflections or background regions using high-saturation windows.
         x,y,w,h=b['bbox']
         sat_patch=hsv[y:y+h,x:x+w,1]
@@ -71,37 +81,30 @@ def front_objects(image,thresholds=None):
                     sub=np.zeros((ch,cw),np.uint8)
                     local=best_c.copy();local[:,:,0]-=x0;local[:,:,1]-=y0
                     cv2.drawContours(sub,[local],-1,255,-1)
-                    ys,xs=np.nonzero(sub)
-                    b['bbox']=[x+x0,y+y0,cw,ch]; b['trimmed']='sat_core'
-                    b['pixel']=[x+x0+float(xs.mean()),y+y0+float(ys.mean())]
-                    bottom=ys.max(); b['contact_px']=[x+x0+float(np.median(xs[ys>=bottom-3])),float(y+y0+bottom)]
-                    b['size_px']=float(max(cw,ch)); b['area_px']=float(len(xs))
-                    mask=sub; x,y,w,h=b['bbox']
-                    u,v=b['contact_px']; point=cam.pixel_to_floor(u*sx,v*sy)
+                    trimmed=apply_trim(sub,x+x0,y+y0,cw,ch,'sat_core')
+                    if trimmed is None: continue
+                    u,v,point,area_px=trimmed
+                    b['area_px']=float(area_px); mask=sub; x,y,w,h=b['bbox']
                     if point is None or not 0<point['forward_mm']<3000: continue
         if w>1.4*h:
             keepw=int(round(1.1*h)); satw=hsv[y:y+h,x:x+w,1].astype(float)
             def scorew(c0): m=mask[:,c0:c0+keepw]>0; return float(satw[:,c0:c0+keepw][m].mean()) if m.any() else -1
             starts=range(0,w-keepw+1,max(1,keepw//8)); c0=max(starts,key=scorew)
-            sub=mask[:,c0:c0+keepw]; ys,xs=np.nonzero(sub)
-            if len(xs)==0: continue
-            b['bbox']=[x+c0,y,keepw,h]; b['trimmed_from_w']=w; b['trimmed']='sides'
-            b['pixel']=[x+c0+float(xs.mean()),y+float(ys.mean())]
-            bottom=ys.max(); b['contact_px']=[x+c0+float(np.median(xs[ys>=bottom-3])),float(y+bottom)]; b['size_px']=float(max(keepw,h))
+            sub=mask[:,c0:c0+keepw]; b['trimmed_from_w']=w
+            trimmed=apply_trim(sub,x+c0,y,keepw,h,'sides')
+            if trimmed is None: continue
+            u,v,point,_=trimmed
             mask=np.zeros_like(mask); mask[:,c0:c0+keepw]=sub
-            u,v=b['contact_px']; point=cam.pixel_to_floor(u*sx,v*sy)
             if point is None: continue
             x=x+c0; w=keepw
         if h>1.4*w:
             keep=int(round(1.15*w)); sat=hsv[y:y+h,x:x+w,1].astype(float)
             def score(r0): m=mask[r0:r0+keep]>0; return float(sat[r0:r0+keep][m].mean()) if m.any() else -1
             r0=0 if score(0)>=score(h-keep) else h-keep
-            sub=mask[r0:r0+keep]; ys,xs=np.nonzero(sub)
-            if len(xs)==0: continue
-            b['bbox']=[x,y+r0,w,keep]; b['trimmed_from_h']=h; b['trimmed']='top' if r0==0 else 'bottom'
-            b['pixel']=[x+float(xs.mean()),y+r0+float(ys.mean())]
-            bottom=ys.max(); b['contact_px']=[x+float(np.median(xs[ys>=bottom-3])),float(y+r0+bottom)]; b['size_px']=float(max(w,keep))
-            u,v=b['contact_px']; point=cam.pixel_to_floor(u*sx,v*sy)
+            sub=mask[r0:r0+keep]; b['trimmed_from_h']=h
+            trimmed=apply_trim(sub,x,y+r0,w,keep,'top' if r0==0 else 'bottom')
+            if trimmed is None: continue
+            u,v,point,_=trimmed
             if point is None: continue
         b['position']=[point['forward_mm']/1000+offset,point['left_mm']/1000,0.]
         b['camera']='front'

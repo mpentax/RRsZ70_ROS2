@@ -128,11 +128,6 @@ def camera_pose(state):
     point=np.array([CAD_L2,0.,0.])+Q@CAD_MOUNT[0]
     return (elbow+R@point, R@Q@mount@optical)
 
-def pincher_camera_height_and_direction(state):
-    """Return gripper camera position, height (m), and optical +Z direction in base_footprint."""
-    C,R=camera_pose(state)
-    return dict(position_m=C.tolist(),height_m=float(C[2]),direction=R[:,2].tolist())
-
 def gripper_pixel(state,point):
     """Project a 3D base_footprint point into the gripper camera image."""
     C,R=camera_pose(state); optical=R.T@(np.array(point)-C)

@@ -44,9 +44,7 @@ def test_pincher_camera_follows_measured_M5_rotation():
     angle=math.degrees(math.acos(np.clip((np.trace(R40@R0.T)-1)/2,-1,1)))
     assert angle == pytest.approx(40.,abs=1e-6)
     assert np.linalg.norm(C40-C0) == pytest.approx(.009050553550760482,abs=1e-6)
-    info0=p.pincher_camera_height_and_direction((150,45,0))
-    assert info0['height_m'] == pytest.approx(.2337875037399874,abs=1e-9)
-    assert info0['direction'] == pytest.approx(p.camera_pose((150,45,0))[1][:,2],abs=1e-9)
+    assert p.camera_pose((150,45,0))[0][2] == pytest.approx(.2337875037399874,abs=1e-9)
     axis=np.array([math.cos(math.radians(-45)),0,math.sin(math.radians(-45))])
     cross=np.cross(R0[:,0],R40[:,0])
     assert np.dot(cross,axis)>0
