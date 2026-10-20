@@ -190,7 +190,7 @@ def articulated_geometry(state):
         inside.append(sign*ring[:,1].min() if sign==1 else -ring[:,1].max())
     bodies=world_bodies(st)
     return dict(finger_frames=frames,terminal_points=tips,pad_regions=tuple(b for b in bodies if b.pad),
-                bodies=bodies,terminal_gap_m=sum(inside),status=CONFIG['status'])
+                bodies=bodies,terminal_gap_m=sum(inside))
 
 
 def marker_hand_pose(marker_pose):

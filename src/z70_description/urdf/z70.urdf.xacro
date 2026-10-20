@@ -1,18 +1,11 @@
 <?xml version="1.0"?>
 <!--
-  Roborock Saros Z70 - kinematic description.
-  CAD structure, camera and display marker: config/cad_arm.yaml (L1=0.1772, elbow-to-M5=0.1157 m).
-  Retained yaw/M3/front-camera registration and legacy TCP: config/mount_calibration.yaml.
-  Photo-estimated collision/contact proxies and nominal M6 coupling: config/pincher_geometry.yaml.
-  App end_pos uses separate 0.1775/0.205 m geometry in arm_model.py; it is not this wrist.
-  CAD representation is not independent physical registration or contact validation.
-
+  Roborock Saros Z70 URDF/Xacro kinematic description.
   URDF joint values (radians) from app angles (degrees), computed in z70_driver.driver.app_to_urdf:
-    m3_joint = rad(M3 - 270)      link1 absolute app angle = 270 - M3 (from +x toward up)
-    m4_joint = rad(180 - M4)      link2 relative to link1 = M4 - 180
-    m5_joint = -rad(M5), axis -x  => physical positive roll (live 20261014T144906Z)
-    m6 drive = rad(M6)/2; photo-estimated articulation mimics this with multiplier
-    2*opening_ratio (pincher_geometry.yaml); nominal0 closed/90 open, not feedback.
+    m3_joint = rad(M3 - 270)
+    m4_joint = rad(180 - M4)
+    m5_joint = -rad(M5)
+    m6_left_joint / m6_right_joint = rad(M6) / 2
 -->
 <robot name="z70" xmlns:xacro="http://www.ros.org/wiki/xacro">
   <xacro:include filename="$(find z70_description)/urdf/pincher_collisions.xacro"/>
@@ -24,9 +17,6 @@
   <xacro:property name="l1" value="${cad['L1_m']}"/>
   <xacro:property name="l2" value="${cad['L2_m']}"/>
   <xacro:property name="cal" value="${xacro.load_yaml('$(find z70_description)/config/mount_calibration.yaml')}"/>
-  <!-- Retained legacy exterior extent; CAD visuals and photo-estimated collision
-       proxies have separate geometry and finger roots. -->
-  <xacro:property name="visual_proximal_len" value="${cal['visual_open_assembly_length_m']-cal['visual_terminal_span_m']}"/>
   <xacro:property name="cam_x" value="${cal['front_camera_x_m']}"/>
   <xacro:property name="cam_z" value="${cal['front_camera_z_m']}"/>
   <xacro:property name="cam_pitch" value="${cal['front_camera_pitch_deg'] * pi / 180}"/>

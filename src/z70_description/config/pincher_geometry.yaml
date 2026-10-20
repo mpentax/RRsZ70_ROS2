@@ -1,20 +1,13 @@
-# Photo-estimated silhouette v3. Lengths in metres. Not calibrated CAD.
-# IMG_0648: elongated cap, rounded nose, side roots beside the nose, blunt blades.
-# IMG_0647: volume under the cap, distal underside surround, marker proximal to it.
-# Optical/marker frames are not moved. Opening gain is still nominal, not measured.
-status: PHOTO-ESTIMATED elongated provisional articulated operational model v3
+# Pincher housing, finger cross-sections, and optical pocket geometry (metres).
 uncertainty_m: 0.015
-# Nominal 60deg open illustration, NOT measured M6 gain.
 opening_ratio: 0.6666666666666666
-# Straight blade plus a short tip kink. Not solved from the open envelope.
 finger_forward_reach_m: 0.034
 root_elbow_x_m: 0.150
 root_half_gap_m: 0.018
 root_z_m: 0.0
 pad_start_fraction: 0.50
 grasp_aim_ahead_of_tip_m: 0.010
-open_assembly_envelope_m: 0.1778
-# x, half width, bottom, top, corner radius. Top stays flush with the 18mm wrist cover.
+# [x, half_width, bottom, top, corner_radius]
 housing_sections:
   - [0.096, 0.011, -0.009, 0.009, 0.004]
   - [0.114, 0.014, -0.006, 0.009, 0.005]
@@ -24,7 +17,7 @@ housing_sections:
   - [0.156, 0.015, -0.012, 0.009, 0.008]
   - [0.160, 0.014, -0.006, 0.009, 0.011]
   - [0.163, 0.012, 0.004, 0.009, 0.011]
-# Straight sections, then one kink. Not a smooth hook.
+# [t, bend, half_width, half_height]
 finger_sections:
   - [-0.22, 0.0, 0.0036, 0.0018]
   - [0.0, 0.0, 0.0030, 0.0015]
@@ -34,7 +27,7 @@ finger_sections:
   - [0.60, 0.008, 0.0015, 0.0009]
   - [0.86, 0.009, 0.0013, 0.0008]
   - [1.0, 0.009, 0.00105, 0.00075]
-# Forward optical tunnel only. The underside surround is a shell displacement, not a moved lens.
+# [x, radius]
 pocket_sections:
   - [0.0065, 0.0018]
   - [0.0045, 0.0017]
