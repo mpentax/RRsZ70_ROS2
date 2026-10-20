@@ -68,6 +68,7 @@ GOAL_CONTEXT_PRIMITIVES: tuple[dict[str, str], ...] = (
     {'name': 'arm_safe', 'signature': 'arm_safe(m3_deg: float, m4_deg: float, m5_deg: float = 0., m6_deg: float = 90.) -> bool', 'summary': 'Check whether an arm joint state (m3, m4, m5, m6) satisfies firmware limits and CAD floor/body collision bounds.'},
     {'name': 'plan_approach', 'signature': 'plan_approach(x_m: float, y_m: float) -> dict | None', 'summary': 'Compute the chassis yaw (rad) and forward distance (m) needed to align a base_footprint floor point (x_m, y_m) to the arm grasp point.'},
     {'name': 'plan_grasp', 'signature': 'plan_grasp(x_m: float, y_m: float, size_m: float = 0.066) -> dict | None', 'summary': 'Compute the closest reachable (M3, M4) grasp state and coordinated descent steps for a floor point (x_m, y_m) in base_footprint.'},
+    {'name': 'plan_stack_tier', 'signature': 'plan_stack_tier(tier: int, size_m: float = 0.066) -> dict | None', 'summary': 'Plan the placement arm state, required clearance height, lift steps, and trajectory steps for tier 1..3 of a vertical stack.'},
     {'name': 'move_arm', 'signature': 'move_arm(m3_deg: float, m4_deg: float, m5_deg: float = 0.) -> dict', 'summary': 'Execute a collision-checked coordinated multi-axis arm trajectory.'},
     {'name': 'arm_step', 'signature': 'arm_step(m3: int = 0, m4: int = 0, m5: int = 0) -> dict', 'summary': 'Execute a single 10-degree multi-axis joint step [m3, m4, m5] (0=hold, 1=+10deg, 2=-10deg).'},
     {'name': 'hand_step', 'signature': 'hand_step(direction: int) -> dict', 'summary': 'Execute a single 40 mm Cartesian IK hand step (1=up, 2=down, 3=forward, 4=back).'},
@@ -190,6 +191,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         arm_safe=lambda m3_deg, m4_deg, m5_deg=0., m6_deg=90.: planner.safe((m3_deg, m4_deg, m5_deg, m6_deg)),
         plan_approach=lambda x_m, y_m: planner.approach([float(x_m), float(y_m), 0.]),
         plan_grasp=lambda x_m, y_m, size_m=.066: {'state': [250, 95], 'error_m': 0., 'steps': []},
+        plan_stack_tier=lambda tier, size_m=.066: planner.stack_tier_plan(int(tier), size_m=float(size_m)),
         move_arm=lambda m3_deg, m4_deg, m5_deg=0.: {'steps_executed': 1},
         arm_step=lambda m3=0, m4=0, m5=0: {'m3': int(m3), 'm4': int(m4), 'm5': int(m5)},
         hand_step=lambda direction: {'direction': int(direction)},
@@ -209,7 +211,19 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
     )
     callable_keys = {p['name'] for p in GOAL_CONTEXT_PRIMITIVES}
     for k, v in overrides.items():
-        defaults[k] = (lambda *_a, _v=v, **_kw: _v) if k in callable_keys and not callable(v) else v
+        if k == 'objects' and isinstance(v, list):
+            defaults[k] = lambda camera='front', color=None, _v=v: [
+                o for o in _v if isinstance(o, dict) and (color is None or o.get('color') == color)
+            ]
+            if 'observe_color' not in overrides:
+                defaults['observe_color'] = lambda camera, color, _fn=defaults[k]: _fn(camera, color)
+        elif k == 'garments' and isinstance(v, list):
+            defaults[k] = lambda category='any', after=None, _v=v: [
+                g for g in _v
+                if category in ('', 'any') or (g.get('category') if isinstance(g, dict) else getattr(g, 'category', '')) == category
+            ]
+        else:
+            defaults[k] = (lambda *_a, _v=v, **_kw: _v) if k in callable_keys and not callable(v) else v
     return spec.run(SimpleNamespace(**defaults), request)
 
 
@@ -449,6 +463,14 @@ class GoalContext:
         start = (round(float(joints.get('m3', 190)) / 10) * 10, round(float(joints.get('m4', 65)) / 10) * 10)
         try:
             return planner.grasp_goal([float(x_m), float(y_m), 0.], start, size_m=float(size_m))
+        except ValueError:
+            return None
+
+    def plan_stack_tier(self, tier: int, size_m: float = .066) -> dict | None:
+        joints = self.arm().get('joints') or {}
+        start = (round(float(joints.get('m3', 190)) / 10) * 10, round(float(joints.get('m4', 65)) / 10) * 10)
+        try:
+            return planner.stack_tier_plan(int(tier), size_m=float(size_m), start=start)
         except ValueError:
             return None
 
