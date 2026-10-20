@@ -9,6 +9,7 @@
   "k2": -0.008759625204340288,
   "camera_height_mm": 58.233433935542394,
   "pitch_down_deg": -1.3587659848455562,
+  "roll_deg": -0.4157964320542162,
   "R_floor_to_cam": [
     [
       -0.0001720820770095858,
@@ -27,36 +28,5 @@
     ]
   ],
   "hfov_deg": 88.38810035716344,
-  "vfov_deg": 72.19843412350001,
-  "note": "PROVISIONAL shared physical preview, NOT precision-certified floor metrology. Original one-frame lens K/D unchanged; floor height/normal from new-run best front registration, not hard-constrained to rough 60mm tape. Print scale, board flatness, pose/glare and rejected prospective arm-chain validation remain uncertainties.",
-  "roll_deg": -0.4157964320542162,
-  "floor_extrinsics_source": "calibration/arm-calibration/20261015T080103Z-pincher-intrinsics-arm/arm/front-registration.json",
-  "floor_extrinsics_status": "PROVISIONAL_DISPLAY_SHARED_PROJECTOR_AND_ROS_TF",
-  "floor_heading_convention": "x optical-forward projected into measured plane; y left; z up; no board yaw",
-  "floor_extrinsics_T_F_W": [
-    [
-      0.9980232410267262,
-      0.062425768838165765,
-      -0.0072549125062327385,
-      -0.12407347997213176
-    ],
-    [
-      0.008719088272665081,
-      -0.023214310696126395,
-      0.9996924893579011,
-      0.06675387077107907
-    ],
-    [
-      0.06223815445691393,
-      -0.9977795944816008,
-      -0.02371271738813857,
-      0.3964139325557437
-    ],
-    [
-      0.0,
-      0.0,
-      0.0,
-      1.0
-    ]
-  ]
+  "vfov_deg": 72.19843412350001
 }
