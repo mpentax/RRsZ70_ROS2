@@ -205,36 +205,29 @@ const textResult = (value: unknown): CallToolResult => ({ content: [{ type: "tex
 const toolError = (error: unknown): CallToolResult => ({ isError: true, content: [{ type: "text", text: JSON.stringify(
   error instanceof RoboClawHttpError ? { status: error.status, ...(error.evidence ?? {}) }
     : { dispatch: "unknown", response: "transport_error", error: "Local service response unavailable." }) }] });
+const jsonTool = <T = unknown>(fn: (arg: T) => Promise<unknown>) => async (arg: T): Promise<CallToolResult> => {
+  try { return textResult(await fn(arg)); } catch (error) { return toolError(error); }
+};
 
 export function createRoboClawMcp(client: RoboClawMcpClient): McpServer {
   const server = new McpServer({ name: "roboclaw-local", version: "0.1.0" }, { instructions: OPERATOR_INSTRUCTIONS });
   server.registerTool("get_state", {
     title: "Get ROS robot state", description: "Read shared ROS robot state, battery, camera status, arm estimate, and chassis calibration.",
     annotations: READONLY,
-  }, async () => {
-    try {
-      return textResult(await client.request('/api/ros/state'));
-    } catch (error) { return toolError(error); }
-  });
+  }, jsonTool(() => client.request('/api/ros/state')));
   server.registerTool("refresh_status", {
     title: "Read shared status", description: "Read cached ROS robot status and telemetry.",
     annotations: READONLY,
-  }, async () => {
-    try { return textResult(await client.request("/api/ros/state")); } catch (error) { return toolError(error); }
-  });
+  }, jsonTool(() => client.request("/api/ros/state")));
   server.registerTool("get_camera_diagnostics", {
     title: "Read camera status", description: "Read ROS camera and stream connection status.",
     inputSchema: {}, annotations: READONLY,
-  }, async () => {
-    try { return textResult(await client.request("/api/ros/state")); } catch (error) { return toolError(error); }
-  });
+  }, jsonTool(() => client.request("/api/ros/state")));
   server.registerTool("select_camera", {
     title: "Select shared camera", description: "Switch the active camera (`front` or `gripper`). Gripper camera requires pickup mode with the arm deployed.",
     inputSchema: { camera: z.enum(["front", "gripper"]) },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-  }, async (payload) => {
-    try { return textResult(await client.request("/api/ros/camera/select", 23000, payload)); } catch (error) { return toolError(error); }
-  });
+  }, jsonTool((payload) => client.request("/api/ros/camera/select", 23000, payload)));
   server.registerTool("get_camera_frame", {
     title: "Get shared camera frame", description: "Read the latest cached JPEG frame and metadata from the active or specified camera.",
     inputSchema: { camera: z.enum(CAMERA_NAMES).optional() },
@@ -261,65 +254,50 @@ export function createRoboClawMcp(client: RoboClawMcpClient): McpServer {
     title: "Get arm pose estimate",
     description: "Read ROS ArmEstimate (joint radians, REP-103 wrist coordinates, and validity).",
     inputSchema: {}, annotations: READONLY,
-  }, async () => {
-    try { const state = await client.request("/api/ros/state") as { arm: unknown }; return textResult(state.arm); } catch (error) { return toolError(error); }
-  });
+  }, jsonTool(async () => ((await client.request("/api/ros/state")) as { arm: unknown }).arm));
   server.registerTool("set_arm_anchor", {
     title: "Set arm anchor",
     description: "Set the arm estimator anchor (`stowed`, `deployed`, or `unknown`) without moving the robot.",
     inputSchema: { anchor: z.enum(["stowed", "deployed", "unknown"]), reason: z.string().regex(/^[A-Za-z0-9 _.-]{0,64}$/).optional() },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-  }, async (payload) => {
-    try { return textResult(await client.request("/api/ros/arm/anchor", 5000, payload)); } catch (error) { return toolError(error); }
-  });
+  }, jsonTool((payload) => client.request("/api/ros/arm/anchor", 5000, payload)));
   server.registerTool("robot_rpc", {
     title: "Advanced robot RPC", description: "Send a vendor RPC method and params through the ROS scheduler.",
     inputSchema: rpcSchema, annotations: ACTUATION,
-  }, async (payload) => {
-    try {
-      return textResult(await client.request('/api/ros/rpc', (payload.timeoutMs ?? 12000) + 18000, payload));
-    } catch (error) { return toolError(error); }
-  });
+  }, jsonTool((payload) => client.request('/api/ros/rpc', (payload.timeoutMs ?? 12000) + 18000, payload)));
   const idSchema = z.string().uuid();
+  const colorSchema = z.string().regex(/^[A-Za-z0-9_-]{1,32}$/);
   const taskSchema = z.discriminatedUnion('kind', [
     z.object({kind: z.literal('deliver_garment'), goal: z.object({category: z.string().max(32), drop_x_m: z.number().min(-100).max(100), drop_y_m: z.number().min(-100).max(100), max_duration_s: z.number().min(1).max(3600), allow_towing: z.boolean(), dry_run: z.boolean()}).strict()}).strict(),
     z.object({kind: z.literal('patrol_collect'), goal: z.object({drop_x_m: z.number().min(-100).max(100), drop_y_m: z.number().min(-100).max(100), max_duration_s: z.number().min(1).max(3600), max_items: z.number().int().min(1).max(1000), allow_towing: z.boolean(), dry_run: z.boolean()}).strict()}).strict(),
     z.object({kind: z.literal('pin_and_go'), goal: z.object({target_x_m: z.number().min(-100).max(100), target_y_m: z.number().min(-100).max(100), max_duration_s: z.number().min(1).max(600), dry_run: z.boolean()}).strict()}).strict(),
-    z.object({kind: z.literal('pick'), goal: z.object({color: z.string().regex(/^[A-Za-z0-9_-]{1,32}$/), dry_run: z.boolean()}).strict()}).strict(),
-    z.object({kind: z.literal('stack'), goal: z.object({base_color: z.string().regex(/^[A-Za-z0-9_-]{1,32}$/), middle_color: z.string().regex(/^[A-Za-z0-9_-]{1,32}$/), top_color: z.string().regex(/^[A-Za-z0-9_-]{1,32}$/), dry_run: z.boolean()}).strict()}).strict(),
+    z.object({kind: z.literal('pick'), goal: z.object({color: colorSchema, dry_run: z.boolean()}).strict()}).strict(),
+    z.object({kind: z.literal('stack'), goal: z.object({base_color: colorSchema, middle_color: colorSchema, top_color: colorSchema, dry_run: z.boolean()}).strict()}).strict(),
     z.object({kind: z.literal('base_pulse'), goal: z.object({linear_mps: z.number().min(-.1).max(.1), angular_radps: z.number().min(-.5).max(.5), duration: z.object({sec: z.literal(0), nanosec: z.number().int().min(1).max(800000000)}).strict()}).strict()}).strict(),
     z.object({kind: z.literal('arm_step'), goal: z.object({joint: z.union([z.literal(3), z.literal(4), z.literal(5), z.literal(34), z.literal(43)]), direction: z.union([z.literal(-1), z.literal(1)])}).strict()}).strict(),
     z.object({kind: z.literal('hand_step'), goal: z.object({direction: z.number().int().min(1).max(4)}).strict()}).strict(),
     z.object({kind: z.literal('arm_operation'), goal: z.object({operation: z.number().int().min(1).max(9)}).strict()}).strict(),
     z.object({kind: z.literal('deploy_arm'), goal: z.object({settle: z.boolean()}).strict()}).strict(),
-    z.object({kind: z.literal('align_target'), goal: z.object({color: z.string().regex(/^[A-Za-z0-9_-]{1,32}$/)}).strict()}).strict(),
+    z.object({kind: z.literal('align_target'), goal: z.object({color: colorSchema}).strict()}).strict(),
     z.object({kind: z.literal('move_arm'), goal: z.object({m3_deg: z.number().min(90).max(270), m4_deg: z.number().min(35).max(170), m5_deg: z.number().min(0).max(155)}).strict()}).strict(),
     z.object({kind: z.literal('grasp_and_lift'), goal: z.object({lift_steps: z.number().int().min(0).max(10), verify_color: z.string().regex(/^[A-Za-z0-9_-]{0,32}$/)}).strict()}).strict(),
     z.object({kind: z.literal('release_and_stow'), goal: z.object({put_down: z.boolean()}).strict()}).strict(),
   ]).or(z.object({ kind: z.string().min(1) }).passthrough());
-  server.registerTool('list_goals', {title: 'List ROS goals and GoalContext primitives', description: 'List all registered ROS 2 action goals, their required fields, and GoalContext authoring primitives.', annotations: READONLY}, async () => {
-    try {return textResult(await client.listGoals());} catch (error) {return toolError(error);}
-  });
-  server.registerTool('start_task', {title: 'Start bounded ROS action', description: 'Start a ROS action or manipulation primitive and return its goal UUID (or validate/simulate without actuation).', inputSchema: {task: taskSchema, validateOnly: z.boolean().optional(), simulate: z.boolean().optional()}, annotations: ACTUATION}, async ({task, validateOnly, simulate}) => {
-    try {return textResult(validateOnly === true || simulate === true ? await client.validateGoal(simulate === true ? {...task, simulate: true} : task) : await client.startTask(task));} catch (error) {return toolError(error);}
-  });
-  server.registerTool('list_tasks', {title:'List shared tasks', description:'List active and recent ROS tasks.', annotations:READONLY}, async () => {
-    try {return textResult(await client.request('/api/ros/tasks'));} catch (error) {return toolError(error);}
-  });
-  server.registerTool('get_task', {title:'Get shared task', description:'Read status, phase, and result for a ROS task UUID.', inputSchema:{id:idSchema}, annotations:READONLY}, async ({id}) => {
-    try {return textResult(await client.request(`/api/ros/tasks/${id}`));} catch (error) {return toolError(error);}
-  });
-  server.registerTool('cancel_task', {title:'Cancel ROS task', description:'Request cancellation of a ROS task by UUID.', inputSchema:{id:idSchema}, annotations:ACTUATION}, async ({id}) => {
-    try {return textResult(await client.request(`/api/ros/tasks/${id}/cancel`, 5000, {}));} catch (error) {return toolError(error);}
-  });
-  server.registerTool('stop', {title:'Priority stop', description:'Send a priority stop through ROS (scope: 1=BASE, 2=ARM, 3=ALL).', inputSchema:{scope:z.number().int().min(1).max(3).default(3)}, annotations:ACTUATION}, async (payload) => {
-    try {return textResult(await client.request('/api/ros/stop', 18000, payload));} catch (error) {return toolError(error);}
-  });
-  server.registerTool('control_session', {title:'Stop or resume control and streams', description:'Enable or suspend robot control and shared streams.', inputSchema:{enabled:z.boolean()}, annotations:ACTUATION}, async (payload) => {
-    try {return textResult(await client.request('/api/ros/control/session', 40000, payload));} catch (error) {return toolError(error);}
-  });
-  server.registerTool('get_map', {title:'Read shared ROS map', description:'Read the current ROS OccupancyGrid map.', annotations:READONLY}, async () => {
-    try {return textResult(await client.request('/api/ros/map'));} catch (error) {return toolError(error);}
-  });
+  server.registerTool('list_goals', {title: 'List ROS goals and GoalContext primitives', description: 'List all registered ROS 2 action goals, their required fields, and GoalContext authoring primitives.', annotations: READONLY},
+    jsonTool(() => client.listGoals()));
+  server.registerTool('start_task', {title: 'Start bounded ROS action', description: 'Start a ROS action or manipulation primitive and return its goal UUID (or validate/simulate without actuation).', inputSchema: {task: taskSchema, validateOnly: z.boolean().optional(), simulate: z.boolean().optional()}, annotations: ACTUATION},
+    jsonTool(({task, validateOnly, simulate}) => validateOnly === true || simulate === true ? client.validateGoal(simulate === true ? {...task, simulate: true} : task) : client.startTask(task)));
+  server.registerTool('list_tasks', {title:'List shared tasks', description:'List active and recent ROS tasks.', annotations:READONLY},
+    jsonTool(() => client.request('/api/ros/tasks')));
+  server.registerTool('get_task', {title:'Get shared task', description:'Read status, phase, and result for a ROS task UUID.', inputSchema:{id:idSchema}, annotations:READONLY},
+    jsonTool(({id}) => client.request(`/api/ros/tasks/${id}`)));
+  server.registerTool('cancel_task', {title:'Cancel ROS task', description:'Request cancellation of a ROS task by UUID.', inputSchema:{id:idSchema}, annotations:ACTUATION},
+    jsonTool(({id}) => client.request(`/api/ros/tasks/${id}/cancel`, 5000, {})));
+  server.registerTool('stop', {title:'Priority stop', description:'Send a priority stop through ROS (scope: 1=BASE, 2=ARM, 3=ALL).', inputSchema:{scope:z.number().int().min(1).max(3).default(3)}, annotations:ACTUATION},
+    jsonTool((payload) => client.request('/api/ros/stop', 18000, payload)));
+  server.registerTool('control_session', {title:'Stop or resume control and streams', description:'Enable or suspend robot control and shared streams.', inputSchema:{enabled:z.boolean()}, annotations:ACTUATION},
+    jsonTool((payload) => client.request('/api/ros/control/session', 40000, payload)));
+  server.registerTool('get_map', {title:'Read shared ROS map', description:'Read the current ROS OccupancyGrid map.', annotations:READONLY},
+    jsonTool(() => client.request('/api/ros/map')));
   return server;
 }
