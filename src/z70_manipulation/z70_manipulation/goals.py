@@ -27,6 +27,8 @@ GOAL_CONTEXT_PRIMITIVES: tuple[dict[str, str], ...] = (
     {'name': 'navigate', 'signature': 'navigate(target_x_m: float, target_y_m: float, max_duration_s: float = 60., dry_run: bool = False) -> dict', 'summary': 'Navigate the stowed chassis to (target_x_m, target_y_m) via PinAndGo.'},
     {'name': 'pick', 'signature': 'pick(color: str, dry_run: bool = False) -> dict', 'summary': 'Execute a full autonomous object pickup by HSV color.'},
     {'name': 'stack', 'signature': 'stack(base_color: str, middle_color: str, top_color: str, dry_run: bool = False) -> dict', 'summary': 'Execute a 3-object stack by HSV color.'},
+    {'name': 'deliver_garment', 'signature': "deliver_garment(category: str = 'any', drop_x_m: float = 0., drop_y_m: float = 0., max_duration_s: float = 300., allow_towing: bool = False, dry_run: bool = False) -> dict", 'summary': 'Detect, grasp, and deliver a single floor garment to the drop zone.'},
+    {'name': 'patrol_collect', 'signature': 'patrol_collect(drop_x_m: float = 0., drop_y_m: float = 0., max_duration_s: float = 600., max_items: int = 5, allow_towing: bool = False, dry_run: bool = False) -> dict', 'summary': 'Patrol safe interior waypoints to collect and deliver garments to the drop zone.'},
     {'name': 'deploy_arm', 'signature': 'deploy_arm(settle=True) -> dict', 'summary': 'Enter manual arm mode and unstow the arm to WORKING_POS.'},
     {'name': 'align_target', 'signature': 'align_target(color: str) -> dict', 'summary': 'Visually servo the chassis toward a target color using front camera observations.'},
     {'name': 'move_arm', 'signature': 'move_arm(m3_deg: float, m4_deg: float, m5_deg: float = 0.) -> dict', 'summary': 'Execute a collision-checked coordinated multi-axis arm trajectory.'},
@@ -109,6 +111,12 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         },
         stack=lambda base_color, middle_color, top_color, dry_run=False: {
             'stack_verified': not dry_run, 'dry_run': bool(dry_run), 'all_targets_visible': True, 'tiers_completed': 3,
+        },
+        deliver_garment=lambda category='any', drop_x_m=0., drop_y_m=0., max_duration_s=300., allow_towing=False, dry_run=False: {
+            'delivered': not dry_run, 'dry_run_valid': bool(dry_run), 'status_code': 'DELIVERED', 'detail': '',
+        },
+        patrol_collect=lambda drop_x_m=0., drop_y_m=0., max_duration_s=600., max_items=5, allow_towing=False, dry_run=False: {
+            'completed': not dry_run, 'dry_run_valid': bool(dry_run), 'status_code': 'COMPLETED', 'detail': '',
         },
         deploy_arm=lambda settle=True: {'ready': True},
         align_target=lambda color: {'position': [0.35, 0., 0.04], 'bearing_error_deg': 0., 'range_error_m': 0.},
@@ -240,6 +248,40 @@ class GoalContext:
     def stack(self, base_color: str, middle_color: str, top_color: str, dry_run: bool = False) -> dict:
         self.executor.feedback = lambda _phase: self.feedback(phase=3, current_tier=1, reason='NONE')
         return self.executor.stack(base_color, middle_color, top_color, dry_run=dry_run)
+
+    def _run_garment_runner(self, runner, req) -> dict:
+        orig_feedback = self.feedback
+        def synced_feedback(**fields):
+            self.latest_observation = runner.latest_observation
+            orig_feedback(**fields)
+        runner.feedback = synced_feedback
+        data = runner.execute(req)
+        self.latest_observation = runner.latest_observation
+        return data
+
+    def deliver_garment(self, category: str = 'any', drop_x_m: float = 0., drop_y_m: float = 0.,
+                        max_duration_s: float = 300., allow_towing: bool = False, dry_run: bool = False) -> dict:
+        from .garment_delivery import GarmentDeliverer
+        runner = GarmentDeliverer(
+            self.observations, self.executor,
+            boundary_config=self.server.navigation_config, feedback=self.feedback,
+        )
+        return self._run_garment_runner(runner, SimpleNamespace(
+            category=str(category), drop_x_m=float(drop_x_m), drop_y_m=float(drop_y_m),
+            max_duration_s=float(max_duration_s), allow_towing=bool(allow_towing), dry_run=bool(dry_run),
+        ))
+
+    def patrol_collect(self, drop_x_m: float = 0., drop_y_m: float = 0., max_duration_s: float = 600.,
+                       max_items: int = 5, allow_towing: bool = False, dry_run: bool = False) -> dict:
+        from .patrol import PatrolCollector, PatrolLedger
+        runner = PatrolCollector(
+            self.observations, self.executor, PatrolLedger(self.server.patrol_directory),
+            boundary_config=self.server.navigation_config, feedback=self.feedback,
+        )
+        return self._run_garment_runner(runner, SimpleNamespace(
+            drop_x_m=float(drop_x_m), drop_y_m=float(drop_y_m), max_duration_s=float(max_duration_s),
+            max_items=int(max_items), allow_towing=bool(allow_towing), dry_run=bool(dry_run),
+        ))
 
     def deploy_arm(self, settle=True) -> dict:
         return self.executor.deploy(settle=settle)

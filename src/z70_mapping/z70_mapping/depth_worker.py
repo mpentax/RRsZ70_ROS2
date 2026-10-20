@@ -64,7 +64,7 @@ def main():
             quality['inference_s'] = time.monotonic()-t0
         except Exception as error:
             points = np.empty((0,3),dtype='<f4')
-            quality = {'error':type(error).__name__,'point_count':0,'metric_accuracy_verified':False}
+            quality = {'error':type(error).__name__,'point_count':0}
         packet = io.BytesIO()
         np.savez(packet, xyz=points, quality=np.array(json.dumps(quality)))
         data = packet.getvalue()

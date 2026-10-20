@@ -363,7 +363,8 @@ class PickServer(Perception):
 
     # --- Goal Handlers ---
 
-    def _goal_curated(self, ctx: GoalContext, fn, build_result):
+    @staticmethod
+    def _goal_curated(ctx: GoalContext, fn, build_result):
         try:
             data = fn(ctx.executor)
             success = True
@@ -373,7 +374,8 @@ class PickServer(Perception):
             success = False
         return success, build_result(ctx.outcome(success), success, data)
 
-    def _goal_pick(self, ctx: GoalContext, req):
+    @staticmethod
+    def _goal_pick(ctx: GoalContext, req):
         try:
             report = ctx.pick(req.color, dry_run=req.dry_run)
             success = bool(report.get('verified', report.get('dry_run') and report.get('target') is not None))
@@ -388,7 +390,8 @@ class PickServer(Perception):
             evidence_uri=ctx.directory.name,
         )
 
-    def _goal_stack(self, ctx: GoalContext, req):
+    @staticmethod
+    def _goal_stack(ctx: GoalContext, req):
         try:
             report = ctx.stack(req.base_color, req.middle_color, req.top_color, dry_run=req.dry_run)
             success = bool(report.get('stack_verified', report.get('dry_run') and report.get('all_targets_visible')))
@@ -405,33 +408,26 @@ class PickServer(Perception):
             evidence_uri=ctx.directory.name,
         )
 
-    def _goal_pin_and_go(self, ctx: GoalContext, req):
+    @staticmethod
+    def _goal_pin_and_go(ctx: GoalContext, req):
         data = ctx.navigate(req.target_x_m, req.target_y_m, req.max_duration_s, dry_run=req.dry_run)
         result = PinAndGo.Result(**data)
         if ctx.commands and ctx.commands.latest_outcome is not None:
             result.outcome = ctx.commands.latest_outcome
         return bool(result.arrived or result.dry_run_valid), result
 
-    def _goal_garment(self, ctx: GoalContext, req, action_cls, patrol=False):
-        from .garment_delivery import GarmentDeliverer
-        from .patrol import PatrolCollector, PatrolLedger
+    @staticmethod
+    def _goal_garment(ctx: GoalContext, req, action_cls, patrol=False):
         if patrol:
-            runner = PatrolCollector(
-                self.observations, ctx.executor, PatrolLedger(self.patrol_directory),
-                boundary_config=self.navigation_config, feedback=ctx.feedback,
+            data = ctx.patrol_collect(
+                drop_x_m=req.drop_x_m, drop_y_m=req.drop_y_m, max_duration_s=req.max_duration_s,
+                max_items=req.max_items, allow_towing=req.allow_towing, dry_run=req.dry_run,
             )
         else:
-            runner = GarmentDeliverer(
-                self.observations, ctx.executor,
-                boundary_config=self.navigation_config, feedback=ctx.feedback,
+            data = ctx.deliver_garment(
+                category=req.category, drop_x_m=req.drop_x_m, drop_y_m=req.drop_y_m,
+                max_duration_s=req.max_duration_s, allow_towing=req.allow_towing, dry_run=req.dry_run,
             )
-        # Keep runner's latest_observation synced onto ctx for feedback publishing
-        orig_feedback = ctx.feedback
-        def synced_feedback(**fields):
-            ctx.latest_observation = runner.latest_observation
-            orig_feedback(**fields)
-        runner.feedback = synced_feedback
-        data = runner.execute(req)
         success = (data.get('delivered', False) or data.get('completed', False) or data.get('dry_run_valid', False)
                    or data.get('status_code') == 'PARTIAL_COMPLETION_SMALL_ITEMS_ONLY')
         result = action_cls.Result(**data)

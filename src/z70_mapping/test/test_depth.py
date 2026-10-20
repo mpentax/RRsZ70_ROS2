@@ -59,7 +59,7 @@ def test_depth_node_missing_venv_publishes_unavailable_status_and_closes_cleanly
     node.publish()
     assert publishers['/z70/depth/status'].qos.durability == DurabilityPolicy.TRANSIENT_LOCAL
     status = json.loads(publishers['/z70/depth/status'].publish.call_args.args[0].data)
-    assert status == {'available': False, 'error': 'FileNotFoundError', 'metric_accuracy_verified': False}
+    assert status == {'available': False, 'error': 'FileNotFoundError'}
     publishers['/camera/front/depth/points'].publish.assert_not_called()
     node.close()
 
@@ -85,7 +85,7 @@ def test_depth_node_bad_packet_recovers_on_subsequent_frame(monkeypatch):
 
     good_packet = io.BytesIO()
     np.savez(good_packet, xyz=np.array([[0.1, 0.2, 0.8]], dtype='<f4'),
-             quality=np.array(json.dumps({'floor_aligned': True, 'point_count': 1, 'metric_accuracy_verified': False})))
+             quality=np.array(json.dumps({'floor_aligned': True, 'point_count': 1})))
     good_bytes = good_packet.getvalue()
 
     responses = [

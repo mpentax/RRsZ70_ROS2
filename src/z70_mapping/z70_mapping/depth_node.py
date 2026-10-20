@@ -45,7 +45,7 @@ class DepthNode(Node):
                                             stdin=subprocess.PIPE,stdout=subprocess.PIPE,env=env,bufsize=-1)
         except OSError as e:
             self.result = (None, np.empty((0,3),dtype='<f4'),
-                           {'available':False,'error':type(e).__name__,'metric_accuracy_verified':False})
+                           {'available':False,'error':type(e).__name__})
         self.frames=MatchedFrames(self,'front',self.on_frame,compressed=True)
         self.worker = None
         if self.process is not None:
@@ -103,12 +103,12 @@ class DepthNode(Node):
                 except ValueError as e:
                     with self.lock:
                         self.result = (msg.header,np.empty((0,3),dtype='<f4'),
-                                       {'error':type(e).__name__,'metric_accuracy_verified':False})
+                                       {'error':type(e).__name__})
                     self.last_stamp = stamp
                 except (OSError,EOFError,TimeoutError) as e:
                     with self.lock:
                         self.result = (msg.header,np.empty((0,3),dtype='<f4'),
-                                       {'error':type(e).__name__,'metric_accuracy_verified':False})
+                                       {'error':type(e).__name__})
                     break
             self.stop_event.wait(period)
 

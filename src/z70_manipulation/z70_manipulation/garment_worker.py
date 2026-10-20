@@ -121,8 +121,7 @@ class GarmentModel:
 
     def infer(self, image):
         self.sync(); start = time.monotonic()
-        quality = dict(backend=self.backend, model_id=self.backend, model_available=self.error is None and self.backend != 'contour_fallback',
-                       physical_qualification=False)
+        quality = dict(backend=self.backend, model_id=self.backend, model_available=self.error is None and self.backend != 'contour_fallback')
         if self.error:
             quality.update(error=self.error, inference_ms=0.)
             return [], quality
