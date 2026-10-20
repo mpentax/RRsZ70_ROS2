@@ -17,7 +17,6 @@ if [[ ! -x "$GO2RTC_BIN" ]]; then
     cd "$WORK"
     go mod download
     go run "$ROOT/deploy/patch-go2rtc.go"
-    go run "$ROOT/deploy/patch-go2rtc-diagnostics.go"
     CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o "$GO2RTC_BIN" .
   )
 fi
