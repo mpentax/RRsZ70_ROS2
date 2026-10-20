@@ -34,8 +34,8 @@ from z70_sim import (
     SimWorld,
     create_sim_server,
     encode_v1_map,
+    ensure_token_file,
 )
-from z70_sim.server import ensure_token_file
 from z70_web_gateway.gateway import read_token
 
 

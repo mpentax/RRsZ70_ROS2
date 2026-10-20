@@ -14,7 +14,7 @@ setup(
     zip_safe=True,
     entry_points={
         'console_scripts': [
-            'sim_sidecar = z70_sim.server:main',
+            'sim_sidecar = z70_sim.world:main',
         ],
     },
 )
