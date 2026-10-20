@@ -29,8 +29,8 @@ export function publicCameraFailure(error: unknown): Record<string, unknown> {
     ? { upstreamStatus: error.upstreamStatus } : {}) };
 }
 
-async function responseText(response: Response, limit = 128 * 1024): Promise<string> {
-  if (!response.body) return "";
+async function responseBytes(response: Response, limit: number, oversizeMessage: string): Promise<Buffer> {
+  if (!response.body) return Buffer.alloc(0);
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
   let size = 0;
@@ -41,12 +41,16 @@ async function responseText(response: Response, limit = 128 * 1024): Promise<str
       size += value.byteLength;
       if (size > limit) {
         await reader.cancel();
-        throw new DriverError("go2rtc returned an oversized response.");
+        throw new DriverError(oversizeMessage);
       }
       chunks.push(value);
     }
   } finally { reader.releaseLock(); }
-  return Buffer.concat(chunks).toString("utf8");
+  return Buffer.concat(chunks);
+}
+
+async function responseText(response: Response, limit = 128 * 1024): Promise<string> {
+  return (await responseBytes(response, limit, "go2rtc returned an oversized response.")).toString("utf8");
 }
 
 export function cameraSource(account: CameraAccount, device: DeviceCredentials, pin: string): string {
@@ -150,6 +154,12 @@ export class Go2Rtc {
     this.#origin = localServiceOrigin(origin, "go2rtc");
   }
 
+  async #getJson(path: string): Promise<unknown> {
+    const response = await fetch(`${this.#origin}${path}`, { redirect: "error", signal: AbortSignal.timeout(3000) });
+    if (!response.ok) { await response.body?.cancel(); return undefined; }
+    return JSON.parse(await responseText(response));
+  }
+
   async acquisitionDiagnostics(): Promise<Record<string, unknown>> {
     // This read does not start preview. Retained evidence survives producer cleanup.
     const outcome = ["unknown", "ok", "error", "eof", "closed", "timeout", "rejected", "rpc_error"];
@@ -166,11 +176,7 @@ export class Go2Rtc {
       readerExit: ["none", "unknown", "eof", "timeout", "closed", "read_error", "rtp_error", "unmapped_track", "track_error"],
     };
     try {
-      const response = await fetch(`${this.#origin}/api/roborock/diagnostic`, {
-        redirect: "error", signal: AbortSignal.timeout(3000),
-      });
-      if (!response.ok) { await response.body?.cancel(); return { available: false }; }
-      const value: unknown = JSON.parse(await responseText(response));
+      const value = await this.#getJson("/api/roborock/diagnostic");
       if (!value || typeof value !== "object" || Array.isArray(value)) return { available: false };
       const row = value as Record<string, unknown>;
       if (typeof row.available !== "boolean") return { available: false };
@@ -205,11 +211,7 @@ export class Go2Rtc {
     };
     for (const name of [GO2RTC_STREAM, GO2RTC_CAMERA_STREAMS.front, GO2RTC_CAMERA_STREAMS.gripper]) {
       try {
-        const response = await fetch(`${this.#origin}/api/streams?src=${name}`, {
-          redirect: "error", signal: AbortSignal.timeout(3000),
-        });
-        if (!response.ok) { await response.body?.cancel(); result[name] = { available: false }; continue; }
-        const value = JSON.parse(await responseText(response)) as Record<string, unknown> | null;
+        const value = await this.#getJson(`/api/streams?src=${name}`) as Record<string, unknown> | null | undefined;
         if (!value || !Array.isArray(value.producers) || (value.consumers != null && !Array.isArray(value.consumers))) {
           result[name] = { available: false }; continue;
         }
@@ -222,11 +224,7 @@ export class Go2Rtc {
 
   async configurationMatches(account: CameraAccount, device: DeviceCredentials, pin: string) {
     try {
-      const response = await fetch(`${this.#origin}/api/streams?src=${GO2RTC_STREAM}`, {
-        redirect: "error", signal: AbortSignal.timeout(3000),
-      });
-      if (!response.ok) { await response.body?.cancel(); return { available: false }; }
-      const value: unknown = JSON.parse(await responseText(response));
+      const value = await this.#getJson(`/api/streams?src=${GO2RTC_STREAM}`);
       if (!value || typeof value !== "object" || !("producers" in value) || !Array.isArray(value.producers) || value.producers.length !== 1)
         return { available: false };
       const producer = value.producers[0];
@@ -240,9 +238,7 @@ export class Go2Rtc {
 
   async preloaded(): Promise<boolean> {
     try {
-      const response = await fetch(`${this.#origin}/api/preload`, { redirect: "error", signal: AbortSignal.timeout(3000) });
-      if (!response.ok) { await response.body?.cancel(); return false; }
-      const value: unknown = JSON.parse(await responseText(response));
+      const value = await this.#getJson("/api/preload");
       return !!value && typeof value === "object" && GO2RTC_STREAM in value;
     } catch { return false; }
   }
@@ -285,22 +281,7 @@ export class Go2Rtc {
         await response.body?.cancel();
         throw new DriverError("go2rtc did not return a camera image.", response.status);
       }
-      const reader = response.body.getReader();
-      let size = 0;
-      const chunks: Uint8Array[] = [];
-      try {
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          size += value.byteLength;
-          if (size > 5 * 1024 * 1024) {
-            await reader.cancel();
-            throw new DriverError("go2rtc camera image exceeds the size limit.");
-          }
-          chunks.push(value);
-        }
-      } finally { reader.releaseLock(); }
-      const image = Buffer.concat(chunks);
+      const image = await responseBytes(response, 5 * 1024 * 1024, "go2rtc camera image exceeds the size limit.");
       if (image.length < 4 || image.readUInt16BE(0) !== 0xffd8 || image.readUInt16BE(image.length - 2) !== 0xffd9) {
         throw new DriverError("go2rtc returned no complete JPEG image.");
       }
