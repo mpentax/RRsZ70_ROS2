@@ -9,6 +9,10 @@ const login = (endpoint = "https://api-eu.roborock.com") => ({
   code: 200,
   data: { token: "session-token", rriot: { u: "user123", s: "salt123", h: "hawk-key", r: { a: endpoint } } },
 });
+const cameraLogin = (broker = "ssl://mqtt-eu.roborock.com:8883") => {
+  const session = login();
+  return { ...session, data: { ...session.data, rriot: { ...session.data.rriot, k: "domain-key", r: { ...session.data.rriot.r, m: broker } } } };
+};
 const home = () => ({
   success: true,
   result: {
@@ -99,11 +103,7 @@ test("uses explicit region origins and login country fields", async (t) => {
 });
 
 test("camera login exports broker and signed home authorization privately", async (t) => {
-  const session = login();
-  const cameraSession = { ...session, data: { ...session.data, rriot: {
-    ...session.data.rriot, k: "domain-key", r: { ...session.data.rriot.r, m: "ssl://mqtt-eu.roborock.com:8883" },
-  } } };
-  mockResponses(t, flow(home(), cameraSession));
+  mockResponses(t, flow(home(), cameraLogin()));
   const result = await new RoborockCloud("eu").loginCameraWithCode(EMAIL, "123456");
   assert.equal(result.devices.length, 2);
   assert.deepEqual(result.account, {
@@ -115,13 +115,9 @@ test("camera login exports broker and signed home authorization privately", asyn
 });
 
 test("login extracts bounded account rooms without leaking web token", async (t) => {
-  const session = login();
-  const cameraSession = { ...session, data: { ...session.data, rriot: {
-    ...session.data.rriot, k: "domain-key", r: { ...session.data.rriot.r, m: "ssl://mqtt-eu.roborock.com:8883" },
-  } } };
   const response = home();
   Object.assign(response.result, { rooms: [{ id: 44, name: "Living room" }, { id: "45", name: "Hall" }] });
-  mockResponses(t, flow(response, cameraSession));
+  mockResponses(t, flow(response, cameraLogin()));
   const result = await new RoborockCloud("eu").loginCameraWithCode(EMAIL, "123456");
   assert.deepEqual(result.home.rooms, [{ id: "44", name: "Living room" }, { id: "45", name: "Hall" }]);
   assert.ok(!JSON.stringify(result).includes("session-token"));
@@ -131,10 +127,7 @@ test("camera broker must be a Roborock TLS endpoint", async (t) => {
   for (const broker of ["mqtt://mqtt.roborock.com:1883", "ssl://attacker.invalid:8883",
     "ssl://mqtt.roborock.com:8883/path", "ssl://mqtt.roborock.com:8883?secret=value"]) {
     await t.test(broker, async (t) => {
-      const session = login();
-      mockResponses(t, flow(home(), { ...session, data: { ...session.data, rriot: {
-        ...session.data.rriot, k: "domain-key", r: { ...session.data.rriot.r, m: broker },
-      } } }));
+      mockResponses(t, flow(home(), cameraLogin(broker)));
       await assert.rejects(new RoborockCloud("eu").loginCameraWithCode(EMAIL, "123456"), /broker/);
     });
   }
