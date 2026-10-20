@@ -1,15 +1,13 @@
-"""Resource API for installed perception."""
+"""Resource paths and configuration loaders for z70_manipulation."""
 from pathlib import Path
 import yaml
-from z70_description.resources import config_path
+from z70_description.resources import config_path, package_root
+
+_FALLBACK_ROOT = Path(__file__).resolve().parent.parent
 
 
 def front_calibration_path():
-    """Installed front camera calibration resource."""
-    path = config_path('front_camera.json')
-    if not path.is_file():
-        raise FileNotFoundError(path)
-    return path
+    return config_path('front_camera.json')
 
 
 def description_config(name):
@@ -17,8 +15,7 @@ def description_config(name):
 
 
 def colors_path():
-    from ament_index_python.packages import get_package_share_directory
-    path = Path(get_package_share_directory('z70_manipulation')) / 'config/colors.yaml'
+    path = package_root('z70_manipulation', _FALLBACK_ROOT) / 'config/colors.yaml'
     if not path.is_file():
         raise FileNotFoundError(path)
     return path
