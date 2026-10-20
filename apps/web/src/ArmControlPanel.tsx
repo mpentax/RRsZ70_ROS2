@@ -67,17 +67,25 @@ export function ArmControlPanel({
         Active grab mode: <strong>{grabModeLabel}</strong> · Action: <strong>{grabActionLabel}</strong>
       </p>
       <div className="button-row" style={{margin: '6px 0 0'}}>
-        <button type="button" className={grabModeCode === 1 ? 'primary' : 'quiet'} disabled={disabled} onClick={launch({kind:'arm_operation',goal:{operation:6}})}>Enter Manual Mode (flag=1)</button>
-        <button type="button" className={grabModeCode === 2 ? 'primary' : 'quiet'} disabled={disabled} onClick={launch({kind:'arm_operation',goal:{operation:7}})}>Remote Pickup Mode (flag=2)</button>
-        <button type="button" className="quiet" disabled={disabled} onClick={launch({kind:'arm_operation',goal:{operation:8}})}>Exit Arm Mode (flag=0)</button>
-        <button type="button" className="quiet" disabled={disabled} onClick={launch({kind:'arm_operation',goal:{operation:1}})}>Unstow Arm</button>
-        <button type="button" className="quiet" disabled={disabled} onClick={launch({kind:'arm_operation',goal:{operation:2}})}>Stow Arm</button>
-        <button type="button" className="quiet" disabled={disabled} onClick={launch({kind:'arm_operation',goal:{operation:9}})}>Recover Arm</button>
+        {([
+          [6, 'Enter Manual Mode (flag=1)', grabModeCode === 1],
+          [7, 'Remote Pickup Mode (flag=2)', grabModeCode === 2],
+          [8, 'Exit Arm Mode (flag=0)', false],
+          [1, 'Unstow Arm', false],
+          [2, 'Stow Arm', false],
+          [9, 'Recover Arm', false],
+        ] as const).map(([operation, label, active]) => (
+          <button key={operation} type="button" className={active ? 'primary' : 'quiet'} disabled={disabled} onClick={launch({kind:'arm_operation',goal:{operation}})}>{label}</button>
+        ))}
       </div>
       <div className="button-row" style={{margin: '8px 0 0'}}>
-        <button type="button" className="quiet" disabled={disabled} onClick={launch({kind:'arm_operation',goal:{operation:4}})}>Close Gripper (Grip)</button>
-        <button type="button" className="quiet" disabled={disabled} onClick={launch({kind:'arm_operation',goal:{operation:5}})}>Release Jaws In-Place (Put Down)</button>
-        <button type="button" className="quiet" disabled={disabled} onClick={launch({kind:'arm_operation',goal:{operation:3}})}>Open Gripper (Recovery)</button>
+        {([
+          [4, 'Close Gripper (Grip)'],
+          [5, 'Release Jaws In-Place (Put Down)'],
+          [3, 'Open Gripper (Recovery)'],
+        ] as const).map(([operation, label]) => (
+          <button key={operation} type="button" className="quiet" disabled={disabled} onClick={launch({kind:'arm_operation',goal:{operation}})}>{label}</button>
+        ))}
         <button type="button" className="danger" disabled={controlStopped} onClick={() => { stopHoldJog(false); void robotRpc({method:'app_stop_grasp',params:[],timeoutMs:5000}).then(setOutcome).catch(() => {}); }}>Stop Arm (app_stop_grasp)</button>
       </div>
     </div>

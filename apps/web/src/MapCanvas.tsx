@@ -39,10 +39,7 @@ export function MapCanvas({ mapData, busy, onReadMap, selectedTarget, onSelectTa
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const val = data[(height - 1 - y) * width + x];
-        const idx = (y * width + x) * 4;
-        if (val === 100) { img.data[idx] = 166; img.data[idx + 1] = 227; img.data[idx + 2] = 203; img.data[idx + 3] = 255; }
-        else if (val === 0) { img.data[idx] = 30; img.data[idx + 1] = 58; img.data[idx + 2] = 66; img.data[idx + 3] = 255; }
-        else { img.data[idx] = 11; img.data[idx + 1] = 18; img.data[idx + 2] = 21; img.data[idx + 3] = 255; }
+        img.data.set(val === 100 ? [166, 227, 203, 255] : val === 0 ? [30, 58, 66, 255] : [11, 18, 21, 255], (y * width + x) * 4);
       }
     }
     ctx.putImageData(img, 0, 0);
