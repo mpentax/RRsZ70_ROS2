@@ -23,7 +23,7 @@ from rosidl_runtime_py.set_message import set_message_fields
 from sensor_msgs.msg import CompressedImage
 from nav_msgs.msg import OccupancyGrid
 from unique_identifier_msgs.msg import UUID
-from z70_driver.frame_subscription import frame_key
+from z70_driver.driver import frame_key
 from z70_interfaces.msg import RobotState, CameraState, ArmEstimate, CalibrationState, FrameMetadata
 from z70_interfaces.srv import RawRpc, Stop, SelectCamera, SetArmAnchor, SetControlSession
 from z70_manipulation.goals import ALL_GOALS, GOAL_CONTEXT_PRIMITIVES, simulate_goal

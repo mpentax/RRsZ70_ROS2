@@ -16,7 +16,7 @@ from nav_msgs.msg import OccupancyGrid
 from sensor_msgs.msg import CompressedImage
 from std_msgs.msg import String
 from unique_identifier_msgs.msg import UUID
-from z70_driver.frame_subscription import frame_key
+from z70_driver.driver import frame_key
 from z70_interfaces.msg import RobotState, ArmEstimate, FrameMetadata, MapSnapshot, GarmentObservations
 from z70_interfaces.srv import RawRpc, RefreshMap, SelectCamera, SetArmAnchor, Stop, TaskSession
 from z70_mapping.decoder import decode_map
