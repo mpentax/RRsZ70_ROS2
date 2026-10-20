@@ -258,6 +258,10 @@ class CommandSurfaces:
         response.accepted = accepted; response.task_id = UUID(uuid=list(token)); response.reason = reason
         return response
 
+    def _current_arm_estimate(self):
+        with self.sample_lock:
+            return deepcopy(self.samples.get('arm', (ArmEstimate(), None))[0])
+
     def anchor_service(self, request, response):
         if request.anchor not in (0, 1, 2):
             self.diagnostic('anchor', 'INVALID_INPUT')
@@ -267,8 +271,7 @@ class CommandSurfaces:
                     reason=request.observation_reason or 'OPERATOR_ANCHOR')
                 self.estimate_source = 3
                 self.publish_estimate(self.estimator.snapshot())
-        with self.sample_lock:
-            response.estimate = deepcopy(self.samples.get('arm', (ArmEstimate(), None))[0])
+        response.estimate = self._current_arm_estimate()
         return response
 
     def raw_service(self, request, response):
@@ -374,8 +377,7 @@ class CommandSurfaces:
             elif outcome_ok(result.outcome): handle.succeed()
             else: handle.abort()
             if kind is not BasePulse:
-                with self.sample_lock:
-                    result.estimate = deepcopy(self.samples.get('arm', (ArmEstimate(), None))[0])
+                result.estimate = self._current_arm_estimate()
             feedback(5, result.outcome)
             return result
         finally:

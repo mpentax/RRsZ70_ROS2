@@ -346,12 +346,12 @@ class GoalContext:
     def arm_step(self, m3: int = 0, m4: int = 0, m5: int = 0) -> dict:
         if any(v not in (0, 1, 2) for v in (m3, m4, m5)) or not any((m3, m4, m5)):
             raise ValueError('arm_step axes must be in (0, 1, 2) with at least one nonzero axis')
-        return self.rpc('app_arm_move', [int(m3), int(m4), int(m5)], timeout_ms=3000)
+        return self.rpc('app_arm_move', {'m': [int(m3), int(m4), int(m5)]}, timeout_ms=3000)
 
     def hand_step(self, direction: int) -> dict:
         if direction not in (1, 2, 3, 4):
             raise ValueError('hand_step direction must be in (1, 2, 3, 4)')
-        return self.rpc('app_arm_direction_move', [int(direction)], timeout_ms=3000)
+        return self.rpc('app_arm_direction_move', {'direction': int(direction)}, timeout_ms=3000)
 
     def open_jaws(self):
         self.executor.open_jaws()

@@ -641,8 +641,9 @@ def test_pickup_client_delegates_observations_without_network_or_token(tmp_path,
 
 
 def test_simulate_goal_exercises_all_builtin_goals():
+    from pathlib import Path
     from types import SimpleNamespace
-    from z70_manipulation.goals import ALL_GOALS, BUILTIN_GOALS, GoalSpec, simulate_goal
+    from z70_manipulation.goals import ALL_GOALS, BUILTIN_GOALS, GoalContext, GoalSpec, simulate_goal
 
     assert len(ALL_GOALS) == 14
     cases = [
@@ -678,6 +679,18 @@ def test_simulate_goal_exercises_all_builtin_goals():
         SimpleNamespace(target_x_m=1., target_y_m=2.),
     )
     assert ok
+
+    rpc_calls = []
+    fake_client = SimpleNamespace(commands=None, rpc=lambda m, p, timeout_ms=5000: rpc_calls.append((m, p, timeout_ms)) or {'result': ['ok']})
+    fake_server = SimpleNamespace(observations=None, gains={}, odom=lambda: None)
+    real_ctx = GoalContext(fake_server, SimpleNamespace(request=SimpleNamespace(), is_cancel_requested=False),
+                           route_spec.action_cls, fake_client, Path('.'), create_executor=False)
+    real_ctx.arm_step(1, 2, 0)
+    real_ctx.hand_step(3)
+    assert rpc_calls == [
+        ('app_arm_move', {'m': [1, 2, 0]}, 3000),
+        ('app_arm_direction_move', {'direction': 3}, 3000),
+    ]
 
 
 
