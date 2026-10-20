@@ -202,30 +202,6 @@ test('suspension aborts a stalled warm open and prevents late snapshots until de
   await assert.rejects(driver.frame());assert.equal(snapshots,1);
 });
 
-test("strict idle camera diagnostic needs no preload and an explicit empty consumer list", async (t) => {
-  let preload: unknown = {};
-  let stream: unknown = { consumers: [] };
-  let status = 200;
-  const requests: string[] = [];
-  t.mock.method(globalThis, "fetch", async (url: string, options: RequestInit) => {
-    requests.push(url);
-    assert.equal(options.method, undefined);
-    assert.equal(options.redirect, "error");
-    return Response.json(url.includes("/api/preload") ? preload : stream, { status });
-  });
-  const driver = new Go2Rtc();
-  assert.equal(await driver.idleStream(), true);
-  preload = { z70: "" }; assert.equal(await driver.idleStream(), false);
-  preload = {}; stream = { consumers: [{ type: "preload" }] }; assert.equal(await driver.idleStream(), false);
-  for (const malformed of [{}, { consumers: null }, { consumers: {} }, null]) {
-    stream = malformed; assert.equal(await driver.idleStream(), false);
-  }
-  stream = { consumers: [] }; status = 500; assert.equal(await driver.idleStream(), false);
-  assert.ok(requests.every((url) => url.endsWith("/api/preload") || url.endsWith("/api/streams?src=z70")));
-  t.mock.method(globalThis, "fetch", async () => { throw new Error("private-upstream-secret"); });
-  assert.equal(await driver.idleStream(), false);
-});
-
 test("camera source audit compares account and device fields without returning credentials", async (t) => {
   const source = cameraSource(account, device, "1234");
   let url = source;

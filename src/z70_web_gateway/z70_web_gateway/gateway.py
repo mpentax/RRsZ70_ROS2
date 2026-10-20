@@ -25,19 +25,12 @@ from rosidl_runtime_py.set_message import set_message_fields
 from sensor_msgs.msg import CompressedImage
 from nav_msgs.msg import OccupancyGrid
 from unique_identifier_msgs.msg import UUID
-from z70_interfaces.action import BasePulse, ArmStep, HandStep, ArmOperation
 from z70_interfaces.msg import RobotState, CameraState, ArmEstimate, CalibrationState, FrameMetadata
 from z70_interfaces.srv import RawRpc, Stop, SelectCamera, SetArmAnchor, SetControlSession
-from z70_manipulation.goals import BUILTIN_GOALS, GOAL_CONTEXT_PRIMITIVES, GOAL_DESCRIPTIONS
+from z70_manipulation.goals import ALL_GOALS, GOAL_CONTEXT_PRIMITIVES, GOAL_DESCRIPTIONS
 from std_msgs.msg import Bool
 
-ACTIONS = {
-    **{name: (spec.action_cls, spec.topic) for name, spec in BUILTIN_GOALS.items()},
-    'base_pulse': (BasePulse, '/z70/base/pulse'),
-    'arm_step': (ArmStep, '/z70/arm/step'),
-    'hand_step': (HandStep, '/z70/arm/hand_step'),
-    'arm_operation': (ArmOperation, '/z70/arm/operation'),
-}
+ACTIONS = {name: (spec.action_cls, spec.topic) for name, spec in ALL_GOALS.items()}
 SERVICES = (
     ('rpc', RawRpc, '/z70/driver/raw_rpc'),
     ('stop', Stop, '/z70/stop'),
@@ -55,7 +48,6 @@ TOPICS = (
 )
 TERMINAL = {'succeeded', 'failed', 'cancelled', 'rejected'}
 ID = r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
-COLOR_RE = re.compile(r'[a-zA-Z0-9_-]{1,32}')
 
 
 class ApiError(Exception):
@@ -82,27 +74,7 @@ def number(value, low, high):
     return type(value) in (int, float) and math.isfinite(value) and low <= value <= high
 
 
-def is_color(value):
-    return isinstance(value, str) and bool(COLOR_RE.fullmatch(value))
-
-
-def _valid_pulse(p):
-    d = p['duration']
-    checked(d, ('sec', 'nanosec'), ('sec', 'nanosec'))
-    return (integer(d['sec'], 0, 0) and integer(d['nanosec'], 1, 800000000)
-            and number(p['linear_mps'], -.1, .1) and number(p['angular_radps'], -.5, .5)
-            and not (p['linear_mps'] and p['angular_radps']))
-
-
-GOAL_SPECS = {
-    **{name: (spec.fields, spec.validate_payload) for name, spec in BUILTIN_GOALS.items()},
-    'base_pulse': (('linear_mps', 'angular_radps', 'duration'), _valid_pulse),
-    'arm_step': (('joint', 'direction'),
-                 lambda p: type(p['joint']) is int and p['joint'] in (3, 4, 5, 34, 43)
-                 and type(p['direction']) is int and p['direction'] in (-1, 1)),
-    'hand_step': (('direction',), lambda p: integer(p['direction'], 1, 4)),
-    'arm_operation': (('operation',), lambda p: integer(p['operation'], 1, 9)),
-}
+GOAL_SPECS = {name: (spec.fields, spec.validate_payload) for name, spec in ALL_GOALS.items()}
 
 
 def goal_message(kind, payload):

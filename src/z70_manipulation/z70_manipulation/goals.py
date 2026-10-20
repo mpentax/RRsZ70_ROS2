@@ -18,6 +18,7 @@ from z70_description.arm_model import check as check_arm_limits
 from z70_interfaces.action import (
     DeliverGarment, PatrolCollect, PinAndGo, Pick, Stack,
     DeployArm, AlignToTarget, MoveArm, GraspAndLift, ReleaseAndStow,
+    BasePulse, ArmStep, HandStep, ArmOperation,
 )
 from z70_interfaces.msg import CommandOutcome
 from z70_mapping.boundary import compute_safe_interior
@@ -56,6 +57,9 @@ GOAL_CONTEXT_PRIMITIVES: tuple[dict[str, str], ...] = (
     {'name': 'deploy_arm', 'signature': 'deploy_arm(settle=True) -> dict', 'summary': 'Enter manual arm mode and unstow the arm to WORKING_POS.'},
     {'name': 'align_target', 'signature': 'align_target(color: str) -> dict', 'summary': 'Visually servo the chassis toward a target color using front camera observations.'},
     {'name': 'move_arm', 'signature': 'move_arm(m3_deg: float, m4_deg: float, m5_deg: float = 0.) -> dict', 'summary': 'Execute a collision-checked coordinated multi-axis arm trajectory.'},
+    {'name': 'arm_step', 'signature': 'arm_step(m3: int = 0, m4: int = 0, m5: int = 0) -> dict', 'summary': 'Execute a single 10-degree multi-axis joint step [m3, m4, m5] (0=hold, 1=+10deg, 2=-10deg).'},
+    {'name': 'hand_step', 'signature': 'hand_step(direction: int) -> dict', 'summary': 'Execute a single 40 mm Cartesian IK hand step (1=up, 2=down, 3=forward, 4=back).'},
+    {'name': 'open_jaws', 'signature': 'open_jaws()', 'summary': 'Open gripper jaws in place without lifting or stowing the arm.'},
     {'name': 'grasp_and_lift', 'signature': "grasp_and_lift(lift_steps: int = 2, verify_color: str = '') -> dict", 'summary': 'Close the gripper jaws, step the hand upward, and verify grasp elevation.'},
     {'name': 'release_and_stow', 'signature': 'release_and_stow(put_down: bool = True) -> dict', 'summary': 'Open jaws in place, stow the arm into the robot compartment, and anchor IN_ROBOT.'},
     {'name': 'pulse', 'signature': 'pulse(velocity: float = 0., omega: float = 0., duration: int = 300)', 'summary': 'Send a bounded linear or angular chassis velocity pulse.'},
@@ -147,6 +151,9 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         deploy_arm=lambda settle=True: {'ready': True},
         align_target=lambda color: {'position': [0.35, 0., 0.04], 'bearing_error_deg': 0., 'range_error_m': 0.},
         move_arm=lambda m3_deg, m4_deg, m5_deg=0.: {'steps_executed': 1},
+        arm_step=lambda m3=0, m4=0, m5=0: {'m3': int(m3), 'm4': int(m4), 'm5': int(m5)},
+        hand_step=lambda direction: {'direction': int(direction)},
+        open_jaws=lambda: None,
         grasp_and_lift=lambda lift_steps=2, verify_color='': {'verified': True},
         release_and_stow=lambda put_down=True: {'stowed': True},
         pulse=lambda velocity=0., omega=0., duration=300: {'ok': True},
@@ -324,6 +331,19 @@ class GoalContext:
 
     def move_arm(self, m3_deg: float, m4_deg: float, m5_deg: float = 0.) -> dict:
         return self.executor.move_arm((m3_deg, m4_deg, m5_deg))
+
+    def arm_step(self, m3: int = 0, m4: int = 0, m5: int = 0) -> dict:
+        if any(v not in (0, 1, 2) for v in (m3, m4, m5)) or not any((m3, m4, m5)):
+            raise ValueError('arm_step axes must be in (0, 1, 2) with at least one nonzero axis')
+        return self.rpc('app_arm_move', [int(m3), int(m4), int(m5)], timeout_ms=3000)
+
+    def hand_step(self, direction: int) -> dict:
+        if direction not in (1, 2, 3, 4):
+            raise ValueError('hand_step direction must be in (1, 2, 3, 4)')
+        return self.rpc('app_arm_direction_move', [int(direction)], timeout_ms=3000)
+
+    def open_jaws(self):
+        self.executor.open_jaws()
 
     def grasp_and_lift(self, lift_steps: int = 2, verify_color: str = '') -> dict:
         return self.executor.grasp_and_lift(lift_steps=lift_steps, verify_color=verify_color)
@@ -591,3 +611,56 @@ BUILTIN_GOALS: dict[str, GoalSpec] = {
         ),
     )
 }
+
+
+def _valid_pulse_payload(p: dict) -> bool:
+    d = p.get('duration')
+    return (isinstance(d, dict) and set(d) == {'sec', 'nanosec'}
+            and _int_in(d['sec'], 0, 0) and _int_in(d['nanosec'], 1, 800000000)
+            and _num_in(p['linear_mps'], -.1, .1) and _num_in(p['angular_radps'], -.5, .5)
+            and not (p['linear_mps'] and p['angular_radps']))
+
+
+DRIVER_GOALS: dict[str, GoalSpec] = {
+    spec.name: spec for spec in (
+        GoalSpec(
+            'base_pulse', BasePulse, '/z70/base/pulse', 5.,
+            lambda _s, _r: True,
+            lambda ctx, r: (True, BasePulse.Result(outcome=ctx.outcome(True))),
+            read_only=lambda _: False,
+            fields=('linear_mps', 'angular_radps', 'duration'),
+            description=GOAL_DESCRIPTIONS['base_pulse'],
+            validate_payload=_valid_pulse_payload,
+        ),
+        GoalSpec(
+            'arm_step', ArmStep, '/z70/arm/step', 5.,
+            lambda _s, r: r.joint in (3, 4, 5, 34, 43) and r.direction in (-1, 1),
+            lambda ctx, _r: (True, ArmStep.Result(outcome=ctx.outcome(True), estimate=ctx.arm_msg())),
+            read_only=lambda _: False,
+            fields=('joint', 'direction'),
+            description=GOAL_DESCRIPTIONS['arm_step'],
+            validate_payload=lambda p: (type(p['joint']) is int and p['joint'] in (3, 4, 5, 34, 43)
+                                        and type(p['direction']) is int and p['direction'] in (-1, 1)),
+        ),
+        GoalSpec(
+            'hand_step', HandStep, '/z70/arm/hand_step', 5.,
+            lambda _s, r: 1 <= r.direction <= 4,
+            lambda ctx, _r: (True, HandStep.Result(outcome=ctx.outcome(True), estimate=ctx.arm_msg())),
+            read_only=lambda _: False,
+            fields=('direction',),
+            description=GOAL_DESCRIPTIONS['hand_step'],
+            validate_payload=lambda p: _int_in(p['direction'], 1, 4),
+        ),
+        GoalSpec(
+            'arm_operation', ArmOperation, '/z70/arm/operation', 15.,
+            lambda _s, r: 1 <= r.operation <= 9,
+            lambda ctx, _r: (True, ArmOperation.Result(outcome=ctx.outcome(True), estimate=ctx.arm_msg())),
+            read_only=lambda _: False,
+            fields=('operation',),
+            description=GOAL_DESCRIPTIONS['arm_operation'],
+            validate_payload=lambda p: _int_in(p['operation'], 1, 9),
+        ),
+    )
+}
+
+ALL_GOALS: dict[str, GoalSpec] = {**BUILTIN_GOALS, **DRIVER_GOALS}
