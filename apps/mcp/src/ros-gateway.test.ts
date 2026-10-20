@@ -90,10 +90,15 @@ test("MCP start_task accepts custom goal kinds and supports validateOnly dry-run
 
     const dispatched = await client.callTool({ name: "start_task", arguments: { task: customTask } });
     assert.notEqual(dispatched.isError, true);
+
+    const simulated = await client.callTool({ name: "start_task", arguments: { task: customTask, simulate: true } });
+    assert.notEqual(simulated.isError, true);
+
     assert.deepEqual(calls, [
       { path: "/api/ros/goals", payload: undefined },
       { path: "/api/ros/goals/validate", payload: customTask },
       { path: "/api/ros/tasks", payload: customTask },
+      { path: "/api/ros/goals/validate", payload: { ...customTask, simulate: true } },
     ]);
   } finally {
     await client.close();

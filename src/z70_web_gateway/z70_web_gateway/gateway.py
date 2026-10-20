@@ -5,7 +5,6 @@ from functools import partial
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import hmac
 import json
-import math
 import os
 import re
 import socket
@@ -27,7 +26,7 @@ from nav_msgs.msg import OccupancyGrid
 from unique_identifier_msgs.msg import UUID
 from z70_interfaces.msg import RobotState, CameraState, ArmEstimate, CalibrationState, FrameMetadata
 from z70_interfaces.srv import RawRpc, Stop, SelectCamera, SetArmAnchor, SetControlSession
-from z70_manipulation.goals import ALL_GOALS, GOAL_CONTEXT_PRIMITIVES, GOAL_DESCRIPTIONS
+from z70_manipulation.goals import ALL_GOALS, GOAL_CONTEXT_PRIMITIVES, simulate_goal
 from std_msgs.msg import Bool
 
 ACTIONS = {name: (spec.action_cls, spec.topic) for name, spec in ALL_GOALS.items()}
@@ -68,10 +67,6 @@ def checked(body, allowed, required=()):
 
 def integer(value, low, high):
     return type(value) is int and low <= value <= high
-
-
-def number(value, low, high):
-    return type(value) in (int, float) and math.isfinite(value) and low <= value <= high
 
 
 GOAL_SPECS = {name: (spec.fields, spec.validate_payload) for name, spec in ALL_GOALS.items()}
@@ -219,8 +214,15 @@ class Gateway(Node):
 
     def validate(self, body):
         try:
-            kind, topic, cls, _ = self.goal_message(body)
-            return 200, {'valid': True, 'kind': kind, 'topic': topic, 'action': cls.__name__}, {}
+            if not isinstance(body, dict): raise ApiError(400, 'INVALID_INPUT')
+            simulate = body.get('simulate', False)
+            if type(simulate) is not bool: raise ApiError(400, 'INVALID_INPUT')
+            kind, topic, cls, message = self.goal_message({k: v for k, v in body.items() if k != 'simulate'})
+            res = {'valid': True, 'kind': kind, 'topic': topic, 'action': cls.__name__}
+            if simulate:
+                sim_ok, sim_res = simulate_goal(ALL_GOALS[kind], message)
+                res['simulated'] = {'ok': bool(sim_ok), 'result': data(sim_res)}
+            return 200, res, {}
         except ApiError as e:
             return e.status, {'valid': False, 'error': e.body['error'], **e.body}, {}
         except Exception as e:
@@ -276,8 +278,8 @@ class Gateway(Node):
             with self.lock: return 200, {'map':deepcopy(self.samples.get('map'))}, {}
         if method == 'GET' and path == '/api/ros/goals':
             return 200, {
-                'goals': [{'kind': kind, 'topic': ACTIONS[kind][1], 'action': ACTIONS[kind][0].__name__,
-                           'fields': list(GOAL_SPECS[kind][0]), 'description': GOAL_DESCRIPTIONS.get(kind, '')} for kind in ACTIONS],
+                'goals': [{'kind': kind, **{k: v for k, v in spec.describe().items() if k != 'name'}}
+                          for kind, spec in ALL_GOALS.items()],
                 'context_primitives': list(GOAL_CONTEXT_PRIMITIVES),
             }, {}
         if method == 'POST' and path == '/api/ros/goals/validate':
