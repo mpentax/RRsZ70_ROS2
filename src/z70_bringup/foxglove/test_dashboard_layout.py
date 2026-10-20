@@ -2,34 +2,37 @@
 import json
 from pathlib import Path
 
-HERE=Path(__file__).resolve().parent
+HERE = Path(__file__).resolve().parent
+LAYOUT = json.loads((HERE / 'z70-dashboard.json').read_text())
+CONFIGS = LAYOUT['configById']
 
 
 def test_tabs_reference_existing_panels_and_do_not_include_command_panels():
-    layout=json.loads((HERE/'z70-dashboard.json').read_text())
-    configs=layout['configById']
-    visited=set()
+    visited = set()
+
     def walk(item):
-        if isinstance(item,str):
-            assert item in configs
+        if isinstance(item, str):
+            assert item in CONFIGS
             assert item not in visited
             visited.add(item)
             if item.startswith('Tab!'):
-                for tab in configs[item]['tabs']: walk(tab['layout'])
+                for tab in CONFIGS[item]['tabs']:
+                    walk(tab['layout'])
         else:
-            assert item['direction'] in ('row','column')
+            assert item['direction'] in ('row', 'column')
             assert 0 < item['splitPercentage'] < 100
-            walk(item['first']); walk(item['second'])
-    walk(layout['layout'])
-    assert visited == configs.keys()
-    assert [t['title'] for t in configs['Tab!z70-dashboard']['tabs']] == [
-        'Overview','Cameras','Arm','Odometry & calibration','Diagnostics']
-    assert not any(k.split('!')[0] in ('Publish','Teleop','ServiceCall') for k in configs)
+            walk(item['first'])
+            walk(item['second'])
+
+    walk(LAYOUT['layout'])
+    assert visited == CONFIGS.keys()
+    assert [t['title'] for t in CONFIGS['Tab!z70-dashboard']['tabs']] == [
+        'Overview', 'Cameras', 'Arm', 'Odometry & calibration', 'Diagnostics']
+    assert not any(k.split('!')[0] in ('Publish', 'Teleop', 'ServiceCall') for k in CONFIGS)
 
 
 def test_3d_and_image_configs_use_real_fields_and_sources():
-    configs=json.loads((HERE/'z70-dashboard.json').read_text())['configById']
-    scene=configs['3D!Robot-map-and-depth']
+    scene = CONFIGS['3D!Robot-map-and-depth']
     assert scene['layers']['z70-urdf']['sourceType'] == 'topic'
     assert scene['layers']['z70-urdf']['topic'] == '/robot_description'
     assert scene['followTf'] == 'odom'
@@ -47,33 +50,31 @@ def test_3d_and_image_configs_use_real_fields_and_sources():
     assert dock['arrowScale'] == [0.35, 0.08, 0.08]
     assert dock['showCovariance'] is False
     assert scene['topics']['/camera/front/depth/points']['colorField'] == 'z'
-    for camera in ('front','gripper'):
-        assert any(c.get('imageMode',{}).get('imageTopic') == f'/camera/{camera}/image_raw/compressed'
-                   for c in configs.values())
-    for removed in ('left','right','back'):
-        assert not any(c.get('imageMode',{}).get('imageTopic') == f'/camera/{removed}/image_raw/compressed'
-                       for c in configs.values())
-    assert configs['RawMessages!Detected-objects']['topicPath'] == '/z70/objects/json'
-    assert configs['RawMessages!Camera-state']['topicPath'] == '/z70/camera/state'
-    assert configs['Indicator!Active-lens']['path'] == '/z70/camera/state.selected_camera'
-    assert configs['3D!Arm-closeup']['followTf'] == 'base_footprint'
+    for camera in ('front', 'gripper'):
+        assert any(c.get('imageMode', {}).get('imageTopic') == f'/camera/{camera}/image_raw/compressed'
+                   for c in CONFIGS.values())
+    for removed in ('left', 'right', 'back'):
+        assert not any(c.get('imageMode', {}).get('imageTopic') == f'/camera/{removed}/image_raw/compressed'
+                       for c in CONFIGS.values())
+    assert CONFIGS['RawMessages!Detected-objects']['topicPath'] == '/z70/objects/json'
+    assert CONFIGS['RawMessages!Camera-state']['topicPath'] == '/z70/camera/state'
+    assert CONFIGS['Indicator!Active-lens']['path'] == '/z70/camera/state.selected_camera'
+    assert CONFIGS['3D!Arm-closeup']['followTf'] == 'base_footprint'
 
 
 def test_spatial_context_is_visible_in_overview():
-    configs=json.loads((HERE/'z70-dashboard.json').read_text())['configById']
-    assert configs['RawMessages!Robot-status']['topicPath'] == '/z70/state'
-    assert configs['RawMessages!Spatial-context']['topicPath'] == '/z70/map/spatial_context'
-    overview = configs['Tab!z70-dashboard']['tabs'][0]['layout']
+    assert CONFIGS['RawMessages!Robot-status']['topicPath'] == '/z70/state'
+    assert CONFIGS['RawMessages!Spatial-context']['topicPath'] == '/z70/map/spatial_context'
+    overview = CONFIGS['Tab!z70-dashboard']['tabs'][0]['layout']
     assert 'RawMessages!Spatial-context' in json.dumps(overview)
 
 
 def test_floor_mosaic_is_visible_in_odometry_tab():
-    configs=json.loads((HERE/'z70-dashboard.json').read_text())['configById']
-    mosaic = configs['Image!Floor-mosaic']['imageMode']
+    mosaic = CONFIGS['Image!Floor-mosaic']['imageMode']
     assert mosaic['imageTopic'] == '/z70/floor_mosaic'
     assert mosaic['imageSchemaName'] == 'sensor_msgs/msg/Image'
-    odometry = configs['Tab!z70-dashboard']['tabs'][3]['layout']
+    odometry = CONFIGS['Tab!z70-dashboard']['tabs'][3]['layout']
     assert 'Image!Floor-mosaic' in json.dumps(odometry)
-    trail = configs['3D!Odometry-trail']
+    trail = CONFIGS['3D!Odometry-trail']
     assert trail['cameraState']['distance'] == 4.5
     assert trail['topics']['/z70/map/dock_pose']['visible'] is False
