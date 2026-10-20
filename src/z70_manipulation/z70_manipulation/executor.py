@@ -1,21 +1,22 @@
-import os
 """Discrete manipulation executor; all execution and observations use ROS."""
 from datetime import datetime, timezone
 import json
 import math
+import os
 from pathlib import Path
 import time
 import cv2
 import numpy as np
 import requests
-from z70_description.arm_model import check as check_arm_limits, LIMITS
+from z70_description.arm_model import LIMITS
+from . import planner
+from .observations import read_arm, read_status
 
 TRACK_GATE_M = .12
 ACQUIRE_MAX_RANGE_M = 1.5
 OBJECT_SIZE_M = .066   # the yellow dodecahedron, measured
 ACQUIRE_MIN_PX = 30
 CENTRE_TOL_M = .02
-from . import planner
 
 
 class UncertainMotion(RuntimeError):
@@ -40,11 +41,9 @@ class Client:
         return self.observations.get(path)
 
     def status(self) -> dict:
-        from .observations import read_status
         return read_status(self.observations)
 
     def arm_estimate(self) -> dict:
-        from .observations import read_arm
         return read_arm(self.observations)
 
     def frame(self):
@@ -135,12 +134,10 @@ class Executor:
         return d
 
     def _status(self) -> dict:
-        fn = getattr(self.client, 'status', None)
-        return (fn() if callable(fn) else (self.client.get('/api/state').get('telemetry', {}).get('status', {}).get('value') or {}))  # type: ignore[return-value]
+        return read_status(self.client) or {}
 
     def _arm(self) -> dict:
-        fn = getattr(self.client, 'arm_estimate', None)
-        return (fn() if callable(fn) else self.client.get('/api/arm/estimate'))  # type: ignore[return-value]
+        return read_arm(self.client)
 
     def _yaw_gain(self, angle: float, default: float = .68) -> float:
         return float(self.gains.get('yaw_positive' if angle > 0 else 'yaw_negative', {}).get('gain') or default)
@@ -275,10 +272,9 @@ class Executor:
         if before and after:
             c, sn = math.cos(before['yaw']), math.sin(before['yaw'])
             dx, dy = after['x'] - before['x'], after['y'] - before['y']
-            self.last_motion = (c * dx + sn * dy, -sn * dx + c * dy, math.atan2(math.sin(after['yaw'] - before['yaw']), math.cos(after['yaw'] - before['yaw'])))
-            distance = math.hypot(after['x'] - before['x'], after['y'] - before['y'])
-            yaw = abs(math.atan2(math.sin(after['yaw'] - before['yaw']), math.cos(after['yaw'] - before['yaw'])))
-            self.log('odom_delta', distance_m=distance, yaw_rad=yaw)
+            dth = math.atan2(math.sin(after['yaw'] - before['yaw']), math.cos(after['yaw'] - before['yaw']))
+            self.last_motion = (c * dx + sn * dy, -sn * dx + c * dy, dth)
+            self.log('odom_delta', distance_m=math.hypot(dx, dy), yaw_rad=abs(dth))
         else:
             self.log('data_gap', kind='odom')
 
