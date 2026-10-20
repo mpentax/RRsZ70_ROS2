@@ -3,10 +3,11 @@ from types import SimpleNamespace as NS
 
 import numpy as np
 import pytest
+from z70_manipulation.navigation import PinAndGoNavigator
+from z70_mapping.decoder import VendorMap
 
 
 def room(pose=(1., 1., 0.)):
-    from z70_mapping.decoder import VendorMap
     pixels = np.full((80, 80), 15, np.uint8)
     pixels[[0, -1], :] = 1; pixels[:, [0, -1]] = 1
     occupancy = np.where(pixels == 1, 100, 0).astype(np.int8)
@@ -52,7 +53,6 @@ class Commands:
 
 
 def run(obs=None, commands=None, dry_run=True, **kwargs):
-    from z70_manipulation.navigation import PinAndGoNavigator
     obs = obs or Observations()
     commands = commands or Commands()
     result = PinAndGoNavigator(obs, commands, sleep=lambda _: None, **kwargs).execute(
@@ -174,7 +174,6 @@ def test_real_dds_pin_and_go_dry_run_and_unverified_map():
     from z70_interfaces.msg import ArmEstimate, RobotState, MapSnapshot
     from z70_interfaces.srv import TaskSession, RawRpc, Stop, RefreshMap
     from unique_identifier_msgs.msg import UUID
-    from nav_msgs.msg import OccupancyGrid
     from z70_manipulation.node import PickServer
     from z70_manipulation.observations import LATCHED
 

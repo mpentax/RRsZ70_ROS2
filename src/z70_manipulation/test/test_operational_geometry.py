@@ -1,10 +1,10 @@
 """Hand collision body floor clearance and operational grasp planning."""
 import pytest
+from z70_description import pincher_geometry as g
 from z70_manipulation import planner as p
 
 
 def test_floor_safety_checks_the_whole_open_hand_and_roll():
-    from z70_description import pincher_geometry as g
     candidates = [(a, b, roll, 90) for a in range(180, 271, 5) for b in range(35, 171, 5) for roll in (0, 40, 90)]
     examples = [s for s in candidates if p.tip_floor_bound(s) >= p.MIN_TIP and
                 g.lowest(g.world_bodies(s)) - g.CONFIG['uncertainty_m'] < p.MIN_TIP]
@@ -26,7 +26,6 @@ def test_new_anatomy_routes_to_operational_equator_not_unsafe_historical_preset(
 
 
 def test_operational_query_exposes_frames_regions_and_opening_not_legacy_tcp():
-    from z70_description import pincher_geometry as g
     gaps = []
     for m6 in (0, 45, 90):
         detail = g.articulated_geometry((240, 95, 40, m6))
