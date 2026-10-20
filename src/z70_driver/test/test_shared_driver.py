@@ -4,8 +4,11 @@ import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import importlib
 import json
+import os
 import queue
+import signal
 import struct
+import subprocess
 import threading
 import time
 from types import SimpleNamespace
@@ -16,13 +19,14 @@ import cv2
 import numpy as np
 import pytest
 import rclpy
-from rclpy.executors import MultiThreadedExecutor
+from rclpy.context import Context
+from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
 from rclpy.parameter import Parameter
 from rclpy.serialization import serialize_message, deserialize_message
 from sensor_msgs.msg import CameraInfo, CompressedImage, Image
 from nav_msgs.msg import OccupancyGrid
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus
-from z70_interfaces.msg import RobotState, MapSnapshot, ArmEstimate, FrameMetadata, CommandEvent
+from z70_interfaces.msg import RobotState, MapSnapshot, ArmEstimate, FrameMetadata, CommandEvent, CalibrationState, OdometryStatus
 from z70_interfaces.srv import RefreshMap, SelectCamera
 from z70_driver.driver import Driver, LATCHED, host_time, host_ms
 from z70_driver.frame_subscription import MatchedFrames
@@ -299,3 +303,45 @@ def test_frame_join_rejects_unknown_calibration_stale_and_mismatch():
     meta.evidence.sequence=3;meta.evidence.valid=True;meta.calibration_id='';join.info(meta);assert len(seen)==1
     meta.evidence.sequence=4;meta.calibration_id='synthetic';meta.evidence.stale=True;join.info(meta);assert len(seen)==1
     meta.evidence.sequence=5;meta.evidence.stale=False;meta.header.stamp.sec+=1;join.info(meta);assert len(seen)==1
+
+
+def test_standard_launch_acquires_fake_images_maps_state_and_shuts_down(backend, tmp_path):
+    backend['image_shape'] = (1200, 1600)
+    token = tmp_path / 'synthetic-token'; token.write_text('offline-launch-fixture'); token.chmod(0o600)
+    env = dict(os.environ, ROS_DOMAIN_ID='94', XDG_DATA_HOME=str(tmp_path / 'application-data'),
+               ROS_LOG_DIR=str(tmp_path / 'ros-log'))
+    env.pop('Z70_REPO', None)
+    context = Context(); rclpy.init(context=context, domain_id=94)
+    node = rclpy.create_node('offline_standard_launch_probe', context=context)
+    executor = SingleThreadedExecutor(context=context); executor.add_node(node)
+    states = []; images = []; maps = []; calibrations = []; odometry = []
+    node.create_subscription(RobotState, '/z70/state', states.append, LATCHED)
+    node.create_subscription(CompressedImage, '/camera/front/image_raw/compressed', images.append, 2)
+    node.create_subscription(OccupancyGrid, '/map', maps.append, LATCHED)
+    node.create_subscription(CalibrationState, '/z70/chassis_calibration', calibrations.append, LATCHED)
+    node.create_subscription(OdometryStatus, '/z70/odom_status', odometry.append, 10)
+    log = (tmp_path / 'standard-launch.log').open('w')
+    process = subprocess.Popen(['ros2', 'launch', 'z70_bringup', 'bringup.launch.py',
+        'origin:=' + backend['origin'], 'token_file:=' + str(token), 'foxglove_port:=0'],
+        cwd=tmp_path, env=env, stdout=log, stderr=log, start_new_session=True)
+    forced = False
+    try:
+        deadline = time.monotonic() + 25
+        while time.monotonic() < deadline and not (states and images and maps and calibrations and odometry):
+            assert process.poll() is None, 'Standard launch exited during fake acquisition'
+            executor.spin_once(timeout_sec=.1)
+        assert states and images and maps and calibrations and odometry, 'Required launched ROS observation topics missing'
+        assert odometry[-1].evidence.valid and odometry[-1].active_camera_x_known
+        assert not odometry[-1].covariance_calibrated
+        assert cv2.imdecode(np.frombuffer(bytes(images[-1].data), np.uint8), cv2.IMREAD_COLOR).shape[:2] == (1200, 1600)
+        assert backend['frames'] > 0
+        assert all(path != '/api/driver/rpc' or body['method'] == 'get_room_mapping'
+                   for method, path, body in backend['calls'])
+    finally:
+        if process.poll() is None: process.send_signal(signal.SIGINT)
+        try: process.wait(timeout=15)
+        except subprocess.TimeoutExpired:
+            forced = True; os.killpg(process.pid, signal.SIGKILL); process.wait()
+        log.close(); executor.shutdown(); node.destroy_node(); context.shutdown()
+    assert not forced, 'Owned offline launch did not finish bounded standard shutdown'
+    assert process.returncode == 0

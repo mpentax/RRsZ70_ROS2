@@ -1,28 +1,34 @@
 """HSV color segmentation, floor projection, and ArUco ID68 wrist pose estimation."""
 from functools import lru_cache
+from pathlib import Path
 import cv2
 import numpy as np
 import yaml
 from z70_description import pincher_geometry as hand
 from z70_description.floor_geometry import FrontCamera
-from .resources import front_calibration_path, description_config, colors_path
+from z70_description.resources import config_path, package_root
+
+_PACKAGE_ROOT = Path(__file__).resolve().parent.parent
 
 @lru_cache(maxsize=1)
 def calibration():
-    return description_config('mount_calibration.yaml')
+    return yaml.safe_load(config_path('mount_calibration.yaml').read_text())
 
 @lru_cache(maxsize=1)
 def front_camera():
-    return FrontCamera.load(front_calibration_path())
+    return FrontCamera.load(config_path('front_camera.json'))
 
 @lru_cache(maxsize=1)
 def gripper_camera_info():
     """Load gripper camera intrinsics and distortion parameters."""
-    return description_config('z70_gripper_camera_info.yaml')
+    return yaml.safe_load(config_path('z70_gripper_camera_info.yaml').read_text())
 
 @lru_cache(maxsize=1)
 def colors():
-    return yaml.safe_load(colors_path().read_text())
+    path = package_root('z70_manipulation', _PACKAGE_ROOT) / 'config/colors.yaml'
+    if not path.is_file():
+        raise FileNotFoundError(path)
+    return yaml.safe_load(path.read_text())
 
 def detect(image,thresholds=None,min_area=70,keep_masks=False):
     hsv=cv2.cvtColor(image,cv2.COLOR_BGR2HSV); found=[]

@@ -2,7 +2,7 @@
 
 ROS 2 Lyrical stack, 3D visualization, web operator console, and MCP control plane for the stock **Roborock Saros Z70** (`roborock.vacuum.a179`).
 
-> **Note:** Independent community project; not affiliated with, endorsed by, or supported by Roborock.
+> This is an independent community project; it is not affiliated with, endorsed by, or supported by Roborock.
 
 ## Getting Started
 
