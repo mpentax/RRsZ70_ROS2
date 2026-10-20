@@ -250,24 +250,22 @@ export class RobotClient {
     const { promise, resolve, reject } = Promise.withResolvers<unknown>();
     const id = this.#nextId++;
     if (this.#nextId > 0x7fffffff) this.#nextId = 1;
+    const dropQueued = (error: Error) => {
+      const index = this.#queued.indexOf(pending);
+      if (index !== -1) {
+        this.#queued.splice(index, 1);
+        this.#settle(pending, error);
+      }
+    };
     const pending: Pending = {
       id, method, params: encoded, started: performance.now(), resolve, reject, completing: false, responseTimeoutMs,
-      security, dispatch: "not_sent", timer: setTimeout(() => {
-        const index = this.#queued.indexOf(pending);
-        if (index !== -1) {
-          this.#queued.splice(index, 1);
-          this.#settle(pending, new Error("Local queued request timed out"));
-        }
-      }, Math.min(15_000, responseTimeoutMs)),
+      security, dispatch: "not_sent",
+      timer: setTimeout(() => dropQueued(new Error("Local queued request timed out")), Math.min(15_000, responseTimeoutMs)),
     };
     this.#queued.push(pending); // #flush selects the first priority stop, preserving stop/end order.
     // Connection failure rejects the queue in #fail. No request is retried.
     void this.connect().then(() => this.#flush(), (error: unknown) => {
-      const index = this.#queued.indexOf(pending);
-      if (index !== -1) {
-        this.#queued.splice(index, 1);
-        this.#settle(pending, error instanceof Error ? error : new Error("Local connection failed"));
-      }
+      dropQueued(error instanceof Error ? error : new Error("Local connection failed"));
     });
     return promise;
   }

@@ -113,6 +113,7 @@ export interface CloudMqttPeer {
 
 export class CloudControlClient {
   #credentials: CloudControlCredentials;
+  #auth: ReturnType<typeof mqttOptions>;
   #mqtt?: CloudMqttPeer;
   #connector: (url: string, options: IClientOptions) => Promise<CloudMqttPeer>;
   #pending = new Map<number, Pending>();
@@ -123,7 +124,7 @@ export class CloudControlClient {
 
   constructor(credentials: CloudControlCredentials,
     connector: (url: string, options: IClientOptions) => Promise<CloudMqttPeer> = connectAsync) {
-    mqttOptions(credentials);
+    this.#auth = mqttOptions(credentials);
     this.#credentials = { ...credentials };
     this.#connector = connector;
   }
@@ -142,7 +143,7 @@ export class CloudControlClient {
 
   async #connect(): Promise<void> {
     if (this.#connectedAt !== null) return;
-    const auth = mqttOptions(this.#credentials);
+    const auth = this.#auth;
     try {
       const client = await this.#connector(this.#credentials.broker, {
         username: auth.username, password: auth.password,
@@ -205,7 +206,7 @@ export class CloudControlClient {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => this.#fail(new Error("Cloud RPC timed out; command outcome is unknown.")), timeoutMs);
       this.#pending.set(id, { resolve, reject, timer });
-      try { client.publish(mqttOptions(this.#credentials).outgoing, frame, { qos: 0, retain: false }, (error) => {
+      try { client.publish(this.#auth.outgoing, frame, { qos: 0, retain: false }, (error) => {
         if (error && this.#mqtt === client) this.#fail(new Error("Cloud publish failed; command outcome is unknown."));
       }); } catch { this.#fail(new Error("Cloud publish failed; command outcome is unknown.")); }
     });
