@@ -102,14 +102,17 @@ class CommandSurfaces:
     def backend_outcome(self, row):
         from .driver import uid, host_ms
         o = CommandOutcome(command_id=uid(row['commandId']), attempt_id=uid(row['attemptId']),
-            attempt_index=int(row['attemptIndex']), requested_at=host_ms(row['startedAt']),
-            finished_at=host_ms(row['finishedAt']),
+            attempt_index=int(row['attemptIndex']),
+            requested_at=host_ms(row['startedAt'] if 'startedAt' in row else row['requestedAt']),
             dispatch={'not_sent': 0, 'sent': 1, 'unknown': 2}[row['dispatch']],
             response={'none': 0, 'received': 1, 'vendor_error': 2, 'transport_error': 3}[row['response']])
+        if row.get('finishedAt') is not None:
+            o.finished_at = host_ms(row['finishedAt'])
         reasons = {'timeout': 'TIMEOUT', 'capacity': 'CAPACITY', 'invalid-input': 'INVALID_INPUT',
-                   'unavailable': 'UNAVAILABLE', 'transport': 'TRANSPORT','cancelled':'CANCELLED'}
-        o.error_code = ('NONE' if o.response == 1 else 'VENDOR_REJECTED' if o.response == 2
-                        else reasons.get(row.get('transportReason'), 'TRANSPORT'))
+                   'unavailable': 'UNAVAILABLE', 'transport': 'TRANSPORT', 'cancelled': 'CANCELLED'}
+        o.error_code = row.get('errorCode') or (
+            'NONE' if o.response == 1 else 'VENDOR_REJECTED' if o.response == 2
+            else reasons.get(row.get('transportReason'), 'TRANSPORT'))
         if isinstance(row.get('vendorCode'), int):
             o.vendor_code_known = True; o.vendor_code = row['vendorCode']
         return o
