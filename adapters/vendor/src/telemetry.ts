@@ -1,9 +1,4 @@
 /** Numeric transport sanitization only. ROS owns polling and semantic telemetry. */
-export interface Observation<T> {
-  value: T | null;
-  observedAt: number | null;
-  error: string | null;
-}
 export type NumericTelemetry = number | boolean | null | NumericTelemetry[] | { [key: string]: NumericTelemetry };
 export function numericTelemetry(value: unknown, depth = 0): NumericTelemetry {
   if (depth > 5) return null;
