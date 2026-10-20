@@ -2,7 +2,7 @@ import math
 import numpy as np
 import pytest
 from z70_mapping.decoder import VendorMap
-from z70_mapping.geometry import alignment, transform_pose, room_names
+from z70_mapping.geometry import alignment, room_names, spatial_context, transform_pose
 
 
 def context_map():
@@ -15,7 +15,6 @@ def context_map():
 
 
 def test_spatial_context_room_identification_and_egocentric_geometry():
-    from z70_mapping.geometry import spatial_context
     m = context_map()
     m.pixels[50, 50] = 23  # Explicit segmentation wins over nearer centroid.
     ctx = spatial_context(m, {2: 'Kitchen'})
@@ -37,7 +36,6 @@ def test_spatial_context_room_identification_and_egocentric_geometry():
     ((-3., 0., 0.), 0, None), ((3., 0., 0.), 0, None),
 ])
 def test_current_room_fallback_only_on_free_in_bounds_nearby_cell(pose, occupancy, expected):
-    from z70_mapping.geometry import spatial_context
     m = context_map()
     m.occupancy[:] = occupancy
     current = spatial_context(m, {}, pose)['current_room']
@@ -45,7 +43,6 @@ def test_current_room_fallback_only_on_free_in_bounds_nearby_cell(pose, occupanc
 
 
 def test_spatial_context_handles_missing_pose_and_heading():
-    from z70_mapping.geometry import spatial_context
     m = context_map()
     m.robot = None
     ctx = spatial_context(m, {})
@@ -60,7 +57,6 @@ def test_spatial_context_handles_missing_pose_and_heading():
 
 
 def test_clearance_rays_cover_eight_relative_directions():
-    from z70_mapping.geometry import spatial_context
     m = context_map()
     m.occupancy[:] = -1  # Unknown cells are not walls.
     m.occupancy[70, 50] = 100  # One metre north, robot faces north.
@@ -76,7 +72,6 @@ def test_clearance_rays_cover_eight_relative_directions():
 
 
 def test_clearance_rays_stop_at_five_metres():
-    from z70_mapping.geometry import spatial_context
     m = context_map()
     m.width = m.height = 301
     m.origin = (-7.525, -7.525)

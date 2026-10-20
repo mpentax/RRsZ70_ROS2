@@ -5,9 +5,11 @@ import pytest
 from z70_mapping.decoder import decode_map
 
 
+def block(kind, data, extra=b''):
+    return struct.pack('<HHI', kind, 8 + len(extra), len(data)) + extra + data
+
+
 def fixture(pixels=bytes([1, 23, 0, 39, 255, 7]), width=3, height=2, extra_blocks=b''):
-    def block(kind, data, extra=b''):
-        return struct.pack('<HHI', kind, 8 + len(extra), len(data)) + extra + data
     image = block(2, pixels, struct.pack('<iiII', 100, 200, height, width))
     robot = block(8, struct.pack('<iii', 10075, 5025, 90))
     dock = block(1, struct.pack('<ii', 10000, 5000))
@@ -32,10 +34,6 @@ def test_zero_vendor_photo_obstacles_are_explicit_not_assumed_from_floor():
     empty = b''.join(struct.pack('<HHIHH', kind, 12, 0, 0, 0) for kind in (12,15,16))
     m = decode_map(fixture(extra_blocks=empty))
     assert m.obstacle_counts == {12:0,15:0,16:0}
-
-
-def block(kind, data):
-    return struct.pack('<HHI', kind, 8, len(data)) + data
 
 
 @pytest.mark.parametrize('kind,attribute', [(3, 'path'), (9, 'goto_path')])

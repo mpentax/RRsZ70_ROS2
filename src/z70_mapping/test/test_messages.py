@@ -1,11 +1,18 @@
+import json
+from types import SimpleNamespace
+from unittest.mock import Mock
 import numpy as np
 import pytest
-from visualization_msgs.msg import Marker
+from builtin_interfaces.msg import Time
+from nav_msgs.msg import Odometry
+from rclpy.node import Node
+from rclpy.qos import DurabilityPolicy
 from rclpy.serialization import serialize_message, deserialize_message
-from visualization_msgs.msg import MarkerArray
+from visualization_msgs.msg import Marker, MarkerArray
+from z70_mapping import node as module
 from z70_mapping.decoder import decode_map
+from z70_mapping.geometry import spatial_context, transform_pose
 from z70_mapping.messages import grid_message, pose_message, markers_message
-from z70_mapping.geometry import transform_pose
 from test_decode import fixture
 
 
@@ -52,12 +59,6 @@ def test_empty_overlay_markers_are_omitted():
 @pytest.fixture
 def mapping_node(monkeypatch):
     """Exercise callbacks with ROS transport mocked; no DDS or driver access."""
-    from types import SimpleNamespace
-    from unittest.mock import Mock
-    from rclpy.node import Node
-    from builtin_interfaces.msg import Time
-    from z70_mapping import node as module
-
     publishers = {}
     def publisher(self, kind, topic, qos):
         publishers[topic] = Mock(qos=qos)
@@ -75,8 +76,6 @@ def mapping_node(monkeypatch):
 
 
 def snapshot_message(sequence=1):
-    from types import SimpleNamespace
-    from builtin_interfaces.msg import Time
     return SimpleNamespace(
         evidence=SimpleNamespace(valid=True, stale=False, received_at=Time(sec=123)),
         raw=fixture(), rooms=[SimpleNamespace(segment_id=2, name='Kitchen')],
@@ -85,9 +84,6 @@ def snapshot_message(sequence=1):
 
 
 def test_first_snapshot_aligns_before_any_odometry_and_publishes_spatial_context(mapping_node):
-    import json
-    from z70_mapping.geometry import spatial_context
-    from rclpy.qos import DurabilityPolicy
     node, pubs, tf = mapping_node
     node.snapshot(snapshot_message())
     node.publish()
@@ -101,14 +97,10 @@ def test_first_snapshot_aligns_before_any_odometry_and_publishes_spatial_context
     assert publisher.qos.durability == DurabilityPolicy.TRANSIENT_LOCAL
     payload = json.loads(publisher.publish.call_args.args[0].data)
     assert payload.pop('boundary_contract')['frame_id'] == 'map'
-    assert payload == spatial_context(
-        node.current[0], {2: 'Kitchen'})
+    assert payload == spatial_context(node.current[0], {2: 'Kitchen'})
 
 
 def test_spatial_context_tracks_transformed_odometry(mapping_node):
-    import json
-    from nav_msgs.msg import Odometry
-    from z70_mapping.geometry import spatial_context, transform_pose
     node, pubs, tf = mapping_node
     node.snapshot(snapshot_message())
     node.publish()
@@ -124,8 +116,7 @@ def test_spatial_context_tracks_transformed_odometry(mapping_node):
     assert tf.sendTransform.call_count == 2
     payload = json.loads(pubs['/z70/map/spatial_context'].publish.call_args.args[0].data)
     assert payload.pop('boundary_contract')['frame_id'] == 'map'
-    assert payload == spatial_context(
-        node.current[0], {2: 'Kitchen'}, transform_pose(anchor, node.odom))
+    assert payload == spatial_context(node.current[0], {2: 'Kitchen'}, transform_pose(anchor, node.odom))
 
 
 def test_alignment_refresh_only_on_new_sequence(mapping_node):
@@ -152,7 +143,6 @@ def test_alignment_refresh_only_on_new_sequence(mapping_node):
 
 
 def test_missing_heading_publishes_context_without_tf(mapping_node):
-    import json
     node, pubs, tf = mapping_node
     node.snapshot(snapshot_message())
     node.pending[0].robot = (10.075, 5.025, None)

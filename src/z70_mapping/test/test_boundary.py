@@ -1,7 +1,19 @@
 """Interior room boundary erosion, connectivity, and obstacle masking."""
+import json
 import numpy as np
 import pytest
+from nav_msgs.msg import OccupancyGrid
+from rclpy.qos import DurabilityPolicy, ReliabilityPolicy
+from rclpy.serialization import serialize_message, deserialize_message
+from z70_mapping.boundary import (
+    BoundaryConfig,
+    check_corridor_containment,
+    compute_safe_interior,
+    extract_segment_ids,
+    generate_patrol_waypoints,
+)
 from z70_mapping.decoder import VendorMap
+from z70_mapping.messages import markers_message, safe_grid_message
 from test_messages import mapping_node, snapshot_message
 
 
@@ -13,14 +25,12 @@ def floor(shape=(21, 30), resolution=.1):
 
 
 def config(**kwargs):
-    from z70_mapping.boundary import BoundaryConfig
     values = dict(allowed_segments=(1, 2), chassis_radius_m=.2)
     values.update(kwargs)
     return BoundaryConfig(**values)
 
 
 def test_union_before_erosion_preserves_shared_room_boundary():
-    from z70_mapping.boundary import compute_safe_interior
     m = floor()
     m.pixels[:, 15:] = 23
     result = compute_safe_interior(m, {}, config())
@@ -34,7 +44,6 @@ def test_union_before_erosion_preserves_shared_room_boundary():
 
 
 def test_waypoints_are_deterministic_clear_and_cover_each_reachable_room():
-    from z70_mapping.boundary import compute_safe_interior, generate_patrol_waypoints
     m = floor()
     m.pixels[:, 15:] = 23
     r = compute_safe_interior(m, {}, config())
@@ -50,7 +59,6 @@ def test_waypoints_are_deterministic_clear_and_cover_each_reachable_room():
 
 
 def test_corridor_checks_full_swept_disk_and_diagonal_corner():
-    from z70_mapping.boundary import check_corridor_containment
     mask = np.ones((10, 10), bool)
     mask[4, 4] = False
     assert check_corridor_containment(mask, (1.5, 2.5), (8.5, 2.5), .4)
@@ -63,10 +71,6 @@ def test_corridor_checks_full_swept_disk_and_diagonal_corner():
 
 
 def test_safe_grid_serialization_markers_and_corridor_metric_coordinates():
-    from rclpy.serialization import serialize_message, deserialize_message
-    from nav_msgs.msg import OccupancyGrid
-    from z70_mapping.boundary import compute_safe_interior, check_corridor_containment
-    from z70_mapping.messages import safe_grid_message, markers_message
     m = floor()
     m.rooms = {}
     m.origin = (-2., 3.)
@@ -90,7 +94,6 @@ def test_safe_grid_serialization_markers_and_corridor_metric_coordinates():
 
 
 def test_unsegmented_unknown_occupied_and_nonallowlisted_are_excluded():
-    from z70_mapping.boundary import compute_safe_interior, extract_segment_ids
     m = floor((5, 8))
     m.pixels[2, :6] = [7, 255, 15, 15, 16, 31]
     m.occupancy[2, 2] = -1
@@ -103,7 +106,6 @@ def test_unsegmented_unknown_occupied_and_nonallowlisted_are_excluded():
 
 
 def test_zones_and_virtual_walls_are_subtracted_before_clearance():
-    from z70_mapping.boundary import compute_safe_interior
     m = floor()
     m.zones = [[(.61, .61), (.89, .61), (.89, .89), (.61, .89)]]
     m.virtual_walls = [(1.55, .05, 1.55, 2.05)]
@@ -116,7 +118,6 @@ def test_zones_and_virtual_walls_are_subtracted_before_clearance():
 
 
 def test_diagonal_virtual_wall_supercover_has_no_corner_gaps():
-    from z70_mapping.boundary import compute_safe_interior
     m = floor((8, 8), resolution=1.)
     m.virtual_walls = [(0., 0., 8., 8.)]
     r = compute_safe_interior(m, {}, config(chassis_radius_m=0.))
@@ -126,7 +127,6 @@ def test_diagonal_virtual_wall_supercover_has_no_corner_gaps():
 
 
 def test_map_edges_are_boundaries_and_clearance_is_conservative():
-    from z70_mapping.boundary import compute_safe_interior
     m = floor()
     r = compute_safe_interior(m, {}, config())
     assert not r.safe_mask[:2, :].any()
@@ -139,7 +139,6 @@ def test_map_edges_are_boundaries_and_clearance_is_conservative():
 
 
 def test_four_connectivity_rejects_diagonal_floor_touch():
-    from z70_mapping.boundary import compute_safe_interior
     m = floor((3, 3), resolution=1.)
     m.occupancy[:] = 100
     m.occupancy[0, 0] = m.occupancy[1, 1] = 0
@@ -153,7 +152,6 @@ def test_four_connectivity_rejects_diagonal_floor_touch():
 
 
 def test_narrow_doorway_reports_lost_allowed_room():
-    from z70_mapping.boundary import compute_safe_interior
     m = floor()
     m.pixels[:, 16:] = 23
     m.occupancy[:, 14:16] = 100
@@ -169,7 +167,6 @@ def test_narrow_doorway_reports_lost_allowed_room():
 
 
 def test_completely_forbidden_room_and_nonallowed_rooms_are_reported():
-    from z70_mapping.boundary import compute_safe_interior
     m = floor()
     m.pixels[:, 15:] = 23
     m.rooms[3] = {}
@@ -183,7 +180,6 @@ def test_completely_forbidden_room_and_nonallowed_rooms_are_reported():
 
 
 def test_component_selection_pose_nearest_and_largest_fallback():
-    from z70_mapping.boundary import compute_safe_interior
     m = floor()
     r = compute_safe_interior(m, {}, config(), robot_pose_map=(.55, 1.05))
     assert r.selection_method == 'robot_safe_cell'
@@ -200,7 +196,6 @@ def test_component_selection_pose_nearest_and_largest_fallback():
 
 
 def test_explicit_physical_envelope_parameters_and_invalid_config():
-    from z70_mapping.boundary import BoundaryConfig, compute_safe_interior
     c = config(chassis_radius_m=.175, deployed_arm_extension_m=.1,
                localization_uncertainty_m=.025, stopping_distance_m=.05)
     assert c.clearance_m == pytest.approx(.35)
@@ -217,7 +212,6 @@ def test_explicit_physical_envelope_parameters_and_invalid_config():
 
 
 def test_waypoint_clearance_preference_fallback_never_leaves_reachable():
-    from z70_mapping.boundary import compute_safe_interior
     m = floor((3, 3), resolution=.1)
     r = compute_safe_interior(m, {}, config(allowed_segments=(1,), chassis_radius_m=.05,
                                           waypoint_clearance_m=.25))
@@ -227,15 +221,12 @@ def test_waypoint_clearance_preference_fallback_never_leaves_reachable():
 
 
 def test_empty_allowlist_is_fail_closed():
-    from z70_mapping.boundary import compute_safe_interior
     r = compute_safe_interior(floor(), {}, config(allowed_segments=()))
     assert not r.allowed_mask.any() and not r.reachable_mask.any()
     assert set(np.unique(r.safe_grid)) == {100}
 
 
 def test_node_publishes_latched_safe_grid_and_contract_on_both_json_topics(mapping_node):
-    import json
-    from rclpy.qos import DurabilityPolicy, ReliabilityPolicy
     node, pubs, _ = mapping_node
     node.snapshot(snapshot_message())
     node.publish()
@@ -249,4 +240,3 @@ def test_node_publishes_latched_safe_grid_and_contract_on_both_json_topics(mappi
                  for topic in ('/z70/map/status', '/z70/map/spatial_context')]
     assert contracts[0] == contracts[1]
     assert contracts[0]['room_connectivity']['2']['raw_cells'] > 0
-
