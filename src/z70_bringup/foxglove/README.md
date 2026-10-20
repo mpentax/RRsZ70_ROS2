@@ -5,9 +5,10 @@ Connect Foxglove Studio to **`ws://127.0.0.1:8765`** while `pixi run bringup` is
 ## Tabs and Panels
 
 - **Overview:** Map-fixed 3D view showing `/map`, room/zone/carpet markers (`/z70/map/markers`), robot/dock poses, and the full CAD URDF model, alongside `/z70/state` and `/z70/map/spatial_context`.
-- **Odometry & Calibration:** `odom`-frame 3D view with `/z70/odom_path`, online chassis calibration metrics (`/z70/calibration/*`), and the top-down `/z70/floor_mosaic`.
-- **Cameras:** Front and gripper compressed streams (`/camera/front/image_raw/compressed`, `/camera/gripper/image_raw/compressed`), `/z70/camera/state`, and optional monocular depth (`/camera/front/depth/points`).
+- **Cameras:** Front and gripper compressed streams (`/camera/front/image_raw/compressed`, `/camera/gripper/image_raw/compressed`), `/z70/camera/state`, `/z70/objects/json`, and `/camera/front/metadata`.
 - **Arm:** `base_footprint` close-up of the 5-DOF CAD arm and gripper with live `/z70/arm_estimate` joint and uncertainty plots.
+- **Odometry & calibration:** `odom`-frame 3D view with `/z70/odom_path`, online chassis calibration metrics (`/z70/calibration/*`), and the top-down `/z70/floor_mosaic`.
+- **Diagnostics:** `/diagnostics` summary and detail panels, battery history (`/z70/battery`), and last RC command age (`/z70/last_command/age_s`).
 
 ## Regenerating `z70-dashboard.json`
 
@@ -18,4 +19,4 @@ curl -fsSL https://raw.githubusercontent.com/foxglove/foxglove-sdk/0e6c4b4e37285
 PYTHONPATH="$TMPDIR" pixi run python src/z70_bringup/foxglove/generate_dashboard.py
 ```
 
-Layout structure and topic bindings are tested in `test_dashboard_layout.py` via `pixi run test`.
+Layout structure and topic bindings are tested in `src/z70_driver/test/test_dashboard.py` via `pixi run test`.
