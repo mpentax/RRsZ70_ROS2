@@ -1,6 +1,6 @@
 import type { CameraAccount, DeviceCredentials } from "./cloud.ts";
 import type { ActiveCamera } from "./camera-selection.ts";
-import { localServiceOrigin } from "./local-origin.ts";
+import { localServiceOrigin } from "./service-config.ts";
 
 export const GO2RTC_ORIGIN = localServiceOrigin(process.env.GO2RTC_ORIGIN ?? "http://127.0.0.1:57001", "go2rtc");
 export const GO2RTC_STREAM = "z70";

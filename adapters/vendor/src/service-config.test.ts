@@ -1,7 +1,21 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { loadServiceConfig, localOrigin } from "./service-config.ts";
+import { loadServiceConfig, localOrigin, localServiceOrigin } from "./service-config.ts";
 import { fileURLToPath } from "node:url";
+
+test("explicit native loopback and LAN service origins are accepted", () => {
+  assert.equal(localServiceOrigin("http://127.0.0.1:57001", "go2rtc"), "http://127.0.0.1:57001");
+  assert.equal(localServiceOrigin("http://localhost:57001", "go2rtc"), "http://localhost:57001");
+  assert.equal(localServiceOrigin("http://[::1]:57001"), "http://[::1]:57001");
+});
+
+test("public providers, credentials, paths, and ambiguous destinations are rejected", () => {
+  for (const origin of [
+    "https://api.example.com", "http://8.8.8.8:57001", "http://localhost.attacker.invalid",
+    "http://user:password@127.0.0.1:57001", "http://127.0.0.1:57001/api",
+    "http://127.0.0.1:57001?redirect=anything", "file:///tmp/model",
+  ]) assert.throws(() => localServiceOrigin(origin), /origin/);
+});
 
 test("workspace entrypoints retain one state/static root outside the repository cwd", t => {
   t.mock.method(process, "cwd", () => "/missing-caller-directory");
