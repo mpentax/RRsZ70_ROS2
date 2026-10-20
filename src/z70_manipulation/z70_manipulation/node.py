@@ -28,6 +28,7 @@ from z70_driver.frame_subscription import MatchedFrames
 from z70_mapping.boundary import BoundaryConfig
 from z70_mapping.geometry import quat_yaw
 from . import perception, planner
+from .commands import Commands
 from .executor import Client, log_directory
 from .garment_delivery import TowingQualificationConfig
 from .goals import GoalContext, GoalSpec, BUILTIN_GOALS
@@ -149,7 +150,6 @@ class PickServer(Perception):
         self.group = ReentrantCallbackGroup()
         self.observations = Observations(self)
         if hasattr(self.observations, 'node'):
-            from .commands import Commands
             Commands(self.observations)
         self.observations.cancelled = lambda: self.client is not None and self.client.commands is not None and self.client.commands.cancelled.is_set()
         self.create_subscription(CalibrationState, '/z70/chassis_calibration', self.calibration, LATCHED)
@@ -181,6 +181,12 @@ class PickServer(Perception):
         self.action_servers.append(server)
         self.goal_specs[spec.name] = spec
         return server
+
+    def destroy_node(self):
+        for server in self.action_servers:
+            server.destroy()
+        self.action_servers.clear()
+        return super().destroy_node()
 
     def _run_goal(self, handle, spec: GoalSpec):
         self.active_handle = handle
