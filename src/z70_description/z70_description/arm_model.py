@@ -34,11 +34,16 @@ def config_path(name: str) -> Path:
         raise FileNotFoundError(path)
     return path
 
+
+def _config(name: str):
+    return yaml.safe_load(config_path(name).read_text())
+
+
 SHOULDER = (0.0475, 0.14)       # m2_pos: shoulder pivot (M3)           #32735 / W #32741
 VENDOR_L1, VENDOR_L2 = 0.1775, 0.205
-_CAD = yaml.safe_load(config_path("cad_arm.yaml").read_text())
-L1 = float(_CAD["L1_m"])        # shoulder (M3) -> elbow (M4), CAD link length
-L2 = float(_CAD["L2_m"])        # elbow (M4) -> wrist roll (M5), CAD link length
+CAD = _config("cad_arm.yaml")
+L1 = float(CAD["L1_m"])         # shoulder (M3) -> elbow (M4), CAD link length
+L2 = float(CAD["L2_m"])         # elbow (M4) -> wrist roll (M5), CAD link length
 LIMITS = {"m3": (90, 270), "m4": (35, 170), "m5": (0, 155)}            # #32735 arrays
 JOINT_STEP_DEG = 10             # arm_joints: +-10 deg per repetition    q #32745
 HAND_STEP_M = 0.04              # arm_move: end point +-0.04 m in x or y, then IK   q #32745
@@ -112,13 +117,8 @@ def vendor_check(m3, m4, m5):
     return "SUCCESS"
 
 
-def _config(name):
-    return yaml.safe_load(config_path(name).read_text())
-
-
 CONFIG = _config('pincher_geometry.yaml')
 CAL = _config('mount_calibration.yaml')
-CAD = _CAD
 N = 96
 THETA = np.arange(N) * 2 * np.pi / N
 
@@ -238,17 +238,20 @@ def validate_state(state):
     return st
 
 
-def finger_frame(sign, m6):
+def _check_m6(m6):
     if not math.isfinite(m6) or not 0 <= m6 <= 90:
         raise ValueError('M6 outside 0..90')
+
+
+def finger_frame(sign, m6):
+    _check_m6(m6)
     T = np.eye(4); T[:3, :3] = rpy([0, 0, sign * math.radians(m6) * CONFIG['opening_ratio']]); T[:3, 3] = root(sign)
     return T
 
 
 @lru_cache(maxsize=4096)
 def local_bodies(m6=90.):
-    if not math.isfinite(m6) or not 0 <= m6 <= 90:
-        raise ValueError('M6 outside 0..90')
+    _check_m6(m6)
     result = []
     for body in rest_bodies():
         if body.name == 'arm_wrist_link':

@@ -18,15 +18,12 @@ import numpy as np
 import requests
 import yaml
 import rclpy
-from ament_index_python.packages import get_package_share_directory
-from builtin_interfaces.msg import Time
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Odometry, Path as NavPath
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor, ExternalShutdownException
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, DurabilityPolicy, ReliabilityPolicy
 from sensor_msgs.msg import CameraInfo, CompressedImage, Image, JointState
 from std_msgs.msg import Bool, Float32, Int32, String
 from unique_identifier_msgs.msg import UUID
@@ -35,7 +32,7 @@ from z70_interfaces.msg import (EvidenceStamp, RobotState, CameraState, FrameMet
                                 CalibrationState, OdometryStatus)
 from z70_interfaces.srv import SelectCamera, RefreshMap
 from z70_description.arm_model import (
-    HAND_STEP_M, JOINT_STEP_DEG, LIMITS, POSES, vendor_check, vendor_forward, vendor_inverse,
+    HAND_STEP_M, JOINT_STEP_DEG, LIMITS, POSES, config_path, vendor_check, vendor_forward, vendor_inverse,
 )
 from z70_mapping.node import decode_map, room_names
 from .commands import CommandSurfaces, LATCHED, host_ms, host_time, uid
@@ -607,10 +604,9 @@ class Driver(CommandSurfaces, Node):
         self.map_interval = float(param('map_refresh_s', 60.))
         self.state_stale = float(param('state_stale_after_s', 5.))
         self.camera_stale = float(param('camera_stale_after_s', 5.))
-        config = Path(get_package_share_directory('z70_description')) / 'config'
         self.calibrations = {}
-        for camera, default in [('front', config/'z70_front_camera_info.yaml'),
-                                ('gripper', config/'z70_gripper_camera_info.yaml')]:
+        for camera, default in [('front', config_path('z70_front_camera_info.yaml')),
+                                ('gripper', config_path('z70_gripper_camera_info.yaml'))]:
             path = param('camera_info' if camera == 'front' else 'gripper_camera_info', str(default))
             if path and Path(path).is_file():
                 content = Path(path).read_bytes()
