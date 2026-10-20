@@ -29,3 +29,36 @@ export function publicRpcValue(value: unknown, secrets: readonly string[] = [], 
     .map(([key, item]) => [publicRpcValue(key, secrets, depth + 1) as string, publicRpcValue(item, secrets, depth + 1)]));
   return value;
 }
+
+const SLOW_METHODS = new Set([
+  "app_arm_out_compartment", "app_arm_in_compartment", "app_open_gripper", "app_grip",
+  "app_pick_up", "app_put_down", "app_pick_up_enter_exit", "app_arm_move", "app_arm_direction_move",
+  "app_stop_grasp", "app_start_program", "app_program_enter_exit",
+]);
+
+export const PRIORITY_STOPS = new Set([
+  "app_rc_stop", "app_rc_end", "app_stop_grasp", "app_stop", "stop_goto_target",
+]);
+
+/** Response deadline used when a caller does not pass one. */
+export function defaultRpcTimeoutMs(method: string): number {
+  return SLOW_METHODS.has(method) ? 30_000 : 5_000;
+}
+
+/** Numeric transport sanitization only. ROS owns polling and semantic telemetry. */
+export type NumericTelemetry = number | boolean | null | NumericTelemetry[] | { [key: string]: NumericTelemetry };
+export function numericTelemetry(value: unknown, depth = 0): NumericTelemetry {
+  if (depth > 5) return null;
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "boolean") return value;
+  if (Array.isArray(value)) return value.slice(0, 64).map((item) => numericTelemetry(item, depth + 1));
+  if (!value || typeof value !== "object") return null;
+  const result: Record<string, NumericTelemetry> = {};
+  for (const [key, item] of Object.entries(value).slice(0, 64)) {
+    if (!/^[a-zA-Z][a-zA-Z0-9_]{0,63}$/.test(key) ||
+      /key|token|secret|password|ssid|serial|duid|(^|_)(mac|ip|url)($|_)/i.test(key)) continue;
+    const filtered = numericTelemetry(item, depth + 1);
+    if (filtered !== null) result[key] = filtered;
+  }
+  return result;
+}

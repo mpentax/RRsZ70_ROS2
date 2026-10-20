@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { publicRpcValue } from "./rpc-outcome.ts";
+import { numericTelemetry, publicRpcValue } from "./rpc-outcome.ts";
 test("credential keys and embedded known credential values never survive public vendor results", () => {
   assert.deepEqual(publicRpcValue({ localKey: "hidden", nested: [{ password: "hidden", result: "secret-value" }], ok: true }, ["secret-value"]), { nested: [{ result: "[redacted]" }], ok: true });
 });
@@ -11,4 +11,17 @@ test("deep vendor payloads are bounded without changing transport evidence", () 
 
 test("credential substrings in vendor property names are redacted", () => {
   assert.deepEqual(publicRpcValue({ "prefix-1234abcdef-suffix": "ok" }, ["1234abcdef"]), { "prefix-[redacted]-suffix": "ok" });
+});
+
+test("numeric telemetry removes secrets and strings with bounded nesting", () => {
+  assert.deepEqual(numericTelemetry({
+    m: [1, 2, 3], angle: 4.5, gripper: 2, token: 123, localKey: 42, text: "secret", nested: { ready: true },
+  }), { m: [1, 2, 3], angle: 4.5, gripper: 2, nested: { ready: true } });
+  assert.equal(numericTelemetry(Infinity), null);
+});
+
+test("transport sanitization bounds nesting and array size without inventing numbers", () => {
+  assert.equal((numericTelemetry(Array.from({ length: 100 }, () => true)) as unknown[]).length, 64);
+  assert.deepEqual(numericTelemetry([NaN, "ok", {}, false]), [null, null, {}, false]);
+  assert.equal(numericTelemetry({ value: 1 }, 6), null);
 });

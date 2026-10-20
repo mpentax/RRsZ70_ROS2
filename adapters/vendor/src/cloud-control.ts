@@ -2,10 +2,8 @@
 import { createHash, randomInt, randomUUID } from "node:crypto";
 import { connectAsync, type IClientOptions } from "mqtt";
 import { localProtocolCodec } from "./local.ts";
-import { defaultRpcTimeoutMs, PRIORITY_STOPS } from "./vendor-commands.ts";
 import { RpcError } from "./robot.ts";
-
-import { TransportError } from "./rpc-outcome.ts";
+import { defaultRpcTimeoutMs, PRIORITY_STOPS, TransportError } from "./rpc-outcome.ts";
 
 export interface CloudControlCredentials {
   broker: string; user: string; secret: string; accountKey: string; deviceId: string; localKey: string;

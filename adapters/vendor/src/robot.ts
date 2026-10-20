@@ -7,8 +7,7 @@
 import { randomInt } from "node:crypto";
 import { isIP, Socket } from "node:net";
 import { localProtocolCodec } from "./local.ts";
-import { defaultRpcTimeoutMs, PRIORITY_STOPS } from "./vendor-commands.ts";
-import { TransportError } from "./rpc-outcome.ts";
+import { defaultRpcTimeoutMs, PRIORITY_STOPS, TransportError } from "./rpc-outcome.ts";
 
 export interface RobotDiagnostic {
   at: number;

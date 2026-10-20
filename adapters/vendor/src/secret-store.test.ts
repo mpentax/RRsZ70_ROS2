@@ -4,7 +4,7 @@ import { chmod, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm, stat, sy
 import { randomInt } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { SecretStore, type PersistentCamera, type PersistentPairing } from "./secret-store.ts";
+import { SecretStore, safeReason, type PersistentCamera, type PersistentPairing } from "./secret-store.ts";
 
 const device = {
   host: "192.0.2.10", duid: "synthetic-device", name: "Synthetic camera",
@@ -219,4 +219,12 @@ test("environment-selected default directory and unrelated files are handled cle
     if (original === undefined) delete process.env.ROBOCLAW_STATE_DIR;
     else process.env.ROBOCLAW_STATE_DIR = original;
   }
+});
+
+test("startup failure reasons keep errno codes and fixed labels, never paths or secrets", () => {
+  const fsError = Object.assign(new Error("EACCES: permission denied, open '/data/pairing.json'"), { code: "EACCES" });
+  assert.equal(safeReason(fsError), "EACCES");
+  assert.equal(safeReason(new Error("Unsafe state owner.")), "Unsafe state owner.");
+  assert.equal(safeReason(new SyntaxError("Unexpected token s in JSON at position 3: secret123")), "SyntaxError");
+  assert.equal(safeReason("raw string"), "unknown");
 });
