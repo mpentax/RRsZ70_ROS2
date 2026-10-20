@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { loadServiceConfig, localOrigin, localServiceOrigin } from "./service-config.ts";
+import { loadServiceConfig, localOrigin, localServiceOrigin, rosGatewayOrigin, rosRoute } from "./service-config.ts";
 import { fileURLToPath } from "node:url";
 
 test("explicit native loopback and LAN service origins are accepted", () => {
@@ -61,4 +61,9 @@ test("local upstream origins reject cloud hosts, credentials and URL tricks", ()
   assert.equal(localOrigin("http://192.168.1.2:57001"), "http://192.168.1.2:57001");
   assert.equal(localOrigin("http://[::1]:57003"), "http://[::1]:57003");
   assert.throws(() => localOrigin("http://127.0.0.1:1984"));
+});
+
+test("proxy route and origin allowlists cannot forward arbitrary bearer destinations", () => {
+  for (const path of ["/api/ros/tasks/../stop", "/api/ros/account/login", "/api/ros/tasks?x=1"]) assert.equal(rosRoute("POST", path), false);
+  for (const origin of ["https://127.0.0.1:57020", "http://example.com:57020", "http://a:b@127.0.0.1:57020", "http://127.0.0.1:57020/x"]) assert.throws(() => rosGatewayOrigin(origin));
 });

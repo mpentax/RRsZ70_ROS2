@@ -8,7 +8,7 @@ import { mapMetadataFromRead } from "./private-map-cache.ts";
 import { startService, type ServiceRobot, type ServiceStore } from "./service.ts";
 import { loadServiceConfig } from "./service-config.ts";
 import { RpcError } from "./robot.ts";
-import { TransportError } from "./rpc-outcome.ts";
+import { numericTelemetry, publicRpcValue, pulseParams, summarizeStatus, TransportError } from "./rpc-outcome.ts";
 const token = "t".repeat(43), key = "1234567890abcdef";
 const camera = { account: { user: "u", secret: "s", key: "k", mqttUrl: "ssl://mqtt-eu.roborock.com:8883" }, pin: "1234" };
 const home = { deviceId: "robot1", homeId: 1, realApi: "https://api-eu.roborock.com", user: "u", secret: "s", hawkKey: "k", rooms: [] };
@@ -210,4 +210,153 @@ test('private acquisition reports an empty go2rtc startup response without priva
   assert.equal(error.cameraFailure,'no_camera_image');assert.equal(error.upstreamStatus,200);
   assert.equal(JSON.stringify(error).includes('synthetic-secret'),false);
   assert.equal(captures, 1);
+});
+
+test('live event stream authenticates and preserves attempts, uncertainty and cleanup', async () => {
+  const evtToken = 'offline-event-test-token'.repeat(3);
+  let calls = 0;
+  const robot: ServiceRobot = {connection:{state:'connected', connectedAt:1}, close(){},
+    async request(method) {
+      calls++;
+      if (method === 'app_rc_stop' && calls === 1) throw new TransportError('timeout private details', 'unknown');
+      if (method === 'app_arm_move') throw new TransportError('timeout private details', 'unknown');
+      return ['ok'];
+    }};
+  const store: ServiceStore = {async initialize(){}, async serviceToken(){return evtToken;},
+    async loadPairing(){return {device:{duid:'fake',host:'127.0.0.1',localKey:'1234567890abcdef',name:'fake',model:'a179',protocolVersion:'L01'},camera:{account:{user:'u',secret:'s',key:'k',mqttUrl:'ssl://mqtt-eu.roborock.com:8883'},pin:'1234'},home:{deviceId:'fake',homeId:1,realApi:'https://api-eu.roborock.com',user:'u',secret:'s',hawkKey:'k',rooms:[]}};},
+    async savePairing(){}};
+  const service = await startService({store, config: {...loadServiceConfig(),port:0}, robotFactory:()=>robot});
+  const origin=service.origin;
+  const controller = new AbortController();
+  try {
+    assert.equal((await fetch(origin+'/api/commands/events')).status,401);
+    const stream=await fetch(origin+'/api/commands/events',{headers:{Authorization:['Bearer',evtToken].join(' ')},signal:controller.signal});
+    assert.equal(stream.status,200); assert.match(stream.headers.get('content-type')!,/ndjson/);
+    const records: Record<string,any>[]=[];
+    const reader=stream.body!.getReader();
+    const consume=(async()=>{
+      let buffer='';
+      for (;;) {
+        const {done,value}=await reader.read();if(done)return;
+        buffer+=new TextDecoder().decode(value);
+        let n:number;
+        while((n=buffer.indexOf('\n'))>=0){const line=buffer.slice(0,n);buffer=buffer.slice(n+1);if(line)records.push(JSON.parse(line));}
+      }
+    })();
+    const rpc=async(method:string,params:unknown)=>fetch(origin+'/api/driver/rpc',{method:'POST',headers:{Authorization:['Bearer',evtToken].join(' '),'Content-Type':'application/json'},body:JSON.stringify({method,params})});
+    await rpc('app_rc_stop',[]);
+    await rpc('app_arm_move',{m:[1,0,0],secret:evtToken});
+    const advanced = 'vendor_advanced_'+'research_'.repeat(10);
+    await rpc(advanced,{secret:evtToken});
+    await service.stop(); await consume;
+    assert.equal(calls,4);
+    const stops=records.filter(r=>r.operation==='app_rc_stop');
+    assert.deepEqual(stops.map(r=>r.phase),['accepted','dispatched','replied','dispatched','replied','finished']);
+    assert.equal(new Set(stops.map(r=>r.commandId)).size,1);
+    const attempts=stops.filter(r=>r.phase==='replied');
+    assert.notEqual(attempts[0].attemptId,attempts[1].attemptId);
+    assert.deepEqual(attempts.map(r=>r.attemptIndex),[0,1]);
+    assert.equal(attempts[0].dispatch,'unknown'); assert.equal(attempts[1].response,'received');
+    assert.ok(records.every((r,i)=>r.sequence===i+1 && r.writeTimeKnown===false));
+    assert.ok(records.every(r=>r.sessionId===records[0].sessionId));
+    assert.equal(records.filter(r=>r.operation==='app_arm_move'&&r.phase==='replied').length,1);
+    assert.equal(records.some(r=>r.operation===advanced),true);
+    assert.equal(records.find(r=>r.operation==='app_arm_move'&&r.phase==='finished')!.errorCode,'TIMEOUT');
+    assert.equal(JSON.stringify(records).includes(evtToken),false);
+    assert.equal(JSON.stringify(records).includes('private details'),false);
+    assert.equal(records.some(r=>r.params),false);
+  } finally { controller.abort(); await service.stop(); }
+});
+
+test('state preserves vendor readiness/hazard flags and events expose only numeric pulse inputs',()=>{
+  assert.deepEqual(summarizeStatus([{common_status:256,grab_status:0,in_cleaning:1,in_returning:false,privateKey:'private'}]),
+    {common_status:256,grab_status:0,in_cleaning:1,in_returning:false});
+  assert.deepEqual(pulseParams('app_rc_move',[{velocity:.1,omega:0,duration:800,secret:'not exported'}]),{velocity:.1,omega:0,duration:800});
+  assert.equal(pulseParams('vendor_method',{secret:'not exported'}),undefined);
+  assert.equal(pulseParams('app_rc_move',[{velocity:NaN,omega:0,duration:800}]),undefined);
+  assert.deepEqual(publicRpcValue({ localKey: "hidden", nested: [{ password: "hidden", result: "secret-value" }], ok: true }, ["secret-value"]), { nested: [{ result: "[redacted]" }], ok: true });
+  let value: unknown = { leaf: true }; for (let i = 0; i < 1000; i++) value = { nested: value };
+  const result = JSON.stringify(publicRpcValue(value)); assert.ok(result.length < 1024); assert.ok(result.includes("null"));
+  assert.deepEqual(publicRpcValue({ "prefix-1234abcdef-suffix": "ok" }, ["1234abcdef"]), { "prefix-[redacted]-suffix": "ok" });
+  assert.deepEqual(numericTelemetry({
+    m: [1, 2, 3], angle: 4.5, gripper: 2, token: 123, localKey: 42, text: "secret", nested: { ready: true },
+  }), { m: [1, 2, 3], angle: 4.5, gripper: 2, nested: { ready: true } });
+  assert.equal(numericTelemetry(Infinity), null);
+  assert.equal((numericTelemetry(Array.from({ length: 100 }, () => true)) as unknown[]).length, 64);
+  assert.deepEqual(numericTelemetry([NaN, "ok", {}, false]), [null, null, {}, false]);
+  assert.equal(numericTelemetry({ value: 1 }, 6), null);
+  assert.deepEqual(summarizeStatus([{ battery: 90, state: 8, localKey: "secret", fw_ver: {} }]), { battery: 90, state: 8 });
+  assert.deepEqual(summarizeStatus(null), {});
+  assert.deepEqual(summarizeStatus([]), {});
+});
+
+async function rosGatewayFixture(t:TestContext, transport:typeof fetch, cloudReject=false) {
+  const saved:unknown[]=[];
+  const login={devices:[{duid:'fake1',name:'fake Z70',model:'a179',localKey:'synthetic-local-key',protocolVersion:'L01'}],
+    account:{user:'fake',secret:'synthetic-account-secret',key:'synthetic-account-key',mqttUrl:'mqtts://example.invalid'},
+    home:{homeId:1,realApi:'https://example.invalid',user:'fake',secret:'synthetic-home-secret',hawkKey:'synthetic-hawk',rooms:[]}};
+  const store:ServiceStore={async initialize(){},async serviceToken(){return token;},async loadPairing(){return {device:{...login.devices[0]!,host:'127.0.0.1'},camera:{account:login.account,pin:'1234'},home:{...login.home,deviceId:'fake1'}};},async savePairing(p){saved.push(p);}};
+  const service=await startService({store,config:{...loadServiceConfig(),port:0},rosTransport:transport,
+    robotFactory:()=>({connection:{state:'disconnected',connectedAt:null},async request(){throw new Error('No private robot access permitted');},close(){}}),
+    cloudFactory:()=>({async requestCode(){},async loginCameraWithCode(){if(cloudReject) throw new Error('credential-bearing synthetic-code');return login;}})});
+  t.after(()=>service.stop());
+  const origin=service.origin;
+  let cookie='';
+  async function request(path:string,body?:unknown,authorized=true) {
+    const r=await fetch(origin+path,{method:body===undefined?'GET':'POST',headers:{Origin:origin,...(authorized?{Cookie:cookie}:{}),...(body===undefined?{}:{'Content-Type':'application/json'})},...(body===undefined?{}:{body:JSON.stringify(body)})});
+    if(path==='/api/session'&&r.ok&&r.headers.get('set-cookie')) cookie=r.headers.get('set-cookie')!.split(';')[0]!;
+    return {status:r.status,body:await r.json() as Record<string,any>};
+  }
+  assert.equal((await request('/api/session',{token})).status,401);
+  assert.equal((await request('/api/session',{pin:'1234'})).status,200);
+  return {request,saved};
+}
+
+test('ROS proxy authenticates cookies, keeps server token off browser and never retries unknown writes',async t=>{
+  const calls:{path:string;body:unknown}[]=[];let online=false;
+  const {request}=await rosGatewayFixture(t,async(input,init)=>{
+    assert.equal(new Headers(init?.headers).get('authorization'),`Bearer ${token}`);assert.equal(init?.redirect,'error');
+    calls.push({path:new URL(String(input)).pathname,body:init?.body?JSON.parse(String(init.body)):null});
+    if(!online)throw new Error('private endpoint/secret');
+    return Response.json({available:true,state:{evidence:{sequence:19,stale:true}}});
+  });
+  assert.equal((await request('/api/ros/state',undefined,false)).status,401);assert.equal(calls.length,0);
+  const unknown=await request('/api/ros/rpc',{method:'app_grip',params:{}});
+  assert.equal(unknown.status,503);assert.equal(unknown.body.dispatch,'unknown');assert.equal(calls.length,1);
+  assert.doesNotMatch(JSON.stringify(unknown),/private|secret/);
+  online=true;const state=await request('/api/ros/state');assert.equal(state.body.state.evidence.sequence,19);assert.equal(state.body.state.evidence.stale,true);
+  assert.equal(calls.length,2);
+  for(const path of ['/api/camera/frame','/api/camera/offer','/api/state','/api/driver/rpc'])assert.equal((await request(path,{})).status,410);
+  assert.equal(calls.length,2);
+});
+
+test('web setup validates inputs, preserves server-only secrets and exposes expiry/recovery',async t=>{
+  const {request,saved}=await rosGatewayFixture(t,async()=>{throw new Error('Must not contact ROS for setup');});
+  assert.equal((await request('/api/account/login',{code:'123456'})).status,410);
+  assert.equal((await request('/api/account/code',{email:'bad',region:'eu'})).status,400);
+  assert.equal((await request('/api/account/code',{email:'fake@example.invalid',region:'other'})).status,400);
+  assert.equal((await request('/api/account/code',{email:'fake@example.invalid',region:'eu'})).status,200);
+  assert.equal((await request('/api/account/login',{code:'invalid'})).status,400);
+  const devices=await request('/api/account/login',{code:'123456'});assert.equal(devices.status,200);
+  assert.doesNotMatch(JSON.stringify(devices),/synthetic-|localKey|secret|mqttUrl/);
+  assert.equal((await request('/api/account/select',{id:'wrong',host:'127.0.0.1'})).status,400);
+  assert.equal((await request('/api/account/select',{id:'fake1',host:'hostname.invalid'})).status,400);
+  assert.equal((await request('/api/account/select',{id:'fake1',host:'127.0.0.1',localProtocol:'no'})).status,400);
+  assert.equal((await request('/api/account/select',{id:'fake1',host:'127.0.0.1',localProtocol:'L01',pin:'0000'})).status,400);
+  assert.equal((await request('/api/account/select',{id:'fake1',host:'127.0.0.1',localProtocol:'L01',pin:'1234'})).status,200);
+  assert.equal(saved.length,1);
+  assert.equal((await request('/api/camera/pin',{pin:'bad'})).status,400);
+  assert.equal((await request('/api/camera/pin',{pin:'2345'})).status,200);
+  const setup=await request('/api/setup');assert.equal(setup.body.device.id,'fake1');assert.equal(setup.body.pinConfigured,true);
+  assert.doesNotMatch(JSON.stringify(setup),/1234|2345|synthetic-|localKey|secret|mqttUrl/);
+  const now=Date.now();t.mock.method(Date,'now',()=>now+13*60*60*1000);
+  assert.equal((await request('/api/setup')).status,401);
+});
+
+test('credential rejection returns a bounded account recovery error without upstream text',async t=>{
+  const {request}=await rosGatewayFixture(t,async()=>Response.json({}),true);
+  await request('/api/account/code',{email:'fake@example.invalid',region:'eu'});
+  const result=await request('/api/account/login',{code:'123456'});
+  assert.equal(result.status,502);assert.match(result.body.error,/Account verification failed/);
+  assert.doesNotMatch(result.body.error,/credential-bearing|synthetic-code|123456/);
 });
