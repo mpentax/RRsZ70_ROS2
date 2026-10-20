@@ -4,8 +4,7 @@ import { cancelTask, listTasks, robotRpc, startTask, stopRobot, setControlSessio
 import { SetupForm } from './SetupForm.tsx';
 import { ArmControlPanel } from './ArmControlPanel.tsx';
 import { MapCanvas } from './MapCanvas.tsx';
-import { actionOutcome } from './outcomes.ts';
-import { record } from './helpers.ts';
+import { actionOutcome, record } from './outcomes.ts';
 
 const COLORS = ['yellow', 'purple', 'blue', 'green', 'orange'] as const;
 const ARM_STATES: Record<number, string> = { 0: 'UNKNOWN', 1: 'IN_ROBOT', 2: 'IN_PROCESS_POS', 3: 'WORKING_POS', 4: 'TRANSFER_POS' };

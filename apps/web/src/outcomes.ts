@@ -1,4 +1,7 @@
-import { record } from "./helpers.ts";
+export function record(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown> : {};
+}
 
 export type UiOutcome = "rejected" | "failed" | "accepted" | "in-progress" | "acknowledged" | "unknown";
 export const UNKNOWN_ACTION_MESSAGE = "Outcome unknown.";
