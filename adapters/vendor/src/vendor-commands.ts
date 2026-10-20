@@ -4,6 +4,10 @@ const SLOW_METHODS = new Set([
   "app_stop_grasp", "app_start_program", "app_program_enter_exit",
 ]);
 
+export const PRIORITY_STOPS = new Set([
+  "app_rc_stop", "app_rc_end", "app_stop_grasp", "app_stop", "stop_goto_target",
+]);
+
 /** Response deadline used when a caller does not pass one. */
 export function defaultRpcTimeoutMs(method: string): number {
   return SLOW_METHODS.has(method) ? 30_000 : 5_000;

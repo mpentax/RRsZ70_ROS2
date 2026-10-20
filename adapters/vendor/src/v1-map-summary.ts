@@ -55,19 +55,15 @@ export function summarizeV1Map(raw: Buffer) {
     offset += headerSize + length;
   }
   if (!digestSeen || !image || !imagePixelData) throw new Error("Incomplete V1 map block sequence");
-  const getVacuumRoom = (): number | null => {
-    if (!vacuumPosition || !image || !imagePixelData) return null;
-    // The extracted Android plugin indexes raw row-major image data using
-    // Math.floor(grid coordinate minus image origin), not the flipped PNG.
-    // Keep the floor operation AFTER subtracting the origin: for fractional
-    // origins, floor(x) - origin need not itself be an integer image index.
+  let embeddedVacuumRoomSegment: number | null = null;
+  if (vacuumPosition) {
+    // Keep Math.floor after subtracting image origin to match the Android plugin's row-major grid indexing.
     const x = Math.floor(vacuumPosition.x / 50 - image.left);
     const y = Math.floor(vacuumPosition.y / 50 - image.top);
-    if (x < 0 || y < 0 || x >= image.width || y >= image.height) return null;
-    const pixel = imagePixelData[x + image.width * y];
-    return pixel !== 255 && pixel !== 7 && (pixel & 7) === 7 ? pixel >> 3 : null;
-  };
-  return { blocks, image, vacuumPosition, chargerPosition,
-    embeddedVacuumRoomSegment: getVacuumRoom(),
-  };
+    if (x >= 0 && y >= 0 && x < image.width && y < image.height) {
+      const pixel = imagePixelData[x + image.width * y];
+      if (pixel !== 255 && pixel !== 7 && (pixel & 7) === 7) embeddedVacuumRoomSegment = pixel >> 3;
+    }
+  }
+  return { blocks, image, vacuumPosition, chargerPosition, embeddedVacuumRoomSegment };
 }

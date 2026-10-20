@@ -5,7 +5,7 @@ import { join, parse, resolve, sep } from "node:path";
 import { MAX_MAP_BYTES } from "./photo-protocol.ts";
 import { summarizeV1Map } from "./v1-map-summary.ts";
 
-/** Plaintext private map cache. The stable SHA-256 identifier is not a pose or a fresh-map claim. */
+/** Save a verified V1 map binary into the private state directory. */
 export async function savePrivateV1Map(raw: Buffer, stateDirectory: string): Promise<{ sha256: string; bytes: number; saved: boolean }> {
   // Validate before touching disk; never print raw bytes, geometry, filesystem errors, or private paths.
   if (!Buffer.isBuffer(raw) || raw.length > MAX_MAP_BYTES) throw new Error("Invalid private V1 map.");

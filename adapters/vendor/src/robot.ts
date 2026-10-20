@@ -7,7 +7,7 @@
 import { randomInt } from "node:crypto";
 import { isIP, Socket } from "node:net";
 import { localProtocolCodec } from "./local.ts";
-import { defaultRpcTimeoutMs } from "./vendor-commands.ts";
+import { defaultRpcTimeoutMs, PRIORITY_STOPS } from "./vendor-commands.ts";
 import { TransportError } from "./rpc-outcome.ts";
 
 export interface RobotDiagnostic {
@@ -71,7 +71,6 @@ type Session = {
 const MAX_FRAME = 23 + 0xffff;
 const MAX_PENDING = 32;
 const MAX_INFLIGHT = 4;
-const PRIORITY_STOPS = new Set(['app_rc_stop', 'app_rc_end', 'app_stop_grasp', 'app_stop', 'stop_goto_target']);
 
 class ProtocolError extends Error {}
 
@@ -197,8 +196,6 @@ export class RobotClient {
   async request(method: string, params: unknown = []): Promise<unknown> {
     return this.rpc(method, params);
   }
-
-  requestConnected(method: string, params: unknown = []): Promise<unknown> { return this.request(method, params); }
 
   rpc(method: string, params: unknown = [], timeoutMs: number = defaultRpcTimeoutMs(method)): Promise<unknown> {
     if (typeof method !== "string" || !/^[A-Za-z][A-Za-z0-9_]{0,127}$/.test(method))
