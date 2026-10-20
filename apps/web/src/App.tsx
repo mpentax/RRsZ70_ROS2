@@ -455,11 +455,17 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
           </div>
         </section>
 
-        <MapCanvas mapData={mapData} busy={busy} onReadMap={() => void run(async () => {
-          const res = await json<Record<string, unknown>>('/api/ros/map');
-          setMapData(res);
-          setOutcome(res);
-        })} />
+        <MapCanvas
+          mapData={mapData}
+          busy={busy}
+          selectedTarget={{ x: Number(navX) || 0, y: Number(navY) || 0 }}
+          onSelectTarget={(x, y) => { setNavX(x.toFixed(2)); setNavY(y.toFixed(2)); }}
+          onReadMap={() => void run(async () => {
+            const res = await json<Record<string, unknown>>('/api/ros/map');
+            setMapData(res);
+            setOutcome(res);
+          })}
+        />
 
         <section className="card">
           <div className="section-heading">

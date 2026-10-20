@@ -2,10 +2,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { localServiceOrigin } from "./local-origin.ts";
 
-test("explicit native and container service origins are accepted", () => {
+test("explicit native loopback and LAN service origins are accepted", () => {
   assert.equal(localServiceOrigin("http://127.0.0.1:57001", "go2rtc"), "http://127.0.0.1:57001");
-  assert.equal(localServiceOrigin("http://go2rtc:57001", "go2rtc"), "http://go2rtc:57001");
-  assert.equal(localServiceOrigin("http://host.docker.internal:57001"), "http://host.docker.internal:57001");
+  assert.equal(localServiceOrigin("http://localhost:57001", "go2rtc"), "http://localhost:57001");
   assert.equal(localServiceOrigin("http://[::1]:57001"), "http://[::1]:57001");
 });
 

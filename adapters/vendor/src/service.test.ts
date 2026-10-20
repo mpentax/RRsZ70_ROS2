@@ -38,7 +38,7 @@ test("canonical RPC authenticates, forwards arbitrary vendor methods and preserv
   assert.equal((await post("/api/driver/rpc", { method: "app_charge" }, false)).status, 401);
   assert.equal(calls.length, 0);
   const reply = await post("/api/driver/rpc", { method: "app_rc_move", params: [{ velocity: 8, omega: 6, duration: 9000, seqnum: 7 }] });
-  assert.equal(reply.status, 200); assert.equal(reply.body.dispatch, "sent"); assert.equal(reply.body.physicalCompletion, "unverified");
+  assert.equal(reply.status, 200); assert.equal(reply.body.dispatch, "sent");
   assert.deepEqual(calls, [{ method: "app_rc_move", params: [{ velocity: 8, omega: 6, duration: 9000, seqnum: 7 }] }]);
 });
 test("unknown timeout never latches later calls or retries the previous command", async t => {

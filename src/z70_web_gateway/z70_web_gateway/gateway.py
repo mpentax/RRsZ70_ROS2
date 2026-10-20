@@ -91,7 +91,7 @@ COLOR_RE = re.compile(r'[a-zA-Z0-9_-]{1,32}')
 class ApiError(Exception):
     def __init__(self, status, code, dispatch='not_sent', task_id=None):
         self.status = status
-        self.body = {'error': code, 'dispatch': dispatch, 'physicalCompletion': 'unverified'}
+        self.body = {'error': code, 'dispatch': dispatch}
         if task_id: self.body['id'] = task_id
 
 
@@ -304,7 +304,7 @@ class Gateway(Node):
         except ApiError as e:
             return e.status, {'valid': False, 'error': e.body['error'], **e.body}, {}
         except Exception as e:
-            return 400, {'valid': False, 'error': str(e) or 'INVALID_INPUT', 'dispatch': 'not_sent', 'physicalCompletion': 'unverified'}, {}
+            return 400, {'valid': False, 'error': str(e) or 'INVALID_INPUT', 'dispatch': 'not_sent'}, {}
 
     def start(self, body):
         kind, _, _, message = self.goal_message(body); client = self.actions[kind]
@@ -444,8 +444,7 @@ class Handler(BaseHTTPRequestHandler):
     def handle_api(self):
         self.connection.settimeout(5)
         try:
-            allowed_hosts = (f'127.0.0.1:{self.server.server_port}', f'host.docker.internal:{self.server.server_port}')
-            if self.headers.get('Host') not in allowed_hosts: raise ApiError(403, 'INVALID_HOST')
+            if self.headers.get('Host') != f'127.0.0.1:{self.server.server_port}': raise ApiError(403, 'INVALID_HOST')
             if self.headers.get('Origin') is not None: raise ApiError(403, 'BROWSER_DIRECT_ACCESS_DENIED')
             if not hmac.compare_digest(self.headers.get('Authorization', ''), 'Bearer '+self.server.token): raise ApiError(401, 'UNAUTHORIZED')
             if not self.path.startswith('/api/ros/') or '?' in self.path or '%' in self.path: raise ApiError(404, 'NOT_FOUND')

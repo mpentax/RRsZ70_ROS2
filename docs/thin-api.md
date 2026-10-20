@@ -53,7 +53,7 @@ Proxied by the sidecar to `z70_web_gateway` (`127.0.0.1:57020`). Task IDs are lo
 ### Task Lifecycle and Error Codes
 
 - `Task.status` values: `pending`, `accepted`, `executing`, `succeeded`, `failed`, `cancelled`, `rejected`, `unknown`.
-- Error responses use `{error: CODE, dispatch: "not_sent" | "unknown", physicalCompletion: "unverified"}`:
+- Error responses use `{error: CODE, dispatch: "not_sent" | "unknown"}`:
   - `400`: `INVALID_INPUT`
   - `404`: `TASK_NOT_FOUND`
   - `409`: `REJECTED`, `CAPACITY`, `TASK_FINISHED`, `CANCEL_REJECTED`, `SESSION_STOPPED`
@@ -66,4 +66,4 @@ Proxied by the sidecar to `z70_web_gateway` (`127.0.0.1:57020`). Task IDs are lo
 
 - **Single Command Dispatcher:** `z70_driver` serializes ordinary write RPCs. When a manipulation task holds an active session token (`/z70/tasks/session`), manual writes without that token return `BUSY`. Starting a task with `takeover: true` revokes the prior task, runs priority `ALL` stop, and assigns the new token.
 - **Priority Stop (`/z70/stop`):** Uses reserved transport capacity independent of in-flight RPCs. `BASE` (`1`) sends `app_rc_stop` + `app_rc_end`; `ARM` (`2`) sends `app_stop_grasp`; `ALL` (`3`) sends all three (plus `stop_goto_target` when a native navigation goal was active).
-- **Private Driver Endpoint (`POST /api/driver/rpc`):** Bearer-authenticated endpoint used by `z70_driver` (`timeoutMs: 1..120000`). Returns `{requestId, commandId, attemptId, attemptIndex, dispatch, response, physicalCompletion, result}` and streams dispatch events on `GET /api/commands/events`.
+- **Private Driver Endpoint (`POST /api/driver/rpc`):** Bearer-authenticated endpoint used by `z70_driver` (`timeoutMs: 1..120000`). Returns `{requestId, commandId, attemptId, attemptIndex, dispatch, response, result}` and streams dispatch events on `GET /api/commands/events`.

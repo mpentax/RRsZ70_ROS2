@@ -138,7 +138,7 @@ def task(system, ident):
     return system['request']('GET', '/api/ros/tasks/'+ident).json()
 
 
-def test_native_gateway_accepts_exact_docker_host_alias_without_weakening_auth():
+def test_native_gateway_enforces_exact_loopback_host_and_auth():
     class FakeGateway:
         def route(self, method, path, body):
             return 200, {'offline_fixture': True}, {}
@@ -149,14 +149,13 @@ def test_native_gateway_accepts_exact_docker_host_alias_without_weakening_auth()
     port = server.server_port
     url = f'http://127.0.0.1:{port}/api/ros/state'
     try:
-        for host in (f'127.0.0.1:{port}', f'host.docker.internal:{port}'):
-            response = requests.get(url, headers={'Host': host, 'Authorization': 'Bearer '+TOKEN}, timeout=3)
-            assert response.status_code == 200, response.text
-            assert response.json() == {'offline_fixture': True}
-        for host in ('evil.example', f'host.docker.internal.evil:{port}', 'host.docker.internal:1'):
+        response = requests.get(url, headers={'Host': f'127.0.0.1:{port}', 'Authorization': 'Bearer '+TOKEN}, timeout=3)
+        assert response.status_code == 200, response.text
+        assert response.json() == {'offline_fixture': True}
+        for host in ('evil.example', f'host.docker.internal:{port}', '127.0.0.1:1'):
             response = requests.get(url, headers={'Host': host, 'Authorization': 'Bearer '+TOKEN}, timeout=3)
             assert response.status_code == 403
-        headers = {'Host': f'host.docker.internal:{port}'}
+        headers = {'Host': f'127.0.0.1:{port}'}
         assert requests.get(url, headers=headers, timeout=3).status_code == 401
         headers.update({'Authorization': 'Bearer '+TOKEN, 'Origin': 'http://localhost'})
         assert requests.get(url, headers=headers, timeout=3).status_code == 403

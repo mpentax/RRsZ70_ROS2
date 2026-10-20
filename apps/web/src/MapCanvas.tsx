@@ -1,22 +1,35 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type MouseEvent } from 'react';
 import { record } from './helpers.ts';
 
 export interface MapCanvasProps {
   mapData: Record<string, unknown> | null;
   busy: boolean;
   onReadMap: () => void;
+  selectedTarget?: { x: number; y: number } | null;
+  onSelectTarget?: (x: number, y: number) => void;
 }
 
-export function MapCanvas({ mapData, busy, onReadMap }: MapCanvasProps) {
+function unwrapGrid(mapData: Record<string, unknown> | null): Record<string, unknown> | null {
+  if (!mapData) return null;
+  const nested = record(mapData.map);
+  return Object.keys(nested).length > 0 ? nested : mapData;
+}
+
+export function MapCanvas({ mapData, busy, onReadMap, selectedTarget, onSelectTarget }: MapCanvasProps) {
   const mapCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const grid = unwrapGrid(mapData);
+  const info = record(grid?.info);
+  const originPos = record(record(info.origin).position);
+  const width = Number(info.width) || 0;
+  const height = Number(info.height) || 0;
+  const resolution = Number(info.resolution) || 0.05;
+  const originX = Number(originPos.x) || 0;
+  const originY = Number(originPos.y) || 0;
 
   useEffect(() => {
     const canvas = mapCanvasRef.current;
-    if (!canvas || !mapData) return;
-    const info = record(mapData.info);
-    const width = Number(info.width) || 0;
-    const height = Number(info.height) || 0;
-    const data = Array.isArray(mapData.data) ? mapData.data as number[] : [];
+    if (!canvas || !grid) return;
+    const data = Array.isArray(grid.data) ? grid.data as number[] : [];
     if (width <= 0 || height <= 0 || data.length < width * height) return;
     canvas.width = width;
     canvas.height = height;
@@ -33,7 +46,31 @@ export function MapCanvas({ mapData, busy, onReadMap }: MapCanvasProps) {
       }
     }
     ctx.putImageData(img, 0, 0);
-  }, [mapData]);
+    if (selectedTarget && Number.isFinite(selectedTarget.x) && Number.isFinite(selectedTarget.y)) {
+      const px = (selectedTarget.x - originX) / resolution;
+      const py = height - 1 - (selectedTarget.y - originY) / resolution;
+      if (px >= 0 && px <= width && py >= 0 && py <= height) {
+        ctx.strokeStyle = '#ff6b6b';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(px, py, 3, 0, Math.PI * 2);
+        ctx.moveTo(px - 5, py); ctx.lineTo(px + 5, py);
+        ctx.moveTo(px, py - 5); ctx.lineTo(px, py + 5);
+        ctx.stroke();
+      }
+    }
+  }, [grid, width, height, resolution, originX, originY, selectedTarget]);
+
+  function handleCanvasClick(event: MouseEvent<HTMLCanvasElement>) {
+    if (!onSelectTarget || width <= 0 || height <= 0) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+    const px = ((event.clientX - rect.left) / rect.width) * width;
+    const py = ((event.clientY - rect.top) / rect.height) * height;
+    const x_m = originX + px * resolution;
+    const y_m = originY + (height - 1 - py) * resolution;
+    onSelectTarget(Math.round(x_m * 100) / 100, Math.round(y_m * 100) / 100);
+  }
 
   return <section className="card map-cache-card" style={{marginTop: 0}}>
     <div className="section-heading">
@@ -43,15 +80,21 @@ export function MapCanvas({ mapData, busy, onReadMap }: MapCanvasProps) {
       </div>
       <button className="quiet" disabled={busy} onClick={onReadMap}>Read ROS map</button>
     </div>
-    <p className="caption">Shared OccupancyGrid; receipt time is not source freshness or localisation.</p>
-    {mapData && (
+    <p className="caption">
+      Click the map to set target / drop coordinates{selectedTarget ? ` (${selectedTarget.x.toFixed(2)}, ${selectedTarget.y.toFixed(2)} m)` : ''}.
+    </p>
+    {grid && width > 0 && height > 0 && (
       <div className="map-panel" style={{marginTop: 12, paddingTop: 12}}>
         <figure className="map-figure">
           <div className="map-image-wrap">
-            <canvas ref={mapCanvasRef} style={{ display: 'block', width: '100%', maxHeight: '340px', imageRendering: 'pixelated' }} />
+            <canvas
+              ref={mapCanvasRef}
+              onClick={handleCanvasClick}
+              style={{ display: 'block', width: '100%', maxHeight: '340px', imageRendering: 'pixelated', cursor: onSelectTarget ? 'crosshair' : 'default' }}
+            />
           </div>
           <figcaption className="caption">
-            Grid {String(record(mapData.info).width ?? '?')}×{String(record(mapData.info).height ?? '?')} cells @ {Number(record(mapData.info).resolution ?? 0.05).toFixed(2)} m/cell
+            Grid {String(width)}×{String(height)} cells @ {resolution.toFixed(2)} m/cell
           </figcaption>
         </figure>
       </div>
