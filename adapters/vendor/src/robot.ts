@@ -1,13 +1,86 @@
 /*
- * App-style TCP framing adapted from copystring/ioBroker.roborock
- * src/lib/localApi.ts and messageParser.ts (retrieved 2026-09-24).
- * Copyright (c) 2025-2026 copystring <copystring@gmail.com>, MIT License.
- * Full license: local.ts and THIRD_PARTY_NOTICES. Crypto/CRC reuse local.ts.
+ * App-style TCP framing and L01/1.0 crypto adapted from copystring/ioBroker.roborock
+ * src/lib/{localApi,cryptoEngine,messageParser}.ts (retrieved 2026-09-24).
+ * Copyright (c) 2025-2026 copystring <copystring@gmail.com>, MIT License (see THIRD_PARTY_NOTICES).
  */
-import { randomInt } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, randomInt } from "node:crypto";
 import { isIP, Socket } from "node:net";
-import { localProtocolCodec } from "./local.ts";
 import { defaultRpcTimeoutMs, PRIORITY_STOPS, TransportError } from "./rpc-outcome.ts";
+
+type CryptoContext = {
+  version: Version;
+  localKey: string;
+  timestamp: number;
+  sequence: number;
+  random: number;
+  connectNonce: number;
+  ackNonce: number;
+};
+
+const SALT = "TXdfu$jyZ#TZHsg4";
+
+class LocalProtocolError extends Error {}
+
+function crc32(data: Buffer): number {
+  let crc = 0xffffffff;
+  for (const byte of data) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit++) {
+      crc = (crc >>> 1) ^ ((crc & 1) ? 0xedb88320 : 0);
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function words(...values: number[]): Buffer {
+  const result = Buffer.alloc(values.length * 4);
+  values.forEach((value, index) => result.writeUInt32BE(value, index * 4));
+  return result;
+}
+
+function keyMaterial(context: CryptoContext): string {
+  const hex = context.timestamp.toString(16).padStart(8, "0");
+  return [5, 6, 3, 7, 1, 2, 0, 4].map((index) => hex[index]).join("") + context.localKey + SALT;
+}
+
+function gcmParameters(context: CryptoContext): { key: Buffer; iv: Buffer; aad: Buffer } {
+  return {
+    key: createHash("sha256").update(keyMaterial(context)).digest(),
+    iv: createHash("sha256").update(words(context.sequence, context.random, context.timestamp)).digest().subarray(0, 12),
+    aad: words(context.sequence, context.connectNonce, context.ackNonce, context.random, context.timestamp),
+  };
+}
+
+function encryptPayload(payload: Buffer, context: CryptoContext): Buffer {
+  if (context.version === "1.0") {
+    const key = createHash("md5").update(keyMaterial(context)).digest();
+    const cipher = createCipheriv("aes-128-ecb", key, null);
+    return Buffer.concat([cipher.update(payload), cipher.final()]);
+  }
+  const { key, iv, aad } = gcmParameters(context);
+  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  cipher.setAAD(aad);
+  return Buffer.concat([cipher.update(payload), cipher.final(), cipher.getAuthTag()]);
+}
+
+function decryptPayload(payload: Buffer, context: CryptoContext): Buffer {
+  if (context.version === "1.0") {
+    if (!payload.length || payload.length % 16 !== 0) {
+      throw new LocalProtocolError("Invalid V1 encrypted payload length");
+    }
+    const key = createHash("md5").update(keyMaterial(context)).digest();
+    const decipher = createDecipheriv("aes-128-ecb", key, null);
+    return Buffer.concat([decipher.update(payload), decipher.final()]);
+  }
+  if (payload.length < 16) throw new LocalProtocolError("Invalid L01 encrypted payload length");
+  const { key, iv, aad } = gcmParameters(context);
+  const decipher = createDecipheriv("aes-256-gcm", key, iv);
+  decipher.setAAD(aad);
+  decipher.setAuthTag(payload.subarray(-16));
+  return Buffer.concat([decipher.update(payload.subarray(0, -16)), decipher.final()]);
+}
+
+export const localProtocolCodec = Object.freeze({ crc32, encryptPayload, decryptPayload });
 
 export interface RobotDiagnostic {
   at: number;

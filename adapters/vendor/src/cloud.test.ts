@@ -4,7 +4,7 @@ import { EventEmitter } from "node:events";
 import { test, type TestContext } from "node:test";
 import { CloudControlClient, decodeCloudRpc, encodeCloudRpc, encodeV1MqttFrame, mqttOptions, type CloudMqttPeer } from "./cloud-control.ts";
 import { refreshRooms, RoborockCloud, selectedRooms, validateHomeAuthorization } from "./cloud.ts";
-import { localProtocolCodec } from "./local.ts";
+import { localProtocolCodec } from "./robot.ts";
 
 const EMAIL = "test@example.invalid";
 const KEY = "0123456789abcdef";

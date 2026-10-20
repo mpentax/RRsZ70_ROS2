@@ -1,8 +1,7 @@
 // MQTT auth and V1 envelopes follow go2rtc's Roborock driver; see THIRD_PARTY_NOTICES.
 import { createHash, randomInt, randomUUID } from "node:crypto";
 import { connectAsync, type IClientOptions } from "mqtt";
-import { localProtocolCodec } from "./local.ts";
-import { RpcError } from "./robot.ts";
+import { localProtocolCodec, RpcError } from "./robot.ts";
 import { defaultRpcTimeoutMs, PRIORITY_STOPS, TransportError } from "./rpc-outcome.ts";
 import type { CameraAccount } from "./cloud.ts";
 import type { SavedDevice } from "./secret-store.ts";

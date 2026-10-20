@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { Socket } from "node:net";
 import { test, type TestContext } from "node:test";
-import { localProtocolCodec } from "./local.ts";
-import { RobotClient, RpcError, type RobotDiagnostic } from "./robot.ts";
+import { localProtocolCodec, RobotClient, RpcError, type RobotDiagnostic } from "./robot.ts";
 import { TransportError } from "./rpc-outcome.ts";
 
 const KEY = "b8Hj5mFk3QzT7rLp";
