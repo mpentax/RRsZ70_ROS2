@@ -1,14 +1,9 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { Socket } from "node:net";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { test } from "node:test";
-import type { TestContext } from "node:test";
+import { test, type TestContext } from "node:test";
 import { localProtocolCodec } from "./local.ts";
-import { RobotClient, RpcError } from "./robot.ts";
-import { TransportError } from './rpc-outcome.ts';
-import type { RobotDiagnostic } from "./robot.ts";
+import { RobotClient, RpcError, type RobotDiagnostic } from "./robot.ts";
+import { TransportError } from "./rpc-outcome.ts";
 
 const KEY = "b8Hj5mFk3QzT7rLp";
 const ACK_NONCE = 485592656;
@@ -377,8 +372,7 @@ test("queued work has its own deadline even as earlier requests keep completing"
 
 test("failed outbound ACK preserves the already-received vendor result", async (t) => {
   const { client, peers } = fixture(t, handshake);
-  const pending = client.request("get_status");
-  const result = pending;
+  const result = client.request("get_status");
   await drain();
   const peer = peers[0];
   t.mock.method(peer.socket, "write", (bytes: Buffer, callback?: (error?: Error) => void) => {
