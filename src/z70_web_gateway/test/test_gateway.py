@@ -100,7 +100,6 @@ def system():
         state['release'].set(); state['shutdown'].set()
         http.shutdown(); http.server_close(); ht.join(3)
         driver.close(); executor.shutdown(timeout_sec=10); spin.join(10)
-        for action in driver.action_servers: action.destroy()
         for node in (peer, gateway, driver): node.destroy_node()
         rclpy.shutdown(); backend.shutdown(); backend.server_close(); bt.join(3)
         assert not spin.is_alive() and not ht.is_alive()

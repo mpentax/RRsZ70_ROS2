@@ -563,6 +563,12 @@ class Driver(CommandSurfaces, Node):
         if any(w.is_alive() for w in self.workers):
             raise RuntimeError('driver worker failed to stop within network deadline')
 
+    def destroy_node(self):
+        for server in self.action_servers:
+            server.destroy()
+        self.action_servers.clear()
+        return super().destroy_node()
+
 
 def main():
     rclpy.init(); node = Driver(); executor = MultiThreadedExecutor(num_threads=8); executor.add_node(node)
