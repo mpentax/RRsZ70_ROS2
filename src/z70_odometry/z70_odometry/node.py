@@ -181,6 +181,20 @@ class FloorOdomNode(Node):
                 applied = True
         return applied
 
+    def _publish_status(self, stamp, evidence, validity_value, reason, pair_accepted=False, calibration_id=''):
+        quality = OdometryStatus()
+        quality.header.stamp = stamp
+        quality.header.frame_id = 'odom'
+        quality.evidence = evidence
+        quality.calibration_id = calibration_id
+        quality.pair_accepted = pair_accepted
+        quality.validity.value = validity_value
+        quality.rejection = quality.validity.reason = reason
+        quality.covariance_calibrated = False
+        quality.active_camera_x_known = math.isfinite(self.vo.cam_x)
+        quality.active_camera_x_m = self.vo.cam_x if quality.active_camera_x_known else 0.
+        self.pub_status.publish(quality)
+
     def _dead_reckon(self, pulse, keep_reference=False):
         omega, duration = pulse['omega'], pulse['duration_s']
         yaw_gain = self.yaw_pos_gain if omega >= 0 else self.yaw_neg_gain
@@ -197,17 +211,7 @@ class FloorOdomNode(Node):
         self.last_rejected = True
         self._pose_uncertain = True
         self.publish(pulse['stamp'], rejected=True)
-        quality = OdometryStatus()
-        quality.header.stamp = pulse['stamp']
-        quality.header.frame_id = 'odom'
-        quality.evidence = pulse['evidence']
-        quality.pair_accepted = False
-        quality.validity.value = 2
-        quality.rejection = quality.validity.reason = 'COMMAND_DEAD_RECKONED'
-        quality.covariance_calibrated = False
-        quality.active_camera_x_known = math.isfinite(self.vo.cam_x)
-        quality.active_camera_x_m = self.vo.cam_x if quality.active_camera_x_known else 0.
-        self.pub_status.publish(quality)
+        self._publish_status(pulse['stamp'], pulse['evidence'], 2, 'COMMAND_DEAD_RECKONED')
 
     def reset_reference(self):
         self.prev = None
@@ -223,13 +227,14 @@ class FloorOdomNode(Node):
         stamp_ns = self._ns(msg.header.stamp)
         self.last_image_ns = stamp_ns
         img = np.frombuffer(msg.data, np.uint8).reshape(msg.height, msg.step)[:, :msg.width * 3].reshape(msg.height, msg.width, 3)
-        status = {"state": "init"}
+        state = "init"
+        stationary = False
         if self.prev is None:
             if self._apply_pending(stamp_ns, partial=True, stamp=msg.header.stamp):
                 self.prev = img.copy()
                 self.prev_stamp_ns = stamp_ns
                 return
-        elif self.prev is not None:
+        else:
             m = self.vo.estimate(self.prev, img)
             if m is None:
                 self.rejected += 1
@@ -241,7 +246,7 @@ class FloorOdomNode(Node):
                 if any(s < stamp_ns for s in self._attempts.values()):
                     self.prev = img.copy()
                     self.prev_stamp_ns = stamp_ns
-                status = {"state": "rejected", "ok": self.ok, "rejected": self.rejected}
+                state = "rejected"
             else:
                 self.last_vo_accept_ns = stamp_ns
                 self.last_rejected = False
@@ -254,27 +259,21 @@ class FloorOdomNode(Node):
                     self.y += s * m.dx + c * m.dy
                     self.th = math.atan2(math.sin(self.th + m.dtheta), math.cos(self.th + m.dtheta))
                 self.ok += 1
-                status = {"state": "ok", "stationary": stationary, "step": {"dx": m.dx, "dy": m.dy, "dtheta_deg": m.dtheta_deg},
-                          "inliers": m.inliers, "rms_mm": m.rms_m * 1000, "ok": self.ok, "rejected": self.rejected}
-        if status["state"] != "rejected":
-            if self.prev is None or not status.get("stationary", False):
+                state = "ok"
+        if state != "rejected":
+            if self.prev is None or not stationary:
                 self.prev = img.copy()
             self.prev_stamp_ns = stamp_ns
-        status['camera_x_m']=self.vo.cam_x
-        status["stamp_ns"] = msg.header.stamp.sec * 10**9 + msg.header.stamp.nanosec
-        self.publish(msg.header.stamp, rejected=(status["state"] == "rejected" or self._pose_uncertain))
-        quality=OdometryStatus()
-        quality.header=msg.header
-        quality.evidence=self.frames.metadata.evidence
-        quality.calibration_id=self.frames.metadata.calibration_id
-        quality.pair_accepted=status['state']=='ok'
-        quality.validity.value=1 if quality.pair_accepted else (4 if status['state']=='rejected' else 0)
-        quality.rejection='' if quality.pair_accepted else ('VO_REJECTED' if status['state']=='rejected' else 'INITIAL_REFERENCE')
-        quality.validity.reason=quality.rejection
-        quality.covariance_calibrated=False
-        quality.active_camera_x_known=math.isfinite(self.vo.cam_x)
-        quality.active_camera_x_m=self.vo.cam_x if quality.active_camera_x_known else 0.
-        self.pub_status.publish(quality)
+        self.publish(msg.header.stamp, rejected=(state == "rejected" or self._pose_uncertain))
+        accepted = state == 'ok'
+        self._publish_status(
+            msg.header.stamp,
+            self.frames.metadata.evidence,
+            1 if accepted else (4 if state == 'rejected' else 0),
+            '' if accepted else ('VO_REJECTED' if state == 'rejected' else 'INITIAL_REFERENCE'),
+            pair_accepted=accepted,
+            calibration_id=self.frames.metadata.calibration_id,
+        )
 
     def publish(self, stamp, rejected=False):
         qz, qw = math.sin(self.th / 2), math.cos(self.th / 2)
