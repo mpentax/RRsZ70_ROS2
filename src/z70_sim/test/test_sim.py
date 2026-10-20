@@ -20,7 +20,7 @@ from z70_interfaces.msg import FrameMetadata
 from z70_manipulation import perception, planner as placement
 from z70_manipulation.executor import Executor
 from z70_manipulation.garment_delivery import TowingQualificationConfig, loaded_route
-from z70_manipulation.garment_geometry import GarmentTracker, geofence, observe
+from z70_manipulation.perception import GarmentTracker, geofence, observe
 from z70_manipulation.garment_node import observations_message
 from z70_manipulation.garment_worker import GarmentModel
 from z70_manipulation.goals import BUILTIN_GOALS, GOAL_CONTEXT_PRIMITIVES, GoalContext

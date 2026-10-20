@@ -24,8 +24,7 @@ from tf2_ros import Buffer, TransformListener, TransformException
 from z70_interfaces.msg import GarmentObservation, GarmentObservations
 from z70_driver.frame_subscription import MatchedFrames, read_pipe_exact, stop_worker_process, worker_env
 from z70_mapping.decoder import quat_yaw
-from .perception import front_camera, calibration
-from .garment_geometry import observe, geofence, GarmentTracker
+from .perception import front_camera, calibration, observe, geofence, GarmentTracker
 from .garment_worker import decode_result, MAX_PACKET, BACKENDS
 
 LATCHED = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL,

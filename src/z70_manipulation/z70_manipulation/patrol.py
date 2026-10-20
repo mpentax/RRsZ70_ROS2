@@ -10,7 +10,7 @@ from .garment_delivery import (GarmentDeliverer, TowingQualificationConfig, atom
     map_identity, same_map_frame, tf_jumped, transport_policy, track_key, loaded_route, DeliveryRejected)
 from z70_mapping.boundary import BoundaryConfig, compute_safe_interior
 from z70_mapping.dynamic_layer import SessionWorldMap, mobility_from_suitability
-from .garment_geometry import transform_xy
+from .perception import transform_xy
 from .navigation import PinAndGoNavigator, inside
 from .observations import read_arm, read_status
 
