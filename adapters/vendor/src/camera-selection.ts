@@ -12,7 +12,7 @@ export function requestedCamera(value: unknown): ActiveCamera | undefined {
   if (typeof value !== "string" || !CAMERA_NAMES.includes(value as CameraName))
     throw new ServiceHttpError(400, "Unknown camera name.");
   if (value !== "front" && value !== "gripper")
-    throw new ServiceHttpError(422, "No evidenced stream selector for this camera. See research/cameras/FINDINGS.md.");
+    throw new ServiceHttpError(422, "Unsupported camera selector; only front and gripper cameras are supported.");
   return value;
 }
 export function cameraFromDimensions({ width, height }: { width: number; height: number }): ActiveCamera | undefined {

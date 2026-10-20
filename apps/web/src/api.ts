@@ -79,7 +79,7 @@ async function request<T>(path: string, options: RequestOptions,
       throw new ApiError(`${reason} ${UNKNOWN_ACTION_MESSAGE}`, 0);
     }
     if (controller.signal.aborted && !options.signal?.aborted) {
-      throw new Error("The service took too long to respond. Outcome unknown; refresh state and verify physically before deciding whether to retry an action.");
+      throw new Error("The service request timed out.");
     }
     throw error;
   } finally {

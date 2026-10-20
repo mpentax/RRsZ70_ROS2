@@ -12,7 +12,6 @@ from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallb
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.qos import QoSProfile, DurabilityPolicy, ReliabilityPolicy
 from sensor_msgs.msg import CompressedImage
-from nav_msgs.msg import OccupancyGrid
 from z70_interfaces.msg import RobotState, ArmEstimate, FrameMetadata, MapSnapshot, GarmentObservations
 from z70_interfaces.srv import SelectCamera, RefreshMap
 
@@ -35,16 +34,14 @@ class Observations:
         self.cancelled = lambda: False
         self.condition = threading.Condition()
         self.state = None; self.arm = None; self.image = None; self.used = None
-        self.map_snapshot = None; self.safe_grid = None; self.garments = None
+        self.map_snapshot = None; self.garments = None
         self.frames = {}; self.metadata = {}
         self.group = ReentrantCallbackGroup()
         self.subscriptions = [
             self.node.create_subscription(RobotState, '/z70/state', self.on_state, LATCHED, callback_group=self.group),
-            self.node.create_subscription(ArmEstimate, '/z70/arm_estimate', self.on_arm, LATCHED, callback_group=self.group)]
-        self.subscriptions.extend([
+            self.node.create_subscription(ArmEstimate, '/z70/arm_estimate', self.on_arm, LATCHED, callback_group=self.group),
             self.node.create_subscription(GarmentObservations, '/z70/garments/observations', self.on_garments, LATCHED, callback_group=self.group),
-            self.node.create_subscription(MapSnapshot, '/z70/driver/map_snapshot', self.on_map, LATCHED, callback_group=self.group),
-            self.node.create_subscription(OccupancyGrid, '/z70/map/safe_grid', self.on_safe_grid, LATCHED, callback_group=self.group)])
+            self.node.create_subscription(MapSnapshot, '/z70/driver/map_snapshot', self.on_map, LATCHED, callback_group=self.group)]
         self.map_refresher = self.node.create_client(RefreshMap, '/z70/map/refresh', callback_group=self.group)
         for camera in ('front','gripper'):
             self.subscriptions.extend([
@@ -98,13 +95,10 @@ class Observations:
         visible = (image.shape[:2]==(meta.height,meta.width) and float(image.mean())>8.
                    and float(np.percentile(image,95)-np.percentile(image,5))>12.)
         return dict(image=image,source_id=(bytes(meta.evidence.session_id.uuid).hex(),meta.evidence.sequence),
-                    evidence=meta.evidence,coverage_valid=visible,valid_empty_view=False)
+                    evidence=meta.evidence,coverage_valid=visible)
 
     def on_map(self, msg):
         with self.condition: self.map_snapshot = msg; self.condition.notify_all()
-
-    def on_safe_grid(self, msg):
-        with self.condition: self.safe_grid = msg; self.condition.notify_all()
 
     def navigation_snapshot(self, refresh=False, max_age_s=5.):
         from z70_mapping.decoder import decode_map
