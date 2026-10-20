@@ -21,7 +21,7 @@ from z70_interfaces.action import (
     BasePulse, ArmStep, HandStep, ArmOperation,
 )
 from z70_interfaces.msg import CommandOutcome
-from z70_mapping.boundary import compute_safe_interior
+from z70_mapping.boundary import check_corridor_containment, compute_safe_interior
 from . import placement, planner
 from .executor import Executor
 from .navigation import PinAndGoNavigator
@@ -48,6 +48,7 @@ GOAL_CONTEXT_PRIMITIVES: tuple[dict[str, str], ...] = (
     {'name': 'safe_interior', 'signature': 'safe_interior(refresh=False, deployed_arm_extension_m=0.)', 'summary': 'Return (map_snapshot, safe_interior_grid) for navigation and corridor planning.'},
     {'name': 'spatial_context', 'signature': 'spatial_context(refresh: bool = False) -> dict', 'summary': 'Return ego-centric map context: current_room, rooms (centroids/distances/bearings), dock pose, and 8-sector clearance_sectors_m.'},
     {'name': 'plan_route', 'signature': 'plan_route(target_x_m: float, target_y_m: float, deployed_arm_extension_m: float = 0., refresh: bool = False) -> list[tuple[float, float]] | None', 'summary': 'Plan a collision-checked A* route on the eroded safe interior from the current robot pose to (target_x_m, target_y_m).'},
+    {'name': 'corridor_safe', 'signature': 'corridor_safe(start_x_m: float, start_y_m: float, end_x_m: float, end_y_m: float, radius_m: float = 0., deployed_arm_extension_m: float = 0., refresh: bool = False) -> bool', 'summary': 'Check whether a straight-line swept disk from (start_x_m, start_y_m) to (end_x_m, end_y_m) stays inside the reachable safe interior.'},
     {'name': 'objects', 'signature': "objects(camera='front', color=None) -> list[dict]", 'summary': 'Detect and project HSV objects in base_footprint from a fresh camera frame.'},
     {'name': 'wrist_pose', 'signature': 'wrist_pose() -> dict | None', 'summary': 'Estimate the elevated ArUco ID68 wrist/jaw pose and grasp reference in base_footprint from the front camera.'},
     {'name': 'fit_wrist_joints', 'signature': 'fit_wrist_joints() -> dict | None', 'summary': 'Fit [M3, M4, M5] joint angles (degrees) to the front-camera ArUco ID68 wrist marker pose.'},
@@ -142,6 +143,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         safe_interior=lambda refresh=False, deployed_arm_extension_m=0.: (None, None),
         spatial_context=lambda refresh=False: {'robot_pose_map': {'x': 0., 'y': 0., 'yaw': 0.}, 'current_room': None, 'rooms': [], 'dock': None, 'clearance_sectors_m': {}},
         plan_route=lambda target_x_m, target_y_m, deployed_arm_extension_m=0., refresh=False: [(float(target_x_m), float(target_y_m))],
+        corridor_safe=lambda start_x_m, start_y_m, end_x_m, end_y_m, radius_m=0., deployed_arm_extension_m=0., refresh=False: True,
         objects=lambda camera='front', color=None: [],
         wrist_pose=lambda: {'position': [0.35, 0., 0.08], 'marker_id': 68},
         fit_wrist_joints=lambda: {'joints': [190., 65., 0.], 'residual_m': 0., 'residual_deg': 0., 'uncertainty_m': 0.015},
@@ -257,6 +259,11 @@ class GoalContext:
         if snap.map.robot is None:
             return None
         return loaded_route(boundary, snap.map.robot[:2], (float(target_x_m), float(target_y_m)))
+
+    def corridor_safe(self, start_x_m: float, start_y_m: float, end_x_m: float, end_y_m: float,
+                      radius_m: float = 0., deployed_arm_extension_m: float = 0., refresh: bool = False) -> bool:
+        _, boundary = self.safe_interior(refresh=refresh, deployed_arm_extension_m=deployed_arm_extension_m)
+        return check_corridor_containment(boundary, (float(start_x_m), float(start_y_m)), (float(end_x_m), float(end_y_m)), float(radius_m))
 
     def frame(self):
         return self.client.frame()

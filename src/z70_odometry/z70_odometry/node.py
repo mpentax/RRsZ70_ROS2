@@ -16,6 +16,7 @@ from tf2_ros import TransformBroadcaster
 
 from z70_odometry.floor_vo import FloorCamera, FloorOdometry
 from z70_odometry.calibration_state import calibrated_camera_x
+from z70_odometry.chassis_calibrator import _arc
 from z70_interfaces.msg import CalibrationState, CommandEvent, OdometryStatus
 from rclpy.qos import QoSProfile, DurabilityPolicy
 from z70_odometry.resources import front_calibration_path, initial_camera_x_m
@@ -200,8 +201,7 @@ class FloorOdomNode(Node):
         yaw_gain = self.yaw_pos_gain if omega >= 0 else self.yaw_neg_gain
         angle = omega * duration * yaw_gain
         distance = pulse['velocity'] * duration * self.forward_gain
-        arc_x = math.sin(angle) / angle if abs(angle) > 1e-8 else 1.0
-        arc_y = (1.0 - math.cos(angle)) / angle if abs(angle) > 1e-8 else 0.0
+        arc_x, arc_y = _arc(angle)
         c, s = math.cos(self.th), math.sin(self.th)
         self.x += distance * (c * arc_x - s * arc_y)
         self.y += distance * (s * arc_x + c * arc_y)
@@ -229,10 +229,12 @@ class FloorOdomNode(Node):
         img = np.frombuffer(msg.data, np.uint8).reshape(msg.height, msg.step)[:, :msg.width * 3].reshape(msg.height, msg.width, 3)
         state = "init"
         stationary = False
+        def set_ref():
+            self.prev = img.copy()
+            self.prev_stamp_ns = stamp_ns
         if self.prev is None:
             if self._apply_pending(stamp_ns, partial=True, stamp=msg.header.stamp):
-                self.prev = img.copy()
-                self.prev_stamp_ns = stamp_ns
+                set_ref()
                 return
         else:
             m = self.vo.estimate(self.prev, img)
@@ -240,12 +242,10 @@ class FloorOdomNode(Node):
                 self.rejected += 1
                 self.last_rejected = True
                 if self._apply_pending(stamp_ns, partial=True, stamp=msg.header.stamp):
-                    self.prev = img.copy()
-                    self.prev_stamp_ns = stamp_ns
+                    set_ref()
                     return
                 if any(s < stamp_ns for s in self._attempts.values()):
-                    self.prev = img.copy()
-                    self.prev_stamp_ns = stamp_ns
+                    set_ref()
                 state = "rejected"
             else:
                 self.last_vo_accept_ns = stamp_ns

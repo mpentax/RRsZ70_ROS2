@@ -123,9 +123,6 @@ class MappingNode(Node):
                           map_to_odom=self.anchor)
         self.pub_status.publish(String(data=json.dumps(diagnostic)))
 
-    def close(self):
-        pass
-
 
 def main():
     rclpy.init(); node = MappingNode()
@@ -135,4 +132,4 @@ def main():
         pass
     finally:
         signal.signal(signal.SIGINT, signal.SIG_IGN)
-        node.close(); node.destroy_node(); rclpy.try_shutdown()
+        node.destroy_node(); rclpy.try_shutdown()
