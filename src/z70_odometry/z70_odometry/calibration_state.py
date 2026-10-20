@@ -1,6 +1,7 @@
-"""Typed public fit state. No ROS imports until a message is requested."""
+"""Typed public fit state."""
 import math
 import uuid
+from z70_interfaces.msg import CalibrationState
 
 
 def _number(value, nonnegative=False):
@@ -79,7 +80,6 @@ class CalibrationPublication:
         identity = estimator.calibration_id
         if self.message is None or self.identity != identity:
             if message_type is None:
-                from z70_interfaces.msg import CalibrationState
                 message_type = CalibrationState
             self.sequence += 1
             msg = fill_state(message_type(), estimator.summary(), identity, estimator.updated_at)

@@ -9,17 +9,13 @@ from rclpy.node import Node
 from rclpy.qos import QoSProfile, DurabilityPolicy
 from sensor_msgs.msg import CameraInfo, Image
 from std_msgs.msg import String
-from z70_odometry.chassis_calibrator import quat_yaw
-from z70_odometry.floor_vo import FloorCamera
+from z70_odometry.chassis_calibrator import quat_yaw, stamp_ns
+from z70_odometry.floor_vo import FloorCamera, decode_bgr8
 from z70_odometry.mosaic import FloorMosaic
 from z70_odometry.calibration_state import calibrated_camera_x
 from z70_interfaces.msg import CalibrationState
 from z70_odometry.resources import front_calibration_path, initial_camera_x_m
 from z70_driver.frame_subscription import MatchedFrames
-
-
-def stamp_ns(msg):
-    return msg.header.stamp.sec*10**9 + msg.header.stamp.nanosec
 
 
 class FloorMosaicNode(Node):
@@ -74,10 +70,8 @@ class FloorMosaicNode(Node):
         # A rejected VO frame publishes held pose with large covariance. Do not
         # project this moving view at the previous pose and smear the map.
         if odom.header.frame_id!='odom' or odom.pose.covariance[0]>1000: return
-        if image.encoding!='bgr8': return
-        if image.width!=self.mosaic.cam.W or image.height!=self.mosaic.cam.H: return
-        if image.step<image.width*3 or len(image.data)!=image.height*image.step: return
-        view=np.frombuffer(image.data,np.uint8).reshape(image.height,image.step)[:,:image.width*3].reshape(image.height,image.width,3)
+        view=decode_bgr8(image,self.mosaic.cam)
+        if view is None: return
         pose=odom.pose.pose
         stats=self.mosaic.update(view,(pose.position.x,pose.position.y,quat_yaw(pose.orientation)))
         self._publish_outputs(image.header.stamp)

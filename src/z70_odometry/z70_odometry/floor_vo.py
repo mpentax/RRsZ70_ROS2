@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import math
 from dataclasses import dataclass
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -31,8 +32,7 @@ class FloorCamera:
 
     @classmethod
     def load(cls, path=None):
-        with open(path or front_calibration_path()) as stream:
-            return cls(json.load(stream))
+        return cls(json.loads(Path(path or front_calibration_path()).read_text()))
 
     def pixels_to_floor(self, uv: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """(N,2) pixels -> (N,2) floor xy metres, plus mask of pixels whose ray hits the floor."""
@@ -64,6 +64,14 @@ class FloorCamera:
         xy, ok = self.pixels_to_floor(np.stack([u.ravel(), v.ravel()], 1).astype(float))
         r = np.hypot(xy[:, 0], xy[:, 1])
         return (ok & (r < max_range) & (r > min_range)).reshape(self.H, self.W)
+
+
+def decode_bgr8(msg, cam) -> np.ndarray | None:
+    if msg.encoding != "bgr8" or msg.width != cam.W or msg.height != cam.H:
+        return None
+    if msg.step < msg.width * 3 or len(msg.data) != msg.height * msg.step:
+        return None
+    return np.frombuffer(msg.data, np.uint8).reshape(msg.height, msg.step)[:, :msg.width * 3].reshape(msg.height, msg.width, 3)
 
 
 @dataclass

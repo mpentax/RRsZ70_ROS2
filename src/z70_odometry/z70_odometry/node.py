@@ -14,9 +14,9 @@ from sensor_msgs.msg import Image
 
 from tf2_ros import TransformBroadcaster
 
-from z70_odometry.floor_vo import FloorCamera, FloorOdometry
+from z70_odometry.floor_vo import FloorCamera, FloorOdometry, decode_bgr8
 from z70_odometry.calibration_state import calibrated_camera_x
-from z70_odometry.chassis_calibrator import _arc
+from z70_odometry.chassis_calibrator import _arc, stamp_ns
 from z70_interfaces.msg import CalibrationState, CommandEvent, OdometryStatus
 from rclpy.qos import QoSProfile, DurabilityPolicy
 from z70_odometry.resources import front_calibration_path, initial_camera_x_m
@@ -85,10 +85,6 @@ class FloorOdomNode(Node):
             known = getattr(msg, field + '_known')
             setattr(self, attribute, float(gain) if known and math.isfinite(gain) and gain > 0 else default)
 
-    @staticmethod
-    def _ns(stamp):
-        return stamp.sec * 10**9 + stamp.nanosec
-
     def on_command(self, msg: CommandEvent):
         session, sequence = bytes(msg.evidence.session_id.uuid), msg.evidence.sequence
         if self._command_session == session and self._command_sequence is not None and sequence <= self._command_sequence:
@@ -100,7 +96,7 @@ class FloorOdomNode(Node):
         ident = bytes(msg.outcome.attempt_id.uuid)
         if msg.phase == 1 and msg.operation == 'app_rc_move':
             if msg.evidence.source_time_known and msg.evidence.source_clock == 1:
-                self._attempts[ident] = self._ns(msg.evidence.source_at)
+                self._attempts[ident] = stamp_ns(msg.evidence.source_at)
                 while len(self._attempts) > 256:
                     self._attempts.pop(next(iter(self._attempts)))
             return
@@ -114,7 +110,7 @@ class FloorOdomNode(Node):
         if not all(math.isfinite(v) for v in (velocity, omega, duration_s)) or duration_s <= 0:
             return
         motion_end_ns = start_ns + int(round(duration_s * 1e9))
-        end_ns = max(self._ns(msg.outcome.finished_at), motion_end_ns)
+        end_ns = max(stamp_ns(msg.outcome.finished_at), motion_end_ns)
         if self.last_vo_accept_ns >= motion_end_ns:
             return
         if start_ns < self.last_vo_accept_ns < motion_end_ns:
@@ -218,22 +214,18 @@ class FloorOdomNode(Node):
         self.prev_stamp_ns = 0
 
     def on_image(self, msg: Image):
-        if msg.encoding != "bgr8":
+        img = decode_bgr8(msg, self.vo.cam)
+        if img is None:
             return
-        if msg.width != self.vo.cam.W or msg.height != self.vo.cam.H:
-            return
-        if msg.step < msg.width * 3 or len(msg.data) != msg.height * msg.step:
-            return
-        stamp_ns = self._ns(msg.header.stamp)
-        self.last_image_ns = stamp_ns
-        img = np.frombuffer(msg.data, np.uint8).reshape(msg.height, msg.step)[:, :msg.width * 3].reshape(msg.height, msg.width, 3)
+        now_stamp_ns = stamp_ns(msg)
+        self.last_image_ns = now_stamp_ns
         state = "init"
         stationary = False
         def set_ref():
             self.prev = img.copy()
-            self.prev_stamp_ns = stamp_ns
+            self.prev_stamp_ns = now_stamp_ns
         if self.prev is None:
-            if self._apply_pending(stamp_ns, partial=True, stamp=msg.header.stamp):
+            if self._apply_pending(now_stamp_ns, partial=True, stamp=msg.header.stamp):
                 set_ref()
                 return
         else:
@@ -241,17 +233,17 @@ class FloorOdomNode(Node):
             if m is None:
                 self.rejected += 1
                 self.last_rejected = True
-                if self._apply_pending(stamp_ns, partial=True, stamp=msg.header.stamp):
+                if self._apply_pending(now_stamp_ns, partial=True, stamp=msg.header.stamp):
                     set_ref()
                     return
-                if any(s < stamp_ns for s in self._attempts.values()):
+                if any(s < now_stamp_ns for s in self._attempts.values()):
                     set_ref()
                 state = "rejected"
             else:
-                self.last_vo_accept_ns = stamp_ns
+                self.last_vo_accept_ns = now_stamp_ns
                 self.last_rejected = False
                 self._pose_uncertain = False
-                self._trim_pending(stamp_ns)
+                self._trim_pending(now_stamp_ns)
                 stationary = math.hypot(m.dx, m.dy) < 5e-4 and abs(m.dtheta) < 1e-3
                 if not stationary:
                     c, s = math.cos(self.th), math.sin(self.th)
@@ -263,7 +255,7 @@ class FloorOdomNode(Node):
         if state != "rejected":
             if self.prev is None or not stationary:
                 self.prev = img.copy()
-            self.prev_stamp_ns = stamp_ns
+            self.prev_stamp_ns = now_stamp_ns
         self.publish(msg.header.stamp, rejected=(state == "rejected" or self._pose_uncertain))
         accepted = state == 'ok'
         self._publish_status(

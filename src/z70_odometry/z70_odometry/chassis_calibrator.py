@@ -8,6 +8,13 @@ import os
 from pathlib import Path
 import time
 import numpy as np
+import rclpy
+from nav_msgs.msg import Odometry
+from rclpy.node import Node
+from rclpy.qos import DurabilityPolicy, QoSProfile
+from z70_interfaces.msg import CalibrationState, CommandEvent, OdometryStatus
+from z70_odometry.calibration_state import CalibrationPublication
+from z70_odometry.resources import runtime_calibration_path, seed_directory
 
 
 def local_delta(a,b):
@@ -17,6 +24,12 @@ def local_delta(a,b):
 
 def quat_yaw(q) -> float:
     return math.atan2(2*(q.w*q.z+q.x*q.y),1-2*(q.y*q.y+q.z*q.z))
+
+
+def stamp_ns(stamp) -> int:
+    s = getattr(stamp, 'header', stamp)
+    s = getattr(s, 'stamp', s)
+    return s.sec * 10**9 + s.nanosec
 
 
 def _arc(angle: float) -> tuple[float, float]:
@@ -187,13 +200,6 @@ class CommandStream:
 
 
 def main():
-    import rclpy
-    from rclpy.node import Node
-    from nav_msgs.msg import Odometry
-    from z70_interfaces.msg import CommandEvent, CalibrationState, OdometryStatus
-    from z70_odometry.resources import runtime_calibration_path, seed_directory
-    from z70_odometry.calibration_state import CalibrationPublication
-    from rclpy.qos import QoSProfile,DurabilityPolicy
     class Calibrator(Node):
         def __init__(self):
             super().__init__('chassis_calibrator')
@@ -213,14 +219,14 @@ def main():
         def commands(self,msg):
             self.command_stream.add(msg)
         def odom(self,msg):
-            p=msg.pose.pose; stamp=msg.header.stamp.sec*10**9+msg.header.stamp.nanosec; t=stamp/1e9
+            p=msg.pose.pose; stamp=stamp_ns(msg); t=stamp/1e9
             entry=dict(t=t,stamp_ns=stamp,x=p.position.x,y=p.position.y,yaw=quat_yaw(p.orientation),rejected=msg.pose.covariance[0]>1000,camera_x_m=None)
             status=self.status.get(stamp)
             if status: entry['camera_x_m']=status.get('camera_x_m')
             self.estimator.add_pose(entry)
         def quality(self,msg):
             if not msg.evidence.valid or msg.evidence.stale: return
-            stamp=msg.header.stamp.sec*10**9+msg.header.stamp.nanosec
+            stamp=stamp_ns(msg)
             camera_x=msg.active_camera_x_m if msg.active_camera_x_known and math.isfinite(msg.active_camera_x_m) else None
             status=dict(stamp_ns=stamp,camera_x_m=camera_x,state='ok' if msg.pair_accepted else 'rejected')
             self.status[stamp]=status
