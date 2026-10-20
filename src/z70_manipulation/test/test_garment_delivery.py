@@ -181,7 +181,7 @@ def run_dds_dry_action(tmp_path, action_type, topic, goal, monkeypatch):
         if executor: executor.shutdown(timeout_sec=5.)
         if thread: thread.join(5.)
         if server:
-            for a in [server.action,server.stack_action,server.pin_and_go_action,server.deliver_garment_action,server.patrol_collect_action,*server.curated_actions]: a.destroy()
+            for a in server.action_servers: a.destroy()
             server.observations.close(); server.destroy_node()
         if peer: peer.destroy_node()
         rclpy.try_shutdown()
