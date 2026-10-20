@@ -10,6 +10,7 @@ import uuid
 import pytest
 import rclpy
 from action_msgs.msg import GoalStatus
+from builtin_interfaces.msg import Duration
 from rclpy.action import ActionClient
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.parameter import Parameter
@@ -23,11 +24,10 @@ from z70_driver.driver import Driver
 
 
 def wait_for(predicate, seconds=5):
-    until = time.monotonic()+seconds
-    while time.monotonic() < until:
-        if predicate(): return
+    until = time.monotonic() + seconds
+    while not predicate():
+        assert time.monotonic() < until, 'condition deadline'
         time.sleep(.01)
-    assert predicate(), 'condition deadline'
 
 
 def resolved(future, seconds=5):
@@ -253,7 +253,6 @@ def test_vendor_rejection_and_invalid_service_do_not_succeed(system):
 
 
 def test_base_pulse_bounded_wire_mapping_and_unverified_odom(system):
-    from builtin_interfaces.msg import Duration
     client, invalid = action(system, BasePulse, '/z70/base/pulse', BasePulse.Goal(
         linear_mps=.1, angular_radps=.1, duration=Duration(nanosec=100000000)))
     assert not invalid.accepted and not methods(system)
