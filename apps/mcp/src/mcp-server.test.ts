@@ -151,3 +151,123 @@ test("MCP select_camera confirms shared mode and default frame reads omit camera
   assert.equal(JSON.parse((image.content as {text:string}[])[0]!.text).camera, "gripper");
   assert.deepEqual(requests, [{path: "/api/ros/camera/select", payload: {camera: "gripper"}}, {path: "/api/ros/frame", payload: {}}]);
 });
+
+test("MCP exposes generic RPC and observation tools without challenges or prior latch", async (t) => {
+  const calls: { path: string; payload: unknown }[] = [];
+  const outcome = { requestId: "r1", dispatch: "sent", response: "vendor_error", vendorCode: -1, result: { raw: true } };
+  const client = await connectClient(t, async (url, options) => {
+    assert.equal(new Headers(options?.headers).get("authorization"), `Bearer ${token}`);
+    assert.equal(options?.redirect, "error");
+    calls.push({ path: new URL(String(url)).pathname, payload: JSON.parse(String(options?.body ?? "{}")) });
+    return Response.json(outcome);
+  });
+  assert.deepEqual((await client.listTools()).tools.map(t => t.name).sort(), ["cancel_task", "control_session", "get_arm_estimate", "get_camera_diagnostics", "get_camera_frame", "get_map", "get_state", "get_task", "list_goals", "list_tasks", "refresh_status", "robot_rpc", "select_camera", "set_arm_anchor", "start_task", "stop"]);
+  const params = { arbitrary: [1, false, { raw: "value" }] };
+  for (const takeover of [false, true]) {
+    const reply = await client.callTool({ name: "robot_rpc", arguments: { method: "any_vendor_method", params, transport: "cloud", timeoutMs: 3456, takeover } });
+    assert.deepEqual(JSON.parse((reply.content as { text: string }[])[0]!.text), outcome);
+  }
+  assert.deepEqual(calls, [false, true].map(takeover => ({ path: "/api/ros/rpc", payload: { method: "any_vendor_method", params, transport: "cloud", timeoutMs: 3456, takeover } })));
+  for (const enabled of [false, true]) {
+    const reply = await client.callTool({ name: "control_session", arguments: { enabled } });
+    assert.deepEqual(JSON.parse((reply.content as { text: string }[])[0]!.text), outcome);
+    assert.deepEqual(calls.at(-1), { path: "/api/ros/control/session", payload: { enabled } });
+  }
+  for (const task of [
+    { kind: "deliver_garment", goal: { category: "sock", drop_x_m: 1, drop_y_m: 2, max_duration_s: 60, allow_towing: false, dry_run: true } },
+    { kind: "patrol_collect", goal: { drop_x_m: 1, drop_y_m: 2, max_duration_s: 600, max_items: 10, allow_towing: false, dry_run: true } },
+    { kind: "pin_and_go", goal: { target_x_m: 24.5, target_y_m: 26.0, max_duration_s: 60, dry_run: true } },
+    { kind: "deploy_arm", goal: { settle: true } },
+    { kind: "align_target", goal: { color: "yellow" } },
+    { kind: "move_arm", goal: { m3_deg: 190, m4_deg: 65, m5_deg: 0 } },
+    { kind: "grasp_and_lift", goal: { lift_steps: 2, verify_color: "yellow" } },
+    { kind: "release_and_stow", goal: { put_down: true } },
+    { kind: "arm_operation", goal: { operation: 6 } },
+    { kind: "arm_operation", goal: { operation: 7 } },
+    { kind: "arm_operation", goal: { operation: 8 } },
+    { kind: "arm_operation", goal: { operation: 9 } },
+    { kind: "stack", goal: { base_color: "yellow", middle_color: "blue", top_color: "purple", dry_run: true } },
+  ] as const) {
+    const reply = await client.callTool({ name: "start_task", arguments: { task } });
+    assert.notEqual(reply.isError, true);
+    assert.deepEqual(calls.at(-1), { path: "/api/ros/tasks", payload: task });
+  }
+});
+
+const catalogFixture = {
+  goals: [{ kind: "pick", topic: "/z70/pick", action: "Pick", fields: ["color", "dry_run"] }],
+  context_primitives: [{ name: "status", signature: "status() -> dict", summary: "Read robot status." }],
+};
+
+function mockGateway(action = "CustomGoal") {
+  const calls: { method: string; path: string; payload: unknown }[] = [];
+  const transport: typeof fetch = async (url, options) => {
+    const path = new URL(String(url)).pathname;
+    const method = options?.method ?? "GET";
+    const payload = options?.body ? JSON.parse(String(options.body)) : undefined;
+    calls.push({ method, path, payload });
+    if (path === "/api/ros/goals") return Response.json(catalogFixture);
+    if (path === "/api/ros/goals/validate") {
+      return Response.json({ valid: true, kind: (payload as { kind: string }).kind, topic: "/z70/custom", action });
+    }
+    return Response.json({ id: "00000000-0000-0000-0000-000000000001", kind: (payload as { kind?: string })?.kind, status: "accepted" });
+  };
+  return { calls, transport };
+}
+
+test("RoboClawMcpClient supports listGoals, validateGoal, and custom TaskInput in startTask", async () => {
+  const { calls, transport } = mockGateway("CustomGoal");
+  const gatewayClient = new RoboClawMcpClient(origin, token, transport);
+
+  const catalog = await gatewayClient.listGoals();
+  assert.equal(catalog.goals[0]?.kind, "pick");
+  assert.equal(catalog.context_primitives?.[0]?.name, "status");
+
+  const customTask = { kind: "custom_inspect", goal: { target: "yellow", dry_run: true } };
+  const validation = await gatewayClient.validateGoal(customTask);
+  assert.deepEqual(validation, { valid: true, kind: "custom_inspect", topic: "/z70/custom", action: "CustomGoal" });
+
+  const started = await gatewayClient.startTask(customTask) as { id: string; kind: string };
+  assert.equal(started.kind, "custom_inspect");
+
+  assert.deepEqual(calls, [
+    { method: "GET", path: "/api/ros/goals", payload: undefined },
+    { method: "POST", path: "/api/ros/goals/validate", payload: customTask },
+    { method: "POST", path: "/api/ros/tasks", payload: customTask },
+  ]);
+});
+
+test("MCP start_task accepts custom goal kinds and supports validateOnly and simulate/context dry-run validation", async (t) => {
+  const { calls, transport } = mockGateway("Custom");
+  const client = await connectClient(t, transport);
+
+  const listed = await client.callTool({ name: "list_goals", arguments: {} });
+  assert.notEqual(listed.isError, true);
+  assert.deepEqual(JSON.parse((listed.content as { text: string }[])[0]!.text), catalogFixture);
+
+  const customTask = { kind: "custom_sweep", goal: { radius_m: 1.5, dry_run: true } };
+  const validated = await client.callTool({ name: "start_task", arguments: { task: customTask, validateOnly: true } });
+  assert.notEqual(validated.isError, true);
+  assert.deepEqual(JSON.parse((validated.content as { text: string }[])[0]!.text), {
+    valid: true,
+    kind: "custom_sweep",
+    topic: "/z70/custom",
+    action: "Custom",
+  });
+
+  const dispatched = await client.callTool({ name: "start_task", arguments: { task: customTask } });
+  assert.notEqual(dispatched.isError, true);
+
+  const simulated = await client.callTool({
+    name: "start_task",
+    arguments: { task: customTask, simulate: true, context: { status: { state: 39 } } },
+  });
+  assert.notEqual(simulated.isError, true);
+
+  assert.deepEqual(calls.map(({ path, payload }) => ({ path, payload })), [
+    { path: "/api/ros/goals", payload: undefined },
+    { path: "/api/ros/goals/validate", payload: customTask },
+    { path: "/api/ros/tasks", payload: customTask },
+    { path: "/api/ros/goals/validate", payload: { ...customTask, simulate: true, context: { status: { state: 39 } } } },
+  ]);
+});
