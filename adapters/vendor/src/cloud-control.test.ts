@@ -92,9 +92,14 @@ test("cloud broker validation rejects arbitrary hosts and insecure transport", (
   }
 });
 
-test("generic cloud writes connect on demand and next explicit call recovers after timeout without replay", async () => {
+function trackedClient() {
   const brokers: FakeBroker[] = [];
   const client = new CloudControlClient(credentials, async () => { const broker = new FakeBroker(); brokers.push(broker); return broker; });
+  return { brokers, client };
+}
+
+test("generic cloud writes connect on demand and next explicit call recovers after timeout without replay", async () => {
+  const { brokers, client } = trackedClient();
   try {
     assert.deepEqual(await client.rpc("app_charge", {}), ["ok"]);
     brokers[0].respond = false;
@@ -105,8 +110,7 @@ test("generic cloud writes connect on demand and next explicit call recovers aft
 });
 
 test("delayed events from old cloud client cannot terminate a new explicit request", async () => {
-  const brokers: FakeBroker[] = [];
-  const client = new CloudControlClient(credentials, async () => { const broker = new FakeBroker(); brokers.push(broker); return broker; });
+  const { brokers, client } = trackedClient();
   try {
     await client.rpc("first"); brokers[0].respond = false;
     await assert.rejects(client.rpc("timeout", [], 5));

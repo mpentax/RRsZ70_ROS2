@@ -1,10 +1,10 @@
-/** One bounded split-transport map read; never a pose or active-map proof. */
+/** Read the V1 LiDAR map via local L01 request and correlated MQTT 301 reply. */
 import { createHash, randomUUID } from "node:crypto";
 import { connectAsync } from "mqtt";
 import { summarizeV1Map } from "./v1-map-summary.ts";
 import { RobotClient } from "./robot.ts";
 import { createBlobSecurity } from "./photo-protocol.ts";
-import { decodeCloudMapResponse, inspectMapFrame } from "./cloud-map-v1.ts";
+import { decodeCloudMapResponse, inspectMapFrame, MAX_CLOUD_MAP_FRAME_BYTES } from "./cloud-map-v1.ts";
 import { cloudControlCredentials, mqttOptions } from "./cloud-control.ts";
 import type { SavedDevice } from "./credentials.ts";
 import type { CameraAccount } from "./cloud.ts";
@@ -39,7 +39,7 @@ export async function readSplitMap(device: SavedDevice, account: CameraAccount):
   client.on("message", (topic, frame) => {
     if (!active || topic !== auth.incoming || requestId === null) return;
     if (++receivedFrames > 128) { reason = "setup-failed"; client.end(true); return; }
-    if (frame.length > 32 * 1024 * 1024 + 47) { reason = "setup-failed"; client.end(true); return; }
+    if (frame.length > MAX_CLOUD_MAP_FRAME_BYTES) { reason = "setup-failed"; client.end(true); return; }
     const classification = inspectMapFrame(frame, credentials.localKey, security, requestId);
     if (classification === "opaque-301") {
       // MQTT has no request binding for opaque 301 bytes. They may be an
@@ -95,7 +95,7 @@ export async function readSplitMap(device: SavedDevice, account: CameraAccount):
     const bytes: Buffer = map;
     let geometry: ReturnType<typeof summarizeV1Map>;
     try { geometry = summarizeV1Map(bytes); }
-    catch { throw new Error("map-format-unverified"); }
+    catch { throw new Error("invalid-map-format"); }
     return {
       bytes: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex"),
       mapIndex: bytes.readUInt32LE(12), mapSequence: bytes.readUInt32LE(16), receivedAt,
