@@ -19,8 +19,6 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/OdometryStatus.msg"
   "msg/RoomLabel.msg"
   "msg/MapSnapshot.msg"
-  "msg/ObjectObservation.msg"
-  "msg/ObjectObservations.msg"
   "msg/GarmentObservation.msg"
   "msg/GarmentObservations.msg"
   "msg/CommandOutcome.msg"
