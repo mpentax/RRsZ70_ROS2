@@ -159,19 +159,18 @@ class PickServer(Perception):
         self.create_timer(.05, self.watchdog, callback_group=self.group)
         self.navigation_config = BoundaryConfig(allowed_segments=tuple(
             self.declare_parameter('pin_and_go_allowed_segments', [1, 2, 3, 4, 5, 6]).value))
+        from .garment_delivery import TowingQualificationConfig
+        towing_qual = bool(self.declare_parameter('towing_qualified', False).value)
+        towing_cats = tuple(self.declare_parameter('towing_qualified_categories', ['towel', 'shirt', 'pants', 'jeans', 'hoodie']).value)
+        towing_uri = str(self.declare_parameter('towing_artifact_uri', '').value)
+        self.towing_config = TowingQualificationConfig(
+            towing_qualified=towing_qual, qualified_categories=towing_cats, artifact_uri=towing_uri)
         self.patrol_directory = Path(self.declare_parameter('patrol_ledger_directory', str(self.repo / '.local/patrol')).value)
 
         self.action_servers = []
         self.goal_specs = {}
-        servers_by_name = {spec.name: self.register_goal(spec) for spec in BUILTIN_GOALS.values()}
-        self.action = servers_by_name['pick']
-        self.stack_action = servers_by_name['stack']
-        self.pin_and_go_action = servers_by_name['pin_and_go']
-        self.deliver_garment_action = servers_by_name['deliver_garment']
-        self.patrol_collect_action = servers_by_name['patrol_collect']
-        self.curated_actions = [
-            servers_by_name[k] for k in ('deploy_arm', 'align_target', 'move_arm', 'grasp_and_lift', 'release_and_stow')
-        ]
+        for spec in BUILTIN_GOALS.values():
+            self.register_goal(spec)
 
     def register_goal(self, spec: GoalSpec) -> ActionServer:
         server = ActionServer(

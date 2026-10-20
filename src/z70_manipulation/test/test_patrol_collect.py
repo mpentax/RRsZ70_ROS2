@@ -1,8 +1,23 @@
 """Patrol ledger persistence, waypoint coverage, and battery return logic."""
 from types import SimpleNamespace as NS
-import json
 import pytest
 from z70_manipulation.patrol import PatrolLedger, PatrolCollector
+from z70_mapping.boundary import BoundaryConfig
+from test_garment_delivery import DeliveryFixture, run_dds_dry_action
+
+
+def _patrol_fixture(tmp_path, suitability=1, empty=False):
+    fixture = DeliveryFixture(tmp_path)
+    fixture.garment.transport_suitability = suitability
+    fixture.garment.floor_contact_m = NS(x=.4, y=0.)
+    evidence = NS(session_id=NS(uuid=[1] * 16), sequence=1)
+    fixture.garment.evidence = evidence
+    fixture.obs.get = lambda _: dict(telemetry=dict(status=dict(value=dict(battery=90))))
+    fixture.obs.garment_frame = lambda **_: dict(coverage_valid=True, valid_empty_view=empty)
+    fixture.obs.garment_snapshot = lambda **_: NS(
+        garments=[] if empty else [fixture.garment], evidence=evidence, model_available=True, geofence_active=True
+    )
+    return fixture
 
 
 def test_restart_never_replays_or_credits_in_flight_delivery(tmp_path):
@@ -90,21 +105,13 @@ def test_tf_jump_invalidates_route_and_coverage(tmp_path):
 
 def test_patrol_collect_dds_dry_action(tmp_path,monkeypatch):
     from z70_interfaces.action import PatrolCollect
-    from test_garment_delivery import run_dds_dry_action
     run_dds_dry_action(tmp_path,PatrolCollect,'/z70/patrol_collect',
         PatrolCollect.Goal(drop_x_m=2.,drop_y_m=2.,max_duration_s=10.,max_items=10,allow_towing=False,dry_run=True),monkeypatch)
 
 
 @pytest.mark.parametrize('delivery_status,expected', [('GRASP_MISS','FAILED'),('GARMENT_SLIPPED_DURING_TRANSPORT','FAILED'),('DELIVERED','DELIVERED')])
 def test_patrol_records_verified_delivery_not_attempt_as_success(tmp_path,delivery_status,expected):
-    from test_garment_delivery import DeliveryFixture
-    from z70_mapping.boundary import BoundaryConfig
-    fixture=DeliveryFixture(tmp_path)
-    fixture.garment.floor_contact_m=NS(x=.4,y=0.)
-    fixture.garment.evidence=NS(session_id=NS(uuid=[1]*16),sequence=1)
-    fixture.obs.get=lambda _:dict(telemetry=dict(status=dict(value=dict(battery=90))))
-    fixture.obs.garment_frame=lambda **_:dict(coverage_valid=True,valid_empty_view=False)
-    fixture.obs.garment_snapshot=lambda **_:NS(garments=[fixture.garment],evidence=fixture.garment.evidence,model_available=True,geofence_active=True)
+    fixture=_patrol_fixture(tmp_path)
     class Delivery:
         holding=False
         def __init__(self,*_,**__): self.position=[1.,1.]
@@ -120,14 +127,7 @@ def test_patrol_records_verified_delivery_not_attempt_as_success(tmp_path,delive
 
 
 def test_unsupported_towing_is_skipped_without_delivery_dispatch(tmp_path):
-    from test_garment_delivery import DeliveryFixture
-    from z70_mapping.boundary import BoundaryConfig
-    fixture=DeliveryFixture(tmp_path); fixture.garment.transport_suitability=2
-    fixture.garment.floor_contact_m=NS(x=.4,y=0.)
-    evidence=NS(session_id=NS(uuid=[1]*16),sequence=1)
-    fixture.obs.get=lambda _:dict(telemetry=dict(status=dict(value=dict(battery=90))))
-    fixture.obs.garment_frame=lambda **_:dict(coverage_valid=True,valid_empty_view=False)
-    fixture.obs.garment_snapshot=lambda **_:NS(garments=[fixture.garment],evidence=evidence,model_available=True,geofence_active=True)
+    fixture=_patrol_fixture(tmp_path,suitability=2)
     class Transit:
         position=[1.,1.]
         def __init__(self,*_,**__): pass
@@ -157,8 +157,6 @@ def test_same_map_pose_refresh_does_not_erase_cleared_coverage(tmp_path):
 
 
 def test_patrol_dry_run_validates_loaded_drop_route_without_commands(tmp_path):
-    from test_garment_delivery import DeliveryFixture
-    from z70_mapping.boundary import BoundaryConfig
     fixture=DeliveryFixture(tmp_path)
     patrol=PatrolCollector(fixture.obs,None,PatrolLedger(tmp_path),boundary_config=BoundaryConfig(allowed_segments=(1,)))
     result=patrol.execute(NS(drop_x_m=.05,drop_y_m=.05,max_duration_s=10.,max_items=10,allow_towing=False,dry_run=True))
@@ -166,12 +164,7 @@ def test_patrol_dry_run_validates_loaded_drop_route_without_commands(tmp_path):
 
 
 def test_unloaded_transit_uses_pin_and_go_when_commands_available(tmp_path):
-    from test_garment_delivery import DeliveryFixture
-    from z70_mapping.boundary import BoundaryConfig
-    fixture=DeliveryFixture(tmp_path)
-    fixture.obs.get=lambda _:dict(telemetry=dict(status=dict(value=dict(battery=90))))
-    fixture.obs.garment_frame=lambda **_:dict(coverage_valid=True,valid_empty_view=True)
-    fixture.obs.garment_snapshot=lambda **_:NS(garments=[],evidence=NS(session_id=NS(uuid=[1]*16),sequence=1),model_available=True,geofence_active=True)
+    fixture=_patrol_fixture(tmp_path,empty=True)
     fixture.ex.client.commands=NS()
     nav_calls=[]
     class Nav:
