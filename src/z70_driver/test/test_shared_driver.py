@@ -4,12 +4,13 @@ import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import importlib
 import json
-from pathlib import Path
 import queue
 import struct
 import threading
 import time
+from types import SimpleNamespace
 import uuid
+import yaml
 
 import cv2
 import numpy as np
@@ -22,7 +23,7 @@ from sensor_msgs.msg import CameraInfo, CompressedImage, Image
 from nav_msgs.msg import OccupancyGrid
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus
 from z70_interfaces.msg import RobotState, MapSnapshot, ArmEstimate, FrameMetadata, CommandEvent
-from z70_interfaces.srv import SelectCamera
+from z70_interfaces.srv import RefreshMap, SelectCamera
 from z70_driver.driver import Driver, LATCHED, host_time, host_ms
 from z70_driver.frame_subscription import MatchedFrames
 from z70_manipulation.observations import Observations
@@ -31,7 +32,9 @@ from z70_mapping.node import MappingNode
 
 def wait_for(predicate, seconds=5.):
     deadline=time.monotonic()+seconds
-    while not predicate() and time.monotonic()<deadline: time.sleep(.01)
+    while time.monotonic()<deadline:
+        if predicate(): return
+        time.sleep(.01)
     assert predicate(), 'condition deadline'
 
 
@@ -107,7 +110,6 @@ def backend():
 
 
 def camera_yaml(path,height):
-    import yaml
     path.write_text(yaml.safe_dump(dict(image_width=16,image_height=height,distortion_model='plumb_bob',
         camera_matrix=dict(data=[20.,0.,8.,0.,21.,height/2,0.,0.,1.]),
         distortion_coefficients=dict(data=[.1,-.01,0.,0.,0.]),
@@ -207,7 +209,6 @@ def test_shared_acquisition_serialization_late_join_switch_stale_cleanup(backend
         backend['session']=str(uuid.uuid4())
         wait_for(lambda:bytes(states[-1].evidence.session_id.uuid)!=oldsession)
         wait_for(lambda:driver.samples['arm'][0].evidence.session_id==driver.acquisition_session(backend['session']))
-        from z70_interfaces.srv import RefreshMap
         refresh=client.create_client(RefreshMap,'/z70/map/refresh')
         assert refresh.wait_for_service(timeout_sec=2.)
         future=refresh.call_async(RefreshMap.Request());wait_for(future.done)
@@ -260,7 +261,6 @@ def test_shared_acquisition_serialization_late_join_switch_stale_cleanup(backend
 
 
 def test_all_generated_observation_and_service_types_serialize():
-    from types import SimpleNamespace
     backend=str(uuid.uuid4())
     first=SimpleNamespace(driver_session=uuid.uuid4())
     second=SimpleNamespace(driver_session=uuid.uuid4())
@@ -274,7 +274,6 @@ def test_all_generated_observation_and_service_types_serialize():
         assert deserialize_message(serialize_message(msg),cls)==msg
     msg=CommandEvent(operation='vendor_advanced_'+'research_'*10)
     assert deserialize_message(serialize_message(msg),CommandEvent)==msg
-    from z70_interfaces.srv import RefreshMap
     for cls in (SelectCamera.Request,SelectCamera.Response,RefreshMap.Request,RefreshMap.Response):
         msg=cls();assert deserialize_message(serialize_message(msg),cls)==msg
 

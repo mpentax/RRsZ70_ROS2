@@ -10,6 +10,7 @@ from z70_description.pincher_geometry import rpy
 
 
 SOURCE = Path(__file__).resolve().parents[1] / 'urdf/z70.urdf.xacro'
+ROBOT = ET.fromstring(xacro.process_file(str(SOURCE)).toxml())
 
 
 def rotation(axis, angle):
@@ -55,8 +56,7 @@ def relative_frames(robot, root, angles):
 
 @pytest.mark.parametrize('m5', [0, 35, 155])
 def test_open_second_assembly_uses_the_copied_wrist(m5):
-    robot = ET.fromstring(xacro.process_file(str(SOURCE)).toxml())
-    frames = relative_frames(robot, 'arm_link2', {
+    frames = relative_frames(ROBOT, 'arm_link2', {
         'm5_joint': -math.radians(m5),
         'm6_left_joint': math.pi/4,
         'm6_right_joint': math.pi/4,
@@ -65,8 +65,7 @@ def test_open_second_assembly_uses_the_copied_wrist(m5):
 
 
 def test_first_segment_uses_the_copied_link_length():
-    robot = ET.fromstring(xacro.process_file(str(SOURCE)).toxml())
-    origin = robot.find("joint[@name='m4_joint']/origin").get('xyz').split()
-    assert float(origin[0]) == pytest.approx(0.1772, abs=1e-4)
-    mesh = robot.find("link[@name='arm_link1']").find("visual/geometry/mesh[@filename='package://z70_description/meshes/cad/cad_link1.stl']")
+    joint_origin = ROBOT.find("joint[@name='m4_joint']/origin").get('xyz').split()
+    assert float(joint_origin[0]) == pytest.approx(0.1772, abs=1e-4)
+    mesh = ROBOT.find("link[@name='arm_link1']").find("visual/geometry/mesh[@filename='package://z70_description/meshes/cad/cad_link1.stl']")
     assert mesh is not None

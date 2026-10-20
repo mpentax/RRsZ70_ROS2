@@ -16,6 +16,7 @@ import xacro
 import yaml
 
 from z70_driver.driver import app_to_urdf
+from z70_manipulation import planner
 
 
 @pytest.fixture(scope="module")
@@ -84,6 +85,5 @@ def publish_and_lookup(tf_robot, angles, *frames):
 def test_nominal_wrist_tf_matches_effective_chain(tf_robot, m3, m4, m5, m6):
     transform = publish_and_lookup(tf_robot, app_to_urdf(m3, m4, m5, m6), "arm_wrist_link")
     wrist = transform.transform.translation
-    from z70_manipulation import planner
-    expected=planner.measured_point((m3,m4),(planner.CAD_L2,0.,0.))
-    assert (wrist.x,wrist.y,wrist.z) == pytest.approx(expected,abs=1e-8)
+    expected = planner.measured_point((m3, m4), (planner.CAD_L2, 0., 0.))
+    assert (wrist.x, wrist.y, wrist.z) == pytest.approx(expected, abs=1e-8)
