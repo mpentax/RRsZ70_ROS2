@@ -52,26 +52,12 @@ def test_empty_overlay_markers_are_omitted():
 @pytest.fixture
 def mapping_node(monkeypatch):
     """Exercise callbacks with ROS transport mocked; no DDS or driver access."""
-    import importlib.util
-    import sys
-    from pathlib import Path
-    from z70_mapping import decoder
-    from types import ModuleType, SimpleNamespace
+    from types import SimpleNamespace
     from unittest.mock import Mock
     from rclpy.node import Node
     from builtin_interfaces.msg import Time
+    from z70_mapping import node as module
 
-    # Source-only test runs may not have built the custom interface package.
-    try:
-        import z70_interfaces.msg
-    except ImportError:
-        interfaces = ModuleType('z70_interfaces.msg')
-        interfaces.MapSnapshot = type('MapSnapshot', (), {})
-        monkeypatch.setitem(sys.modules, 'z70_interfaces.msg', interfaces)
-    spec = importlib.util.spec_from_file_location(
-        'z70_mapping._node_unit', Path(decoder.__file__).with_name('node.py'))
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
     publishers = {}
     def publisher(self, kind, topic, qos):
         publishers[topic] = Mock(qos=qos)
