@@ -1,7 +1,9 @@
-"""Immutable package seeds and durable user-owned runtime calibration paths."""
+"""Package seeds and runtime calibration paths for z70_odometry."""
 import os
 from pathlib import Path
-from z70_description.resources import config_path
+from z70_description.resources import config_path, package_root
+
+_FALLBACK_ROOT = Path(__file__).resolve().parent.parent
 
 
 def front_calibration_path():
@@ -16,14 +18,7 @@ def runtime_calibration_path():
 
 
 def _package_root():
-    try:
-        from ament_index_python.packages import get_package_share_directory, PackageNotFoundError
-    except ImportError:
-        return Path(__file__).resolve().parent.parent
-    try:
-        return Path(get_package_share_directory('z70_odometry'))
-    except PackageNotFoundError:
-        return Path(__file__).resolve().parent.parent
+    return package_root('z70_odometry', _FALLBACK_ROOT)
 
 
 def initial_camera_x_m():
