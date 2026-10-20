@@ -69,16 +69,13 @@ def integer(value, low, high):
     return type(value) is int and low <= value <= high
 
 
-GOAL_SPECS = {name: (spec.fields, spec.validate_payload) for name, spec in ALL_GOALS.items()}
-
-
 def goal_message(kind, payload):
-    if kind not in ACTIONS or kind not in GOAL_SPECS or not isinstance(payload, dict): raise ApiError(400, 'INVALID_INPUT')
-    fields, validate = GOAL_SPECS[kind]
-    checked(payload, fields, fields)
-    if not validate(payload): raise ApiError(400, 'INVALID_INPUT')
+    spec = ALL_GOALS.get(kind)
+    if spec is None or not isinstance(payload, dict): raise ApiError(400, 'INVALID_INPUT')
+    checked(payload, spec.fields, spec.fields)
+    if not spec.validate_payload(payload): raise ApiError(400, 'INVALID_INPUT')
     try:
-        message = ACTIONS[kind][0].Goal()
+        message = spec.action_cls.Goal()
         set_message_fields(message, payload)
         return message
     except (TypeError, ValueError, AssertionError, AttributeError, OverflowError):
@@ -278,8 +275,7 @@ class Gateway(Node):
             with self.lock: return 200, {'map':deepcopy(self.samples.get('map'))}, {}
         if method == 'GET' and path == '/api/ros/goals':
             return 200, {
-                'goals': [{'kind': kind, **{k: v for k, v in spec.describe().items() if k != 'name'}}
-                          for kind, spec in ALL_GOALS.items()],
+                'goals': [spec.describe() for spec in ALL_GOALS.values()],
                 'context_primitives': list(GOAL_CONTEXT_PRIMITIVES),
             }, {}
         if method == 'POST' and path == '/api/ros/goals/validate':
