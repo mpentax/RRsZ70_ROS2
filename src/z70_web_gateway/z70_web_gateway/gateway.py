@@ -25,30 +25,18 @@ from rosidl_runtime_py.set_message import set_message_fields
 from sensor_msgs.msg import CompressedImage
 from nav_msgs.msg import OccupancyGrid
 from unique_identifier_msgs.msg import UUID
-from z70_interfaces.action import (
-    DeliverGarment, PatrolCollect, PinAndGo, BasePulse, ArmStep, HandStep,
-    ArmOperation, Pick, Stack, DeployArm, AlignToTarget, MoveArm, GraspAndLift, ReleaseAndStow,
-)
+from z70_interfaces.action import BasePulse, ArmStep, HandStep, ArmOperation
 from z70_interfaces.msg import RobotState, CameraState, ArmEstimate, CalibrationState, FrameMetadata
 from z70_interfaces.srv import RawRpc, Stop, SelectCamera, SetArmAnchor, SetControlSession
-from z70_manipulation.goals import GOAL_CONTEXT_PRIMITIVES, GOAL_DESCRIPTIONS
+from z70_manipulation.goals import BUILTIN_GOALS, GOAL_CONTEXT_PRIMITIVES, GOAL_DESCRIPTIONS
 from std_msgs.msg import Bool
 
 ACTIONS = {
-    'deliver_garment': (DeliverGarment, '/z70/deliver_garment'),
-    'patrol_collect': (PatrolCollect, '/z70/patrol_collect'),
-    'pin_and_go': (PinAndGo, '/z70/nav/pin_and_go'),
-    'pick': (Pick, '/z70/pick'),
-    'stack': (Stack, '/z70/stack'),
+    **{name: (spec.action_cls, spec.topic) for name, spec in BUILTIN_GOALS.items()},
     'base_pulse': (BasePulse, '/z70/base/pulse'),
     'arm_step': (ArmStep, '/z70/arm/step'),
     'hand_step': (HandStep, '/z70/arm/hand_step'),
     'arm_operation': (ArmOperation, '/z70/arm/operation'),
-    'deploy_arm': (DeployArm, '/z70/arm/deploy'),
-    'align_target': (AlignToTarget, '/z70/align_target'),
-    'move_arm': (MoveArm, '/z70/arm/move'),
-    'grasp_and_lift': (GraspAndLift, '/z70/arm/grasp_and_lift'),
-    'release_and_stow': (ReleaseAndStow, '/z70/arm/release_and_stow'),
 }
 SERVICES = (
     ('rpc', RawRpc, '/z70/driver/raw_rpc'),
@@ -107,35 +95,13 @@ def _valid_pulse(p):
 
 
 GOAL_SPECS = {
-    'deliver_garment': (('drop_x_m', 'drop_y_m', 'max_duration_s', 'allow_towing', 'dry_run', 'category'),
-                        lambda p: number(p['drop_x_m'], -100., 100.) and number(p['drop_y_m'], -100., 100.)
-                        and number(p['max_duration_s'], 1., 3600.) and type(p['allow_towing']) is bool
-                        and type(p['dry_run']) is bool and isinstance(p['category'], str) and len(p['category']) <= 32),
-    'patrol_collect': (('drop_x_m', 'drop_y_m', 'max_duration_s', 'allow_towing', 'dry_run', 'max_items'),
-                       lambda p: number(p['drop_x_m'], -100., 100.) and number(p['drop_y_m'], -100., 100.)
-                       and number(p['max_duration_s'], 1., 3600.) and type(p['allow_towing']) is bool
-                       and type(p['dry_run']) is bool and integer(p['max_items'], 1, 1000)),
-    'pin_and_go': (('target_x_m', 'target_y_m', 'max_duration_s', 'dry_run'),
-                   lambda p: number(p['target_x_m'], -100., 100.) and number(p['target_y_m'], -100., 100.)
-                   and number(p['max_duration_s'], 1., 600.) and type(p['dry_run']) is bool),
-    'pick': (('color', 'dry_run'), lambda p: is_color(p['color']) and type(p['dry_run']) is bool),
-    'stack': (('base_color', 'middle_color', 'top_color', 'dry_run'),
-              lambda p: all(is_color(p[k]) for k in ('base_color', 'middle_color', 'top_color'))
-              and len({p['base_color'], p['middle_color'], p['top_color']}) == 3 and type(p['dry_run']) is bool),
+    **{name: (spec.fields, spec.validate_payload) for name, spec in BUILTIN_GOALS.items()},
     'base_pulse': (('linear_mps', 'angular_radps', 'duration'), _valid_pulse),
     'arm_step': (('joint', 'direction'),
                  lambda p: type(p['joint']) is int and p['joint'] in (3, 4, 5, 34, 43)
                  and type(p['direction']) is int and p['direction'] in (-1, 1)),
     'hand_step': (('direction',), lambda p: integer(p['direction'], 1, 4)),
     'arm_operation': (('operation',), lambda p: integer(p['operation'], 1, 9)),
-    'deploy_arm': (('settle',), lambda p: type(p['settle']) is bool),
-    'align_target': (('color',), lambda p: is_color(p['color'])),
-    'move_arm': (('m3_deg', 'm4_deg', 'm5_deg'),
-                 lambda p: number(p['m3_deg'], 90, 270) and number(p['m4_deg'], 35, 170) and number(p['m5_deg'], 0, 155)),
-    'grasp_and_lift': (('lift_steps', 'verify_color'),
-                       lambda p: integer(p['lift_steps'], 0, 10) and isinstance(p['verify_color'], str)
-                       and (p['verify_color'] == '' or is_color(p['verify_color']))),
-    'release_and_stow': (('put_down',), lambda p: type(p['put_down']) is bool),
 }
 
 
