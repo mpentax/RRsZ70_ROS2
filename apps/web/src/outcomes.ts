@@ -11,6 +11,11 @@ export function actionOutcome(value: unknown): UiOutcome {
   if (["unknown", "rejected", "failed", "accepted", "in-progress", "acknowledged"].includes(String(kind))) {
     return kind as UiOutcome;
   }
+  const rosOutcome = record(data.outcome);
+  if (rosOutcome.dispatch === 2) return "rejected";
+  if (rosOutcome.response === 2) return "acknowledged";
+  if (rosOutcome.response === 3 || rosOutcome.response === 4) return "failed";
+  if (rosOutcome.dispatch === 1 && rosOutcome.response === 1) return "accepted";
   if (data.acknowledged === true) return "acknowledged";
   if (data.accepted === true) return "accepted";
   const state = record(data.state);
@@ -28,8 +33,4 @@ export function outcomeMessage(outcome: UiOutcome): string {
     case "acknowledged": return "Command acknowledged.";
     case "unknown": return UNKNOWN_ACTION_MESSAGE;
   }
-}
-
-export function actionErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : UNKNOWN_ACTION_MESSAGE;
 }
