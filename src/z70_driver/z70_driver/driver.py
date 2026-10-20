@@ -465,12 +465,11 @@ class Driver(CommandSurfaces, Node):
             m.evidence.received_at = host_ms(r.headers['X-Map-Saved-At'])
             m.evidence.reason = 'SOURCE_FRESHNESS_UNKNOWN'
             try:
+                from z70_mapping.geometry import room_names
                 rooms = self.request('GET', '/api/home/rooms', timeout=2).json().get('rooms', [])
                 _, mapping = self.driver_rpc('get_room_mapping', [], 2000)
-                mapping = mapping or []
-                labels = {str(room['id']): str(room['name']) for room in rooms}
-                m.rooms = [RoomLabel(segment_id=int(pair[0]), name=labels[str(pair[1])][:128])
-                           for pair in mapping if isinstance(pair, list) and len(pair)>=2 and str(pair[1]) in labels]
+                m.rooms = [RoomLabel(segment_id=seg, name=name[:128])
+                           for seg, name in room_names(mapping or [], rooms).items()]
                 if m.rooms and m.map_index >= 0 and m.map_sequence > 0:
                     from z70_mapping.decoder import decode_map
                     decoded = decode_map(bytes(m.raw))
