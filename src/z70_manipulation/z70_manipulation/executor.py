@@ -142,6 +142,12 @@ class Executor:
         fn = getattr(self.client, 'arm_estimate', None)
         return (fn() if callable(fn) else self.client.get('/api/arm/estimate'))  # type: ignore[return-value]
 
+    def _yaw_gain(self, angle: float, default: float = .68) -> float:
+        return float(self.gains.get('yaw_positive' if angle > 0 else 'yaw_negative', {}).get('gain') or default)
+
+    def _forward_gain(self, default: float = .65) -> float:
+        return float(self.gains.get('forward', {}).get('gain') or default)
+
     def safety(self):
         reason = self.hazard()
         if reason:
@@ -288,12 +294,12 @@ class Executor:
                     blob['range_error_m'] = plan['range_error_m']
                     return blob
                 if abs(plan['bearing_error_deg']) > 2:
-                    gain = self.gains.get('yaw_positive' if plan['yaw'] > 0 else 'yaw_negative', {}).get('gain') or (.72 if plan['yaw'] > 0 else .64)
+                    gain = self._yaw_gain(plan['yaw'], .72 if plan['yaw'] > 0 else .64)
                     omega = math.copysign(.22, plan['yaw'])
                     ms = min(700, max(120, abs(plan['yaw']) / (abs(omega) * gain) * 1000))
                     self.pulse(omega=omega, duration=ms)
                 else:
-                    gain = self.gains.get('forward', {}).get('gain') or .65
+                    gain = self._forward_gain(.65)
                     velocity = math.copysign(.07, plan['forward'])
                     ms = min(800, max(120, abs(plan['forward']) / (abs(velocity) * gain) * 1000))
                     self.pulse(velocity=velocity, duration=ms)
@@ -502,11 +508,13 @@ class Executor:
             horizontal = math.hypot(error[0], error[1]) > .012
             if horizontal and abs(error[1]) > .004:
                 angle = math.atan2(error[1], max(equator[0], .1))
-                self.pulse(omega=math.copysign(.16, angle), duration=min(350, max(100, abs(angle) / (.16 * .68) * 1000)))
+                gain = self._yaw_gain(angle, .68)
+                self.pulse(omega=math.copysign(.16, angle), duration=min(350, max(100, abs(angle) / (.16 * gain) * 1000)))
                 floor_spot = self.predict(floor_spot)
                 continue
             if horizontal and abs(error[0]) > .004:
-                self.pulse(velocity=math.copysign(.03, error[0]), duration=min(400, max(100, min(.008, abs(error[0])) / (.03 * .65) * 1000)))
+                gain = self._forward_gain(.65)
+                self.pulse(velocity=math.copysign(.03, error[0]), duration=min(400, max(100, min(.008, abs(error[0])) / (.03 * gain) * 1000)))
                 floor_spot = self.predict(floor_spot)
                 continue
             choices = []
@@ -679,9 +687,11 @@ class Executor:
                         return incomplete('lateral correction requires clearance from support')
                     if abs(error[1]) > .006:
                         angle = -error[1]/max(sample['support_top_m'][0], .1)
-                        self.pulse(omega=math.copysign(.14, angle), duration=min(400,max(80,abs(angle)/(.14*.68)*1000)))
+                        gain = self._yaw_gain(angle, .68)
+                        self.pulse(omega=math.copysign(.14, angle), duration=min(400,max(80,abs(angle)/(.14*gain)*1000)))
                     else:
-                        self.pulse(velocity=math.copysign(.03,-error[0]), duration=min(500,max(80,abs(error[0])/(.03*.65)*1000)))
+                        gain = self._forward_gain(.65)
+                        self.pulse(velocity=math.copysign(.03,-error[0]), duration=min(500,max(80,abs(error[0])/(.03*gain)*1000)))
                     tower_spot = self.predict(tower_spot)
                     self.end_rc()
                     motion_after = time.time()
@@ -694,7 +704,7 @@ class Executor:
                     continue
                 contacts = 0
                 fit = placement.observed_joints(sample['jaw']['hand_pose_base'])
-                self.log('placement_pose_fit', fit=fit, provenance='current front marker; no estimator anchor')
+                self.log('placement_pose_fit', fit=fit)
                 step = placement.descent_step(sample, fit['joints'] if fit else None)
                 if step is None:
                     return incomplete('no legal real step fits remaining visual gap')
@@ -733,7 +743,7 @@ class Executor:
                 barrier = time.time()
             self.gripped = False
             result = dict(verified=True, detached=True, stable_observations=len(stable), tier=tier,
-                          evidence=sample, verification='visual supported geometry; no force feedback')
+                          evidence=sample)
             self.log('placement_verified', **result)
             return result
         except (LookupError, ValueError, UncertainMotion, requests.RequestException) as e:

@@ -143,13 +143,6 @@ export class SecretStore {
     }, "Cannot save authenticated account pairing.");
   }
 
-  async loadMapCache(): Promise<unknown | null> {
-    return sanitized(async () => {
-      const entry = await this.#readVerifiedMapCache();
-      return entry?.metadata ?? null;
-    }, "Cannot load private map metadata.");
-  }
-
   async loadMapRasterSource(): Promise<{ metadata: import("./map-cache-status.ts").PrivateMapMetadata; raw: Buffer } | null> {
     return sanitized(() => this.#readVerifiedMapCache(), "Cannot load private map raster source.");
   }
