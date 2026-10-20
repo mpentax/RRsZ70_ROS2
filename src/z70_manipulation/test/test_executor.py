@@ -679,7 +679,8 @@ def test_simulate_goal_exercises_all_builtin_goals():
                                   and ctx.plan_grasp(.43, 0.)['state'] == [250, 95]
                                   and ctx.arm_step(1, 2, 0) == {'m3': 1, 'm4': 2, 'm5': 0}
                                   and ctx.hand_step(1) == {'direction': 1}
-                                  and ctx.open_jaws() is None, route_spec.action_cls.Result())),
+                                  and ctx.open_jaws() is None
+                                  and ctx.set_arm_anchor('deployed', 'ID68_VISIBLE')['accepted'] is True, route_spec.action_cls.Result())),
         SimpleNamespace(target_x_m=1., target_y_m=2.),
     )
     assert ok
