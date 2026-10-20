@@ -1,6 +1,7 @@
 """Package seeds and runtime calibration paths for z70_odometry."""
 import os
 from pathlib import Path
+import yaml
 from z70_description.resources import config_path, package_root
 
 _FALLBACK_ROOT = Path(__file__).resolve().parent.parent
@@ -22,7 +23,6 @@ def _package_root():
 
 
 def initial_camera_x_m():
-    import yaml
     return float(yaml.safe_load((_package_root() / 'config/odometry.yaml').read_text())['camera_x_m'])
 
 

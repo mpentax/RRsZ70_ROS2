@@ -3,6 +3,7 @@ from functools import lru_cache
 import cv2
 import numpy as np
 import yaml
+from z70_description import pincher_geometry as hand
 from z70_description.floor_geometry import FrontCamera
 from .resources import front_calibration_path, description_config, colors_path
 
@@ -141,7 +142,6 @@ def front_jaw(image):
         rms=float(np.sqrt(np.mean(np.sum((cv2.projectPoints(obj,r,t,K,D)[0].reshape(4,2)-px)**2,axis=1))))
         if marker[2]<.025 or rms>2. or not .035<marker[0]<.45: continue
         marker[0]+=cfg['front_camera_x_m']
-        from z70_description import pincher_geometry as hand
         marker_pose=np.eye(4);marker_pose[:3,:3]=cam.R.T@R;marker_pose[:3,3]=marker
         hand_pose=hand.marker_hand_pose(marker_pose)
         operational=hand_pose[:3,:3]@hand.grasp_reference()+hand_pose[:3,3]

@@ -16,6 +16,7 @@ from dataclasses import dataclass
 
 import cv2
 import numpy as np
+from .resources import front_calibration_path, initial_camera_x_m
 
 
 class FloorCamera:
@@ -30,7 +31,6 @@ class FloorCamera:
 
     @classmethod
     def load(cls, path=None):
-        from .resources import front_calibration_path
         with open(path or front_calibration_path()) as stream:
             return cls(json.load(stream))
 
@@ -88,7 +88,6 @@ def rigid2d(a: np.ndarray, b: np.ndarray):
 class FloorOdometry:
     def __init__(self, cam: FloorCamera, camera_x_m: float | None = None, max_range=1.5, n_features=3000,
                  ransac_thresh_m=0.008, seed=0, min_inliers=80, max_rms_m=0.003):
-        from .resources import initial_camera_x_m
         self.cam, self.cam_x = cam, initial_camera_x_m() if camera_x_m is None else camera_x_m
         self.min_inliers, self.max_rms = min_inliers, max_rms_m
         self.mask = (cam.floor_mask(max_range) * 255).astype(np.uint8)

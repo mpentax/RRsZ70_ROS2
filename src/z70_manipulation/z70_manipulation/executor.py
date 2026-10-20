@@ -9,7 +9,7 @@ import cv2
 import numpy as np
 import requests
 from z70_description.arm_model import LIMITS
-from . import planner
+from . import perception, placement, planner
 from .observations import read_arm, read_status
 
 TRACK_GATE_M = .12
@@ -456,7 +456,6 @@ class Executor:
 
     def front_measure(self, color, previous):
         """Object and jaw are measured from the same fresh front exposure when visible."""
-        from . import perception
         image, tag = self.fresh_frame()
         if tag != 'front':
             raise LookupError('front camera not selected')
@@ -540,7 +539,6 @@ class Executor:
 
     def held_front(self, color, floor_spot):
         """Verify colour lies at elevated observed jaws or pregrip lift column, and floor spot is empty."""
-        from . import perception
         image, tag = self.fresh_frame()
         if tag != 'front':
             raise LookupError('front verification frame expected')
@@ -610,7 +608,6 @@ class Executor:
 
     def current_arm_joints(self):
         """Usable ROS pose, otherwise a fresh marker-backed conditional fit."""
-        from . import placement, perception
         estimate = self._arm()
         j = estimate.get('joints') or {}
         if estimate.get('state') not in ('UNKNOWN','IN_ROBOT') and all(k in j for k in ('m3','m4','m5')):
@@ -626,7 +623,6 @@ class Executor:
 
     def placement_sample(self, color, support_color, base_color, tower_spot, *, released=False, after=0.):
         """Capture and measure one front-camera placement frame."""
-        from . import placement
         if after:
             self.fresh_frame()  # discard the possibly pre-command buffered image
         for _ in range(4):
@@ -651,7 +647,6 @@ class Executor:
 
     def supported_place(self, color, support_color, base_color, tower_spot, tier):
         """Align the held column over the support object, descend to contact, release, and verify stability."""
-        from . import placement
         sample = None
         def incomplete(detail):
             result = dict(verified=False, detached=False, reason='supported-placement-unresolved',

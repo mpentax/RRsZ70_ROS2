@@ -2,11 +2,11 @@
 import math
 import cv2
 import numpy as np
+from .resources import initial_camera_x_m
 
 
 class FloorMosaic:
     def __init__(self, cam, resolution=.005, size_m=4., max_range=1.2, camera_x_m=None):
-        from .resources import initial_camera_x_m
         if camera_x_m is None: camera_x_m=initial_camera_x_m()
         if resolution <= 0 or size_m <= 0 or max_range <= .06:
             raise ValueError('positive map size/resolution and range > 0.06 required')

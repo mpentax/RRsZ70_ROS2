@@ -11,6 +11,7 @@ import uuid
 import cv2
 import numpy as np
 from z70_mapping.boundary import BoundaryConfig, compute_safe_interior, check_corridor_containment
+from . import perception, planner
 from .navigation import inside, cell
 
 
@@ -193,7 +194,6 @@ class GarmentDeliverer:
         return (np.linalg.norm(current-cloth,axis=2)<25.).astype(np.uint8)
 
     def _elevated_cloth(self,track,frame):
-        from . import perception
         mask=self._cloth_mask(track,frame['image'])
         if mask is None: return None
         try:
@@ -301,7 +301,6 @@ class GarmentDeliverer:
         raise DeliveryRejected('TRANSIT_DID_NOT_CONVERGE')
 
     def approach(self, category):
-        from . import planner
         barrier=self.observations.garment_barrier()
         for _ in range(40):
             self.guard()
@@ -381,7 +380,6 @@ class GarmentDeliverer:
             self.approach(goal.category)
             self.state('GRASP_AND_VERIFY')
             self.operation('open_jaws',self.executor.open_jaws)
-            from . import planner
             p=self.track.grasp_point_m
             arm_fn=getattr(self.executor,'_arm',None)
             estimate=arm_fn() if callable(arm_fn) else self.executor.client.get('/api/arm/estimate')
