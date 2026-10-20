@@ -29,8 +29,7 @@ from z70_interfaces.srv import SelectCamera, RefreshMap
 from z70_description.arm_model import LIMITS, POSES
 from z70_mapping.decoder import decode_map, room_names
 from .commands import CommandSurfaces, LATCHED, host_ms, host_time, uid
-from .estimator import ArmEstimator
-from .dashboard import Dashboard
+from .dashboard import ArmEstimator, Dashboard
 
 STOW_VISUAL = dict(m3=90., m4=170., m5=0., m6=0.)
 CAMERAS = {'front': 1, 'gripper': 2}
