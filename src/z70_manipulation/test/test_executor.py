@@ -16,9 +16,9 @@ from std_msgs.msg import String
 from visualization_msgs.msg import MarkerArray
 from z70_interfaces.action import AlignToTarget, DeployArm, GraspAndLift, MoveArm, Pick, ReleaseAndStow, Stack
 from z70_manipulation import perception, planner
-from z70_manipulation.executor import Client, Executor
+from z70_manipulation.executor import Executor
 from z70_manipulation.goals import ALL_GOALS, BUILTIN_GOALS, GoalContext, GoalSpec, simulate_goal
-from z70_manipulation.node import PickServer, run, run_stack
+from z70_manipulation.node import Client, PickServer, run, run_stack
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -153,8 +153,6 @@ def fake(tmp_path, monkeypatch):
         def close(self):
             pass
 
-    monkeypatch.setattr('z70_manipulation.observations.Observations', FakeObservations)
-    monkeypatch.setattr('z70_manipulation.executor.Observations', FakeObservations)
     monkeypatch.setattr('z70_manipulation.node.Observations', FakeObservations)
 
     class FakeCommands:
@@ -178,8 +176,6 @@ def fake(tmp_path, monkeypatch):
         def close(self):
             pass
 
-    monkeypatch.setattr('z70_manipulation.observations.Commands', FakeCommands)
-    monkeypatch.setattr('z70_manipulation.executor.Commands', FakeCommands)
     monkeypatch.setattr('z70_manipulation.node.Commands', FakeCommands)
     yield origin, token, events, state
 

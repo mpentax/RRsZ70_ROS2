@@ -23,10 +23,9 @@ from z70_interfaces.msg import ArmEstimate, CommandOutcome
 from z70_mapping.boundary import check_corridor_containment, compute_safe_interior, mobility_from_suitability
 from z70_mapping.node import spatial_context as compute_spatial_context
 from . import perception, planner
-from .executor import Executor
+from .executor import Executor, read_arm, read_status
 from .garment_delivery import GarmentDeliverer, PatrolCollector, PatrolLedger, PinAndGoNavigator, graspable_garments, loaded_route
 from .perception import transform_xy
-from .observations import read_arm, read_status
 
 COLOR_RE = re.compile(r'[a-zA-Z0-9_-]{1,32}')
 

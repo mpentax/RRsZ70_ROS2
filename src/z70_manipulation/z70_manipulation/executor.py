@@ -10,7 +10,6 @@ import numpy as np
 import requests
 from z70_description.arm_model import LIMITS
 from . import perception, planner
-from .observations import Commands, Observations, read_arm, read_status
 
 TRACK_GATE_M = .12
 ACQUIRE_MAX_RANGE_M = 1.5
@@ -27,62 +26,14 @@ class SafetyStop(RuntimeError):
     pass
 
 
-class Client:
-    def __init__(self, origin='', token_file='', read_only=False, observations=None):
-        self.origin = origin.rstrip('/')
-        self.read_only = read_only
-        self.observations = observations if observations is not None else Observations()
-        self.owns_observations = observations is None
-        self.commands = None if read_only else Commands(self.observations)
+def read_status(observations) -> dict:
+    fn = getattr(observations, 'status', None)
+    return fn() if callable(fn) else observations.get('/api/state')['telemetry']['status']['value']
 
-    def get(self, path):
-        return self.observations.get(path)
 
-    def status(self) -> dict:
-        return read_status(self.observations)
-
-    def arm_estimate(self) -> dict:
-        return read_arm(self.observations)
-
-    def frame(self):
-        # Keep timing metadata paired with the image returned by Observations.
-        obs = self.observations
-        if not hasattr(obs, 'condition'):
-            return obs.frame()
-        with obs.condition:
-            result = obs.frame()
-            _, meta, _ = obs.image
-            stamp = meta.evidence.received_at
-            self.frame_received_at = stamp.sec + stamp.nanosec/1e9
-            self.frame_exposure_known = meta.exposure_time_known
-            return result
-
-    def select(self, camera):
-        if self.read_only:
-            raise PermissionError('dry-run forbids camera selection')
-        return self.observations.select(camera)
-
-    def rpc(self, method, params, timeout_ms=5000):
-        if self.read_only:
-            raise PermissionError('dry-run forbids all RPCs')
-        if method.startswith('get_') or method == 'app_get_arm_joints_data':
-            raise ValueError('observations belong to the shared ROS driver')
-        d = self.commands.rpc(method, params, timeout_ms)
-        if d.get('response') == 'received':
-            return d
-        if method in ('app_grip', 'app_open_gripper') and d.get('dispatch') in ('sent', 'unknown') and d.get('transportReason') == 'timeout':
-            return d
-        if d.get('dispatch') == 'unknown':
-            raise UncertainMotion('dispatch unknown: ' + method)
-        if d.get('response') == 'vendor_error':
-            raise RuntimeError(f'robot rejected {method} (vendor code {d.get("vendorCode")}): command format or mode problem, not a safety event')
-        raise requests.RequestException('RPC transport failure: ' + method)
-
-    def close(self):
-        if self.commands:
-            self.commands.close()
-        if self.owns_observations:
-            self.observations.close()
+def read_arm(observations) -> dict:
+    fn = getattr(observations, 'arm_estimate', None)
+    return fn() if callable(fn) else observations.get('/api/arm/estimate')
 
 
 def log_directory(repo):

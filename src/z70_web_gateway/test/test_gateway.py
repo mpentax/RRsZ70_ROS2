@@ -23,7 +23,7 @@ from z70_interfaces.msg import CalibrationState, FrameMetadata
 from nav_msgs.msg import OccupancyGrid
 from sensor_msgs.msg import CompressedImage
 from std_msgs.msg import String
-from z70_manipulation.observations import LATCHED
+from z70_driver.commands import LATCHED
 from z70_web_gateway.gateway import Gateway, HttpServer, ApiError, goal_message, read_token
 
 TOKEN = 'f'*43  # Synthetic fixture token, not a credential.

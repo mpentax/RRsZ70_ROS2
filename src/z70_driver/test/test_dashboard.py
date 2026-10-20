@@ -36,7 +36,7 @@ from z70_driver.dashboard import ArmEstimator, Dashboard, decode_arm, decode_cal
 from z70_driver.driver import Driver, LATCHED, MatchedFrames, estimate_to_app, host_ms, host_time
 from z70_interfaces.msg import ArmEstimate, CalibrationState, CommandEvent, FrameMetadata, MapSnapshot, OdometryStatus, RobotState
 from z70_interfaces.srv import RefreshMap, SelectCamera
-from z70_manipulation.observations import Observations
+from z70_manipulation.node import Observations
 from z70_mapping.node import MappingNode
 
 LAYOUT = json.loads((Path(__file__).resolve().parents[2] / 'z70_bringup' / 'foxglove' / 'z70-dashboard.json').read_text())

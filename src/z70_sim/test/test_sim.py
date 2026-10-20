@@ -23,7 +23,7 @@ from z70_manipulation.garment_delivery import PatrolCollector, PatrolLedger, Tow
 from z70_manipulation.perception import GarmentTracker, geofence, observe
 from z70_manipulation.garment_node import GarmentModel, observations_message
 from z70_manipulation.goals import BUILTIN_GOALS, GOAL_CONTEXT_PRIMITIVES, GoalContext
-from z70_manipulation.observations import Observations
+from z70_manipulation.node import Observations
 from z70_mapping.boundary import BoundaryConfig, SessionWorldMap, compute_safe_interior
 from z70_mapping.node import MappingNode, decode_map, dynamic_grid_message, world_markers_message
 from z70_odometry.node import FloorCamera, FloorOdometry

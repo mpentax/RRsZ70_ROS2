@@ -25,8 +25,7 @@ from z70_manipulation.garment_delivery import (
     loaded_route,
     transport_policy,
 )
-from z70_manipulation.node import PickServer
-from z70_manipulation.observations import LATCHED
+from z70_manipulation.node import LATCHED, PickServer
 from z70_mapping.boundary import BoundaryConfig, compute_safe_interior
 from z70_mapping.node import VendorMap
 

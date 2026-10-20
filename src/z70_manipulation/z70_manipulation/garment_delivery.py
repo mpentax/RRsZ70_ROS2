@@ -13,7 +13,7 @@ import cv2
 import numpy as np
 from z70_mapping.boundary import BoundaryConfig, SessionWorldMap, check_corridor_containment, compute_safe_interior, mobility_from_suitability
 from . import perception, planner
-from .observations import read_arm, read_status
+from .executor import read_arm, read_status
 from .perception import transform_xy
 
 

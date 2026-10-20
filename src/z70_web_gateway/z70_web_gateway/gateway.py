@@ -26,8 +26,8 @@ from unique_identifier_msgs.msg import UUID
 from z70_driver.driver import frame_key
 from z70_interfaces.msg import RobotState, CameraState, ArmEstimate, CalibrationState, FrameMetadata
 from z70_interfaces.srv import RawRpc, Stop, SelectCamera, SetArmAnchor, SetControlSession
+from z70_driver.commands import LATCHED
 from z70_manipulation.goals import ALL_GOALS, GOAL_CONTEXT_PRIMITIVES, simulate_goal
-from z70_manipulation.observations import LATCHED
 from std_msgs.msg import Bool, String
 
 ACTIONS = {name: (spec.action_cls, spec.topic) for name, spec in ALL_GOALS.items()}
