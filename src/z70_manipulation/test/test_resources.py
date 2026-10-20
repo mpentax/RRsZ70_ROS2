@@ -2,6 +2,7 @@
 import json
 import numpy as np
 import pytest
+import yaml
 from z70_description.resources import config_path
 from z70_manipulation import perception, planner
 
@@ -22,7 +23,6 @@ def test_fallback_lenses_match_active_resources():
     assert np.array_equal(planner.GRIPPER_MATRIX,np.array(lens['camera_matrix']['data']).reshape(3,3))
     assert np.array_equal(planner.GRIPPER_D,np.array(lens['distortion_coefficients']['data']))
     front=json.loads(config_path('front_camera.json').read_text())
-    import yaml
     info=yaml.safe_load(config_path('z70_front_camera_info.yaml').read_text())
     # Original front camera_info exports K to three decimal places and D to
     # six; preserve that exact export, not a relaxed geometry tolerance.

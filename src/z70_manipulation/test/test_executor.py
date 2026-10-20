@@ -2,11 +2,13 @@ import math
 import json
 from pathlib import Path
 import threading
+from types import SimpleNamespace
 import cv2
 import numpy as np
 import pytest
-from z70_manipulation import planner, perception
+from z70_manipulation import perception, placement, planner
 from z70_manipulation.executor import Client, Executor
+from z70_manipulation.goals import ALL_GOALS, BUILTIN_GOALS, GoalContext, GoalSpec, simulate_goal
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -519,7 +521,6 @@ def test_snapshot_names_are_unique_per_tier_attempt(tmp_path):
 
 
 def test_placement_post_command_frames_reject_earlier_receipts(tmp_path,monkeypatch):
-    from z70_manipulation import placement
     client=MemoryClient()
     ex=Executor(client,lambda *_:[],tmp_path/'timing',sleep=lambda _:None)
     def old_frame():
@@ -611,10 +612,6 @@ def test_pickup_client_delegates_observations_without_network_or_token(tmp_path,
 
 
 def test_simulate_goal_exercises_all_builtin_goals():
-    from pathlib import Path
-    from types import SimpleNamespace
-    from z70_manipulation.goals import ALL_GOALS, BUILTIN_GOALS, GoalContext, GoalSpec, simulate_goal
-
     assert len(ALL_GOALS) == 14
     cases = [
         ('pick', dict(color='yellow', dry_run=False), lambda r: r.verified_hold),

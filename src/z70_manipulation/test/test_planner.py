@@ -1,11 +1,11 @@
 import math
 import numpy as np
 import pytest
+from z70_description import pincher_geometry as hand
 from z70_manipulation import planner as p
 
 
 def test_firmware_endpoint_is_separate_from_cad_hand_and_camera():
-    from z70_description import pincher_geometry as hand
     a1, a2 = map(math.radians, (120, -15))
     endpoint = (.0475 + .1775*math.cos(a1) + .205*math.cos(a2),
                 .14 + .1775*math.sin(a1) + .205*math.sin(a2))
