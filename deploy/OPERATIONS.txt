@@ -1,6 +1,6 @@
 RRsZ70_ROS2 Operations
 ======================
-Run commands from the repository root on macOS Apple Silicon (Pixi/RoboStack ROS 2 Jazzy).
+Run commands from the repository root on macOS Apple Silicon (Pixi/RoboStack ROS 2 Lyrical).
 
 Build and Start
 ---------------

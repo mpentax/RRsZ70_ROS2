@@ -1,6 +1,6 @@
-# ROS 2 Jazzy Guide
+# ROS 2 Lyrical Guide
 
-Commands run from the repository root. `pixi.toml` targets `osx-arm64` and pins RoboStack ROS 2 Jazzy, Python, Go, and Node.js dependencies in `pixi.lock`.
+Commands run from the repository root. `pixi.toml` targets `osx-arm64` and pins RoboStack ROS 2 Lyrical, Python, Go, and Node.js dependencies in `pixi.lock`.
 
 ```sh
 pixi install

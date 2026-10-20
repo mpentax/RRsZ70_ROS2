@@ -1,6 +1,6 @@
 # RRsZ70_ROS2
 
-ROS 2 Jazzy stack, 3D visualization, web operator console, and MCP control plane for the stock **Roborock Saros Z70** (`roborock.vacuum.a179`).
+ROS 2 Lyrical stack, 3D visualization, web operator console, and MCP control plane for the stock **Roborock Saros Z70** (`roborock.vacuum.a179`).
 
 > **Note:** Independent community project; not affiliated with, endorsed by, or supported by Roborock.
 

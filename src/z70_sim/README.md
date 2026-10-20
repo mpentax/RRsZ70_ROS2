@@ -4,7 +4,7 @@ MuJoCo 3D physics and camera simulator for the stock Roborock Saros Z70 (`roboro
 
 ## Overview
 
-`z70_sim` sits at the private HTTP/SSE transport boundary (`http://127.0.0.1:57010`) below `z70_driver`, allowing the entire ROS 2 Jazzy stack (`z70_driver`, `z70_mapping`, `z70_odometry`, `z70_manipulation`, `z70_web_gateway`, and `foxglove_bridge`) to run unmodified on macOS Apple Silicon (`osx-arm64`).
+`z70_sim` sits at the private HTTP/SSE transport boundary (`http://127.0.0.1:57010`) below `z70_driver`, allowing the entire ROS 2 Lyrical stack (`z70_driver`, `z70_mapping`, `z70_odometry`, `z70_manipulation`, `z70_web_gateway`, and `foxglove_bridge`) to run unmodified on macOS Apple Silicon (`osx-arm64`).
 
 ### Simulated Subsystems
 

@@ -1,6 +1,6 @@
 """Build the layout using upstream Foxglove SDK panel configuration types.
 
-Run with Python 3.12 after downloading upstream layouts/__init__.py as
+Run with Python 3.12+ after downloading upstream layouts/__init__.py as
 foxglove_layout_types.py onto PYTHONPATH (see README Schema sources).
 This generator emits the widely-supported exported-layout/mosaic envelope.
 """

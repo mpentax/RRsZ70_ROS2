@@ -1,19 +1,19 @@
 [workspace]
 name = "z70-ros2"
-channels = ["https://prefix.dev/robostack-jazzy", "https://prefix.dev/conda-forge"]
+channels = ["https://prefix.dev/robostack-lyrical", "https://prefix.dev/conda-forge"]
 platforms = ["osx-arm64"]
 
 [dependencies]
-python = "3.12.*"
+python = "3.14.*"
 go = ">=1.24"
 nodejs = ">=22"
-ros-jazzy-ros-base = "*"
-ros-jazzy-robot-state-publisher = "*"
-ros-jazzy-xacro = "*"
-ros-jazzy-foxglove-bridge = "*"
-ros-jazzy-tf2-ros = "*"
-ros-jazzy-sensor-msgs = "*"
-ros-jazzy-cv-bridge = "*"
+ros-lyrical-ros-base = "*"
+ros-lyrical-robot-state-publisher = "*"
+ros-lyrical-xacro = "*"
+ros-lyrical-foxglove-bridge = "*"
+ros-lyrical-tf2-ros = "*"
+ros-lyrical-sensor-msgs = "*"
+ros-lyrical-cv-bridge = "*"
 colcon-common-extensions = "*"
 setuptools = "<80"
 numpy = "*"
