@@ -49,46 +49,42 @@ test("RoboClawMcpClient supports listGoals, validateGoal, and custom TaskInput i
   ]);
 });
 
-test("MCP start_task accepts custom goal kinds and supports validateOnly and simulate/context dry-run validation", async () => {
+test("MCP start_task accepts custom goal kinds and supports validateOnly and simulate/context dry-run validation", async (t) => {
   const { calls, transport } = mockGateway("Custom");
   const server = createRoboClawMcp(new RoboClawMcpClient(origin, token, transport));
   const client = new Client({ name: "goal-validate-test", version: "1" });
   const [a, b] = InMemoryTransport.createLinkedPair();
-  try {
-    await server.connect(b);
-    await client.connect(a);
+  await server.connect(b);
+  await client.connect(a);
+  t.after(async () => { await client.close(); await server.close(); });
 
-    const listed = await client.callTool({ name: "list_goals", arguments: {} });
-    assert.notEqual(listed.isError, true);
-    assert.deepEqual(JSON.parse((listed.content as { text: string }[])[0]!.text), catalogFixture);
+  const listed = await client.callTool({ name: "list_goals", arguments: {} });
+  assert.notEqual(listed.isError, true);
+  assert.deepEqual(JSON.parse((listed.content as { text: string }[])[0]!.text), catalogFixture);
 
-    const customTask = { kind: "custom_sweep", goal: { radius_m: 1.5, dry_run: true } };
-    const validated = await client.callTool({ name: "start_task", arguments: { task: customTask, validateOnly: true } });
-    assert.notEqual(validated.isError, true);
-    assert.deepEqual(JSON.parse((validated.content as { text: string }[])[0]!.text), {
-      valid: true,
-      kind: "custom_sweep",
-      topic: "/z70/custom",
-      action: "Custom",
-    });
+  const customTask = { kind: "custom_sweep", goal: { radius_m: 1.5, dry_run: true } };
+  const validated = await client.callTool({ name: "start_task", arguments: { task: customTask, validateOnly: true } });
+  assert.notEqual(validated.isError, true);
+  assert.deepEqual(JSON.parse((validated.content as { text: string }[])[0]!.text), {
+    valid: true,
+    kind: "custom_sweep",
+    topic: "/z70/custom",
+    action: "Custom",
+  });
 
-    const dispatched = await client.callTool({ name: "start_task", arguments: { task: customTask } });
-    assert.notEqual(dispatched.isError, true);
+  const dispatched = await client.callTool({ name: "start_task", arguments: { task: customTask } });
+  assert.notEqual(dispatched.isError, true);
 
-    const simulated = await client.callTool({
-      name: "start_task",
-      arguments: { task: customTask, simulate: true, context: { status: { state: 39 } } },
-    });
-    assert.notEqual(simulated.isError, true);
+  const simulated = await client.callTool({
+    name: "start_task",
+    arguments: { task: customTask, simulate: true, context: { status: { state: 39 } } },
+  });
+  assert.notEqual(simulated.isError, true);
 
-    assert.deepEqual(calls.map(({ path, payload }) => ({ path, payload })), [
-      { path: "/api/ros/goals", payload: undefined },
-      { path: "/api/ros/goals/validate", payload: customTask },
-      { path: "/api/ros/tasks", payload: customTask },
-      { path: "/api/ros/goals/validate", payload: { ...customTask, simulate: true, context: { status: { state: 39 } } } },
-    ]);
-  } finally {
-    await client.close();
-    await server.close();
-  }
+  assert.deepEqual(calls.map(({ path, payload }) => ({ path, payload })), [
+    { path: "/api/ros/goals", payload: undefined },
+    { path: "/api/ros/goals/validate", payload: customTask },
+    { path: "/api/ros/tasks", payload: customTask },
+    { path: "/api/ros/goals/validate", payload: { ...customTask, simulate: true, context: { status: { state: 39 } } } },
+  ]);
 });

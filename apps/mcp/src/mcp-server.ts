@@ -4,6 +4,9 @@ import { constants, rmSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { z } from "zod/v4";
 import { jpegImageDimensions, CAMERA_NAMES, rosRoute } from "@rrsz70/http-contracts";
 
 export type TaskInput = { kind: string; goal?: Record<string, unknown>; [key: string]: unknown };
@@ -36,9 +39,6 @@ export async function privateMcpFrame(frame: Buffer): Promise<string> {
   if (old) await unlink(old).catch(() => {});
   return path;
 }
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { z } from "zod/v4";
 const rpcSchema = {
   method: z.string().regex(/^[A-Za-z][A-Za-z0-9_]{0,127}$/),
   params: z.any().optional(),
@@ -211,18 +211,14 @@ const jsonTool = <T = unknown>(fn: (arg: T) => Promise<unknown>) => async (arg: 
 
 export function createRoboClawMcp(client: RoboClawMcpClient): McpServer {
   const server = new McpServer({ name: "roboclaw-local", version: "0.1.0" }, { instructions: OPERATOR_INSTRUCTIONS });
-  server.registerTool("get_state", {
-    title: "Get ROS robot state", description: "Read shared ROS robot state, battery, camera status, arm estimate, and chassis calibration.",
-    annotations: READONLY,
-  }, jsonTool(() => client.request('/api/ros/state')));
-  server.registerTool("refresh_status", {
-    title: "Read shared status", description: "Read cached ROS robot status and telemetry.",
-    annotations: READONLY,
-  }, jsonTool(() => client.request("/api/ros/state")));
-  server.registerTool("get_camera_diagnostics", {
-    title: "Read camera status", description: "Read ROS camera and stream connection status.",
-    inputSchema: {}, annotations: READONLY,
-  }, jsonTool(() => client.request("/api/ros/state")));
+  const readState = jsonTool(() => client.request("/api/ros/state"));
+  for (const [name, title, description] of [
+    ["get_state", "Get ROS robot state", "Read shared ROS robot state, battery, camera status, arm estimate, and chassis calibration."],
+    ["refresh_status", "Read shared status", "Read cached ROS robot status and telemetry."],
+    ["get_camera_diagnostics", "Read camera status", "Read ROS camera and stream connection status."],
+  ] as const) {
+    server.registerTool(name, { title, description, annotations: READONLY }, readState);
+  }
   server.registerTool("select_camera", {
     title: "Select shared camera", description: "Switch the active camera (`front` or `gripper`). Gripper camera requires pickup mode with the arm deployed.",
     inputSchema: { camera: z.enum(["front", "gripper"]) },
