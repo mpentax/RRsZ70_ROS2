@@ -4,7 +4,7 @@ import math
 import cv2
 import numpy as np
 from functools import lru_cache
-from z70_description import pincher_geometry as hand
+from z70_description import arm_model as hand
 from z70_description.arm_model import vendor_forward, vendor_check
 CAD_L1, CAD_L2, _CAD = hand.L1, hand.L2, hand.CAD
 CAD_MOUNT=(np.array(_CAD['camera_from_wrist_m'],float), np.array(_CAD['camera_rpy'],float))

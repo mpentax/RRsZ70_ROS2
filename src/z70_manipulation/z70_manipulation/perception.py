@@ -7,7 +7,7 @@ import uuid
 import cv2
 import numpy as np
 import yaml
-from z70_description import pincher_geometry as hand
+from z70_description import arm_model as hand
 from z70_description.arm_model import config_path, package_root
 
 _PACKAGE_ROOT = Path(__file__).resolve().parent.parent

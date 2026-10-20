@@ -17,7 +17,7 @@ import rclpy
 from rclpy.serialization import deserialize_message, serialize_message
 from sensor_msgs.msg import CompressedImage
 import yaml
-from z70_description import pincher_geometry as hand
+from z70_description import arm_model as hand
 from z70_description.arm_model import config_path
 from z70_interfaces.msg import FrameMetadata, GarmentObservations
 from z70_manipulation import garment_worker as w, perception, perception as g, perception as p, planner, planner as placement

@@ -17,7 +17,7 @@ import mujoco
 import numpy as np
 
 from ament_index_python.packages import get_package_share_directory
-from z70_description import pincher_geometry as hand
+from z70_description import arm_model as hand
 from z70_description.arm_model import (
     HAND_STEP_M,
     JOINT_STEP_DEG,

@@ -11,7 +11,7 @@ Package-installed STL meshes and [`../../config/cad_arm.yaml`](../../config/cad_
 | `cad_shoulder_mount` | Shoulder turret visual on `shoulder_yaw_link` (under display `shoulder_lift` / `shoulder_yaw`). |
 | `cad_link1`, `cad_link2`, `cad_hand` | `arm_link1`, `arm_link2`, and `arm_wrist_link` visuals. |
 | `cad_jaw_left`, `cad_jaw_right` | Gripper jaw visuals; wrist-relative hinge origins `[0.0515, 0.0106, 0.0041] m` and `[0.0515, -0.0101, 0.0041] m`. |
-| `L1_m = 0.1772`, `L2_m = 0.1157` | CAD `M3 -> M4` and `M4 -> M5` link lengths used by the URDF, `pincher_geometry.hand_pose()`, and `planner`. |
+| `L1_m = 0.1772`, `L2_m = 0.1157` | CAD `M3 -> M4` and `M4 -> M5` link lengths used by the URDF, `arm_model.hand_pose()`, and `planner`. |
 | `shoulder_in_base_m = [0.1429, -0.0117, 0.1266]` | Shoulder pivot in `base_footprint`. |
 | `camera_from_wrist_m = [0.0355, 0.0075, -0.0109]`, `camera_rpy = [0, 0, 0]` | Gripper camera pocket in the unrolled wrist frame (`+x` forward, `+z` top cover normal). |
 | `marker_from_wrist_m`, `marker_rpy` | Underside `DICT_4X4_1000` `ID68` marker placement on the wrist housing. |

@@ -19,8 +19,8 @@ from sensor_msgs.msg import JointState
 from tf2_ros import Buffer, TransformException, TransformListener
 import xacro
 import yaml
-from z70_description import pincher_geometry as g
-from z70_description.pincher_geometry import rpy
+from z70_description import arm_model as g
+from z70_description.arm_model import rpy
 from z70_driver.driver import app_to_urdf
 from z70_manipulation import planner
 from z70_manipulation.node import rotation as quat_matrix

@@ -8,7 +8,7 @@ import numpy as np
 
 HERE=Path(__file__).resolve().parent
 sys.path.insert(0,str(HERE.parent))
-from z70_description.pincher_geometry import N,THETA,shell_rings,finger_rings,rest_bodies
+from z70_description.arm_model import N,THETA,shell_rings,finger_rings,rest_bodies
 
 
 def loft(rings):
