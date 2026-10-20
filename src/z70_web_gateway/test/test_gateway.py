@@ -15,7 +15,10 @@ from z70_driver.driver import Driver
 from z70_interfaces.action import Pick
 from z70_interfaces.srv import RawRpc
 from z70_interfaces.msg import FrameMetadata
+from nav_msgs.msg import OccupancyGrid
 from sensor_msgs.msg import CompressedImage
+from std_msgs.msg import String
+from z70_manipulation.observations import LATCHED
 from z70_web_gateway.gateway import Gateway, HttpServer, ApiError, goal_message, read_token
 
 TOKEN = 'f'*43  # Synthetic fixture token, not a credential.
@@ -167,7 +170,20 @@ def test_validation_token_and_closed_error_contract(system, tmp_path):
     goals = catalog['goals']
     assert any(g['kind'] == 'pick' and g['topic'] == '/z70/pick' and g['action'] == 'Pick' and g['fields'] == ['color', 'dry_run'] for g in goals)
     primitives = {p['name'] for p in catalog['context_primitives']}
-    assert {'status', 'arm', 'map_pose', 'safe_interior', 'objects', 'garments', 'navigate', 'deploy_arm', 'align_target', 'move_arm', 'grasp_and_lift', 'release_and_stow', 'pulse', 'rpc', 'feedback', 'outcome'} <= primitives
+    assert {'status', 'arm', 'map_pose', 'safe_interior', 'objects', 'garments', 'world_objects', 'mark_obstacle', 'clear_world', 'navigate', 'deploy_arm', 'align_target', 'move_arm', 'grasp_and_lift', 'release_and_stow', 'pulse', 'rpc', 'feedback', 'outcome'} <= primitives
+    world_pub = system['peer'].create_publisher(String, '/z70/world/objects', LATCHED)
+    dyn_pub = system['peer'].create_publisher(OccupancyGrid, '/z70/map/dynamic_obstacles', LATCHED)
+    try:
+        world_pub.publish(String(data=json.dumps({'session_bound': True, 'objectives': [{'id': 'sock_1'}], 'obstacles': [], 'delivered_piles': [], 'entries': [{'id': 'sock_1'}]})))
+        dyn_grid = OccupancyGrid(); dyn_grid.info.width = 4; dyn_grid.info.height = 4; dyn_grid.data = [0] * 16
+        dyn_pub.publish(dyn_grid)
+        wait(lambda: 'world_objects' in request('GET', '/api/ros/map').json() and 'dynamic_obstacles' in request('GET', '/api/ros/map').json())
+        map_res = request('GET', '/api/ros/map').json()
+        assert map_res['world_objects']['objectives'] == [{'id': 'sock_1'}]
+        assert map_res['dynamic_obstacles']['info']['width'] == 4
+    finally:
+        system['peer'].destroy_publisher(world_pub)
+        system['peer'].destroy_publisher(dyn_pub)
     valid = request('POST', '/api/ros/goals/validate', {'kind': 'pick', 'goal': {'color': 'yellow', 'dry_run': True}})
     assert valid.status_code == 200 and valid.json() == {'valid': True, 'kind': 'pick', 'topic': '/z70/pick', 'action': 'Pick'}
     simulated = request('POST', '/api/ros/goals/validate', {'kind': 'pick', 'goal': {'color': 'yellow', 'dry_run': True}, 'simulate': True})

@@ -28,7 +28,7 @@ from z70_interfaces.msg import RobotState, CameraState, ArmEstimate, Calibration
 from z70_interfaces.srv import RawRpc, Stop, SelectCamera, SetArmAnchor, SetControlSession
 from z70_manipulation.goals import ALL_GOALS, GOAL_CONTEXT_PRIMITIVES, simulate_goal
 from z70_manipulation.observations import LATCHED
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, String
 
 ACTIONS = {name: (spec.action_cls, spec.topic) for name, spec in ALL_GOALS.items()}
 SERVICES = (
@@ -45,6 +45,8 @@ TOPICS = (
     ('arm', ArmEstimate, '/z70/arm_estimate'),
     ('calibration', CalibrationState, '/z70/chassis_calibration'),
     ('map', OccupancyGrid, '/map'),
+    ('dynamic_obstacles', OccupancyGrid, '/z70/map/dynamic_obstacles'),
+    ('world_objects', String, '/z70/world/objects'),
 )
 TERMINAL = {'succeeded', 'failed', 'cancelled', 'rejected'}
 ID = r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
@@ -269,7 +271,17 @@ class Gateway(Node):
                     session_enabled=self.samples.get('session', {}).get('data'),
                     **{k: deepcopy(self.samples.get(k)) for k in ('state', 'camera', 'arm', 'calibration')}), {}
         if method == 'GET' and path == '/api/ros/map':
-            with self.lock: return 200, {'map':deepcopy(self.samples.get('map'))}, {}
+            with self.lock:
+                res = {'map': deepcopy(self.samples.get('map'))}
+                if 'dynamic_obstacles' in self.samples:
+                    res['dynamic_obstacles'] = deepcopy(self.samples['dynamic_obstacles'])
+                raw_world = self.samples.get('world_objects', {}).get('data')
+                if isinstance(raw_world, str):
+                    try:
+                        res['world_objects'] = json.loads(raw_world)
+                    except (ValueError, TypeError):
+                        pass
+                return 200, res, {}
         if method == 'GET' and path == '/api/ros/goals':
             return 200, {
                 'goals': [spec.describe() for spec in ALL_GOALS.values()],

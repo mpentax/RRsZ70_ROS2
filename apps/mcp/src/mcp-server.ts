@@ -293,7 +293,7 @@ export function createRoboClawMcp(client: RoboClawMcpClient): McpServer {
     jsonTool((payload) => client.request('/api/ros/stop', 18000, payload)));
   server.registerTool('control_session', {title:'Stop or resume control and streams', description:'Enable or suspend robot control and shared streams.', inputSchema:{enabled:z.boolean()}, annotations:ACTUATION},
     jsonTool((payload) => client.request('/api/ros/control/session', 40000, payload)));
-  server.registerTool('get_map', {title:'Read shared ROS map', description:'Read the current ROS OccupancyGrid map.', annotations:READONLY},
+  server.registerTool('get_map', {title:'Read shared ROS map', description:'Read the current ROS OccupancyGrid map along with session-scoped dynamic obstacles and tracked world objects when published.', annotations:READONLY},
     jsonTool(() => client.request('/api/ros/map')));
   return server;
 }
