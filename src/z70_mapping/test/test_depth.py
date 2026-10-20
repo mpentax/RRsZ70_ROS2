@@ -33,12 +33,10 @@ def test_reject_nonfinite_and_out_of_range_cloud_points():
     assert points.shape == (0,3)
 
 
-def test_depth_node_missing_venv_publishes_unavailable_status_and_closes_cleanly(monkeypatch):
-    import json
+def _mock_depth_node(monkeypatch, python_override=None):
     from types import SimpleNamespace
     from unittest.mock import Mock
     from rclpy.node import Node
-    from rclpy.qos import DurabilityPolicy
     import z70_mapping.depth_node as dn
 
     publishers = {}
@@ -48,11 +46,18 @@ def test_depth_node_missing_venv_publishes_unavailable_status_and_closes_cleanly
     monkeypatch.setattr(Node, '__init__', lambda self, name: None)
     monkeypatch.setattr(Node, 'declare_parameter',
                         lambda self, name, default: SimpleNamespace(
-                            value='/nonexistent/roboclaw-depth/python' if name == 'depth_python' else default))
+                            value=python_override if (python_override and name == 'depth_python') else default))
     monkeypatch.setattr(Node, 'create_publisher', publisher)
     monkeypatch.setattr(Node, 'create_timer', Mock())
     monkeypatch.setattr(dn, 'MatchedFrames', Mock())
+    return dn, publishers
 
+
+def test_depth_node_missing_venv_publishes_unavailable_status_and_closes_cleanly(monkeypatch):
+    import json
+    from rclpy.qos import DurabilityPolicy
+
+    dn, publishers = _mock_depth_node(monkeypatch, '/nonexistent/roboclaw-depth/python')
     node = dn.DepthNode()
     assert node.process is None
     assert node.worker is None
@@ -70,18 +75,8 @@ def test_depth_node_bad_packet_recovers_on_subsequent_frame(monkeypatch):
     import struct
     from types import SimpleNamespace
     from unittest.mock import Mock
-    from rclpy.node import Node
-    import z70_mapping.depth_node as dn
 
-    publishers = {}
-    def publisher(self, kind, topic, qos):
-        publishers[topic] = Mock(qos=qos)
-        return publishers[topic]
-    monkeypatch.setattr(Node, '__init__', lambda self, name: None)
-    monkeypatch.setattr(Node, 'declare_parameter', lambda self, name, default: SimpleNamespace(value=default))
-    monkeypatch.setattr(Node, 'create_publisher', publisher)
-    monkeypatch.setattr(Node, 'create_timer', Mock())
-    monkeypatch.setattr(dn, 'MatchedFrames', Mock())
+    dn, publishers = _mock_depth_node(monkeypatch)
 
     good_packet = io.BytesIO()
     np.savez(good_packet, xyz=np.array([[0.1, 0.2, 0.8]], dtype='<f4'),
