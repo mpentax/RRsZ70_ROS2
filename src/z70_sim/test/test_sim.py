@@ -36,6 +36,8 @@ from z70_sim import (
     create_sim_server,
     encode_v1_map,
 )
+from z70_sim.server import ensure_token_file
+from z70_web_gateway.gateway import read_token
 
 
 def wait_for(predicate, seconds: float = 5.0) -> None:

@@ -6,6 +6,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
 import queue
+import secrets
 import threading
 import time
 from typing import Any
@@ -14,6 +15,17 @@ import urllib.request
 import urllib.error
 
 from .world import SimWorld
+
+
+def ensure_token_file(path: str | Path) -> str:
+    p = Path(path)
+    if p.is_file():
+        return p.read_text().strip()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    token = secrets.token_urlsafe(32)
+    p.write_text(token)
+    p.chmod(0o600)
+    return token
 
 
 def _pulse_params(method: str, params: Any) -> dict[str, float] | None:
@@ -442,16 +454,7 @@ def main() -> None:
     parser.add_argument('--ros-gateway-origin', default='http://127.0.0.1:57020')
     args = parser.parse_args()
 
-    token = ''
-    if args.token_file:
-        p = Path(args.token_file)
-        if p.is_file():
-            token = p.read_text().strip()
-        else:
-            p.parent.mkdir(parents=True, exist_ok=True)
-            token = str(uuid.uuid4())
-            p.write_text(token + '\n')
-            p.chmod(0o600)
+    token = ensure_token_file(args.token_file) if args.token_file else ''
 
     server = SimServer(host=args.host, port=args.port, token=token, ros_gateway_origin=args.ros_gateway_origin)
     server.start()
