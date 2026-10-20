@@ -1,9 +1,19 @@
 import { test, type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
-import { createServer, request as httpRequest } from 'node:http';
+import { createServer, request as httpRequest, type IncomingMessage, type ServerResponse } from 'node:http';
 import { startService, type ServiceOptions, type ServiceStore } from './service.ts';
+import { ServiceAuth } from './service-auth.ts';
 import { loadServiceConfig } from './service-config.ts';
 import type { CameraLogin } from './cloud.ts';
+
+test('localhost browser setup works through a loopback-published container network peer',()=>{
+  const config=loadServiceConfig({ROBOCLAW_HOST:'0.0.0.0',ROBOCLAW_PUBLIC_ORIGIN:'http://127.0.0.1:57010'});
+  const auth=new ServiceAuth('test-service-token-'.repeat(3),config);
+  const req={headers:{host:'127.0.0.1:57010',origin:config.publicOrigin},socket:{remoteAddress:'172.20.0.1'}} as IncomingMessage;
+  let cookie='';const res={setHeader(name:string,value:string){assert.equal(name,'Set-Cookie');cookie=value;}} as ServerResponse;
+  auth.setup(req,res);
+  assert.match(cookie,/HttpOnly; SameSite=Strict; Max-Age=1200/);
+});
 
 const token = 'test-service-token-'.repeat(3);
 const device = {duid:'robot1',host:'127.0.0.1',localKey:'fake-local-key-abcdef',name:'Test Z70',model:'a179',protocolVersion:'L01'};
