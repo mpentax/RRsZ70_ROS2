@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import {
-  actionOutcome, ApiError, cancelTask, deleteSession, json, listTasks, record,
+  actionOutcome, ApiError, cancelTask, deleteSession, json, listGoals, listTasks, record,
   robotRpc, SESSION_EXPIRED, setControlSession, snapshot, startTask, stopRobot,
-  terminal, type RosState, type SessionStatus, type Setup, type Task, type TaskRequest,
+  terminal, validateGoal, type GoalCatalog, type RosState, type SessionStatus, type Setup, type Task, type TaskRequest,
 } from "./api.ts";
 
 const COLORS = ['yellow', 'purple', 'blue', 'green', 'orange'] as const;
@@ -385,6 +385,10 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
   const [params, setParams] = useState("[]");
   const [transport, setTransport] = useState<"" | "local" | "cloud">("");
   const [timeout, setTimeoutValue] = useState("12000");
+  const [catalog, setCatalog] = useState<GoalCatalog | null>(null);
+  const [simKind, setSimKind] = useState("pick");
+  const [simGoalJson, setSimGoalJson] = useState('{"color":"yellow","dry_run":true}');
+  const [simContextJson, setSimContextJson] = useState("{}");
   const [image, setImage] = useState("");
   const [autoStream, setAutoStream] = useState(false);
   const [sessionStopped, setSessionStopped] = useState(false);
@@ -899,6 +903,44 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
             <TaskList tasks={tasks} cancel={id => { void cancelTask(id).then(setOutcome).catch(e => setError(e instanceof Error ? e.message : 'Cancellation failed.')); }} />
           </div>
         </section>
+
+        <details className="card diagnostics">
+          <summary>ROS 2 Goal Catalog &amp; Simulator <span className="muted">/api/ros/goals · /api/ros/goals/validate</span></summary>
+          <p className="caption">Inspect registered GoalSpec schemas and GoalContext primitives or run in-memory dry-run goal simulations.</p>
+          <div className="button-row" style={{ margin: '10px 0' }}>
+            <button type="button" className="quiet" disabled={busy} onClick={() => void run(async () => {
+              const res = await listGoals();
+              setCatalog(res);
+              setOutcome(res);
+            })}>Load goal catalog</button>
+            {catalog?.goals?.map(g => (
+              <button key={g.kind} type="button" className={`chip ${simKind === g.kind ? 'active' : ''}`} onClick={() => setSimKind(g.kind)}>
+                {g.kind}
+              </button>
+            ))}
+          </div>
+          <div className="form-grid">
+            <label>Goal kind<input value={simKind} onChange={e => setSimKind(e.target.value)} /></label>
+            <label>Goal JSON<input value={simGoalJson} onChange={e => setSimGoalJson(e.target.value)} /></label>
+          </div>
+          <label>Simulation context overrides (JSON)<input value={simContextJson} onChange={e => setSimContextJson(e.target.value)} /></label>
+          <div className="button-row" style={{ marginTop: 12, marginBottom: 0 }}>
+            <button type="button" className="primary" disabled={busy} onClick={() => void run(async () => {
+              const res = await validateGoal({
+                kind: simKind,
+                goal: record(JSON.parse(simGoalJson)),
+                simulate: true,
+                context: record(JSON.parse(simContextJson)),
+              });
+              setOutcome(res);
+            })}>Simulate Goal</button>
+            <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => {
+              const task = await startTask({ kind: simKind, goal: record(JSON.parse(simGoalJson)) });
+              setOutcome(task);
+              setTasks((await listTasks()).tasks);
+            })}>Dispatch Custom Goal</button>
+          </div>
+        </details>
 
         <details className="card diagnostics">
           <summary>Advanced vendor RPC <span className="muted">Same ROS dispatcher &amp; task exclusion</span></summary>

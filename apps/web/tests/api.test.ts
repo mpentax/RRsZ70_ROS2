@@ -297,6 +297,8 @@ test("navigation and garment patrol buttons dispatch pin_and_go, deliver_garment
       const body = JSON.parse(String(init.body)); started.push(body);
       return Response.json({ id: "b9e0e188-122b-449d-966b-f97b2bb63981", kind: body.kind, status: "accepted", phase: 1, feedback: null, result: null });
     }
+    if (path === "/api/ros/goals") return Response.json({ goals: [{ kind: "pick", name: "pick", topic: "/z70/pick", action: "Pick", fields: ["color", "dry_run"], navigation: false, description: "Pick" }], context_primitives: [] });
+    if (path === "/api/ros/goals/validate") return Response.json({ valid: true, kind: "pick", simulated: { ok: true, result: {} } });
     if (path === "/api/ros/tasks") return Response.json({ tasks: [] });
     if (path === "/api/setup") return Response.json({ device: null, accountConfigured: false, pinConfigured: false });
     return Response.json({ available: true, state: { connected: true, battery_known: true, battery_fraction: 0.9, evidence: { valid: true, stale: false } }, camera: null, arm: null, calibration: null });
@@ -305,6 +307,8 @@ test("navigation and garment patrol buttons dispatch pin_and_go, deliver_garment
   await act(async () => button("Pin & Go")!.click()); await flush();
   await act(async () => button("Deliver Garment")!.click()); await flush();
   await act(async () => button("Patrol & Collect")!.click()); await flush();
+  await act(async () => button("Load goal catalog")!.click()); await flush();
+  await act(async () => button("Simulate Goal")!.click()); await flush();
   assert.deepEqual(started, [
     { kind: "pin_and_go", goal: { target_x_m: 0, target_y_m: 0, max_duration_s: 120, dry_run: true } },
     { kind: "deliver_garment", goal: { category: "any", drop_x_m: 0, drop_y_m: 0, max_duration_s: 300, allow_towing: false, dry_run: true } },
