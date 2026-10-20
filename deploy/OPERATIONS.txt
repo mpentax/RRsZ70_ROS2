@@ -8,6 +8,8 @@ Build and Start
   pixi install
   pixi run build
   pixi run bringup
+  # Or run against the local MuJoCo physics & camera simulator:
+  pixi run sim
 
 `pixi run build` compiles the patched native `darwin/arm64` `go2rtc` binary into `.local/bin/go2rtc`, builds the web frontend (`dist/web`), and builds all ROS 2 packages. `pixi run bringup` starts all native services (`go2rtc`, the vendor/web HTTP service on `127.0.0.1:57010`, `z70_web_gateway` on `127.0.0.1:57020`, `z70_driver`, `z70_mapping`, `z70_odometry`, `z70_manipulation`, and `foxglove_bridge`).
 

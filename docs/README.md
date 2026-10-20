@@ -11,3 +11,4 @@
   - [Floor visual odometry, chassis calibration, and mosaic](../src/z70_odometry/README.md)
   - [Foxglove Studio dashboard](../src/z70_bringup/foxglove/README.md)
   - [CAD meshes and URDF stations](../src/z70_description/meshes/cad/README.md)
+  - [MuJoCo physics and camera simulator](../src/z70_sim/README.md)
