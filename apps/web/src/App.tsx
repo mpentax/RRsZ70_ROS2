@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ApiError, deleteSession, json, snapshot, SESSION_EXPIRED, type SessionStatus } from "./api.ts";
-import { cancelTask, listTasks, startTask, stopRobot, setControlSession, terminal, type Task, type RosState, type Setup } from './ros.ts';
+import { cancelTask, listTasks, startTask, stopRobot, setControlSession, terminal, type Task, type TaskRequest, type RosState, type Setup } from './ros.ts';
 import { SetupForm } from './SetupForm.tsx';
 import { ArmControlPanel } from './ArmControlPanel.tsx';
 import { MapCanvas } from './MapCanvas.tsx';
@@ -45,9 +45,6 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [color, setColor] = useState('yellow');
   const [dryRun, setDryRun] = useState(true);
-  const [stackBase, setStackBase] = useState('yellow');
-  const [stackMiddle, setStackMiddle] = useState('orange');
-  const [stackTop, setStackTop] = useState('red');
   const [targetM3, setTargetM3] = useState('190');
   const [targetM4, setTargetM4] = useState('65');
   const [targetM5, setTargetM5] = useState('0');
@@ -205,6 +202,14 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
       setError(e instanceof Error ? e.message : "Request failed; outcome unknown.");
     }
     finally { setBusy(false); }
+  }
+
+  function launchTask(request: TaskRequest, refreshList = false) {
+    void run(async () => {
+      const task = await startTask(request);
+      setOutcome(task);
+      if (refreshList) setTasks((await listTasks()).tasks);
+    });
   }
 
   async function send(command: { method: string; params: unknown }) {
@@ -491,7 +496,7 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
             </span>
           </div>
 
-          <form className="task-panel-box" onSubmit={e => { e.preventDefault(); void run(async () => { const task = await startTask({kind:'pick',goal:{color,dry_run:dryRun}}); setOutcome(task); setTasks((await listTasks()).tasks); }); }}>
+          <form className="task-panel-box" onSubmit={e => { e.preventDefault(); launchTask({kind:'pick',goal:{color,dry_run:dryRun}}, true); }}>
             <h3>Autonomous Object Pickup (<code>/z70/pick</code>)</h3>
             <div className="chip-row">
               {COLORS.map(c => (
@@ -509,10 +514,7 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
             </div>
             <div className="button-row" style={{marginBottom: 0}}>
               <button className="primary" disabled={busy || controlStopped}>Start Pick</button>
-              <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => {
-                const task = await startTask({kind:'stack',goal:{base_color:stackBase,middle_color:stackMiddle,top_color:stackTop,dry_run:dryRun}});
-                setOutcome(task); setTasks((await listTasks()).tasks);
-              })}>Start 3-Ball Stack ({stackBase}→{stackMiddle}→{stackTop})</button>
+              <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => launchTask({kind:'stack',goal:{base_color:'yellow',middle_color:'orange',top_color:'red',dry_run:dryRun}}, true)}>Start 3-Ball Stack (yellow→orange→red)</button>
             </div>
           </form>
 
@@ -524,18 +526,9 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
               <label>Garment category<input value={garmentCategory} onChange={e => setGarmentCategory(e.target.value)} /></label>
             </div>
             <div className="button-row" style={{marginBottom: 0}}>
-              <button type="button" className="primary" disabled={busy || controlStopped} onClick={() => void run(async () => {
-                const task = await startTask({ kind: 'pin_and_go', goal: { target_x_m: Number(navX), target_y_m: Number(navY), max_duration_s: 120, dry_run: dryRun } });
-                setOutcome(task); setTasks((await listTasks()).tasks);
-              })}>Pin &amp; Go</button>
-              <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => {
-                const task = await startTask({ kind: 'deliver_garment', goal: { category: garmentCategory, drop_x_m: Number(navX), drop_y_m: Number(navY), max_duration_s: 300, allow_towing: false, dry_run: dryRun } });
-                setOutcome(task); setTasks((await listTasks()).tasks);
-              })}>Deliver Garment</button>
-              <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => {
-                const task = await startTask({ kind: 'patrol_collect', goal: { drop_x_m: Number(navX), drop_y_m: Number(navY), max_duration_s: 600, max_items: 5, allow_towing: false, dry_run: dryRun } });
-                setOutcome(task); setTasks((await listTasks()).tasks);
-              })}>Patrol &amp; Collect</button>
+              <button type="button" className="primary" disabled={busy || controlStopped} onClick={() => launchTask({ kind: 'pin_and_go', goal: { target_x_m: Number(navX), target_y_m: Number(navY), max_duration_s: 120, dry_run: dryRun } }, true)}>Pin &amp; Go</button>
+              <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => launchTask({ kind: 'deliver_garment', goal: { category: garmentCategory, drop_x_m: Number(navX), drop_y_m: Number(navY), max_duration_s: 300, allow_towing: false, dry_run: dryRun } }, true)}>Deliver Garment</button>
+              <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => launchTask({ kind: 'patrol_collect', goal: { drop_x_m: Number(navX), drop_y_m: Number(navY), max_duration_s: 600, max_items: 5, allow_towing: false, dry_run: dryRun } }, true)}>Patrol &amp; Collect</button>
             </div>
           </div>
 
@@ -563,18 +556,14 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
           <div className="task-panel-box">
             <h3>Bounded Chassis Pulse Nudge (<code>/z70/base/pulse</code>)</h3>
             <div className="drive-pad" style={{margin: '10px auto 4px'}}>
-              <button type="button" className="drive-button drive-forward" disabled={busy || controlStopped} onClick={() => void run(async () => {
-                setOutcome(await startTask({kind:'base_pulse',goal:{linear_mps:0.1,angular_radps:0,duration:{sec:0,nanosec:400000000}}}));
-              })}>▲ Forward</button>
-              <button type="button" className="drive-button drive-left" disabled={busy || controlStopped} onClick={() => void run(async () => {
-                setOutcome(await startTask({kind:'base_pulse',goal:{linear_mps:0,angular_radps:0.4,duration:{sec:0,nanosec:400000000}}}));
-              })}>↺ Turn Left</button>
-              <button type="button" className="drive-button drive-right" disabled={busy || controlStopped} onClick={() => void run(async () => {
-                setOutcome(await startTask({kind:'base_pulse',goal:{linear_mps:0,angular_radps:-0.4,duration:{sec:0,nanosec:400000000}}}));
-              })}>↻ Turn Right</button>
-              <button type="button" className="drive-button drive-backward" disabled={busy || controlStopped} onClick={() => void run(async () => {
-                setOutcome(await startTask({kind:'base_pulse',goal:{linear_mps:-0.1,angular_radps:0,duration:{sec:0,nanosec:400000000}}}));
-              })}>▼ Back</button>
+              {([
+                ['drive-forward', '▲ Forward', 0.1, 0],
+                ['drive-left', '↺ Turn Left', 0, 0.4],
+                ['drive-right', '↻ Turn Right', 0, -0.4],
+                ['drive-backward', '▼ Back', -0.1, 0],
+              ] as const).map(([cls, label, linear_mps, angular_radps]) => (
+                <button key={cls} type="button" className={`drive-button ${cls}`} disabled={busy || controlStopped} onClick={() => launchTask({kind:'base_pulse',goal:{linear_mps,angular_radps,duration:{sec:0,nanosec:400000000}}})}>{label}</button>
+              ))}
             </div>
           </div>
 
