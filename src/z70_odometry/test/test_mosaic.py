@@ -1,21 +1,14 @@
 import math
-import sys
 import unittest
-from pathlib import Path
 import cv2
 import numpy as np
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from z70_description.resources import config_path
 from z70_odometry.floor_vo import FloorCamera, render_floor_view
-try:
-    from z70_odometry.mosaic import FloorMosaic
-except ImportError:
-    FloorMosaic = None
+from z70_odometry.mosaic import FloorMosaic
 
 
 class MosaicTest(unittest.TestCase):
     def test_rotated_translated_views_align_in_odom(self):
-        self.assertIsNotNone(FloorMosaic, 'metric floor mosaic is missing')
         cam = FloorCamera.load(config_path('front_camera.json'))
         rng = np.random.default_rng(7)
         coarse = rng.integers(30, 225, (cam.H // 16, cam.W // 16, 3), dtype=np.uint8)
@@ -36,7 +29,6 @@ class MosaicTest(unittest.TestCase):
         self.assertLess(misaligned['overlap_ncc'], .9)
 
     def test_empty_view_and_outside_map_do_not_paint(self):
-        self.assertIsNotNone(FloorMosaic)
         cam = FloorCamera.load(config_path('front_camera.json'))
         mosaic = FloorMosaic(cam)
         blank = np.zeros((cam.H, cam.W, 3), np.uint8)
