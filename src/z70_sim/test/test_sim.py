@@ -31,7 +31,7 @@ from z70_mapping.decoder import decode_map
 from z70_mapping.dynamic_layer import SessionWorldMap
 from z70_mapping.node import dynamic_grid_message, world_markers_message
 from z70_mapping.node import MappingNode
-from z70_odometry.floor_vo import FloorCamera, FloorOdometry
+from z70_odometry.node import FloorCamera, FloorOdometry
 from z70_sim import (
     APARTMENT_ROOMS,
     DEFAULT_GARMENTS,
