@@ -107,14 +107,19 @@ class GoalSpec:
     description: str = ''
     validate_payload: Callable[[dict], bool] = lambda _: True
 
+    def __post_init__(self):
+        if not self.description:
+            self.description = GOAL_DESCRIPTIONS.get(self.name, '')
+
     def describe(self) -> dict:
         return {
+            'kind': self.name,
             'name': self.name,
             'topic': self.topic,
             'action': self.action_cls.__name__,
             'fields': list(self.fields),
             'navigation': self.navigation,
-            'description': self.description or GOAL_DESCRIPTIONS.get(self.name, ''),
+            'description': self.description,
         }
 
 
@@ -524,7 +529,6 @@ BUILTIN_GOALS: dict[str, GoalSpec] = {
             lambda s, r: r.color in s.thresholds,
             _goal_pick,
             fields=('color', 'dry_run'),
-            description=GOAL_DESCRIPTIONS['pick'],
             validate_payload=lambda p: _is_color(p['color']) and type(p['dry_run']) is bool,
         ),
         GoalSpec(
@@ -532,7 +536,6 @@ BUILTIN_GOALS: dict[str, GoalSpec] = {
             lambda s, r: len({r.base_color, r.middle_color, r.top_color}) == 3 and all(c in s.thresholds for c in (r.base_color, r.middle_color, r.top_color)),
             _goal_stack,
             fields=('base_color', 'middle_color', 'top_color', 'dry_run'),
-            description=GOAL_DESCRIPTIONS['stack'],
             validate_payload=lambda p: (all(_is_color(p[k]) for k in ('base_color', 'middle_color', 'top_color'))
                                         and len({p['base_color'], p['middle_color'], p['top_color']}) == 3
                                         and type(p['dry_run']) is bool),
@@ -544,7 +547,6 @@ BUILTIN_GOALS: dict[str, GoalSpec] = {
             needs_executor=lambda _: False,
             navigation=True,
             fields=('target_x_m', 'target_y_m', 'max_duration_s', 'dry_run'),
-            description=GOAL_DESCRIPTIONS['pin_and_go'],
             validate_payload=lambda p: (_num_in(p['target_x_m'], -100., 100.) and _num_in(p['target_y_m'], -100., 100.)
                                         and _num_in(p['max_duration_s'], 1., 600.) and type(p['dry_run']) is bool),
         ),
@@ -555,7 +557,6 @@ BUILTIN_GOALS: dict[str, GoalSpec] = {
             needs_executor=lambda r: not r.dry_run,
             navigation=True,
             fields=('category', 'drop_x_m', 'drop_y_m', 'max_duration_s', 'allow_towing', 'dry_run'),
-            description=GOAL_DESCRIPTIONS['deliver_garment'],
             validate_payload=lambda p: (_num_in(p['drop_x_m'], -100., 100.) and _num_in(p['drop_y_m'], -100., 100.)
                                         and _num_in(p['max_duration_s'], 1., 3600.) and type(p['allow_towing']) is bool
                                         and type(p['dry_run']) is bool and isinstance(p['category'], str) and len(p['category']) <= 32),
@@ -567,7 +568,6 @@ BUILTIN_GOALS: dict[str, GoalSpec] = {
             needs_executor=lambda r: not r.dry_run,
             navigation=True,
             fields=('drop_x_m', 'drop_y_m', 'max_duration_s', 'max_items', 'allow_towing', 'dry_run'),
-            description=GOAL_DESCRIPTIONS['patrol_collect'],
             validate_payload=lambda p: (_num_in(p['drop_x_m'], -100., 100.) and _num_in(p['drop_y_m'], -100., 100.)
                                         and _num_in(p['max_duration_s'], 1., 3600.) and type(p['allow_towing']) is bool
                                         and type(p['dry_run']) is bool and _int_in(p['max_items'], 1, 1000)),
@@ -581,7 +581,6 @@ BUILTIN_GOALS: dict[str, GoalSpec] = {
             ),
             read_only=lambda _: False,
             fields=('settle',),
-            description=GOAL_DESCRIPTIONS['deploy_arm'],
             validate_payload=lambda p: type(p['settle']) is bool,
         ),
         GoalSpec(
@@ -599,7 +598,6 @@ BUILTIN_GOALS: dict[str, GoalSpec] = {
             ),
             read_only=lambda _: False,
             fields=('color',),
-            description=GOAL_DESCRIPTIONS['align_target'],
             validate_payload=lambda p: _is_color(p['color']),
         ),
         GoalSpec(
@@ -617,7 +615,6 @@ BUILTIN_GOALS: dict[str, GoalSpec] = {
             ),
             read_only=lambda _: False,
             fields=('m3_deg', 'm4_deg', 'm5_deg'),
-            description=GOAL_DESCRIPTIONS['move_arm'],
             validate_payload=lambda p: _num_in(p['m3_deg'], 90, 270) and _num_in(p['m4_deg'], 35, 170) and _num_in(p['m5_deg'], 0, 155),
         ),
         GoalSpec(
@@ -633,7 +630,6 @@ BUILTIN_GOALS: dict[str, GoalSpec] = {
             ),
             read_only=lambda _: False,
             fields=('lift_steps', 'verify_color'),
-            description=GOAL_DESCRIPTIONS['grasp_and_lift'],
             validate_payload=lambda p: (_int_in(p['lift_steps'], 0, 10) and isinstance(p['verify_color'], str)
                                         and (p['verify_color'] == '' or _is_color(p['verify_color']))),
         ),
@@ -650,7 +646,6 @@ BUILTIN_GOALS: dict[str, GoalSpec] = {
             ),
             read_only=lambda _: False,
             fields=('put_down',),
-            description=GOAL_DESCRIPTIONS['release_and_stow'],
             validate_payload=lambda p: type(p['put_down']) is bool,
         ),
     )
@@ -673,7 +668,6 @@ DRIVER_GOALS: dict[str, GoalSpec] = {
             lambda ctx, r: (True, BasePulse.Result(outcome=ctx.outcome(True))),
             read_only=lambda _: False,
             fields=('linear_mps', 'angular_radps', 'duration'),
-            description=GOAL_DESCRIPTIONS['base_pulse'],
             validate_payload=_valid_pulse_payload,
         ),
         GoalSpec(
@@ -682,7 +676,6 @@ DRIVER_GOALS: dict[str, GoalSpec] = {
             lambda ctx, _r: (True, ArmStep.Result(outcome=ctx.outcome(True), estimate=ctx.arm_msg())),
             read_only=lambda _: False,
             fields=('joint', 'direction'),
-            description=GOAL_DESCRIPTIONS['arm_step'],
             validate_payload=lambda p: (type(p['joint']) is int and p['joint'] in (3, 4, 5, 34, 43)
                                         and type(p['direction']) is int and p['direction'] in (-1, 1)),
         ),
@@ -692,7 +685,6 @@ DRIVER_GOALS: dict[str, GoalSpec] = {
             lambda ctx, _r: (True, HandStep.Result(outcome=ctx.outcome(True), estimate=ctx.arm_msg())),
             read_only=lambda _: False,
             fields=('direction',),
-            description=GOAL_DESCRIPTIONS['hand_step'],
             validate_payload=lambda p: _int_in(p['direction'], 1, 4),
         ),
         GoalSpec(
@@ -701,7 +693,6 @@ DRIVER_GOALS: dict[str, GoalSpec] = {
             lambda ctx, _r: (True, ArmOperation.Result(outcome=ctx.outcome(True), estimate=ctx.arm_msg())),
             read_only=lambda _: False,
             fields=('operation',),
-            description=GOAL_DESCRIPTIONS['arm_operation'],
             validate_payload=lambda p: _int_in(p['operation'], 1, 9),
         ),
     )
