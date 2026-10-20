@@ -15,6 +15,10 @@ def local_delta(a,b):
     return math.cos(th)*dx+math.sin(th)*dy,-math.sin(th)*dx+math.cos(th)*dy,math.atan2(math.sin(b['yaw']-th),math.cos(b['yaw']-th))
 
 
+def _arc(angle: float) -> tuple[float, float]:
+    return (math.sin(angle)/angle, (1.-math.cos(angle))/angle) if abs(angle)>1e-8 else (1., 0.)
+
+
 def slope(rows,command,motion,sign=None):
     rows=[r for r in rows if r[command] and (sign is None or math.copysign(1,r[command])==sign)]
     if not rows: return dict(gain=None,sigma=None,n=0)
@@ -99,7 +103,7 @@ class OnlineCalibration:
         if rows:
             matrix=[]; target=[]
             for r in rows:
-                angle=r['yaw']; arc_x=math.sin(angle)/angle if abs(angle)>1e-8 else 1.; arc_y=(1-math.cos(angle))/angle if abs(angle)>1e-8 else 0.
+                angle=r['yaw']; arc_x, arc_y = _arc(angle)
                 matrix.extend([[math.cos(angle)-1,r['command_forward']*arc_x],[math.sin(angle),r['command_forward']*arc_y]])
                 target.extend([r['camera_dx'],r['camera_dy']])
             A=np.array(matrix); b=np.array(target); has_forward=any(r['command_forward'] for r in rows)
@@ -112,12 +116,12 @@ class OnlineCalibration:
                     covariance=float(error@error)/(len(b)-rank)*np.linalg.pinv(A.T@A)
                     sigma=float(np.sqrt(covariance[0,0]))
             for r in rows:
-                angle=r['yaw']; arc_x=math.sin(angle)/angle if abs(angle)>1e-8 else 1.; arc_y=(1-math.cos(angle))/angle if abs(angle)>1e-8 else 0.
+                angle=r['yaw']; arc_x, arc_y = _arc(angle)
                 dx=r['camera_dx']-(x or 0)*(math.cos(angle)-1); dy=r['camera_dy']-(x or 0)*math.sin(angle)
                 r['forward']=(dx*arc_x+dy*arc_y)/(arc_x*arc_x+arc_y*arc_y) if arc_x*arc_x+arc_y*arc_y>1e-10 else 0.
             forward=slope(rows,'command_forward','forward')
         ready=x is not None and sigma is not None and turn_count>=self.min_camera_n and sigma<=self.max_camera_sigma_m
-        return dict(n=len(rows),skipped=self.skipped,skip_reasons=dict(self.skip_reasons),yaw_positive=slope(rows,'command_yaw','yaw',1),yaw_negative=slope(rows,'command_yaw','yaw',-1),forward=forward,camera_x=dict(value_m=x,sigma_m=sigma,n=turn_count,residual_rms_m=residual,ready=ready),model='windowed unicycle-arc LS; camera_y=0; floor-scale and slip assumptions; sigma is fit-only, not absolute accuracy')
+        return dict(n=len(rows),skipped=self.skipped,skip_reasons=dict(self.skip_reasons),yaw_positive=slope(rows,'command_yaw','yaw',1),yaw_negative=slope(rows,'command_yaw','yaw',-1),forward=forward,camera_x=dict(value_m=x,sigma_m=sigma,n=turn_count,residual_rms_m=residual,ready=ready),model='windowed_unicycle_arc_ls')
     def save(self):
         payload=dict(version=1,samples=self.samples,seen=self.seen,seeded=self.seeded,**self.summary())
         if payload==self._saved_payload:
