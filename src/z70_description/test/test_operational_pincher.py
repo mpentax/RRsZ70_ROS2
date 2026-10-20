@@ -6,41 +6,19 @@ import pytest
 import xacro
 from test_physical_visuals import SOURCE, origin, relative_frames
 from test_pincher_mesh import visual_triangles
-from test_wrist_tf import tf_robot
+from test_wrist_tf import publish_and_lookup, quat_matrix, tf_robot
 
 
 @pytest.mark.parametrize('state',[(150,45,0,90),(240,95,0,0),(200,95,40,45),(170,65,155,90)])
 def test_actual_published_finger_frames_match_operational_four_angle_geometry(tf_robot,state):
-    import time
-    import rclpy
-    from rclpy.time import Time
-    from sensor_msgs.msg import JointState
-    from tf2_ros import TransformException
     from z70_driver.driver import app_to_urdf
     from z70_description import pincher_geometry as g
-    node,buffer,publisher,process=tf_robot
-    angles=app_to_urdf(*state);msg=JointState(name=list(angles),position=list(angles.values()))
-    started=node.get_clock().now();deadline=time.monotonic()+8
-    transforms={}
-    while time.monotonic()<deadline:
-        assert process.poll() is None
-        msg.header.stamp=node.get_clock().now().to_msg();publisher.publish(msg);rclpy.spin_once(node,timeout_sec=.05)
-        for side in ('left','right'):
-            try:
-                tr=buffer.lookup_transform('base_footprint','finger_'+side,Time())
-                if Time.from_msg(tr.header.stamp)>=started:transforms[side]=tr
-            except TransformException:pass
-        if len(transforms)==2:break
-    assert len(transforms)==2
+    transforms=publish_and_lookup(tf_robot, app_to_urdf(*state), 'finger_left', 'finger_right')
     T=g.hand_pose(state)
     for side,sign in (('left',1),('right',-1)):
-        expected=T@g.finger_frame(sign,state[3]);tr=transforms[side].transform
+        expected=T@g.finger_frame(sign,state[3]);tr=transforms['finger_'+side].transform
         assert [tr.translation.x,tr.translation.y,tr.translation.z]==pytest.approx(expected[:3,3],abs=1e-8)
-        q=tr.rotation;x,y,z,w=q.x,q.y,q.z,q.w
-        actual=np.array([[1-2*(y*y+z*z),2*(x*y-z*w),2*(x*z+y*w)],
-                         [2*(x*y+z*w),1-2*(x*x+z*z),2*(y*z-x*w)],
-                         [2*(x*z-y*w),2*(y*z+x*w),1-2*(x*x+y*y)]])
-        assert actual==pytest.approx(expected[:3,:3],abs=1e-8)
+        assert quat_matrix(tr.rotation)==pytest.approx(expected[:3,:3],abs=1e-8)
 
 
 
