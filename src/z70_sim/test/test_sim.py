@@ -178,7 +178,15 @@ def test_sim_server_and_ros_driver_integration(tmp_path: Path):
         # Deploy arm via driver_rpc and switch to gripper camera via SelectCamera
         driver.driver_rpc('app_pick_up_enter_exit', {'flag': 2}, 3000)
         driver.driver_rpc('app_arm_out_compartment', {}, 3000)
-        obs.select('gripper')
+        def select_gripper():
+            try:
+                obs.select('gripper')
+                return True
+            except LookupError as exc:
+                if str(exc) == 'BUSY':
+                    return False
+                raise
+        wait_for(select_gripper)
         wait_for(lambda: server.world.camera == 'gripper')
     finally:
         if obs is not None:

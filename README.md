@@ -30,6 +30,7 @@ Open **`http://127.0.0.1:57010`**. On first run, click **Start local setup** to 
 - **`src/z70_odometry`** — Homography floor visual odometry (`/odom`), online chassis pulse calibrator, and floor appearance mosaic (`/z70/floor_mosaic`).
 - **`src/z70_mapping`** — Roborock `v1` LiDAR map decoder (`/map`, `/z70/map/safe_grid`, `/z70/map/spatial_context`) and Apple Silicon MPS depth point clouds (`/camera/front/depth/points`).
 - **`src/z70_manipulation`** — HSV perception, coordinated multi-axis joint planner, and manipulation/navigation action servers ([`src/z70_manipulation/README.md`](src/z70_manipulation/README.md)).
+- **`src/z70_sim`** — Native Apple Silicon MuJoCo physics/camera simulator and Roborock firmware transport emulator (`pixi run sim`, [`src/z70_sim/README.md`](src/z70_sim/README.md)).
 - **`src/z70_web_gateway`** — Loopback `rclpy` HTTP bridge (`127.0.0.1:57020`) backing both the web console and MCP server ([`docs/thin-api.md`](docs/thin-api.md)).
 - **`apps/web` & `apps/mcp`** — React operator console (with manual arm lifecycle, press-and-hold jogging, and live telemetry) and stdio MCP server.
 - **`adapters/vendor` & `deploy`** — Local Roborock LAN/MQTT transport service (`127.0.0.1:57010`) and native `go2rtc` WebRTC/MJPEG media sidecar (`127.0.0.1:57001`, WebRTC `:57012`).

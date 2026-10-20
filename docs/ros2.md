@@ -18,6 +18,8 @@ Start the full native stack (`go2rtc`, the vendor/web HTTP service on `127.0.0.1
 
 ```sh
 pixi run bringup
+# Or against the local MuJoCo physics & camera simulator (no hardware required):
+pixi run sim
 ```
 
 | Launch Argument | Default (`bringup.launch.py` / `pixi run bringup`) | Description |
@@ -25,6 +27,7 @@ pixi run bringup
 | `origin` | `http://127.0.0.1:57010` | Local vendor transport service URL |
 | `token_file` | `$Z70_REPO/.local/service-token` | Path to bearer token file (`Z70_REPO` defaults to `$PWD`) |
 | `sidecars` | `false` (`true` in `pixi run bringup`) | Launch native `go2rtc` (`:57001` / `:57012`) and vendor/web HTTP service (`:57010`) |
+| `sim` | `false` (`true` in `pixi run sim`) | Launch `z70_sim` MuJoCo simulator sidecar on `:57010` instead of hardware sidecars |
 | `manipulation`, `web_gateway` | `false`, `false` (`true` in `pixi run bringup`) | Enable manipulation action servers and HTTP gateway (`:57020`) |
 | `camera_hz` | `3.0` | Active camera polling rate in Hz (`0` disables polling) |
 | `mapping`, `depth` | `true`, `true` | Enable vendor LiDAR map node and MPS monocular depth worker |
