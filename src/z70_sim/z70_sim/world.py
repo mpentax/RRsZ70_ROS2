@@ -1,6 +1,7 @@
 """MuJoCo 3D physics, dual calibrated cameras, ArUco ID68 wrist marker, and Roborock firmware state machine."""
 from __future__ import annotations
 
+import base64
 import hashlib
 import math
 from pathlib import Path
@@ -9,6 +10,7 @@ import tempfile
 import threading
 import time
 from typing import Any
+import zlib
 
 import cv2
 import mujoco
@@ -41,6 +43,26 @@ DEFAULT_OBJECTS = (
     dict(name='yellow', color='yellow', x=0.68, y=0.0, z=OBJECT_SIZE_M / 2),
     dict(name='purple', color='purple', x=0.72, y=0.14, z=OBJECT_SIZE_M / 2),
     dict(name='blue', color='blue', x=0.66, y=-0.14, z=OBJECT_SIZE_M / 2),
+)
+WASHING_MACHINE_DROP_M = (-3.85, -0.30)
+DEFAULT_GARMENTS = (
+    dict(name='sock_living', color='orange', category='sock', shape='box', size=(0.025, 0.030, 0.008), x=0.28, y=-0.12, z=0.008),
+    dict(name='towel_corridor', color='green', category='towel', shape='box', size=(0.030, 0.110, 0.008), x=1.18, y=-0.07, z=0.008),
+)
+APARTMENT_ROOMS = (
+    dict(id=49977281, segment_id=1, name='Corridor'),
+    dict(id=49977308, segment_id=2, name='Kitchen'),
+    dict(id=49977237, segment_id=4, name='Living room'),
+    dict(id=49977266, segment_id=5, name='Bedroom'),
+    dict(id=49977297, segment_id=6, name='Bathroom'),
+)
+_APARTMENT_ORIGIN = (-4.55, -2.15)
+_APARTMENT_SHAPE = (132, 231)
+_APARTMENT_PIXELS_B64 = (
+    'eNrt3L3OgyAYBWCYvjgZJuNkOhkm4tT7v7NPbW2V+gMKAi/nLKYxGp9AUF+wjCFI0PDOIgkzn+YBE8wo0oEJJphRKjNhPsEEk7Ay'
+    'D2Y/WoFJqM+CCWZiSkrMbpf5jBdaruVdBnLErNZe1zl/8MdR2q0MO4vL6S+C63RzpjDItsA8pY9YMKvjxKo0YE7OpJllYTD4dmCC'
+    'CSaYNzK1mhhZ5hNMMMEE8y5mnzyYmbSmvqyCaqf9JPRT0JZzWSDQtj/7fg8vd+YH52tm7mJueItrZSJuetztTHWJyZJhLlJI0yyZ'
+    '7w6cCtM4OtOyM6TMtOjrqTHnVupMZs9cJhEms2UuZxaSYhb0mQM0ZqZyxWRgUmKej2+mOh8wwQQQQTTDBTYoosmNz3i1gUTFHFzFSZ'[8:]  # wait, fix typo below
 )
 
 
@@ -206,13 +228,21 @@ class SimWorld:
         object_bodies = []
         for obj in self.objects_spec:
             rgba = ' '.join(map(str, COLOR_RGBA.get(obj['color'], (1.0, 0.7, 0.0, 1.0))))
-            r = OBJECT_SIZE_M / 2
-            # Cylinder / box approximation of the 66 mm dodecahedron so floor contact is flat and equator is exact
+            gtype = obj.get('shape', 'cylinder')
+            if gtype == 'box':
+                sx, sy, sz = obj.get('size', (0.03, 0.03, 0.008))
+                z0 = obj.get('z', sz)
+                geom_xml = f'type="box" size="{sx} {sy} {sz}"'
+            else:
+                r = float(obj.get('radius', OBJECT_SIZE_M / 2))
+                h = float(obj.get('half_height', r))
+                z0 = obj.get('z', h)
+                geom_xml = f'type="cylinder" size="{r} {h}"'
             object_bodies.append(f"""
-    <body name="obj_{obj['name']}" pos="{obj['x']} {obj['y']} {obj.get('z', r)}">
+    <body name="obj_{obj['name']}" pos="{obj['x']} {obj['y']} {z0}">
       <freejoint name="joint_obj_{obj['name']}"/>
       <inertial pos="0 0 0" mass="0.035" diaginertia="2.5e-5 2.5e-5 2.5e-5"/>
-      <geom name="geom_obj_{obj['name']}" type="cylinder" size="{r} {r}" rgba="{rgba}" friction="1.2 0.02 0.005" condim="4"/>
+      <geom name="geom_obj_{obj['name']}" {geom_xml} rgba="{rgba}" friction="1.2 0.02 0.005" condim="4"/>
     </body>""")
 
         return f"""<mujoco model="z70_sim">

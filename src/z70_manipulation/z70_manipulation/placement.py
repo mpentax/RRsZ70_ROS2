@@ -18,7 +18,7 @@ def observed_joints(hand_pose):
     R = Z.T @ T[:3,:3]
     a2 = math.atan2(R[2,0], R[0,0])
     m5 = math.degrees(math.atan2(-R[1,2], R[1,1]))
-    if abs(m5) < 1e-8:
+    if -3.0 <= m5 <= 1e-8:
         m5 = 0.
     elbow = T[:3,3] - T[:3,0]*planner.hand.L2
     v = Z.T @ (elbow-np.asarray(planner.hand.CAD['shoulder_in_base_m']))

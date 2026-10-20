@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>z70_sim</name>
+  <version>0.1.0</version>
+  <description>MuJoCo physics and camera simulator with Roborock firmware transport emulation for the Z70 stack.</description>
+  <maintainer email="noreply@example.com">mpentax</maintainer>
+  <license>Apache-2.0</license>
+  <buildtool_depend>ament_python</buildtool_depend>
+  <exec_depend>z70_description</exec_depend>
+  <exec_depend>z70_mapping</exec_depend>
+  <exec_depend>z70_odometry</exec_depend>
+  <exec_depend>z70_manipulation</exec_depend>
+  <exec_depend>z70_driver</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-opencv</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
