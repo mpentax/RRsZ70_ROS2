@@ -27,8 +27,7 @@ from z70_interfaces.msg import (EvidenceStamp, RobotState, CameraState, FrameMet
                                 ArmEstimate, MapSnapshot, RoomLabel, CommandEvent, CommandOutcome)
 from z70_interfaces.srv import SelectCamera, RefreshMap
 from z70_description.arm_model import LIMITS, POSES
-from z70_mapping.decoder import decode_map
-from z70_mapping.geometry import room_names
+from z70_mapping.decoder import decode_map, room_names
 from .commands import CommandSurfaces, LATCHED, host_ms, host_time, uid
 from .estimator import ArmEstimator
 from .dashboard import Dashboard
