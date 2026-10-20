@@ -1,9 +1,6 @@
 """Offline real DDS + fake wire backend. No access to selected robot or private files."""
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
-from pathlib import Path
-import queue
-import subprocess
 import threading
 import time
 import uuid
@@ -17,7 +14,7 @@ from rclpy.action import ActionServer, CancelResponse
 from z70_driver.driver import Driver
 from z70_interfaces.action import Pick
 from z70_interfaces.srv import RawRpc
-from z70_interfaces.msg import FrameMetadata, CameraState, RobotState
+from z70_interfaces.msg import FrameMetadata
 from sensor_msgs.msg import CompressedImage
 from z70_web_gateway.gateway import Gateway, HttpServer, ApiError, goal_message, read_token
 
