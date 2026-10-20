@@ -156,11 +156,3 @@ def ray_floor(pixel,K,D,translation,rotation):
     if ray[2]>=-1e-8 or C[2]<=0: return None
     p=C-C[2]/ray[2]*ray
     return p.tolist()
-
-def gripper_objects(image,K,D,translation,rotation,thresholds=None):
-    result=[]
-    for b in detect(image,thresholds):
-        p=ray_floor(b['contact_px'],K,D,translation,rotation)
-        if p is None or np.linalg.norm(np.array(p)-translation)>3: continue
-        b.update(position=p,camera='gripper',size_m=.05); result.append(b)
-    return result
