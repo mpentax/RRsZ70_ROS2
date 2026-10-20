@@ -188,6 +188,51 @@ export function roomsFromHome(body: unknown): AccountRoom[] {
   });
 }
 
+export function validateHomeAuthorization(value: unknown): HomeAuthorization {
+  if (!record(value)) throw new Error("Invalid private home authorization.");
+  const home = value;
+  if (Object.keys(home).sort().join(",") !== "deviceId,hawkKey,homeId,realApi,rooms,secret,user" ||
+    typeof home.deviceId !== "string" || !/^[\x20-\x7e]{1,128}$/.test(home.deviceId) ||
+    typeof home.homeId !== "number" || !Number.isSafeInteger(home.homeId) || home.homeId <= 0 ||
+    typeof home.realApi !== "string" ||
+    ![home.user, home.secret, home.hawkKey].every(field => typeof field === "string" &&
+      field.length > 0 && field.length <= 4096 && /^[\x20-\x7e]+$/.test(field)) ||
+    !Array.isArray(home.rooms) || home.rooms.length > 128) throw new Error("Invalid private home authorization.");
+  let url: URL;
+  try { url = new URL(home.realApi); } catch { throw new Error("Invalid private home authorization."); }
+  if (url.origin !== home.realApi || url.protocol !== "https:" || !url.hostname.endsWith(".roborock.com") ||
+    url.username || url.password || url.port || url.pathname !== "/" || url.search || url.hash ||
+    !/^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+roborock\.com$/.test(url.hostname)) {
+    throw new Error("Invalid private home authorization.");
+  }
+  const rooms = new Set<string>();
+  for (const room of home.rooms) {
+    if (!record(room) || Object.keys(room).sort().join(",") !== "id,name" ||
+      typeof room.id !== "string" || !/^[0-9]{1,24}$/.test(room.id) ||
+      typeof room.name !== "string" || room.name.length > 120 || /[\u0000-\u001f\u007f]/.test(room.name) ||
+      rooms.has(room.id)) throw new Error("Invalid private home authorization.");
+    rooms.add(room.id);
+  }
+  return {
+    deviceId: home.deviceId, homeId: home.homeId, realApi: home.realApi,
+    user: home.user as string, secret: home.secret as string, hawkKey: home.hawkKey as string,
+    rooms: home.rooms as AccountRoom[],
+  };
+}
+
+export function selectedRooms(home: HomeAuthorization): { source: string; rooms: AccountRoom[] } {
+  return { source: "roborock-account-home", rooms: home.rooms.map(room => ({ id: room.id, name: room.name })) };
+}
+
+export async function refreshRooms(home: HomeAuthorization): Promise<AccountRoom[]> {
+  home = validateHomeAuthorization(home);
+  const url = new URL(`/v3/user/homes/${home.homeId}`, home.realApi);
+  return roomsFromHome(await request(url, {
+    method: "GET",
+    headers: hawkHeaders(url, home.user, home.secret, home.hawkKey),
+  }, "home room refresh"));
+}
+
 function devicesFromHome(body: unknown): DeviceCredentials[] {
   if (!record(body) || body.success !== true || !record(body.result)) {
     return invalid("home data");

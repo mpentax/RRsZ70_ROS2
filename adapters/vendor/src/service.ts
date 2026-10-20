@@ -6,7 +6,7 @@ import { CommandEvents, pulseParams } from './command-events.ts';
 import { readFile } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
 import { isIP } from "node:net";
-import { RoborockCloud, type CameraAccount, type HomeAuthorization, type CameraLogin } from "./cloud.ts";
+import { refreshRooms, RoborockCloud, selectedRooms, type CameraAccount, type CameraLogin, type HomeAuthorization } from "./cloud.ts";
 import { RobotClient, RpcError, type RobotDiagnostic } from "./robot.ts";
 import { CloudControlClient, cloudControlCredentials } from "./cloud-control.ts";
 import { numericTelemetry, publicRpcValue, TransportError, type RpcOutcome } from "./rpc-outcome.ts";
@@ -17,7 +17,6 @@ import { ServiceAuth, ServiceHttpError } from "./service-auth.ts";
 import { jpegImageDimensions } from "@rrsz70/http-contracts";
 import { readSplitMap } from "./split-map-reader.ts";
 import { mapMetadataFromRead, type PrivateMapMetadata } from "./private-map-cache.ts";
-import { refreshRooms, selectedRooms } from "./home-account.ts";
 import { proxyRos, rosGatewayOrigin, rosRoute } from "./ros-gateway.ts";
 
 /** Connection-level events only; messages are fixed internal labels (no payloads, keys or addresses). */

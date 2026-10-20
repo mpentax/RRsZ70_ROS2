@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash, createHmac } from "node:crypto";
 import { test, type TestContext } from "node:test";
-import { RoborockCloud } from "./cloud.ts";
+import { refreshRooms, RoborockCloud, selectedRooms, validateHomeAuthorization } from "./cloud.ts";
 
 const EMAIL = "test@example.invalid";
 const KEY = "0123456789abcdef";
@@ -252,4 +252,43 @@ test("creates a fresh signature for each login attempt", async (t) => {
   await cloud.loginWithCode(EMAIL, "654321");
   assert.notEqual(calls[0].url.searchParams.get("s"), calls[4].url.searchParams.get("s"));
   assert.equal(new Headers(calls[0].init.headers).get("header_clientid"), new Headers(calls[4].init.headers).get("header_clientid"));
+});
+
+const savedHome = {
+  deviceId: "selected", homeId: 123, realApi: "https://api-eu.roborock.com",
+  user: "user", secret: "secret", hawkKey: "hawk", rooms: [{ id: "44", name: "Hall" }],
+};
+
+test("single selected home authorization validates exact shape and preserves room labels", () => {
+  assert.deepEqual(selectedRooms(validateHomeAuthorization(savedHome)), { source: "roborock-account-home", rooms: savedHome.rooms });
+  for (const bad of [
+    { ...savedHome, deviceId: "" }, { ...savedHome, realApi: "https://evil.invalid" },
+    { ...savedHome, realApi: "https://api-eu.roborock.com/other" }, { ...savedHome, token: "unexpected" },
+    { ...savedHome, rooms: [{ id: "44", name: "Hall" }, { id: "44", name: "Duplicate" }] },
+    { ...savedHome, rooms: [{ id: "44", name: "bad\nheader" }] },
+  ]) {
+    assert.throws(() => validateHomeAuthorization(bad));
+  }
+});
+
+test("read-only refresh is Hawk signed to selected home and never exposes credentials", async (t) => {
+  t.mock.method(globalThis, "fetch", async (input: URL, init: RequestInit) => {
+    assert.equal(input.href, "https://api-eu.roborock.com/v3/user/homes/123");
+    assert.equal(init.method, "GET"); assert.equal(init.redirect, "error");
+    assert.ok(init.signal instanceof AbortSignal);
+    const header = new Headers(init.headers).get("Authorization") ?? "";
+    const match = /^Hawk id="user", s="secret", ts="(\d+)", nonce="([A-Za-z0-9]{6})", mac="([^"]+)"$/.exec(header);
+    assert.ok(match);
+    const hash = createHash("md5").update("/v3/user/homes/123").digest("hex");
+    assert.equal(match[3], createHmac("sha256", "hawk").update(["user", "secret", match[2], match[1], hash, "", ""].join(":")).digest("base64"));
+    return Response.json({ success: true, result: { rooms: [{ id: 99, name: "Study" }] } });
+  });
+  assert.deepEqual(await refreshRooms(savedHome), [{ id: "99", name: "Study" }]);
+  assert.deepEqual(savedHome.rooms, [{ id: "44", name: "Hall" }]);
+});
+
+test("refresh failure never turns a cloud error into a room list", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => new Response("private account material", { status: 403 }));
+  await assert.rejects(refreshRooms(savedHome), (error: unknown) => error instanceof Error &&
+    !error.message.includes("private account material"));
 });

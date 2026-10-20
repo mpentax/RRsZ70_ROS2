@@ -4,8 +4,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { summarizeV1Map } from "./v1-map-summary.ts";
 import { isIP } from "node:net";
 import { join, parse, resolve, sep } from "node:path";
-import type { CameraAccount, HomeAuthorization } from "./cloud.ts";
-import { validateHomeAuthorization } from "./home-account.ts";
+import { validateHomeAuthorization, type CameraAccount, type HomeAuthorization } from "./cloud.ts";
 import { localProtocol, type SavedDevice } from "./credentials.ts";
 import { readPrivateMapFile, savePrivateV1Map, validatedMapMetadata, type PrivateMapMetadata } from "./private-map-cache.ts";
 
