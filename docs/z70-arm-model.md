@@ -12,7 +12,7 @@ Paths below are relative to `src/z70_description/`.
 
 | Source | Geometry and Role |
 | :--- | :--- |
-| [`config/cad_arm.yaml`](../src/z70_description/config/cad_arm.yaml) & [`meshes/cad/`](../src/z70_description/meshes/cad/README.md) | CAD link lengths `L1 = 0.1772 m` (`M3 -> M4`), `L2 = 0.1157 m` (`M4 -> M5`); shoulder pivot `[0.1429, -0.0117, 0.1266] m` in `base_footprint`; wrist camera offset `[0.0355, 0.0075, -0.0109] m`. Drives URDF visual/structural links, `pincher_geometry.hand_pose()`, and `planner` physical points. |
+| [`config/cad_arm.yaml`](../src/z70_description/config/cad_arm.yaml) & [`meshes/cad/`](../src/z70_description/meshes/cad/README.md) | CAD link lengths `L1 = 0.1772 m` (`M3 -> M4`), `L2 = 0.1157 m` (`M4 -> M5`); shoulder pivot `[0.1429, -0.0117, 0.1266] m` in `base_footprint`; wrist camera offset `[0.0355, 0.0075, -0.0109] m`. Drives URDF visual/structural links, `arm_model.hand_pose()`, and `planner` physical points. |
 | [`config/mount_calibration.yaml`](../src/z70_description/config/mount_calibration.yaml) | Front camera mount (`x = 0.275 m`, `z = 0.0582 m`), arm-frame yaw/origin alignment, `M3` angular offset, and underside `ID68` marker transform used by `perception.front_jaw()`. |
 | [`config/pincher_geometry.yaml`](../src/z70_description/config/pincher_geometry.yaml) | Housing and finger collision boxes, grasp reference point, 15 mm clearance margin, and jaw `opening_ratio = 2/3`. |
 | [`z70_description/arm_model.py`](../src/z70_description/z70_description/arm_model.py) | `vendor_forward()`, `vendor_inverse()`, and `vendor_check()` implementing the app's 2-D sagittal model (`SHOULDER = (0.0475, 0.14) m`, `VENDOR_L1 = 0.1775 m`, `VENDOR_L2 = 0.205 m`). |

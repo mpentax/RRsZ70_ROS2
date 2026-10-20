@@ -29,7 +29,7 @@ pixi run bringup mapping:=false     # disable vendor map node
 
 ---
 
-## Map Binary Format (`z70_mapping/decoder.py`)
+## Map Binary Format (`z70_mapping/node.py`)
 
 - Validates the `rr` magic header (20 bytes), declared payload size (`<= 32 MiB`), and trailing SHA-1 digest (block `1024`).
 - Little-endian block headers `(uint16 type, uint16 header_size, uint32 data_size)`:
