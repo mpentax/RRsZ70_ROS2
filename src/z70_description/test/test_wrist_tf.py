@@ -15,6 +15,7 @@ from tf2_ros import Buffer, TransformException, TransformListener
 import xacro
 import yaml
 
+from z70_description import pincher_geometry as g
 from z70_driver.driver import app_to_urdf
 from z70_manipulation import planner
 from z70_manipulation.node import rotation as quat_matrix
@@ -116,3 +117,14 @@ def test_measured_gripper_tf(tf_robot, m3, m4, m5):
     cy, sy = np.cos(planner.YAW), np.sin(planner.YAW)
     link2_rotation = np.array([[cy * ca, -sy, -cy * sa], [sy * ca, cy, -sy * sa], [sa, 0, ca]])
     assert actual @ optical.T @ marker_rotation == pytest.approx(link2_rotation @ Q @ marker_rotation, abs=1e-8)
+
+
+@pytest.mark.parametrize('state', [(150, 45, 0, 90), (240, 95, 0, 0), (200, 95, 40, 45), (170, 65, 155, 90)])
+def test_actual_published_finger_frames_match_operational_four_angle_geometry(tf_robot, state):
+    transforms = publish_and_lookup(tf_robot, app_to_urdf(*state), 'finger_left', 'finger_right')
+    T = g.hand_pose(state)
+    for side, sign in (('left', 1), ('right', -1)):
+        expected = T @ g.finger_frame(sign, state[3])
+        tr = transforms['finger_' + side].transform
+        assert [tr.translation.x, tr.translation.y, tr.translation.z] == pytest.approx(expected[:3, 3], abs=1e-8)
+        assert quat_matrix(tr.rotation) == pytest.approx(expected[:3, :3], abs=1e-8)

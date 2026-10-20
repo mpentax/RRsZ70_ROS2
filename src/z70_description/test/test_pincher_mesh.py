@@ -1,4 +1,5 @@
 """Pincher mesh manifold, normal, installation, and generator tests."""
+import math
 from pathlib import Path
 import shutil
 import struct
@@ -8,6 +9,7 @@ import sys
 import numpy as np
 import pytest
 from ament_index_python.packages import get_package_share_directory
+from z70_description import pincher_geometry as g
 
 from test_physical_visuals import ROBOT, SOURCE, origin, relative_frames
 
@@ -116,3 +118,54 @@ def test_offline_generator_reproduces_every_installed_triangle(tmp_path):
     subprocess.run([sys.executable, str(tmp_path / 'meshes' / generator.name)], check=True, capture_output=True)
     for source in (PACKAGE / 'meshes').glob('*.stl'):
         assert (tmp_path / 'meshes' / source.name).read_bytes() == source.read_bytes()
+
+
+def test_display_has_fiducial_cells_underside_collar_and_finger_pivots():
+    cells = [v for v in ROBOT.find("link[@name='pincher_marker_68']").findall('visual')
+             if v.find('geometry/box') is not None and abs(float(v.find('geometry/box').get('size').split()[0]) - .0025) < 1e-6]
+    assert len(cells) >= 6, 'ID68 is a pattern, not a blank square'
+    shell = ROBOT.find("link[@name='arm_wrist_link']").find('visual/geometry/mesh')
+    assert shell is not None and shell.get('filename') and 'cad_hand.stl' in shell.get('filename')
+
+
+def test_open_fingers_spread_sideways_and_never_cross_the_midplane():
+    for m6 in (0, 15, 45, 75, 90):
+        for sign in (-1, 1):
+            T = g.finger_frame(sign, m6)
+            vertices = np.concatenate(g.finger_rings(sign)) @ T[:3, :3].T + T[:3, 3]
+            assert (sign * vertices[:, 1]).min() >= -1e-9
+    tips = [g.finger_rings(sign)[-1].mean(axis=0) for sign in (-1, 1)]
+    assert abs(tips[0][1]) < .012, 'local tip kink stays short'
+
+
+def test_finger_anatomy_is_independent_of_nominal_opening_gain(monkeypatch):
+    expected = np.concatenate(g.finger_rings(1)).copy()
+    try:
+        for ratio in (.5, 2 / 3, .85, .999999, 1.):
+            monkeypatch.setitem(g.CONFIG, 'opening_ratio', ratio)
+            g.finger_rings.cache_clear()
+            assert np.concatenate(g.finger_rings(1)) == pytest.approx(expected)
+    finally:
+        g.finger_rings.cache_clear()
+
+
+def test_shared_articulated_bodies_contain_visual_vertices_and_match_urdf():
+    for m5, m6 in ((0, 0), (0, 45), (0, 90), (40, 90), (155, 45)):
+        frames = relative_frames(ROBOT, 'arm_wrist_link', {
+            'm6_left_joint': math.radians(m6) / 2,
+            'm6_right_joint': math.radians(m6) / 2,
+            'finger_left_articulation': math.radians(m6) * g.CONFIG['opening_ratio'],
+            'finger_right_articulation': math.radians(m6) * g.CONFIG['opening_ratio'],
+        })
+        bodies = g.local_bodies(m6)
+        for name in ('arm_wrist_link', 'finger_left', 'finger_right'):
+            mesh = visual_triangles(ROBOT, name).reshape(-1, 3)
+            pts = mesh @ frames[name][:3, :3].T + frames[name][:3, 3]
+            own = [b for b in bodies if b.name == name]
+            assert own and all(any(b.contains(p, 2e-7) for b in own) for p in pts)
+            collisions = ROBOT.find(f"link[@name='{name}']").findall('collision')
+            assert len(collisions) == len(own)
+            for collision, body in zip(collisions, own):
+                tf = frames[name] @ origin(collision.find('origin'))
+                assert tf[:3, 3] == pytest.approx(body.center)
+                assert np.fromstring(collision.find('geometry/box').get('size'), sep=' ') == pytest.approx(body.half * 2)
