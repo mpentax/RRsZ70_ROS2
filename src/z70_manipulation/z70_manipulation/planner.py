@@ -14,7 +14,6 @@ GRASP=(250,95)
 MIN_TIP=.010
 REACH_LIMIT=.375
 _CALIBRATION=calibration()
-MOUNT=tuple(_CALIBRATION['arm_origin_'+axis+'_m'] for axis in ('x','y','z'))
 YAW=math.radians(_CALIBRATION['arm_yaw_deg'])
 
 def vendor_endpoint(state):
@@ -23,9 +22,6 @@ def vendor_endpoint(state):
 
 
 wrist = vendor_endpoint
-
-def base_point(x,z):
-    return [MOUNT[0]+x*math.cos(YAW),MOUNT[1]+x*math.sin(YAW),MOUNT[2]+z]
 
 def measured_point(state,endpoint):
     """Transform a Link2-relative point into base_footprint coordinates."""

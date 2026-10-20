@@ -49,6 +49,7 @@ GOAL_CONTEXT_PRIMITIVES: tuple[dict[str, str], ...] = (
     {'name': 'spatial_context', 'signature': 'spatial_context(refresh: bool = False) -> dict', 'summary': 'Return ego-centric map context: current_room, rooms (centroids/distances/bearings), dock pose, and 8-sector clearance_sectors_m.'},
     {'name': 'plan_route', 'signature': 'plan_route(target_x_m: float, target_y_m: float, deployed_arm_extension_m: float = 0., refresh: bool = False) -> list[tuple[float, float]] | None', 'summary': 'Plan a collision-checked A* route on the eroded safe interior from the current robot pose to (target_x_m, target_y_m).'},
     {'name': 'objects', 'signature': "objects(camera='front', color=None) -> list[dict]", 'summary': 'Detect and project HSV objects in base_footprint from a fresh camera frame.'},
+    {'name': 'wrist_pose', 'signature': 'wrist_pose() -> dict | None', 'summary': 'Estimate the elevated ArUco ID68 wrist/jaw pose and grasp reference in base_footprint from the front camera.'},
     {'name': 'garments', 'signature': "garments(category='any', after=None) -> list", 'summary': 'Return verified reachable garments from the garment observation pipeline.'},
     {'name': 'navigate', 'signature': 'navigate(target_x_m: float, target_y_m: float, max_duration_s: float = 60., dry_run: bool = False) -> dict', 'summary': 'Navigate the stowed chassis to (target_x_m, target_y_m) via PinAndGo.'},
     {'name': 'pick', 'signature': 'pick(color: str, dry_run: bool = False) -> dict', 'summary': 'Execute a full autonomous object pickup by HSV color.'},
@@ -133,6 +134,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         spatial_context=lambda refresh=False: {'robot_pose_map': {'x': 0., 'y': 0., 'yaw': 0.}, 'current_room': None, 'rooms': [], 'dock': None, 'clearance_sectors_m': {}},
         plan_route=lambda target_x_m, target_y_m, deployed_arm_extension_m=0., refresh=False: [(float(target_x_m), float(target_y_m))],
         objects=lambda camera='front', color=None: [],
+        wrist_pose=lambda: {'position': [0.35, 0., 0.08], 'marker_id': 68},
         observe_color=lambda camera, color: [],
         garments=lambda category='any', after=None: [],
         navigate=lambda target_x_m, target_y_m, max_duration_s=60., dry_run=False: {
@@ -262,6 +264,16 @@ class GoalContext:
 
     def observe_color(self, camera, color) -> list[dict]:
         return self.objects(camera=camera, color=color)
+
+    def wrist_pose(self) -> dict | None:
+        from . import perception
+        image, tag = self.client.frame()
+        if tag != 'front':
+            raise LookupError('wrist_pose requires front camera frame')
+        try:
+            return perception.front_jaw(image)
+        except LookupError:
+            return None
 
     def garments(self, category='any', after=None) -> list:
         batch = self.observations.garment_snapshot(after=after)
