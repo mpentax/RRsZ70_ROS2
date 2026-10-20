@@ -51,6 +51,9 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
   const [targetM3, setTargetM3] = useState('190');
   const [targetM4, setTargetM4] = useState('65');
   const [targetM5, setTargetM5] = useState('0');
+  const [navX, setNavX] = useState('0.0');
+  const [navY, setNavY] = useState('0.0');
+  const [garmentCategory, setGarmentCategory] = useState('any');
   const [outcome, setOutcome] = useState<unknown>(null);
   const [mapData, setMapData] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState("");
@@ -107,7 +110,7 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
       if (enabled && !result.enabled) setError('Resume failed; control and streams remain stopped.');
       else if (!enabled && (!result.streams_released || result.outcomes.some(o => o.dispatch !== 1 || o.response !== 1 || o.error_code !== 'NONE')))
         setError('Session release incomplete; check outcome details.');
-    } catch { setError('Session stop/resume UNVERIFIED. Physically stop the robot if motion continues.'); }
+    } catch { setError('Session stop/resume request failed.'); }
     finally { setSessionBusy(false); }
   }
 
@@ -166,7 +169,7 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
         ]);
         if (!controller.signal.aborted) { setState(s); setTasks(t.tasks); setConnectionError(''); }
       } catch (e) {
-        if (!controller.signal.aborted) { setState(null); setConnectionError(e instanceof Error ? e.message : 'ROS unavailable. No action is replayed.'); }
+        if (!controller.signal.aborted) { setState(null); setConnectionError(e instanceof Error ? e.message : 'ROS unavailable.'); }
       } finally {
         if (!controller.signal.aborted) timer = setTimeout(() => void refresh(), 1500);
       }
@@ -310,7 +313,7 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
             Battery {batteryPct}%
           </span>
         )}
-        <button className="stop danger-stop" onClick={() => { void stopRobot().then(setOutcome).catch(e => setError(`STOP UNVERIFIED: physically stop the robot if motion continues. ${e instanceof Error ? e.message : 'ROS response unavailable.'}`)); }}>STOP ALL</button>
+        <button className="stop danger-stop" onClick={() => { void stopRobot().then(setOutcome).catch(e => setError(`Stop failed: ${e instanceof Error ? e.message : 'ROS response unavailable.'}`)); }}>STOP ALL</button>
         <button className="stop danger" onClick={() => void controlSession(false)}>Stop control &amp; streams</button>
         {controlStopped && <button className="primary" disabled={sessionBusy} onClick={() => void controlSession(true)}>Resume control &amp; streams</button>}
         <button className="quiet" disabled={busy} onClick={() => void run(async () => { await deleteSession(); setAuthenticated(false); setState(null); setOutcome(null); setImage(""); setAutoStream(false); })}>Sign out</button>
@@ -321,7 +324,7 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
       <div>
         <p className="eyebrow">SHARED ROS 2 AUTHORITY</p>
         <h1>RRsZ70 ROS controls</h1>
-        <p className="muted">Requests are sent once. ACK is not physical completion. Observe the robot before deciding whether to repeat a command.</p>
+        <p className="muted">Unified ROS 2 teleoperation, manipulation, and autonomous navigation console.</p>
       </div>
       <div className="sync-status">
         <span className={`dot ${state?.available ? 'good-text' : 'warning-text'}`} />
@@ -339,7 +342,7 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
         <div className="hold-icon">!</div>
         <div>
           <h2>Control session suspended</h2>
-          <p>Control and acquisition suspended. Resume deliberately to reopen streams. Motion cessation is not observed.</p>
+          <p>Control and camera acquisition are suspended. Click Resume to re-enable streams.</p>
         </div>
         <button className="primary" disabled={sessionBusy} onClick={() => void controlSession(true)}>Resume control &amp; streams</button>
       </div>
@@ -434,7 +437,7 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
           </div>
           <div className="video-stage" style={{marginBottom: 0}}>
             {image ? (
-              <img src={image} alt="Robot camera frame; lens and exposure time unverified" style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
+              <img src={image} alt="Robot camera frame" style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
             ) : (
               <div className="camera-placeholder">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -506,6 +509,29 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
               })}>Start 3-Ball Stack ({stackBase}→{stackMiddle}→{stackTop})</button>
             </div>
           </form>
+
+          <div className="task-panel-box">
+            <h3>Navigation &amp; Garment Patrol (<code>/z70/nav/pin_and_go</code> · <code>/z70/deliver_garment</code> · <code>/z70/patrol_collect</code>)</h3>
+            <div className="form-grid" style={{alignItems: 'end', marginTop: 10}}>
+              <label>Target / Drop X (m)<input type="number" step="0.05" value={navX} onChange={e => setNavX(e.target.value)} /></label>
+              <label>Target / Drop Y (m)<input type="number" step="0.05" value={navY} onChange={e => setNavY(e.target.value)} /></label>
+              <label>Garment category<input value={garmentCategory} onChange={e => setGarmentCategory(e.target.value)} /></label>
+            </div>
+            <div className="button-row" style={{marginBottom: 0}}>
+              <button type="button" className="primary" disabled={busy || controlStopped} onClick={() => void run(async () => {
+                const task = await startTask({ kind: 'pin_and_go', goal: { target_x_m: Number(navX), target_y_m: Number(navY), max_duration_s: 120, dry_run: dryRun } });
+                setOutcome(task); setTasks((await listTasks()).tasks);
+              })}>Pin &amp; Go</button>
+              <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => {
+                const task = await startTask({ kind: 'deliver_garment', goal: { category: garmentCategory, drop_x_m: Number(navX), drop_y_m: Number(navY), max_duration_s: 300, allow_towing: false, dry_run: dryRun } });
+                setOutcome(task); setTasks((await listTasks()).tasks);
+              })}>Deliver Garment</button>
+              <button type="button" className="quiet" disabled={busy || controlStopped} onClick={() => void run(async () => {
+                const task = await startTask({ kind: 'patrol_collect', goal: { drop_x_m: Number(navX), drop_y_m: Number(navY), max_duration_s: 600, max_items: 5, allow_towing: false, dry_run: dryRun } });
+                setOutcome(task); setTasks((await listTasks()).tasks);
+              })}>Patrol &amp; Collect</button>
+            </div>
+          </div>
 
           <ArmControlPanel
             busy={busy}

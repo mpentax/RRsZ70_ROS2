@@ -14,9 +14,6 @@ export interface ServiceConfig {
   stateDir: string;
   webRoot: string;
   go2rtcOrigin: string;
-  visionOrigin: string;
-  /** @deprecated Use `visionOrigin`; retained for compatibility with older Ollama-only configs. */
-  ollamaOrigin: string;
 }
 
 function flag(value: string | undefined): boolean {
@@ -36,11 +33,11 @@ function origin(value: string): URL {
   return url;
 }
 
-export function localOrigin(value: string, kind: "camera" | "vision"): string {
+export function localOrigin(value: string): string {
   const url = origin(value);
-  localServiceOrigin(value, kind === "camera" ? "go2rtc" : "vision");
+  localServiceOrigin(value, "go2rtc");
   const port = Number(url.port || (url.protocol === "https:" ? 443 : 80));
-  if (kind === "camera" && (port < 57000 || port > 57100)) {
+  if (port < 57000 || port > 57100) {
     throw new Error("The camera service port must be between 57000 and 57100.");
   }
   return url.origin;
@@ -67,14 +64,10 @@ export function loadServiceConfig(env: NodeJS.ProcessEnv = process.env): Service
     if (candidate.host !== authority || authority.includes("*")) throw new Error("Invalid exact Host allowlist.");
     allowedHosts.push(authority);
   }
-  const visionOrigin = env.VISION_ORIGIN ?? env.LMSTUDIO_ORIGIN ?? env.OLLAMA_ORIGIN ?? "http://127.0.0.1:57003";
-  const resolvedVisionOrigin = localOrigin(visionOrigin, "vision");
   return {
     host, port, publicOrigin, allowedHosts: [...new Set(allowedHosts)], secureCookie,
     stateDir: resolve(env.ROBOCLAW_STATE_DIR ?? resolve(ROOT, ".local")),
     webRoot: resolve(env.ROBOCLAW_WEB_ROOT ?? resolve(ROOT, "dist/web")),
-    go2rtcOrigin: localOrigin(env.GO2RTC_ORIGIN ?? "http://127.0.0.1:57001", "camera"),
-    visionOrigin: resolvedVisionOrigin,
-    ollamaOrigin: resolvedVisionOrigin,
+    go2rtcOrigin: localOrigin(env.GO2RTC_ORIGIN ?? "http://127.0.0.1:57001"),
   };
 }

@@ -20,7 +20,7 @@ import { ServiceAuth, ServiceHttpError } from "./service-auth.ts";
 import { numericTelemetry } from "./telemetry.ts";
 import { jpegImageDimensions } from "@rrsz70/http-contracts";
 import { readSplitMap } from "./split-map-reader.ts";
-import { mapMetadataFromRead, publicMapStatus, validatedMapMetadata, type PrivateMapMetadata } from "./map-cache-status.ts";
+import { mapMetadataFromRead, type PrivateMapMetadata } from "./map-cache-status.ts";
 import { refreshRooms, selectedRooms } from "./home-account.ts";
 import { proxyRos, rosGatewayOrigin, rosRoute } from "./ros-gateway.ts";
 
@@ -241,8 +241,8 @@ export async function createService(options: ServiceOptions) {
       return { value: response.response === "received" ? (method === "get_status" ? summarizeStatus(response.result) : numericTelemetry(response.result)) : null,
         observedAt: response.response === "received" ? response.finishedAt : null, requestedAt: response.startedAt, error: response.error ?? null };
     }
-    const [status, arm, camera] = await Promise.all([read("get_status", []), read("app_get_arm_joints_data", {}), read("get_camera_status", [])]);
-    return { status, arm, camera };
+    const [status, camera] = await Promise.all([read("get_status", []), read("get_camera_status", [])]);
+    return { status, camera };
   }
   const selectorOutcomes = new AsyncLocalStorage<{ method: string; outcome: RpcOutcome }[]>();
   const cameraSelector = new CameraSelector(async (method, params, timeoutMs) => {
@@ -311,7 +311,7 @@ export async function createService(options: ServiceOptions) {
         accountConfigured: !!camera, pinConfigured, regions: ['eu', 'us', 'cn', 'asia'], protocols: ['1.0', 'L01'] });
     // Acquisition transport endpoints are private to the ROS driver. Browser consumers
     // use the shared ROS cache and cannot open additional previews or workflows.
-    if (caller.kind === 'cookie' && !path.startsWith('/api/account/') && path !== '/api/camera/pin' && path !== '/api/v1/capabilities')
+    if (caller.kind === 'cookie' && !path.startsWith('/api/account/') && path !== '/api/camera/pin')
       return fail(410, 'Use the shared /api/ros interfaces; account and camera input remain in web setup.');
     if (path === '/api/driver/control/session' && req.method === 'POST') {
       if (!req.headers.authorization?.startsWith('Bearer ')) return fail(403, 'Private driver bearer authentication required.');
@@ -337,8 +337,6 @@ export async function createService(options: ServiceOptions) {
       if (req.method !== 'GET') return fail(405, 'Method not allowed.');
       commandEvents.subscribe(res); return;
     }
-    if (path === "/api/v1/capabilities")
-      return reply(res, 200, { apiVersion: "1", rpc: null, commandOwner: "ROS", rosRawRpc: "/z70/driver/raw_rpc", genericVendorRpc: true, transports: ["local", "cloud"], physicalCompletion: "unverified" });
     if (path === "/api/state") {
       if (req.method !== "GET") return fail(405, "Method not allowed.");
       return reply(res, 200, { observationSession: cameraSession, device: device ? { id: device.duid, name: device.name, model: device.model, cloudProtocolVersion: device.protocolVersion, localProtocol: selectedLocalProtocol(device) } : null,
@@ -361,10 +359,6 @@ export async function createService(options: ServiceOptions) {
       });
       return reply(res, 200, selectedRooms(updated));
     }
-    if (path === "/api/map/cache" && req.method === "GET") {
-      const value = await store.loadMapCache?.();
-      return reply(res, 200, publicMapStatus(value ? validatedMapMetadata(value) : null, device?.duid ?? null));
-    }
     // Authenticated geometry export for local ROS observers; never public or fresh-pose telemetry.
     if (path === "/api/map/cache/raw" && req.method === "GET") {
       const source = await store.loadMapRasterSource?.();
@@ -381,7 +375,7 @@ export async function createService(options: ServiceOptions) {
       const read = await (options.mapReader ?? readSplitMap)(selected, camera.account);
       const metadata = mapMetadataFromRead(selected.duid, read);
       await store.saveMapBytes?.(read.raw); await store.saveMapCache?.(metadata);
-      return reply(res, 200, publicMapStatus(metadata, device?.duid ?? null));
+      return reply(res, 200, { cached: true, savedAt: metadata.savedAt, mapIndex: metadata.mapIndex, mapSequence: metadata.mapSequence, bytes: metadata.bytes });
     }
     if (path.startsWith("/api/account/") && req.method === "POST") {
       const body = await readJson(req);

@@ -16,8 +16,6 @@ test("native service defaults and strict port range", () => {
   assert.equal(config.port, 57000);
   assert.equal(config.publicOrigin, "http://127.0.0.1:57000");
   assert.equal(config.go2rtcOrigin, "http://127.0.0.1:57001");
-  assert.equal(config.visionOrigin, "http://127.0.0.1:57003");
-  assert.equal(config.ollamaOrigin, "http://127.0.0.1:57003");
   for (const port of ["0", "80", "56999", "57101", "57000junk", "57000.0"]) {
     assert.throws(() => loadServiceConfig({ ROBOCLAW_PORT: port }));
   }
@@ -29,12 +27,9 @@ test("container and explicit TLS proxy configuration has exact host validation",
     ROBOCLAW_HOST: "0.0.0.0", ROBOCLAW_PUBLIC_ORIGIN: "https://robot.example",
     ROBOCLAW_SECURE_COOKIE: "true", ROBOCLAW_ALLOWED_HOSTS: "127.0.0.1:57000,robot.internal:57000",
     ROBOCLAW_STATE_DIR: "/data", GO2RTC_ORIGIN: "http://go2rtc:57001",
-    VISION_ORIGIN: "http://host.docker.internal:57003",
   });
   assert.equal(config.secureCookie, true);
   assert.equal(config.stateDir, "/data");
-  assert.equal(config.visionOrigin, "http://host.docker.internal:57003");
-  assert.equal(config.ollamaOrigin, "http://host.docker.internal:57003");
   assert.deepEqual(config.allowedHosts, ["robot.example", "127.0.0.1:57000", "robot.internal:57000"]);
   for (const hosts of ["*", "evil.test/path", "user:pass@evil.test", "evil.test?x"]) {
     assert.throws(() => loadServiceConfig({ ROBOCLAW_ALLOWED_HOSTS: hosts }));
@@ -47,19 +42,9 @@ test("local upstream origins reject cloud hosts, credentials and URL tricks", ()
   for (const value of ["https://api.example", "http://go2rtc.evil:57001", "http://127.0.0.1:57001/path",
     "http://user:secret@127.0.0.1:57001", "http://127.0.0.1:57001#secret",
     "http://127.0.0.1:57001/", "http://0.0.0.0:57001", "http://169.254.169.254:57001"]) {
-    assert.throws(() => localOrigin(value, "camera"));
+    assert.throws(() => localOrigin(value));
   }
-  assert.equal(localOrigin("http://192.168.1.2:57001", "camera"), "http://192.168.1.2:57001");
-  assert.equal(localOrigin("http://[::1]:57003", "vision"), "http://[::1]:57003");
-  assert.throws(() => localOrigin("http://127.0.0.1:1984", "camera"));
-});
-
-test("legacy Ollama ports and newer provider aliases remain compatible", () => {
-  assert.equal(loadServiceConfig({}).visionOrigin, "http://127.0.0.1:57003");
-  assert.equal(loadServiceConfig({ OLLAMA_ORIGIN: "http://127.0.0.1:11434" }).visionOrigin,
-    "http://127.0.0.1:11434");
-  assert.equal(loadServiceConfig({ LMSTUDIO_ORIGIN: "http://127.0.0.1:1234" }).visionOrigin,
-    "http://127.0.0.1:1234");
-  assert.equal(loadServiceConfig({ VISION_ORIGIN: "http://127.0.0.1:1234" }).visionOrigin,
-    "http://127.0.0.1:1234");
+  assert.equal(localOrigin("http://192.168.1.2:57001"), "http://192.168.1.2:57001");
+  assert.equal(localOrigin("http://[::1]:57003"), "http://[::1]:57003");
+  assert.throws(() => localOrigin("http://127.0.0.1:1984"));
 });

@@ -1,5 +1,4 @@
 import { MAX_MAP_BYTES } from "./photo-protocol.ts";
-import type { Observation } from "./telemetry.ts";
 
 export interface PrivateMapMetadata {
   version: 1;
@@ -29,13 +28,4 @@ export function validatedMapMetadata(value: unknown): PrivateMapMetadata {
     (item.savedAt as number) <= 0 || (item.mapIndex as number) < 0 || (item.mapSequence as number) < 0 ||
     (item.bytes as number) <= 0 || (item.bytes as number) > MAX_MAP_BYTES) throw new Error("Invalid private map metadata.");
   return item as unknown as PrivateMapMetadata;
-}
-export function publicMapStatus(metadata: PrivateMapMetadata | null, selectedId: string | null,
-  statusEvidence: Observation<unknown> = { value: null, observedAt: null, error: null }) {
-  const current = metadata && metadata.deviceId === selectedId ? metadata : null;
-  return { cached: !!current, version: current?.version ?? null, provenance: current?.provenance ?? null,
-    savedAt: current?.savedAt ?? null, bytes: current?.bytes ?? null,
-    mapIndex: current?.mapIndex ?? null, mapSequence: current?.mapSequence ?? null,
-    selectedDeviceBound: !!current, activeMapVerified: false, currentPoseVerified: false,
-    statusEvidence };
 }

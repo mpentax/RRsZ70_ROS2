@@ -52,7 +52,7 @@ test('localhost first-run session pairs without granting ROS or private transpor
   assert.equal(session.status,200);assert.equal(session.body.authenticated,false);assert.equal(session.body.scope,'setup');assert.ok(session.cookie);
   const cookie=session.cookie!;
   assert.equal((await f.request('/api/setup',undefined,cookie)).status,200);
-  for(const [path,body] of [['/api/ros/state',undefined],['/api/ros/tasks',{}],['/api/ros/stop',{}],['/api/driver/rpc',{method:'app_charge'}],['/api/camera/frame',{}],['/api/state',undefined],['/api/map/cache/raw',undefined],['/api/v1/capabilities',undefined]] as const)
+  for(const [path,body] of [['/api/ros/state',undefined],['/api/ros/tasks',{}],['/api/ros/stop',{}],['/api/driver/rpc',{method:'app_charge'}],['/api/camera/frame',{}],['/api/state',undefined],['/api/map/cache/raw',undefined]] as const)
     assert.equal((await f.request(path,body,cookie)).status,403,path);
   assert.equal(f.privateCalls,0);
   assert.equal((await f.request('/api/account/code',{email:'user@example.com',region:'eu'},cookie)).status,200);

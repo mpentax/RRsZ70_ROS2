@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { SecretStore } from "./secret-store.ts";
-import { mapMetadataFromRead, validatedMapMetadata, publicMapStatus } from "./map-cache-status.ts";
+import { mapMetadataFromRead, validatedMapMetadata } from "./map-cache-status.ts";
 
 function synthetic(): Buffer {
   const header = Buffer.alloc(20); header.write("rr"); header.writeUInt16LE(20, 2);
@@ -32,9 +32,6 @@ test("private map metadata persists bound to selected device, checks bytes and p
   assert.equal((await lstat(join(root, "state", "map-cache.json"))).mode & 0o777, 0o600);
   assert.equal((await lstat(join(root, "state", "maps"))).mode & 0o777, 0o700);
   assert.equal((await lstat(join(root, "state"))).mode & 0o777, 0o700);
-  assert.equal(publicMapStatus(metadata, "other-device").cached, false);
-  const response = JSON.stringify(publicMapStatus(metadata, "private-device"));
-  assert.doesNotMatch(response, /private-device|sha256|[a-f0-9]{64}/);
   const file = join(root, "state", "maps", `v1-${sha256}.bin`);
   const corrupted = Buffer.from(await readFile(file)); corrupted[25] ^= 1;
   await writeFile(file, corrupted);

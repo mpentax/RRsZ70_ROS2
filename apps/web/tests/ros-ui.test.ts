@@ -52,6 +52,31 @@ test('stop remains actionable while task start response stalls; expiry clears se
   } finally {await act(async()=>root.unmount());await window.happyDOM.close();}
 });
 
+test('navigation and garment patrol buttons dispatch pin_and_go, deliver_garment and patrol_collect tasks',async t=>{
+  const {element,root,window}=dom();const started:unknown[]=[];
+  t.mock.method(globalThis,'fetch',async(path:string,init:RequestInit)=>{
+    if(path==='/api/ros/tasks' && init?.method==='POST'){
+      const body=JSON.parse(String(init.body));started.push(body);
+      return Response.json({id:'b9e0e188-122b-449d-966b-f97b2bb63981',kind:body.kind,status:'accepted',phase:1,feedback:null,result:null});
+    }
+    if(path==='/api/ros/tasks') return Response.json({tasks:[]});
+    if(path==='/api/setup') return Response.json({device:null,accountConfigured:false,pinConfigured:false});
+    return Response.json({available:true,state:{connected:true,battery_known:true,battery_fraction:0.9,evidence:{valid:true,stale:false}},camera:null,arm:null,calibration:null});
+  });
+  try {
+    await act(async()=>root.render(createElement(App,{session:Promise.resolve({authenticated:true})})));await flush();
+    const button=(text:string)=>Array.from(element.querySelectorAll('button')).find(b=>b.textContent===text)!;
+    await act(async()=>button('Pin & Go').click());await flush();
+    await act(async()=>button('Deliver Garment').click());await flush();
+    await act(async()=>button('Patrol & Collect').click());await flush();
+    assert.deepEqual(started,[
+      {kind:'pin_and_go',goal:{target_x_m:0,target_y_m:0,max_duration_s:120,dry_run:true}},
+      {kind:'deliver_garment',goal:{category:'any',drop_x_m:0,drop_y_m:0,max_duration_s:300,allow_towing:false,dry_run:true}},
+      {kind:'patrol_collect',goal:{drop_x_m:0,drop_y_m:0,max_duration_s:600,max_items:5,allow_towing:false,dry_run:true}},
+    ]);
+  } finally {await act(async()=>root.unmount());await window.happyDOM.close();}
+});
+
 test('setup renders required web inputs and bounded expired-login recovery',async t=>{
   const {element,root,window}=dom();const submitted:unknown[]=[];let succeedLogin=false;
   t.mock.method(globalThis,'fetch',async(path:string,init:RequestInit)=>{
