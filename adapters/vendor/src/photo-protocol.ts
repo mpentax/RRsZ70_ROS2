@@ -3,10 +3,7 @@
 import { createDecipheriv, createHash, randomBytes } from "node:crypto";
 import { gunzipSync } from "node:zlib";
 
-export const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
 export const MAX_MAP_BYTES = 32 * 1024 * 1024;
-const MAX_HEADER_BYTES = 0xffff;
-const BLOB_MAGIC = Buffer.from("ROBOROCK", "ascii");
 
 export class PhotoProtocolError extends Error {
   constructor(message: string) {
@@ -50,31 +47,7 @@ function decompress(bytes: Buffer, limit: number): Buffer {
   }
 }
 
-/** Input is the payload AFTER the outer Roborock frame has been verified/decrypted.
- * A JSON RPC ["ok"] is only an acknowledgement, never a photo.
- */
-export function decodePhotoBlob(
-  protocol: number, payload: Buffer, expectedRequestId?: number,
-): { requestId: number; data: Buffer } | undefined {
-  if (protocol !== 301 || !Buffer.isBuffer(payload) || !payload.subarray(0, 8).equals(BLOB_MAGIC)) {
-    return undefined;
-  }
-  if (payload.length < 24 || payload.length > MAX_PHOTO_BYTES + MAX_HEADER_BYTES) {
-    throw new PhotoProtocolError("Invalid photo blob frame size");
-  }
-  const requestId = payload.readUInt32LE(8);
-  if (expectedRequestId !== undefined && requestId !== expectedRequestId) return undefined;
-  const headerSize = payload.readUInt16LE(16);
-  const payloadSize = payload.readUInt32LE(20);
-  if (headerSize < 24 || payloadSize === 0 || headerSize + payloadSize !== payload.length) {
-    throw new PhotoProtocolError("Invalid photo blob frame layout");
-  }
-  return { requestId, data: decompress(payload.subarray(headerSize), MAX_PHOTO_BYTES) };
-}
-
-/** Map protocol-301 is a DIFFERENT envelope from the ROBOROCK photo blob.
- * AES-128-CBC uses the request nonce and a zero IV, followed by gzip.
- */
+/** Map protocol-301 envelope: AES-128-CBC using the request nonce and zero IV, followed by gzip. */
 export function decodeMapResponse(
   protocol: number, payload: Buffer, security: BlobSecurity, expectedRequestId?: number,
 ): { requestId: number; data: Buffer } | undefined {
