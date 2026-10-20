@@ -2,11 +2,10 @@
 import cv2
 import numpy as np
 import pytest
-from z70_manipulation import perception, planner
+from z70_manipulation import perception, placement, planner
 
 
 def scene(monkeypatch, gap=.020, elevated=False):
-    from z70_manipulation import placement
     image = np.zeros((400, 600, 3), np.uint8)
     # Synthetic pinhole camera fixture: x=0.5, y=(300-u)*0.001, z=(350-v)*0.001.
     class Camera:
@@ -26,11 +25,11 @@ def scene(monkeypatch, gap=.020, elevated=False):
     T = np.eye(4); T[:3, 3] = [.5, 0., support_top+gap+.03]
     jaw = dict(position=T[:3,3].tolist(), hand_pose_base=T.tolist(), uncertainty_bound_m=.015)
     monkeypatch.setattr(perception, 'front_jaw', lambda _: jaw)
-    return placement, image
+    return image
 
 
 def test_measures_held_bottom_to_elevated_support_without_floor_projection(monkeypatch):
-    placement, image = scene(monkeypatch, elevated=True)
+    image = scene(monkeypatch, elevated=True)
     sample = placement.measure(image, 'green', 'purple', 'yellow', [.5,0.,0.], [0.,0.,0.])
     assert sample['gap_m'] == pytest.approx(.020, abs=.001)
     assert sample['held_bottom_m'][2] == pytest.approx(.152, abs=.001)
@@ -40,7 +39,7 @@ def test_measures_held_bottom_to_elevated_support_without_floor_projection(monke
 
 
 def test_placement_keeps_pale_held_facets_in_contact_geometry(monkeypatch):
-    placement, image = scene(monkeypatch)
+    image = scene(monkeypatch)
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     hsv[204:265, 275:326] = (60, 95, 170)
     hsv[204:235, 275:326] = (60, 220, 170)
@@ -50,21 +49,20 @@ def test_placement_keeps_pale_held_facets_in_contact_geometry(monkeypatch):
 
 
 def test_held_depth_uses_retained_object_transform_not_jaw_origin(monkeypatch):
-    placement, image = scene(monkeypatch)
+    image = scene(monkeypatch)
     baseline = placement.measure(image,'green','yellow','yellow',[.5,0.,0.],[0.,0.,0.])
     shifted = placement.measure(image,'green','yellow','yellow',[.5,0.,0.],[.010,0.,0.])
     assert shifted['held_center_m'][0]-baseline['held_center_m'][0] == pytest.approx(.010)
 
 
 def test_rejects_same_hue_background_instead_of_assuming_object_depth(monkeypatch):
-    placement,image=scene(monkeypatch)
+    image = scene(monkeypatch)
     cv2.rectangle(image,(220,180),(380,283),(0,200,0),-1)
     with pytest.raises(LookupError,match='contour'):
         placement.measure(image,'green','yellow','yellow',[.5,0.,0.],[0.,0.,0.])
 
 
 def test_observation_recovers_local_pose_not_stale_pregrip_angles():
-    from z70_manipulation import placement
     current = [210., 75., 10.]
     observed = planner.hand.hand_pose(current)
     recovered = placement.observed_joints(observed)
@@ -74,7 +72,6 @@ def test_observation_recovers_local_pose_not_stale_pregrip_angles():
 
 
 def test_descent_never_substitutes_40mm_for_20mm_gap():
-    from z70_manipulation import placement
     sample = dict(gap_m=.020, lateral_error_m=[0.,0.])
     assert placement.descent_step(sample, None) is None
     sample['gap_m'] = .060
