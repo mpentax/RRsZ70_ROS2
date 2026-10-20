@@ -18,7 +18,6 @@ export interface RpcOutcome {
   transportReason?: "timeout" | "capacity" | "invalid-input" | "unavailable" | "transport" | "cancelled";
   startedAt: number;
   finishedAt: number;
-  physicalCompletion: "unverified";
 }
 /** Do not forward credential-bearing values even from authenticated vendor payloads. */
 export function publicRpcValue(value: unknown, secrets: readonly string[] = [], depth = 0): unknown {

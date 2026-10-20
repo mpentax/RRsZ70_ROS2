@@ -185,7 +185,7 @@ export async function createService(options: ServiceOptions) {
     };
     event('accepted', 'not_sent', 'none');
     const requestSecrets = secrets();
-    const base = { requestId, startedAt, deviceId: device?.duid ?? null, transport: input.transport ?? "local", physicalCompletion: "unverified" as const };
+    const base = { requestId, startedAt, deviceId: device?.duid ?? null, transport: input.transport ?? "local" };
     let target: ServiceRobot | null = robot;
     try {
       if (!device) throw new TransportError("No selected device", "not_sent");
@@ -472,7 +472,7 @@ export async function createService(options: ServiceOptions) {
       await configureCamera(generation);
       if (body.enabled) { if (!driver.preload) return fail(503, "Preload unsupported."); await driver.preload(true); }
       else { if (!driver.unload) return fail(503, "Unload unsupported."); await driver.unload(); }
-      return reply(res, 200, { persistentStream: await driver.preloaded?.() ?? null, physicalCompletion: "unverified" });
+      return reply(res, 200, { persistentStream: await driver.preloaded?.() ?? null });
     }
     return fail(404, "Not found.");
   }

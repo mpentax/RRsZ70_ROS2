@@ -26,7 +26,7 @@ test("container and explicit TLS proxy configuration has exact host validation",
   const config = loadServiceConfig({
     ROBOCLAW_HOST: "0.0.0.0", ROBOCLAW_PUBLIC_ORIGIN: "https://robot.example",
     ROBOCLAW_SECURE_COOKIE: "true", ROBOCLAW_ALLOWED_HOSTS: "127.0.0.1:57000,robot.internal:57000",
-    ROBOCLAW_STATE_DIR: "/data", GO2RTC_ORIGIN: "http://go2rtc:57001",
+    ROBOCLAW_STATE_DIR: "/data", GO2RTC_ORIGIN: "http://127.0.0.1:57001",
   });
   assert.equal(config.secureCookie, true);
   assert.equal(config.stateDir, "/data");

@@ -3,7 +3,7 @@ import type { ServerResponse } from "node:http";
 export { rosRoute } from "@rrsz70/http-contracts";
 export function rosGatewayOrigin(value: string): URL {
   const url = new URL(value);
-  if (url.protocol !== "http:" || !["127.0.0.1", "[::1]", "host.docker.internal"].includes(url.hostname) || !url.port ||
+  if (url.protocol !== "http:" || !["127.0.0.1", "[::1]", "localhost"].includes(url.hostname) || !url.port ||
       url.username || url.password || url.pathname !== "/" || url.search || url.hash)
     throw new Error("Invalid ROS gateway origin.");
   return url;
@@ -39,6 +39,6 @@ export async function proxyRos(res: ServerResponse, origin: URL, token: string, 
     res.writeHead(response.status, headers); res.end(bytes);
   } catch {
     res.writeHead(503, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ error: "ROS_UNAVAILABLE", dispatch: action ? "unknown" : "not_sent", physicalCompletion: "unverified" }));
+    res.end(JSON.stringify({ error: "ROS_UNAVAILABLE", dispatch: action ? "unknown" : "not_sent" }));
   }
 }
