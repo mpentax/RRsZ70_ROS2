@@ -14,7 +14,7 @@ import { CameraSelector, requestedCamera } from "./camera-selection.ts";
 import { loadServiceConfig, proxyRos, rosGatewayOrigin, rosRoute, type ServiceConfig } from "./service-config.ts";
 import { ServiceAuth, ServiceHttpError } from "./service-auth.ts";
 import { jpegImageDimensions } from "@rrsz70/http-contracts";
-import { readSplitMap } from "./split-map-reader.ts";
+import { readSplitMap } from "./photo-protocol.ts";
 import { mapMetadataFromRead, type PrivateMapMetadata } from "./private-map-cache.ts";
 
 /** Connection-level events only; messages are fixed internal labels (no payloads, keys or addresses). */
