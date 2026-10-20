@@ -3,7 +3,7 @@ import math
 import threading
 import pytest
 from z70_driver import driver as bridge
-from z70_driver.dispatcher import Dispatcher, ZERO
+from z70_driver.commands import Dispatcher, ZERO
 from z70_driver.driver import estimate_to_app
 from z70_driver.estimator import ArmEstimator
 from z70_description.arm_model import vendor_forward, vendor_inverse

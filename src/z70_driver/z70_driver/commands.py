@@ -1,5 +1,6 @@
-"""ROS 2 command action servers and RPC services for z70_driver."""
+"""ROS 2 command action servers, bounded task scheduler, and RPC services for z70_driver."""
 from copy import deepcopy
+from dataclasses import dataclass, field
 import json
 import math
 import queue
@@ -18,7 +19,137 @@ from z70_interfaces.action import BasePulse, ArmStep, HandStep, ArmOperation
 from z70_interfaces.msg import CommandOutcome, ArmEstimate
 from z70_interfaces.srv import Stop, SetArmAnchor, RawRpc, TaskSession, SetControlSession
 from std_msgs.msg import Bool
-from .dispatcher import Dispatcher, ZERO
+
+ZERO = bytes(16)
+
+
+@dataclass(eq=False)
+class Ticket:
+    task_id: bytes = ZERO
+    cancelled: threading.Event = field(default_factory=threading.Event)
+    stop_done: threading.Event = field(default_factory=threading.Event)
+    stop_outcomes: list = field(default_factory=list)
+
+
+class Dispatcher:
+    def __init__(self, stop, cancel_task=lambda token: None, stop_ok=lambda outcomes: True):
+        self.lock = threading.RLock()
+        self.active = None
+        self.task_id = ZERO
+        self.stopping = 0
+        self.blocked = False
+        self.session_enabled = True
+        self._stop = stop
+        self._stop_ok = stop_ok
+        self._cancel_task = cancel_task
+
+    def reserve(self, task_id=ZERO):
+        with self.lock:
+            if not self.session_enabled or self.blocked or self.stopping or self.active is not None or task_id != self.task_id:
+                return None
+            self.active = Ticket(task_id)
+            return self.active
+
+    def valid(self, ticket):
+        with self.lock:
+            return self.session_enabled and self.active is ticket and not ticket.cancelled.is_set() and not self.stopping
+
+    def release(self, ticket):
+        with self.lock:
+            if self.active is ticket:
+                self.active = None
+
+    def _revoke(self):
+        ticket, task = self.active, self.task_id
+        if ticket:
+            ticket.cancelled.set()
+        self.active = None
+        self.task_id = ZERO
+        if task != ZERO:
+            self._cancel_task(task)
+        return ticket
+
+    def _finish_stop(self, previous, scope=3):
+        try:
+            outcomes = self._stop(scope)
+            with self.lock:
+                self.blocked = not self._stop_ok(outcomes)
+            if previous:
+                previous.stop_outcomes = outcomes
+            return outcomes
+        finally:
+            with self.lock:
+                if previous:
+                    previous.stop_done.set()
+                self.stopping -= 1
+
+    def stop(self, scope=3, ticket=None):
+        with self.lock:
+            if ticket is not None and ticket.cancelled.is_set():
+                return ticket.stop_outcomes
+            self.stopping += 1
+            previous = self._revoke()
+        return self._finish_stop(previous, scope)
+
+    def _guarded_takeover(self, on_ready):
+        with self.lock:
+            if not self.session_enabled or self.stopping:
+                return False, None
+            self.stopping += 1
+        try:
+            self.stop(3)
+            with self.lock:
+                if not self.session_enabled or self.blocked:
+                    return True, None
+                return True, on_ready()
+        finally:
+            with self.lock:
+                self.stopping -= 1
+
+    def begin(self, task_id=ZERO, takeover=False):
+        if not self.session_enabled:
+            return False, ZERO, 'SESSION_STOPPED'
+        if takeover:
+            if task_id != ZERO:
+                return False, ZERO, 'INVALID_INPUT'
+            entered, token = self._guarded_takeover(lambda: setattr(self, 'task_id', uuid.uuid4().bytes) or self.task_id)
+            if not entered:
+                return False, ZERO, 'BUSY'
+            return (True, token, 'NONE') if token else (False, ZERO, 'STOP_UNVERIFIED')
+        with self.lock:
+            if not self.session_enabled or self.stopping or self.blocked:
+                return False, ZERO, 'BUSY'
+            if self.task_id != ZERO:
+                return (True, self.task_id, 'NONE') if task_id == self.task_id else (False, ZERO, 'BUSY')
+            if self.active is not None:
+                return False, ZERO, 'BUSY'
+            if task_id != ZERO:
+                return False, ZERO, 'INVALID_INPUT'
+            self.task_id = uuid.uuid4().bytes
+            return True, self.task_id, 'NONE'
+
+    def end(self, task_id):
+        with self.lock:
+            if task_id == ZERO or task_id != self.task_id:
+                return False
+            previous = self._revoke()
+            if previous:
+                self.stopping += 1
+        if previous:
+            self._finish_stop(previous)
+        return True
+
+    def cancel(self, ticket, launch):
+        with self.lock:
+            if ticket.cancelled.is_set():
+                return
+            self.stopping += 1
+            self._revoke()
+        launch(lambda: self._finish_stop(ticket))
+
+    def takeover(self):
+        _, ticket = self._guarded_takeover(lambda: setattr(self, 'active', Ticket()) or self.active)
+        return ticket
 
 LATCHED = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
                      durability=DurabilityPolicy.TRANSIENT_LOCAL)
