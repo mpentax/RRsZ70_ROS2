@@ -100,16 +100,14 @@ class DepthNode(Node):
                     with self.lock:
                         self.result = (msg.header,xyz,quality)
                     self.last_stamp = stamp
-                except ValueError as e:
+                except (ValueError,OSError,EOFError,TimeoutError) as e:
                     with self.lock:
                         self.result = (msg.header,np.empty((0,3),dtype='<f4'),
                                        {'error':type(e).__name__})
-                    self.last_stamp = stamp
-                except (OSError,EOFError,TimeoutError) as e:
-                    with self.lock:
-                        self.result = (msg.header,np.empty((0,3),dtype='<f4'),
-                                       {'error':type(e).__name__})
-                    break
+                    if isinstance(e,ValueError):
+                        self.last_stamp = stamp
+                    else:
+                        break
             self.stop_event.wait(period)
 
     def publish(self):
