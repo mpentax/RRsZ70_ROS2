@@ -24,7 +24,7 @@ from z70_mapping.boundary import check_corridor_containment, compute_safe_interi
 from z70_mapping.node import spatial_context as compute_spatial_context
 from . import perception, planner
 from .executor import Executor, read_arm, read_status
-from .garment_delivery import GarmentDeliverer, PatrolCollector, PatrolLedger, PinAndGoNavigator, graspable_garments, loaded_route
+from .garment_delivery import GarmentDeliverer, PatrolCollector, PatrolLedger, PinAndGoNavigator, dynamic_obstacles, graspable_garments, loaded_route
 from .perception import transform_xy
 
 COLOR_RE = re.compile(r'[a-zA-Z0-9_-]{1,32}')
@@ -283,9 +283,7 @@ class GoalContext:
     def safe_interior(self, refresh=False, deployed_arm_extension_m=0.):
         snap = self.map_snapshot(refresh=refresh)
         cfg = replace(self.server.navigation_config, deployed_arm_extension_m=deployed_arm_extension_m)
-        dyn = getattr(snap, 'dynamic_obstacles', None)
-        if dyn is None and hasattr(self.observations, 'dynamic_obstacles'):
-            dyn = self.observations.dynamic_obstacles(snap.map.robot[:2] if snap.map.robot else None)
+        dyn = dynamic_obstacles(self.observations, snap, snap.map.robot[:2] if snap.map.robot else None)
         return snap, compute_safe_interior(snap.map, snap.labels, cfg, snap.map.robot, dynamic_obstacles=dyn)
 
     def spatial_context(self, refresh: bool = False) -> dict:

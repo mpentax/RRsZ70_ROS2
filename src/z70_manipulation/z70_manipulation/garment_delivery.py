@@ -33,6 +33,17 @@ def inside(result, xy, margin=0.):
             and float(result.clearance_m[y, x]) + 1e-9 >= result.config.clearance_m + margin)
 
 
+def dynamic_obstacles(observations, snapshot, pose_xy=None, world=None):
+    dyn = getattr(snapshot, 'dynamic_obstacles', None)
+    if dyn is not None:
+        return dyn
+    if hasattr(observations, 'dynamic_obstacles'):
+        return observations.dynamic_obstacles(pose_xy)
+    if world is not None and world.width > 0 and world.height > 0:
+        return world.obstacle_mask(protect_xy=pose_xy)
+    return None
+
+
 class PinAndGoNavigator:
     def __init__(self, observations, commands=None, *, boundary_config=None,
                  max_pose_age_s=5., arrival_tolerance_m=.25, stopping_margin_m=.05,
@@ -89,9 +100,7 @@ class PinAndGoNavigator:
 
     def validate(self, s):
         m = s.map
-        dyn = getattr(s, 'dynamic_obstacles', None)
-        if dyn is None and hasattr(self.observations, 'dynamic_obstacles'):
-            dyn = self.observations.dynamic_obstacles(m.robot[:2] if m.robot else None)
+        dyn = dynamic_obstacles(self.observations, s, m.robot[:2] if m.robot else None)
         b = compute_safe_interior(m, s.labels, self.config, m.robot, dynamic_obstacles=dyn)
         if b.selection_method not in ('robot_safe_cell', 'nearest_safe_cell') or not inside(b, m.robot[:2]):
             raise NavigationRejected('UNLOCALIZED_MAP')
@@ -331,15 +340,9 @@ class GarmentDeliverer:
         self.position=list(p[:2]); self.current_pose=p
         return s
 
-    def _dynamic_obstacles(self, s, pose_xy=None):
-        dyn = getattr(s, 'dynamic_obstacles', None)
-        if dyn is None and hasattr(self.observations, 'dynamic_obstacles'):
-            dyn = self.observations.dynamic_obstacles(pose_xy)
-        return dyn
-
     def context(self, refresh=True):
         s=self.snapshot(refresh)
-        b=compute_safe_interior(s.map,s.labels,self.config,self.current_pose,dynamic_obstacles=self._dynamic_obstacles(s,self.position))
+        b=compute_safe_interior(s.map,s.labels,self.config,self.current_pose,dynamic_obstacles=dynamic_obstacles(self.observations,s,self.position))
         if not inside(b,self.position): raise DeliveryRejected('LOADED_ROUTE_BLOCKED')
         return s,b
 
@@ -452,7 +455,7 @@ class GarmentDeliverer:
         s=self.snapshot()
         if not same_map_frame(map_identity(baseline), map_identity(s)):
             raise DeliveryRejected('MAP_CONTEXT_CHANGED')
-        live=compute_safe_interior(s.map,s.labels,self.config,self.current_pose,dynamic_obstacles=self._dynamic_obstacles(s,self.position))
+        live=compute_safe_interior(s.map,s.labels,self.config,self.current_pose,dynamic_obstacles=dynamic_obstacles(self.observations,s,self.position))
         if not inside(boundary,self.position) or not inside(live,self.position):
             raise DeliveryRejected('BOUNDARY_ABORT')
         if loaded:
@@ -788,16 +791,6 @@ class PatrolCollector:
         elif self.world is not None:
             self.world.apply_event(dict(action=action, **fields))
 
-    def _dynamic_obstacles(self, snapshot, pose_xy=None):
-        dyn = getattr(snapshot, 'dynamic_obstacles', None)
-        if dyn is not None:
-            return dyn
-        if hasattr(self.observations, 'dynamic_obstacles'):
-            return self.observations.dynamic_obstacles(pose_xy)
-        if self.world is not None and self.world.width > 0 and self.world.height > 0:
-            return self.world.obstacle_mask(protect_xy=pose_xy)
-        return None
-
     def verify_context(self,refresh=True):
         self.guard(); self.state('LOCALIZE_AND_VERIFY_CONTEXT')
         s=self.observations.navigation_snapshot(refresh=refresh,max_age_s=5.)
@@ -813,7 +806,7 @@ class PatrolCollector:
                 s.map_index, s.map.origin, s.map.width, s.map.height, s.map.resolution,
             )
         self.config=replace(self.config,allowed_segments=tuple(self.ledger.data['allowed_segments']))
-        b=compute_safe_interior(s.map,s.labels,self.config,pose,dynamic_obstacles=self._dynamic_obstacles(s,pose[:2]))
+        b=compute_safe_interior(s.map,s.labels,self.config,pose,dynamic_obstacles=dynamic_obstacles(self.observations,s,pose[:2],self.world))
         if not inside(b,pose[:2]): raise DeliveryRejected('UNLOCALIZED_MAP')
         self.ledger.data['lost_rooms']=list(b.lost_rooms)
         self.ledger.waypoints(b.waypoints)
@@ -901,7 +894,7 @@ class PatrolCollector:
             snapshot,b=self.verify_context(refresh=not goal.dry_run)
             pose=self._pose(snapshot)
             loaded_boundary=compute_safe_interior(snapshot.map,snapshot.labels,
-                replace(self.config,deployed_arm_extension_m=.10),pose,dynamic_obstacles=self._dynamic_obstacles(snapshot,pose[:2]))
+                replace(self.config,deployed_arm_extension_m=.10),pose,dynamic_obstacles=dynamic_obstacles(self.observations,snapshot,pose[:2],self.world))
             if loaded_route(loaded_boundary,pose[:2],(goal.drop_x_m,goal.drop_y_m)) is None:
                 return dict(self.ledger.completion(),status_code='LOADED_ROUTE_BLOCKED',detail='No safe deployed-arm route to staging drop')
             if goal.dry_run:
