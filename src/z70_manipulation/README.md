@@ -105,7 +105,7 @@ spec = GoalSpec(
 )
 ```
 
-- **Runtime Goal Catalog (`GET /api/ros/goals`, `GOAL_CONTEXT_PRIMITIVES` & `GoalSpec.describe()`):** `z70_web_gateway` exposes `GET /api/ros/goals` (and MCP `list_goals`) returning `{goals: [{kind, topic, action, fields, field_types, result_fields, navigation, description}, ...], context_primitives: [{name, signature, summary}, ...]}` (`GOAL_CONTEXT_PRIMITIVES` in `goals.py`).
+- **Runtime Goal Catalog (`GET /api/ros/goals`, `GOAL_CONTEXT_PRIMITIVES` & `GoalSpec.describe()`):** `z70_web_gateway` exposes `GET /api/ros/goals` (and MCP `list_goals`) returning `{goals: [{kind, topic, action, fields, field_types, result_fields, timeout_s, navigation, description}, ...], context_primitives: [{name, signature, summary}, ...]}` (`GOAL_CONTEXT_PRIMITIVES` in `goals.py`).
 - **Dry-Run Goal Validation & Simulation (`POST /api/ros/goals/validate` & MCP `validateOnly`/`simulate`/`context`):** `POST /api/ros/goals/validate` validates a `{kind, goal, simulate?: bool, context?: dict}` request payload against `GoalSpec.validate_payload` and the ROS message schema without dispatching to hardware, and when `simulate: true` is passed (or via MCP `start_task(..., simulate: true, context?: {...})`), executes `simulate_goal()` in memory with any `context` primitive overrides and returns `simulated: {ok, result}`.
 - **Pure-Python Goal Simulation (`simulate_goal(spec, request, **overrides)`):** `simulate_goal()` constructs an in-memory mock `GoalContext` with defaults for all `GOAL_CONTEXT_PRIMITIVES` (overridable via callables or static return values) and invokes `spec.run(ctx, request)` so `GoalSpec` handlers can be unit-tested offline without spinning up DDS or hardware.
 

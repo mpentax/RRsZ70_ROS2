@@ -17,14 +17,14 @@ Proxied by the sidecar to `z70_web_gateway` (`127.0.0.1:57020`). Task IDs are lo
 | Method & Path | Request / Response |
 | :--- | :--- |
 | `GET /api/ros/state` | `{available, session_enabled, state, camera, arm, calibration}` (`state.grab_status` decoded from `common_status` bits `6..9`, `grab_mode` in bits `10..11`). |
-| `GET /api/ros/map` | `{map: OccupancyGrid \| null}` |
+| `GET /api/ros/map` | `{map: OccupancyGrid \| null, dynamic_obstacles?: OccupancyGrid, world_objects?: dict}` |
 | `POST /api/ros/frame` | `{}` returns the active camera JPEG; `{camera: "front" \| "gripper"}` filters by lens without switching cameras. Response headers include `X-Roboclaw-Camera`, `X-Roboclaw-Frame-Id`, `X-Roboclaw-Camera-Session`, and `X-Roboclaw-Received-At`. |
 | `POST /api/ros/camera/select` | `{camera: "front" \| "gripper"}` -> calls `/z70/camera/select` (`SelectCamera`). |
 | `POST /api/ros/arm/anchor` | `{anchor: "unknown" \| "stowed" \| "deployed", reason?: string}` -> calls `/z70/arm/anchor` (`SetArmAnchor`). |
 | `POST /api/ros/stop` | `{scope?: 1 \| 2 \| 3}` (`1` BASE, `2` ARM, `3` ALL; default `ALL`) -> calls `/z70/stop` (`Stop`). |
 | `POST /api/ros/control/session` | `{enabled: bool}` -> calls `/z70/control/session` (`SetControlSession`). |
 | `POST /api/ros/rpc` | `{method, params, timeoutMs?: 1..30000, transport?: "local" \| "cloud", takeover?: bool}` -> calls `/z70/driver/raw_rpc` (`RawRpc`). |
-| `GET /api/ros/goals` | `{goals: [{kind, topic, action, fields, field_types, result_fields, navigation, description}], context_primitives: [{name, signature, summary}]}` |
+| `GET /api/ros/goals` | `{goals: [{kind, topic, action, fields, field_types, result_fields, timeout_s, navigation, description}], context_primitives: [{name, signature, summary}]}` |
 | `POST /api/ros/goals/validate` | `{kind, goal, simulate?: bool, context?: dict}` -> dry-run schema/field validation (and optional in-memory `simulate_goal()` execution with `context` primitive overrides returning `simulated: {ok, result}`) without dispatching to the robot. |
 | `POST /api/ros/tasks` | `{kind, goal}` -> `202` `Task` after action acceptance. |
 | `GET /api/ros/tasks` | `{tasks: [Task]}` |
@@ -41,7 +41,7 @@ Proxied by the sidecar to `z70_web_gateway` (`127.0.0.1:57020`). Task IDs are lo
 | `arm_operation` | `/z70/arm/operation` | `{operation: 1..9}` (`1` unstow, `2` stow, `3` recovery-open, `4` grip, `5` put-down / in-place release, `6` enter manual mode `flag:1`, `7` enter remote-pickup mode `flag:2`, `8` exit arm mode `flag:0`, `9` arm recover) |
 | `deploy_arm` | `/z70/arm/deploy` | `{settle: bool}` |
 | `align_target` | `/z70/align_target` | `{color: string}` |
-| `move_arm` | `/z70/arm/move` | `{m3_deg: 90..270, m4_deg: 35..170, m5_deg: 0..155}` |
+| `move_arm` | `/z70/arm/move` | `{m3_deg: 90..270, m4_deg: 35..170, m5_deg: 0..155}` (checked against `planner.safe()`) |
 | `grasp_and_lift` | `/z70/arm/grasp_and_lift` | `{lift_steps: 0..10, verify_color: string}` |
 | `release_and_stow` | `/z70/arm/release_and_stow` | `{put_down: bool}` |
 | `pick` | `/z70/pick` | `{color: string, dry_run: bool}` |
