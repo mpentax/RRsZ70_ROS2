@@ -1,10 +1,21 @@
 import hashlib
+import json
 import math
+import os
 from pathlib import Path
+import subprocess
+import sys
+import time
 from types import SimpleNamespace, SimpleNamespace as NS
 import numpy as np
 import pytest
-from z70_interfaces.msg import CommandEvent
+import rclpy
+from nav_msgs.msg import Odometry
+from rclpy.context import Context
+from rclpy.executors import SingleThreadedExecutor
+from rclpy.node import Node
+from rclpy.qos import DurabilityPolicy, QoSProfile
+from z70_interfaces.msg import CalibrationState, CommandEvent, OdometryStatus
 from z70_odometry import calibration_state as resources
 from z70_odometry.calibration_state import CalibrationPublication, calibrated_camera_x, fill_state, gains_from_state
 from z70_odometry.chassis_calibrator import CommandStream, OnlineCalibration, _arc
@@ -212,3 +223,83 @@ def test_single_sample_sigma_and_ready_gate(tmp_path):
     assert state.camera_x_known and not state.camera_x_sigma_known
     assert not state.camera_x_ready and calibrated_camera_x(state) is None
     assert state.yaw_positive_known and not state.yaw_positive_sigma_known
+
+
+def test_ros_calibrator_consumes_stream_and_persists(tmp_path):
+    context = Context()
+    rclpy.init(args=[], context=context, domain_id=95)
+    node = Node('synthetic_calibration_stream', context=context)
+    executor = SingleThreadedExecutor(context=context)
+    odom = node.create_publisher(Odometry, '/odom', 100)
+    status = node.create_publisher(OdometryStatus, '/z70/odom_status', 100)
+    commands = node.create_publisher(CommandEvent, '/z70/commands', 256)
+    results = []
+    node.create_subscription(CalibrationState, '/z70/chassis_calibration', results.append,
+                             QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL))
+    path = tmp_path / 'online.json'
+    log = (tmp_path / 'calibrator.log').open('w')
+    process = subprocess.Popen(
+        [sys.executable, '-m', 'z70_odometry.chassis_calibrator', '--ros-args', '-p', f'output_file:={path}', '-p', 'seed_directory:=""'],
+        env=dict(os.environ, ROS_DOMAIN_ID='95'), stdout=log, stderr=log)
+    try:
+        deadline = time.monotonic() + 8
+        while (odom.get_subscription_count() == 0 or status.get_subscription_count() == 0 or commands.get_subscription_count() == 0) and time.monotonic() < deadline:
+            rclpy.spin_once(node, executor=executor, timeout_sec=.1)
+        assert commands.get_subscription_count() > 0
+        base = time.time_ns() - 6_000_000_000
+        start = base + 1_000_000_000
+        for i in range(17):
+            stamp = base + i * 250_000_000
+            fraction = max(0, min(1, (stamp - start) / 600_000_000))
+            yaw = .5 * .6 * .65 * fraction
+            msg = Odometry()
+            msg.header.stamp.sec = stamp // 10**9
+            msg.header.stamp.nanosec = stamp % 10**9
+            msg.pose.pose.position.x = (.28 - .16) * (math.cos(yaw) - 1)
+            msg.pose.pose.position.y = (.28 - .16) * math.sin(yaw)
+            msg.pose.pose.orientation.z = math.sin(yaw / 2)
+            msg.pose.pose.orientation.w = math.cos(yaw / 2)
+            quality = OdometryStatus(pair_accepted=True, active_camera_x_known=True, active_camera_x_m=.16)
+            quality.header = msg.header
+            quality.evidence.valid = True
+            quality.validity.value = 1
+            odom.publish(msg)
+            status.publish(quality)
+        deadline = time.monotonic() + .3
+        while time.monotonic() < deadline:
+            rclpy.spin_once(node, executor=executor, timeout_sec=.05)
+        command = CommandEvent(operation='app_rc_move', phase=1)
+        command.evidence.session_id.uuid = [1] * 16
+        command.evidence.sequence = 1
+        command.evidence.source_time_known = True
+        command.evidence.source_clock = 1
+        command.evidence.source_at.sec = start // 10**9
+        command.evidence.source_at.nanosec = start % 10**9
+        command.outcome.attempt_id.uuid = [2] * 16
+        command.requested_twist.angular.z = .5
+        command.requested_duration.nanosec = 600_000_000
+        commands.publish(command)
+        command.phase = 2
+        command.evidence.sequence = 2
+        command.outcome.dispatch = 1
+        command.outcome.response = 1
+        commands.publish(command)
+        deadline = time.monotonic() + 5
+        while not any(r.sample_count == 1 for r in results) and time.monotonic() < deadline:
+            rclpy.spin_once(node, executor=executor, timeout_sec=.1)
+        measured = next(r for r in results if r.sample_count == 1)
+        assert measured.yaw_positive_known and abs(measured.yaw_positive_gain - .65) < 1e-6
+        assert measured.camera_x_known and abs(measured.camera_x_m - .28) < 1e-6
+        assert json.loads(path.read_text())['n'] == 1
+    finally:
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+        executor.shutdown()
+        node.destroy_node()
+        context.shutdown()
+        log.close()
+    assert process.poll() is not None
