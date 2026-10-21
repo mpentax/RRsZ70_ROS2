@@ -61,6 +61,7 @@ GOAL_CONTEXT_PRIMITIVES: tuple[dict[str, str], ...] = (
     {'name': 'mark_obstacle', 'signature': "mark_obstacle(x_m: float, y_m: float, radius_m: float = 0.12, category: str = 'obstacle', detail: str = 'OBSTACLE') -> dict", 'summary': 'Record a session-scoped stationary or deferred obstacle at (x_m, y_m) in the map frame so safe_interior and route planners avoid it.'},
     {'name': 'clear_world', 'signature': 'clear_world() -> dict', 'summary': 'Clear all session-scoped world objects and dynamic obstacles from the active session world map.'},
     {'name': 'navigate', 'signature': 'navigate(target_x_m: float, target_y_m: float, max_duration_s: float = 60., dry_run: bool = False) -> dict', 'summary': 'Navigate the stowed chassis to (target_x_m, target_y_m) via PinAndGo.'},
+    {'name': 'navigate_room', 'signature': 'navigate_room(room: str | int, max_duration_s: float = 60., dry_run: bool = False) -> dict', 'summary': 'Resolve a room name or segment ID to its safest interior waypoint and navigate there via PinAndGo.'},
     {'name': 'pick', 'signature': 'pick(color: str, dry_run: bool = False) -> dict', 'summary': 'Execute a full autonomous object pickup by HSV color.'},
     {'name': 'stack', 'signature': 'stack(base_color: str, middle_color: str, top_color: str, dry_run: bool = False) -> dict', 'summary': 'Execute a 3-object stack by HSV color.'},
     {'name': 'deliver_garment', 'signature': "deliver_garment(category: str = 'any', drop_x_m: float = 0., drop_y_m: float = 0., max_duration_s: float = 300., allow_towing: bool = False, dry_run: bool = False) -> dict", 'summary': 'Detect, grasp, and deliver a single floor garment to the drop zone.'},
@@ -300,6 +301,10 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         mark_obstacle=_mark_obstacle,
         clear_world=_clear_world,
         navigate=_navigate,
+        navigate_room=lambda room, max_duration_s=60., dry_run=False: (
+            _rec('navigate_room', room=room, max_duration_s=float(max_duration_s), dry_run=bool(dry_run))
+            or {'reached': not dry_run, 'dry_run_valid': bool(dry_run), 'status_code': 'REACHED', 'room': str(room), 'segment_id': int(room) if isinstance(room, int) or str(room).isdigit() else 1, 'target_x_m': 1.0, 'target_y_m': 1.0}
+        ),
         pick=lambda color, dry_run=False: (
             _rec('pick', color=str(color), dry_run=bool(dry_run))
             or {'verified': not dry_run, 'dry_run': bool(dry_run), 'target': {'color': color}}
@@ -534,6 +539,16 @@ class GoalContext:
 
     # --- Motion & Manipulation Primitives ---
 
+    def _run_with_feedback(self, runner, req) -> dict:
+        orig_feedback = self.feedback
+        def synced_feedback(**fields):
+            self.latest_observation = runner.latest_observation
+            orig_feedback(**fields)
+        runner.feedback = synced_feedback
+        data = runner.execute(req)
+        self.latest_observation = runner.latest_observation
+        return data
+
     def navigate(self, target_x_m: float, target_y_m: float, max_duration_s: float = 60., dry_run: bool = False) -> dict:
         nav = PinAndGoNavigator(
             self.observations,
@@ -544,14 +559,19 @@ class GoalContext:
             odom=self.odom,
             feedback=self.feedback,
         )
-        res = nav.execute(SimpleNamespace(
+        return self._run_with_feedback(nav, SimpleNamespace(
             target_x_m=float(target_x_m),
             target_y_m=float(target_y_m),
             max_duration_s=float(max_duration_s),
             dry_run=bool(dry_run),
         ))
-        self.latest_observation = nav.latest_observation
-        return res
+
+    def navigate_room(self, room: str | int, max_duration_s: float = 60., dry_run: bool = False) -> dict:
+        wp = self.room_waypoint(room, refresh=True)
+        if wp is None:
+            return {'reached': False, 'status_code': 'ROOM_UNREACHABLE', 'room': room}
+        res = self.navigate(wp['x'], wp['y'], max_duration_s=max_duration_s, dry_run=dry_run)
+        return {**res, 'room': wp['name'], 'segment_id': wp['segment_id'], 'target_x_m': wp['x'], 'target_y_m': wp['y']}
 
     def pick(self, color: str, dry_run: bool = False) -> dict:
         return self.executor.pick(color, dry_run=dry_run)
@@ -559,16 +579,6 @@ class GoalContext:
     def stack(self, base_color: str, middle_color: str, top_color: str, dry_run: bool = False) -> dict:
         self.executor.feedback = lambda _phase: self.feedback(phase=3, current_tier=1, reason='NONE')
         return self.executor.stack(base_color, middle_color, top_color, dry_run=dry_run)
-
-    def _run_garment_runner(self, runner, req) -> dict:
-        orig_feedback = self.feedback
-        def synced_feedback(**fields):
-            self.latest_observation = runner.latest_observation
-            orig_feedback(**fields)
-        runner.feedback = synced_feedback
-        data = runner.execute(req)
-        self.latest_observation = runner.latest_observation
-        return data
 
     def deliver_garment(self, category: str = 'any', drop_x_m: float = 0., drop_y_m: float = 0.,
                         max_duration_s: float = 300., allow_towing: bool = False, dry_run: bool = False) -> dict:
@@ -578,7 +588,7 @@ class GoalContext:
             towing_config=getattr(self.server, 'towing_config', None),
             feedback=self.feedback,
         )
-        res = self._run_garment_runner(runner, SimpleNamespace(
+        res = self._run_with_feedback(runner, SimpleNamespace(
             category=str(category), drop_x_m=float(drop_x_m), drop_y_m=float(drop_y_m),
             max_duration_s=float(max_duration_s), allow_towing=bool(allow_towing), dry_run=bool(dry_run),
         ))
@@ -607,7 +617,7 @@ class GoalContext:
             towing_config=getattr(self.server, 'towing_config', None),
             feedback=self.feedback,
         )
-        return self._run_garment_runner(runner, SimpleNamespace(
+        return self._run_with_feedback(runner, SimpleNamespace(
             drop_x_m=float(drop_x_m), drop_y_m=float(drop_y_m), max_duration_s=float(max_duration_s),
             max_items=int(max_items), allow_towing=bool(allow_towing), dry_run=bool(dry_run),
         ))
