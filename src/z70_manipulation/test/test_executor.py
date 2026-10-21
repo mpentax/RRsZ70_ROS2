@@ -208,6 +208,7 @@ def test_curated_actions_compose_into_full_verified_pick(fake, tmp_path):
     assert methods.index('app_pick_up_enter_exit') < methods.index('app_arm_out_compartment')
     assert 'app_open_gripper' not in methods and 'app_arm_move' in methods
     assert 'app_grip' in methods and methods.count('app_arm_direction_move') == 2
+    assert any(e[2].get('method') == 'app_grip' and e[2].get('params') == {'flag': 0} for e in events if e[1] == '/api/v1/rpc')
     assert 'app_put_down' in methods and 'app_arm_in_compartment' in methods
     assert methods.index('app_grip') < methods.index('app_arm_direction_move') < methods.index('app_arm_in_compartment')
     rows = [json.loads(line) for line in (tmp_path / 'run/timeline.jsonl').read_text().splitlines()]

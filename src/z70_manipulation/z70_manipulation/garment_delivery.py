@@ -589,7 +589,7 @@ class GarmentDeliverer:
             self.operation('calibrated_descent',lambda:self.executor.move_arm(plan['state']))
             self.capture('1-pregrip',after=self.observations.garment_barrier())
             self.payload_uncertain=True
-            self.operation('close_jaws',lambda:self.executor.command('app_grip',{}))
+            self.operation('close_jaws',lambda:self.executor.command('app_grip',{'flag':0}))
             lift_steps=1 if getattr(self.track,'transport_suitability',1)==2 else 2
             self.last_lift_steps=lift_steps
             for _ in range(lift_steps):

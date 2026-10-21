@@ -471,7 +471,7 @@ class Executor:
             self.pregrip_jaw = planner.measured_point(planner.GRASP, planner._CALIBRATION['effective_jaw_from_elbow_m'])
         self.gripped = True
         try:
-            self.command('app_grip', {}, timeout_ms=500)
+            self.command('app_grip', {'flag': 0}, timeout_ms=500)
         except (UncertainMotion, requests.RequestException):
             self.log('data_gap', kind='grip_outcome_observe_before_deciding')
         self.sleep(2.)

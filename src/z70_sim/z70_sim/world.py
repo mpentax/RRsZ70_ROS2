@@ -542,6 +542,8 @@ class SimWorld:
             if method == 'app_grip':
                 self.joints['m6'] = 0.0
                 self._try_grasp_nearest()
+                if self.grab_mode == 2:
+                    self.joints = dict(POSES['TRANSFER_POS'])
                 self._sync_kinematics()
                 return 'ok', ['ok']
             if method == 'app_arm_move':
