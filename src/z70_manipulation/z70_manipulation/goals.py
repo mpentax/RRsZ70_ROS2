@@ -249,6 +249,27 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
             m.validity.value = 0; m.validity.reason = 'UNRECONCILED_OR_UNKNOWN'
         return m
 
+    def _pulse(velocity=0., omega=0., duration=300):
+        dt = float(duration) / 1000.
+        sim_pose[2] = math.atan2(math.sin(sim_pose[2] + float(omega) * dt), math.cos(sim_pose[2] + float(omega) * dt))
+        sim_pose[0] += float(velocity) * dt * math.cos(sim_pose[2])
+        sim_pose[1] += float(velocity) * dt * math.sin(sim_pose[2])
+        _rec('pulse', velocity=float(velocity), omega=float(omega), duration=int(duration))
+        return {'ok': True}
+
+    def _rpc(method, params=None, timeout_ms=5000):
+        m = str(method)
+        if m == 'app_arm_out_compartment':
+            sim_arm.update(state='WORKING_POS', joints={'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.})
+        elif m in ('app_arm_in_compartment', 'app_arm_recover'):
+            sim_arm.update(state='IN_ROBOT', joints={'m3': 0., 'm4': 0., 'm5': 0., 'm6': 0.})
+        elif m in ('app_open_gripper', 'app_put_down'):
+            sim_arm.setdefault('joints', {})['m6'] = 90.
+        elif m == 'app_grip':
+            sim_arm.setdefault('joints', {})['m6'] = 0.
+        _rec('rpc', method=m, params=params)
+        return {'result': ['ok']}
+
     def _navigate(target_x_m, target_y_m, max_duration_s=60., dry_run=False):
         if not dry_run:
             sim_pose[0], sim_pose[1] = float(target_x_m), float(target_y_m)
@@ -419,12 +440,8 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         set_arm_anchor=_set_arm_anchor,
         grasp_and_lift=_grasp_and_lift,
         release_and_stow=_release_and_stow,
-        pulse=lambda velocity=0., omega=0., duration=300: (
-            _rec('pulse', velocity=float(velocity), omega=float(omega), duration=int(duration)) or {'ok': True}
-        ),
-        rpc=lambda method, params=None, timeout_ms=5000: (
-            _rec('rpc', method=str(method), params=params) or {'result': ['ok']}
-        ),
+        pulse=_pulse,
+        rpc=_rpc,
         stop=lambda: _rec('stop'),
         hazard=lambda: None,
         is_cancelled=lambda: False,
