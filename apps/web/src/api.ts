@@ -179,7 +179,7 @@ export async function initialSession(pin?: string | null): Promise<SessionStatus
 }
 
 export type Task = { id: string; kind: string; status: string; phase: number; feedback: unknown; result: unknown };
-export type RosState = { available: boolean; session_enabled?: boolean | null; state: { connected: boolean; battery_known: boolean; battery_fraction: number; evidence: { valid: boolean; stale: boolean } } | null; camera: unknown; arm: unknown; calibration: unknown };
+export type RosState = { available: boolean; session_enabled?: boolean | null; state: { connected: boolean; battery_known: boolean; battery_fraction: number; evidence: { valid: boolean; stale: boolean } } | null; camera: unknown; arm: unknown; calibration: unknown; objects?: { camera?: string; frame_id?: string; objects?: Record<string, unknown>[] } | null; garments?: unknown };
 export type Setup = { device: { id: string; name: string; model: string; host: string; localProtocol: string } | null; accountConfigured: boolean; pinConfigured: boolean };
 export type TaskRequest = { kind: string; goal: Record<string, unknown> };
 export interface RpcInput { method: string; params: unknown; transport?: "local" | "cloud"; timeoutMs?: number }
@@ -191,7 +191,7 @@ export const taskPath = (id: string) => {
   return `/api/ros/tasks/${id}`;
 };
 export const listGoals = (signal?: AbortSignal) => json<GoalCatalog>("/api/ros/goals", { signal });
-export const validateGoal = (input: { kind: string; goal: Record<string, unknown>; simulate?: boolean; context?: Record<string, unknown> }) => json("/api/ros/goals/validate", { body: input });
+export const validateGoal = (input: { kind: string; goal: Record<string, unknown>; simulate?: boolean; context?: Record<string, unknown> }) => json<GoalValidationResponse>("/api/ros/goals/validate", { body: input });
 export const startTask = (task: TaskRequest) => json<Task>("/api/ros/tasks", { body: task, action: true, timeout: 5000 });
 export const listTasks = (signal?: AbortSignal) => json<{ tasks: Task[] }>("/api/ros/tasks", { signal });
 export const cancelTask = (id: string) => json<{ id: string; cancel_requested: boolean }>(`${taskPath(id)}/cancel`, { body: {}, action: true, timeout: 5000 });

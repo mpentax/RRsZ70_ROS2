@@ -201,7 +201,7 @@ export function createRoboClawMcp(client: RoboClawMcpClient): McpServer {
   const server = new McpServer({ name: "roboclaw-local", version: "0.1.0" }, { instructions: OPERATOR_INSTRUCTIONS });
   const readState = jsonTool(() => client.request("/api/ros/state"));
   for (const [name, title, description] of [
-    ["get_state", "Get ROS robot state", "Read shared ROS robot state, battery, camera status, arm estimate, and chassis calibration."],
+    ["get_state", "Get ROS robot state", "Read shared ROS robot state, battery, camera status, arm estimate, chassis calibration, and latest object/garment detections."],
     ["refresh_status", "Read shared status", "Read cached ROS robot status and telemetry."],
     ["get_camera_diagnostics", "Read camera status", "Read ROS camera and stream connection status."],
   ] as const) {
