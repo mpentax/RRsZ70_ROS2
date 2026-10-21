@@ -241,11 +241,13 @@ class Gateway(Node):
                         pass
                 if isinstance(state_sample, dict) and state_sample.get('connected'):
                     live_ctx['status'] = {
-                        'state': state_sample.get('robot_state', 3),
-                        'error_code': state_sample.get('error_code', 0),
-                        'battery': float(state_sample.get('battery_fraction', 1.)) * 100.,
-                        'common_status': state_sample.get('common_status', 51202),
-                        'grab_status': state_sample.get('grab_status', 0),
+                        'state': state_sample['robot_state'] if state_sample.get('robot_state_known') else 3,
+                        'error_code': state_sample['error_code'] if state_sample.get('error_code_known') else 0,
+                        'battery': float(state_sample['battery_fraction']) * 100. if state_sample.get('battery_known') else 100.,
+                        'common_status': state_sample['common_status'] if state_sample.get('common_status_known') else 51202,
+                        'grab_status': state_sample['grab_status'] if state_sample.get('grab_status_known') else 0,
+                        'in_cleaning': bool(state_sample['in_cleaning']) if state_sample.get('cleaning_known') else False,
+                        'in_returning': bool(state_sample['in_returning']) if state_sample.get('returning_known') else False,
                     }
                 if isinstance(arm_sample, dict):
                     val = arm_sample.get('validity', {}).get('value')
