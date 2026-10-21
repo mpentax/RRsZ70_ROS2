@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import hmac
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -216,7 +217,7 @@ class SimWorld:
         self.scn_option_marker.geomgroup[1] = 0
         self._renderer_front: mujoco.Renderer | None = None
         self._renderer_gripper: mujoco.Renderer | None = None
-        self._renderer_thread_id: int | None = None
+        self._render_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix='z70_sim_render')
         self.dock = (0.832, 0.041) if self.map_preset == 'apartment' else (-1.2, 0.0)
         self.map_sequence = 1
         self.map_saved_at = int(time.time() * 1000)
@@ -460,28 +461,20 @@ class SimWorld:
         with self.lock:
             return 44453 if self.camera == 'gripper' else 11685
 
-    def render_jpeg(self, camera: str | None = None) -> tuple[bytes, str, int, int]:
+    def _render_on_thread(self, camera: str | None = None) -> tuple[bytes, str, int, int]:
         with self.lock:
             active = camera or self.camera
             self._sync_kinematics()
-            tid = threading.get_ident()
-            if self._renderer_thread_id != tid:
-                if self._renderer_front is not None:
-                    try:
-                        self._renderer_front.close()
-                        self._renderer_gripper.close()  # type: ignore[union-attr]
-                    except Exception:
-                        pass
-                self._renderer_front = mujoco.Renderer(self.model, height=1200, width=1600)
-                self._renderer_gripper = mujoco.Renderer(self.model, height=896, width=1600)
-                self._renderer_thread_id = tid
             if active == 'front':
+                if self._renderer_front is None:
+                    self._renderer_front = mujoco.Renderer(self.model, height=1200, width=1600)
                 renderer, maps, w, h = self._renderer_front, self.front_maps, 1600, 1200
                 opt = self.scn_option_marker if self.deployed else self.scn_option
             else:
+                if self._renderer_gripper is None:
+                    self._renderer_gripper = mujoco.Renderer(self.model, height=896, width=1600)
                 renderer, maps, w, h = self._renderer_gripper, self.gripper_maps, 1600, 896
                 opt = self.scn_option
-            assert renderer is not None
             renderer.update_scene(self.data, camera=active, scene_option=opt)
             bgr = cv2.cvtColor(renderer.render(), cv2.COLOR_RGB2BGR)
             distorted = cv2.remap(bgr, maps[0], maps[1], cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
@@ -489,6 +482,9 @@ class SimWorld:
             if not ok:
                 raise RuntimeError('Failed to encode simulated JPEG frame')
             return buf.tobytes(), active, w, h
+
+    def render_jpeg(self, camera: str | None = None) -> tuple[bytes, str, int, int]:
+        return self._render_pool.submit(self._render_on_thread, camera).result()
 
     def handle_rpc(self, method: str, params: Any) -> tuple[str, Any]:
         """Execute a Roborock vendor RPC against the simulated state and physics.

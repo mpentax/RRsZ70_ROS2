@@ -187,6 +187,16 @@ def test_sim_server_and_ros_driver_integration(tmp_path: Path):
     spin_thread = threading.Thread(target=executor.spin, daemon=True)
     spin_thread.start()
     try:
+        import requests
+        assert requests.get(f'{server.origin}/api/session').json() == {'authenticated': True, 'scope': 'control', 'setupAvailable': False}
+        assert requests.post(f'{server.origin}/api/session', json={'pin': '1234'}).json()['authenticated'] is True
+        assert requests.delete(f'{server.origin}/api/session').status_code == 204
+        assert requests.get(f'{server.origin}/api/setup').json()['accountConfigured'] is True
+        assert requests.post(
+            f'{server.origin}/api/camera/frame',
+            json={'camera': 'invalid'},
+            headers={'Authorization': 'Bearer sim-test-bearer-token'},
+        ).status_code == 400
         wait_for(lambda: 'state' in driver.samples and 'camera' in driver.samples and 'map' in driver.samples)
         status = obs.status()
         assert status['state'] == 3 and status['battery'] == 100
