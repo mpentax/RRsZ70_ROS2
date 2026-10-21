@@ -109,6 +109,70 @@ def joint_plan(start,goal,allowed=None,m5=0,m6=90):
             parent[new]=(state,list(codes)); queue.append(new)
     raise ValueError('no safe 10-degree joint path')
 
+
+def trajectory(start_joints, goal_joints, m6=90):
+    """Plan coordinated 10-degree M3/M4/M5 steps within the collision-checked kinematic envelope."""
+    start_m3, start_m4 = round(start_joints[0]), round(start_joints[1])
+    start_m5 = round(start_joints[2]) if len(start_joints) > 2 else 0
+    goal_m3, goal_m4 = round(goal_joints[0]), round(goal_joints[1])
+    goal_m5 = round(goal_joints[2]) if len(goal_joints) > 2 else 0
+    if (goal_m5 - start_m5) % 10 != 0 or not (hand.LIMITS['m5'][0] <= goal_m5 <= hand.LIMITS['m5'][1]):
+        raise ValueError('M5 must be a 10-degree step within joint limits')
+    if not safe((start_m3, start_m4, start_m5, m6)) or not safe((goal_m3, goal_m4, goal_m5, m6)):
+        raise ValueError('unsafe joint endpoint')
+
+    def _m5_steps(m3, m4, m5_a, m5_b):
+        steps = []
+        cur_m5 = m5_a
+        while cur_m5 != m5_b:
+            delta = 10 if m5_b > cur_m5 else -10
+            next_m5 = cur_m5 + delta
+            if not safe((m3, m4, next_m5, m6)) or not safe_edge((m3, m4, cur_m5, m6), (m3, m4, next_m5, m6)):
+                raise ValueError('unsafe M5 joint step')
+            steps.append(dict(m=[0, 0, 1 if delta > 0 else 2], state=[m3, m4, next_m5]))
+            cur_m5 = next_m5
+        return steps
+
+    def _joint_steps(m5):
+        return [dict(m=step['m'], state=[*step['state'], m5])
+                for step in joint_plan((start_m3, start_m4), (goal_m3, goal_m4), m5=m5, m6=m6)]
+
+    def _coordinated_steps():
+        base = joint_plan((start_m3, start_m4), (goal_m3, goal_m4), m5=start_m5, m6=m6)
+        cur_m3, cur_m4, cur_m5 = start_m3, start_m4, start_m5
+        combined = []
+        for step in base:
+            next_m3, next_m4 = step['state']
+            m = list(step['m'])
+            next_m5 = cur_m5
+            if cur_m5 != goal_m5:
+                delta = 10 if goal_m5 > cur_m5 else -10
+                cand_m5 = cur_m5 + delta
+                if safe((next_m3, next_m4, cand_m5, m6)) and safe_edge((cur_m3, cur_m4, cur_m5, m6), (next_m3, next_m4, cand_m5, m6)):
+                    m[2] = 1 if delta > 0 else 2
+                    next_m5 = cand_m5
+            if not safe((next_m3, next_m4, next_m5, m6)) or not safe_edge((cur_m3, cur_m4, cur_m5, m6), (next_m3, next_m4, next_m5, m6)):
+                raise ValueError('unsafe coordinated 3-axis step')
+            combined.append(dict(m=m, state=[next_m3, next_m4, next_m5]))
+            cur_m3, cur_m4, cur_m5 = next_m3, next_m4, next_m5
+        return combined + _m5_steps(cur_m3, cur_m4, cur_m5, goal_m5)
+
+    try:
+        return _coordinated_steps() if start_m5 != goal_m5 else _joint_steps(start_m5)
+    except ValueError:
+        try:
+            return _joint_steps(start_m5) + _m5_steps(goal_m3, goal_m4, start_m5, goal_m5)
+        except ValueError:
+            if start_m5 == goal_m5:
+                raise
+            try:
+                return _m5_steps(start_m3, start_m4, start_m5, goal_m5) + _joint_steps(goal_m5)
+            except ValueError:
+                if 0 in (start_m5, goal_m5):
+                    raise
+                return (_m5_steps(start_m3, start_m4, start_m5, 0) + _joint_steps(0)
+                        + _m5_steps(goal_m3, goal_m4, 0, goal_m5))
+
 _LENS=gripper_camera_info()
 GRIPPER_MATRIX=np.array(_LENS['camera_matrix']['data']).reshape(3,3)
 GRIPPER_D=np.array(_LENS['distortion_coefficients']['data'])

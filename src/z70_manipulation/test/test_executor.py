@@ -630,7 +630,7 @@ def test_simulate_goal_exercises_all_builtin_goals():
         ('patrol_collect', dict(drop_x_m=1., drop_y_m=2., max_duration_s=60., max_items=3, allow_towing=False, dry_run=False), lambda r: r.completed),
         ('deploy_arm', dict(settle=True), lambda r: r.ready),
         ('align_target', dict(color='yellow'), lambda r: r.aligned),
-        ('move_arm', dict(m3_deg=150., m4_deg=45., m5_deg=0.), lambda r: r.steps_executed == 1),
+        ('move_arm', dict(m3_deg=160., m4_deg=45., m5_deg=0.), lambda r: r.steps_executed == 1),
         ('grasp_and_lift', dict(lift_steps=2, verify_color='yellow'), lambda r: r.verified_hold),
         ('release_and_stow', dict(put_down=True), lambda r: r.stowed),
         ('base_pulse', dict(linear_mps=0.05, angular_radps=0., duration=dict(sec=0, nanosec=300000000)), lambda r: r.outcome.error_code == 'NONE'),
@@ -837,6 +837,25 @@ def test_simulate_goal_filters_list_overrides_and_plans_stack_tier():
     ok_yellow, res_yellow = simulate_goal(custom, SimpleNamespace(color='yellow', dry_run=True), objects=objs)
     ok_blue, _ = simulate_goal(custom, SimpleNamespace(color='blue', dry_run=True), objects=objs)
     assert ok_yellow is True and res_yellow.verified_hold is True and ok_blue is False
+
+
+def test_simulate_goal_tracks_stateful_arm_world_and_trace():
+    stateful = GoalSpec(
+        'stateful_check', MoveArm, '/z70/stateful_check', 10., lambda _s, _r: True,
+        lambda ctx, req: (
+            (ctx.deploy_arm(settle=False),
+             ctx.update_world_object(1.0, 2.0, category='sock', mobility='pickupable', relevance='objective'),
+             ctx.move_arm(req.m3_deg, req.m4_deg, req.m5_deg))[-1]['steps_executed'] == 2
+            and ctx.arm()['joints']['m3'] == 170.0
+            and len(ctx.world_objects()['objectives']) == 1,
+            MoveArm.Result(outcome=ctx.outcome(True), steps_executed=len(ctx.trace)),
+        ),
+        fields=('m3_deg', 'm4_deg', 'm5_deg'),
+    )
+    trace = []
+    ok, res = simulate_goal(stateful, SimpleNamespace(m3_deg=170., m4_deg=45., m5_deg=0.), _trace=trace)
+    assert ok is True and res.steps_executed == 3
+    assert [t['primitive'] for t in trace] == ['deploy_arm', 'update_world_object', 'move_arm']
 
 
 

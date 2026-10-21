@@ -185,6 +185,7 @@ def test_validation_token_and_closed_error_contract(system, tmp_path):
         'kind': 'arm_step', 'goal': {'joint': 34, 'direction': 1}, 'simulate': True,
     })
     assert sim_step.status_code == 200 and sim_step.json()['simulated']['ok'] is True
+    assert sim_step.json()['simulated']['trace'][0]['primitive'] == 'arm_step'
     assert request('POST', '/api/ros/goals/validate', {
         'kind': 'move_arm', 'goal': {'m3_deg': 150.0, 'm4_deg': 45.0, 'm5_deg': 0.0},
     }).status_code == 200

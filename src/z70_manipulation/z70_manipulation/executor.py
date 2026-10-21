@@ -324,87 +324,19 @@ class Executor:
 
     def move_arm(self, goal_joints, start_joints=None):
         """Plan and execute coordinated 10-degree M3/M4/M5 steps within the legal kinematic envelope."""
-        if len(goal_joints) == 2:
-            goal_m3, goal_m4, goal_m5 = round(goal_joints[0]), round(goal_joints[1]), 0
-        else:
-            goal_m3, goal_m4, goal_m5 = round(goal_joints[0]), round(goal_joints[1]), round(goal_joints[2])
+        goal = (round(goal_joints[0]), round(goal_joints[1]), round(goal_joints[2]) if len(goal_joints) > 2 else 0)
         if start_joints is None:
             est = self._arm()
             if est.get('state') in ('UNKNOWN', 'IN_ROBOT'):
                 raise LookupError(f"cannot plan arm steps from state {est.get('state')}")
             j = est.get('joints') or {}
-            start_m3 = round(j.get('m3', 150))
-            start_m4 = round(j.get('m4', 45))
-            start_m5 = round(j.get('m5', 0))
+            start = (round(j.get('m3', 150)), round(j.get('m4', 45)), round(j.get('m5', 0)))
         else:
-            start_m3 = round(start_joints[0])
-            start_m4 = round(start_joints[1])
-            start_m5 = round(start_joints[2]) if len(start_joints) > 2 else 0
-
-        if (goal_m5 - start_m5) % 10 != 0 or not (LIMITS['m5'][0] <= goal_m5 <= LIMITS['m5'][1]):
-            raise ValueError('M5 must be a 10-degree step within joint limits')
-        if (not planner.safe((start_m3, start_m4, start_m5, 90))
-                or not planner.safe((goal_m3, goal_m4, goal_m5, 90))):
-            raise ValueError('unsafe joint endpoint')
-
-        def _m5_steps(m3, m4, m5_a, m5_b):
-            steps = []
-            cur_m5 = m5_a
-            while cur_m5 != m5_b:
-                delta = 10 if m5_b > cur_m5 else -10
-                next_m5 = cur_m5 + delta
-                if (not planner.safe((m3, m4, next_m5, 90))
-                        or not planner.safe_edge((m3, m4, cur_m5, 90), (m3, m4, next_m5, 90))):
-                    raise ValueError('unsafe M5 joint step')
-                steps.append(dict(m=[0, 0, 1 if delta > 0 else 2], state=[m3, m4, next_m5]))
-                cur_m5 = next_m5
-            return steps
-
-        def _joint_steps(m5):
-            return [dict(m=step['m'], state=[*step['state'], m5])
-                    for step in planner.joint_plan((start_m3, start_m4), (goal_m3, goal_m4), m5=m5)]
-
-        def _coordinated_steps():
-            base = planner.joint_plan((start_m3, start_m4), (goal_m3, goal_m4), m5=start_m5)
-            cur_m3, cur_m4, cur_m5 = start_m3, start_m4, start_m5
-            combined = []
-            for step in base:
-                next_m3, next_m4 = step['state']
-                m = list(step['m'])
-                next_m5 = cur_m5
-                if cur_m5 != goal_m5:
-                    delta = 10 if goal_m5 > cur_m5 else -10
-                    cand_m5 = cur_m5 + delta
-                    if (planner.safe((next_m3, next_m4, cand_m5, 90))
-                            and planner.safe_edge((cur_m3, cur_m4, cur_m5, 90), (next_m3, next_m4, cand_m5, 90))):
-                        m[2] = 1 if delta > 0 else 2
-                        next_m5 = cand_m5
-                if (not planner.safe((next_m3, next_m4, next_m5, 90))
-                        or not planner.safe_edge((cur_m3, cur_m4, cur_m5, 90), (next_m3, next_m4, next_m5, 90))):
-                    raise ValueError('unsafe coordinated 3-axis step')
-                combined.append(dict(m=m, state=[next_m3, next_m4, next_m5]))
-                cur_m3, cur_m4, cur_m5 = next_m3, next_m4, next_m5
-            return combined + _m5_steps(cur_m3, cur_m4, cur_m5, goal_m5)
-
-        try:
-            steps = _coordinated_steps() if start_m5 != goal_m5 else _joint_steps(start_m5)
-        except ValueError:
-            try:
-                steps = _joint_steps(start_m5) + _m5_steps(goal_m3, goal_m4, start_m5, goal_m5)
-            except ValueError:
-                if start_m5 == goal_m5:
-                    raise
-                try:
-                    steps = _m5_steps(start_m3, start_m4, start_m5, goal_m5) + _joint_steps(goal_m5)
-                except ValueError:
-                    if 0 in (start_m5, goal_m5):
-                        raise
-                    steps = (_m5_steps(start_m3, start_m4, start_m5, 0) + _joint_steps(0)
-                             + _m5_steps(goal_m3, goal_m4, 0, goal_m5))
-
+            start = (round(start_joints[0]), round(start_joints[1]), round(start_joints[2]) if len(start_joints) > 2 else 0)
+        steps = planner.trajectory(start, goal)
         for step in steps:
             self.jog(step)
-        return dict(state=[goal_m3, goal_m4, goal_m5], steps_executed=len(steps))
+        return dict(state=list(goal), steps_executed=len(steps))
 
     def front_measure(self, color, previous):
         """Object and jaw are measured from the same fresh front exposure when visible."""

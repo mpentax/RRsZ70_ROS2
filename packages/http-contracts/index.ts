@@ -33,7 +33,7 @@ export interface GoalValidationResponse {
   kind?: string;
   topic?: string;
   action?: string;
-  simulated?: { ok: boolean; result: Record<string, unknown> };
+  simulated?: { ok: boolean; result: Record<string, unknown>; trace?: Array<Record<string, unknown>> };
   error?: string;
 }
 function requireValue(condition: boolean, message: string): asserts condition {

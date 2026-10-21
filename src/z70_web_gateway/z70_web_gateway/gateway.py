@@ -216,8 +216,9 @@ class Gateway(Node):
             kind, topic, cls, message = self.goal_message({k: v for k, v in body.items() if k not in ('simulate', 'context')})
             res = {'valid': True, 'kind': kind, 'topic': topic, 'action': cls.__name__}
             if simulate:
-                sim_ok, sim_res = simulate_goal(ALL_GOALS[kind], message, **context)
-                res['simulated'] = {'ok': bool(sim_ok), 'result': data(sim_res)}
+                trace = []
+                sim_ok, sim_res = simulate_goal(ALL_GOALS[kind], message, _trace=trace, **context)
+                res['simulated'] = {'ok': bool(sim_ok), 'result': data(sim_res), 'trace': trace}
             return 200, res, {}
         except ApiError as e:
             return e.status, {'valid': False, 'error': e.body['error'], **e.body}, {}

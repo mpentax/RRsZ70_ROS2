@@ -20,7 +20,7 @@ from z70_interfaces.action import (
     BasePulse, ArmStep, HandStep, ArmOperation,
 )
 from z70_interfaces.msg import ArmEstimate, CommandOutcome
-from z70_mapping.boundary import check_corridor_containment, compute_safe_interior, mobility_from_suitability
+from z70_mapping.boundary import SessionWorldMap, check_corridor_containment, compute_safe_interior, mobility_from_suitability
 from z70_mapping.node import spatial_context as compute_spatial_context
 from . import perception, planner
 from .executor import Executor, read_arm, read_status
@@ -70,6 +70,7 @@ GOAL_CONTEXT_PRIMITIVES: tuple[dict[str, str], ...] = (
     {'name': 'plan_approach', 'signature': 'plan_approach(x_m: float, y_m: float) -> dict | None', 'summary': 'Compute the chassis yaw (rad) and forward distance (m) needed to align a base_footprint floor point (x_m, y_m) to the arm grasp point.'},
     {'name': 'plan_grasp', 'signature': 'plan_grasp(x_m: float, y_m: float, size_m: float = 0.066) -> dict | None', 'summary': 'Compute the closest reachable (M3, M4) grasp state and coordinated descent steps for a floor point (x_m, y_m) in base_footprint.'},
     {'name': 'plan_stack_tier', 'signature': 'plan_stack_tier(tier: int, size_m: float = 0.066) -> dict | None', 'summary': 'Plan the placement arm state, required clearance height, lift steps, and trajectory steps for tier 1..3 of a vertical stack.'},
+    {'name': 'plan_trajectory', 'signature': 'plan_trajectory(m3_deg: float, m4_deg: float, m5_deg: float = 0.) -> list[dict] | None', 'summary': 'Plan a collision-checked coordinated 3-axis 10-degree joint trajectory from the current arm joints to (m3_deg, m4_deg, m5_deg).'},
     {'name': 'move_arm', 'signature': 'move_arm(m3_deg: float, m4_deg: float, m5_deg: float = 0.) -> dict', 'summary': 'Execute a collision-checked coordinated multi-axis arm trajectory.'},
     {'name': 'arm_step', 'signature': 'arm_step(m3: int = 0, m4: int = 0, m5: int = 0) -> dict', 'summary': 'Execute a single 10-degree multi-axis joint step [m3, m4, m5] (0=hold, 1=+10deg, 2=-10deg).'},
     {'name': 'hand_step', 'signature': 'hand_step(direction: int) -> dict', 'summary': 'Execute a single 40 mm Cartesian IK hand step (1=up, 2=down, 3=forward, 4=back).'},
@@ -142,7 +143,94 @@ class GoalSpec:
 
 
 def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
-    """Run `spec.run(ctx, request)` against a lightweight in-memory mock `GoalContext`."""
+    """Run `spec.run(ctx, request)` against a stateful in-memory mock `GoalContext`."""
+    trace = overrides.pop('_trace', None)
+    if not isinstance(trace, list):
+        trace = []
+    sim_arm = deepcopy(overrides.pop('arm')) if isinstance(overrides.get('arm'), dict) else {
+        'state': 'WORKING_POS', 'joints': {'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.},
+    }
+    sim_pose = [0., 0., 0.]
+    sim_world = SessionWorldMap()
+
+    def _rec(primitive: str, **info):
+        trace.append({'primitive': primitive, **info})
+
+    def _deploy_arm(settle=True):
+        sim_arm.update(state='WORKING_POS', joints={'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.})
+        _rec('deploy_arm', settle=bool(settle))
+        return {'ready': True}
+
+    def _move_arm(m3_deg, m4_deg, m5_deg=0.):
+        j = sim_arm.get('joints') or {}
+        cur = [150., 45., 0.] if sim_arm.get('state') == 'IN_ROBOT' else [
+            float(j.get('m3', 150.)), float(j.get('m4', 45.)), float(j.get('m5', 0.)),
+        ]
+        target = [round(float(m3_deg)), round(float(m4_deg)), round(float(m5_deg))]
+        steps = planner.trajectory(cur, target, m6=float(j.get('m6', 90.)))
+        sim_arm['state'] = 'IN_PROCESS_POS'
+        sim_arm['joints'] = {'m3': float(target[0]), 'm4': float(target[1]), 'm5': float(target[2]), 'm6': float(j.get('m6', 90.))}
+        _rec('move_arm', target=target, steps_executed=len(steps))
+        return {'state': target, 'steps_executed': len(steps), 'steps': steps}
+
+    def _arm_step(m3=0, m4=0, m5=0):
+        j = sim_arm.setdefault('joints', {'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.})
+        for key, sel, (lo, hi) in (('m3', m3, (90., 270.)), ('m4', m4, (35., 170.)), ('m5', m5, (0., 155.))):
+            if sel in (1, 2):
+                j[key] = max(lo, min(hi, float(j.get(key, lo)) + (10. if sel == 1 else -10.)))
+        sim_arm['state'] = 'IN_PROCESS_POS'
+        _rec('arm_step', m3=int(m3), m4=int(m4), m5=int(m5))
+        return {'m3': int(m3), 'm4': int(m4), 'm5': int(m5)}
+
+    def _open_jaws():
+        sim_arm.setdefault('joints', {})['m6'] = 90.
+        _rec('open_jaws')
+
+    def _grasp_and_lift(lift_steps=2, verify_color=''):
+        sim_arm.setdefault('joints', {})['m6'] = 0.
+        _rec('grasp_and_lift', lift_steps=int(lift_steps), verify_color=str(verify_color))
+        return {'verified': True}
+
+    def _release_and_stow(put_down=True):
+        sim_arm.update(state='IN_ROBOT', joints={'m3': 0., 'm4': 0., 'm5': 0., 'm6': 0.})
+        _rec('release_and_stow', put_down=bool(put_down))
+        return {'stowed': True}
+
+    def _set_arm_anchor(anchor, reason=''):
+        accepted = anchor in ('unknown', 'stowed', 'deployed')
+        if anchor == 'stowed':
+            sim_arm.update(state='IN_ROBOT', joints={'m3': 0., 'm4': 0., 'm5': 0., 'm6': 0.})
+        elif anchor == 'deployed':
+            sim_arm.update(state='WORKING_POS', joints={'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.})
+        elif anchor == 'unknown':
+            sim_arm['state'] = 'UNKNOWN'
+        _rec('set_arm_anchor', anchor=str(anchor), reason=str(reason))
+        return {'accepted': accepted, 'anchor': anchor}
+
+    def _navigate(target_x_m, target_y_m, max_duration_s=60., dry_run=False):
+        if not dry_run:
+            sim_pose[0], sim_pose[1] = float(target_x_m), float(target_y_m)
+        _rec('navigate', target_x_m=float(target_x_m), target_y_m=float(target_y_m), dry_run=bool(dry_run))
+        return {'arrived': not dry_run, 'dry_run_valid': bool(dry_run), 'status_code': 'ARRIVED', 'detail': ''}
+
+    def _update_world_object(x_m, y_m, category='object', mobility='pickupable', relevance='objective', radius_m=0.12, detail=''):
+        entry = sim_world.upsert_object(
+            float(x_m), float(y_m), category=str(category), mobility=str(mobility),
+            relevance=str(relevance), radius_m=float(radius_m), detail=str(detail),
+        )
+        _rec('update_world_object', x_m=float(x_m), y_m=float(y_m), category=str(category), mobility=str(mobility), relevance=str(relevance))
+        return entry.to_dict() if entry else {}
+
+    def _mark_obstacle(x_m, y_m, radius_m=0.12, category='obstacle', detail='OBSTACLE'):
+        entry = sim_world.mark_obstacle(float(x_m), float(y_m), radius_m=float(radius_m), category=str(category), detail=str(detail))
+        _rec('mark_obstacle', x_m=float(x_m), y_m=float(y_m), radius_m=float(radius_m), category=str(category))
+        return entry.to_dict()
+
+    def _clear_world():
+        sim_world.clear()
+        _rec('clear_world')
+        return {'cleared': True}
+
     defaults = dict(
         request=request,
         action_cls=spec.action_cls,
@@ -150,14 +238,15 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         latest_observation=None,
         commands=None,
         executor=None,
+        trace=trace,
         status=lambda: {'state': 3, 'error_code': 0, 'battery': 100, 'common_status': 51202},
-        arm=lambda: {'state': 'IN_ROBOT', 'joints': {'m3': 270., 'm4': 180., 'm5': 0., 'm6': 0.}},
+        arm=lambda: deepcopy(sim_arm),
         arm_msg=ArmEstimate,
-        odom=lambda: {'x': 0., 'y': 0., 'yaw': 0.},
-        map_pose=lambda source='base_footprint': (0., 0., 0.),
+        odom=lambda: {'x': sim_pose[0], 'y': sim_pose[1], 'yaw': sim_pose[2]},
+        map_pose=lambda source='base_footprint': (sim_pose[0], sim_pose[1], sim_pose[2]),
         map_snapshot=lambda refresh=False, max_age_s=5.: None,
         safe_interior=lambda refresh=False, deployed_arm_extension_m=0.: (None, None),
-        spatial_context=lambda refresh=False: {'robot_pose_map': {'x': 0., 'y': 0., 'yaw': 0.}, 'current_room': None, 'rooms': [], 'dock': None, 'clearance_sectors_m': {}},
+        spatial_context=lambda refresh=False: {'robot_pose_map': {'x': sim_pose[0], 'y': sim_pose[1], 'yaw': sim_pose[2]}, 'current_room': None, 'rooms': [], 'dock': None, 'clearance_sectors_m': {}},
         plan_route=lambda target_x_m, target_y_m, deployed_arm_extension_m=0., refresh=False: [(float(target_x_m), float(target_y_m))],
         corridor_safe=lambda start_x_m, start_y_m, end_x_m, end_y_m, radius_m=0., deployed_arm_extension_m=0., refresh=False: True,
         objects=lambda camera='front', color=None: [],
@@ -165,51 +254,64 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         fit_wrist_joints=lambda: {'joints': [190., 65., 0.], 'residual_m': 0., 'residual_deg': 0., 'uncertainty_m': 0.015},
         observe_color=lambda camera, color: [],
         garments=lambda category='any', after=None: [],
-        world_objects=lambda: {'session_bound': True, 'objectives': [], 'obstacles': [], 'completed': [], 'by_mobility': {'pickupable': [], 'draggable': [], 'stationary': []}, 'entries': []},
-        update_world_object=lambda x_m, y_m, category='object', mobility='pickupable', relevance='objective', radius_m=0.12, detail='': {
-            'x': float(x_m), 'y': float(y_m), 'category': str(category), 'mobility': str(mobility), 'relevance': str(relevance), 'radius_m': float(radius_m), 'detail': str(detail),
-        },
-        mark_obstacle=lambda x_m, y_m, radius_m=0.12, category='obstacle', detail='OBSTACLE': {
-            'x': float(x_m), 'y': float(y_m), 'radius_m': float(radius_m), 'category': str(category), 'mobility': 'stationary', 'relevance': 'deferred', 'detail': str(detail),
-        },
-        clear_world=lambda: {'cleared': True},
-        navigate=lambda target_x_m, target_y_m, max_duration_s=60., dry_run=False: {
-            'arrived': not dry_run, 'dry_run_valid': bool(dry_run), 'status_code': 'ARRIVED', 'detail': '',
-        },
-        pick=lambda color, dry_run=False: {
-            'verified': not dry_run, 'dry_run': bool(dry_run), 'target': {'color': color},
-        },
-        stack=lambda base_color, middle_color, top_color, dry_run=False: {
-            'stack_verified': not dry_run, 'dry_run': bool(dry_run), 'all_targets_visible': True, 'tiers_completed': 3,
-        },
-        deliver_garment=lambda category='any', drop_x_m=0., drop_y_m=0., max_duration_s=300., allow_towing=False, dry_run=False: {
-            'delivered': not dry_run, 'dry_run_valid': bool(dry_run), 'status_code': 'DELIVERED', 'detail': '',
-        },
-        patrol_collect=lambda drop_x_m=0., drop_y_m=0., max_duration_s=600., max_items=5, allow_towing=False, dry_run=False: {
-            'completed': not dry_run, 'dry_run_valid': bool(dry_run), 'status_code': 'COMPLETED', 'detail': '',
-        },
-        deploy_arm=lambda settle=True: {'ready': True},
-        align_target=lambda color: {'position': [0.35, 0., 0.04], 'bearing_error_deg': 0., 'range_error_m': 0.},
+        world_objects=sim_world.summary,
+        update_world_object=_update_world_object,
+        mark_obstacle=_mark_obstacle,
+        clear_world=_clear_world,
+        navigate=_navigate,
+        pick=lambda color, dry_run=False: (
+            _rec('pick', color=str(color), dry_run=bool(dry_run))
+            or {'verified': not dry_run, 'dry_run': bool(dry_run), 'target': {'color': color}}
+        ),
+        stack=lambda base_color, middle_color, top_color, dry_run=False: (
+            _rec('stack', base_color=str(base_color), middle_color=str(middle_color), top_color=str(top_color), dry_run=bool(dry_run))
+            or {'stack_verified': not dry_run, 'dry_run': bool(dry_run), 'all_targets_visible': True, 'tiers_completed': 3}
+        ),
+        deliver_garment=lambda category='any', drop_x_m=0., drop_y_m=0., max_duration_s=300., allow_towing=False, dry_run=False: (
+            _rec('deliver_garment', category=str(category), drop_x_m=float(drop_x_m), drop_y_m=float(drop_y_m), dry_run=bool(dry_run))
+            or {'delivered': not dry_run, 'dry_run_valid': bool(dry_run), 'status_code': 'DELIVERED', 'detail': ''}
+        ),
+        patrol_collect=lambda drop_x_m=0., drop_y_m=0., max_duration_s=600., max_items=5, allow_towing=False, dry_run=False: (
+            _rec('patrol_collect', drop_x_m=float(drop_x_m), drop_y_m=float(drop_y_m), max_items=int(max_items), dry_run=bool(dry_run))
+            or {'completed': not dry_run, 'dry_run_valid': bool(dry_run), 'status_code': 'COMPLETED', 'detail': ''}
+        ),
+        deploy_arm=_deploy_arm,
+        align_target=lambda color: (
+            _rec('align_target', color=str(color))
+            or {'position': [0.35, 0., 0.04], 'bearing_error_deg': 0., 'range_error_m': 0.}
+        ),
         arm_safe=lambda m3_deg, m4_deg, m5_deg=0., m6_deg=90.: planner.safe((m3_deg, m4_deg, m5_deg, m6_deg)),
         arm_kinematics=lambda m3_deg, m4_deg, m5_deg=0., m6_deg=90.: planner.arm_kinematics((m3_deg, m4_deg, m5_deg, m6_deg)),
         plan_approach=lambda x_m, y_m: planner.approach([float(x_m), float(y_m), 0.]),
         plan_grasp=lambda x_m, y_m, size_m=.066: {'state': [250, 95], 'error_m': 0., 'steps': []},
         plan_stack_tier=lambda tier, size_m=.066: planner.stack_tier_plan(int(tier), size_m=float(size_m)),
-        move_arm=lambda m3_deg, m4_deg, m5_deg=0.: {'steps_executed': 1},
-        arm_step=lambda m3=0, m4=0, m5=0: {'m3': int(m3), 'm4': int(m4), 'm5': int(m5)},
-        hand_step=lambda direction: {'direction': int(direction)},
-        open_jaws=lambda: None,
-        set_arm_anchor=lambda anchor, reason='': {'accepted': anchor in ('unknown', 'stowed', 'deployed'), 'anchor': anchor},
-        grasp_and_lift=lambda lift_steps=2, verify_color='': {'verified': True},
-        release_and_stow=lambda put_down=True: {'stowed': True},
-        pulse=lambda velocity=0., omega=0., duration=300: {'ok': True},
-        rpc=lambda method, params=None, timeout_ms=5000: {'result': ['ok']},
-        stop=lambda: None,
+        plan_trajectory=lambda m3_deg, m4_deg, m5_deg=0.: planner.trajectory(
+            [150., 45., 0.] if sim_arm.get('state') == 'IN_ROBOT' else [
+                float((sim_arm.get('joints') or {}).get('m3', 150.)),
+                float((sim_arm.get('joints') or {}).get('m4', 45.)),
+                float((sim_arm.get('joints') or {}).get('m5', 0.)),
+            ],
+            [float(m3_deg), float(m4_deg), float(m5_deg)],
+        ),
+        move_arm=_move_arm,
+        arm_step=_arm_step,
+        hand_step=lambda direction: (_rec('hand_step', direction=int(direction)) or {'direction': int(direction)}),
+        open_jaws=_open_jaws,
+        set_arm_anchor=_set_arm_anchor,
+        grasp_and_lift=_grasp_and_lift,
+        release_and_stow=_release_and_stow,
+        pulse=lambda velocity=0., omega=0., duration=300: (
+            _rec('pulse', velocity=float(velocity), omega=float(omega), duration=int(duration)) or {'ok': True}
+        ),
+        rpc=lambda method, params=None, timeout_ms=5000: (
+            _rec('rpc', method=str(method), params=params) or {'result': ['ok']}
+        ),
+        stop=lambda: _rec('stop'),
         hazard=lambda: None,
         is_cancelled=lambda: False,
         sleep=lambda duration: None,
         log=lambda stage, **fields: None,
-        feedback=lambda **fields: None,
+        feedback=lambda **fields: _rec('feedback', **fields),
         outcome=lambda success: CommandOutcome(error_code='NONE' if success else 'OBSERVATION_GAP'),
     )
     callable_keys = {p['name'] for p in GOAL_CONTEXT_PRIMITIVES}
@@ -243,6 +345,7 @@ class GoalContext:
         self.observations = server.observations
         self.directory = directory
         self.latest_observation = None
+        self.trace: list[dict] = []
         self.executor = (
             Executor(
                 client,
@@ -475,6 +578,16 @@ class GoalContext:
         start = (round(float(joints.get('m3', 190)) / 10) * 10, round(float(joints.get('m4', 65)) / 10) * 10)
         try:
             return planner.stack_tier_plan(int(tier), size_m=float(size_m), start=start)
+        except ValueError:
+            return None
+
+    def plan_trajectory(self, m3_deg: float, m4_deg: float, m5_deg: float = 0.) -> list[dict] | None:
+        joints = self.arm().get('joints') or {}
+        start = (round(float(joints.get('m3', 150)) / 10) * 10,
+                 round(float(joints.get('m4', 45)) / 10) * 10,
+                 round(float(joints.get('m5', 0)) / 10) * 10)
+        try:
+            return planner.trajectory(start, (m3_deg, m4_deg, m5_deg))
         except ValueError:
             return None
 
