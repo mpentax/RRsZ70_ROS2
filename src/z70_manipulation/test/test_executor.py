@@ -691,6 +691,7 @@ def test_simulate_goal_exercises_all_builtin_goals():
         ('app_arm_move', {'m': [1, 2, 0]}, 3000),
         ('app_arm_direction_move', {'direction': 3}, 3000),
     ]
+    assert [t['primitive'] for t in real_ctx.trace] == ['arm_step', 'rpc', 'hand_step', 'rpc']
     real_ctx.arm = lambda: {'state': 'WORKING_POS', 'joints': {'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.}}
     with pytest.raises(ValueError, match='unsafe arm_step'):
         real_ctx.arm = lambda: {'state': 'WORKING_POS', 'joints': {'m3': 150., 'm4': 35., 'm5': 0., 'm6': 90.}}

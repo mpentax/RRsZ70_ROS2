@@ -643,6 +643,9 @@ class GoalContext:
             else None
         )
 
+    def _rec(self, primitive: str, **info) -> None:
+        self.trace.append({'primitive': primitive, **info})
+
     # --- State & Perception ---
 
     def status(self) -> dict:
@@ -727,7 +730,7 @@ class GoalContext:
 
     def select_camera(self, camera: str) -> dict:
         res = self.observations.select(camera)
-        self.trace.append({'primitive': 'select_camera', 'camera': str(camera)})
+        self._rec('select_camera', camera=str(camera))
         return res
 
     def objects(self, camera='front', color=None) -> list[dict]:
@@ -777,14 +780,17 @@ class GoalContext:
                 'upsert', x=float(x_m), y=float(y_m), radius_m=float(radius_m),
                 category=str(category), mobility=str(mobility), relevance=str(relevance), detail=str(detail),
             )
+        self._rec('update_world_object', x_m=float(x_m), y_m=float(y_m), category=str(category), mobility=str(mobility), relevance=str(relevance))
         return {'x': float(x_m), 'y': float(y_m), 'radius_m': float(radius_m), 'category': str(category), 'mobility': str(mobility), 'relevance': str(relevance), 'detail': str(detail)}
 
     def mark_obstacle(self, x_m: float, y_m: float, radius_m: float = 0.12, category: str = 'obstacle', detail: str = 'OBSTACLE') -> dict:
+        self._rec('mark_obstacle', x_m=float(x_m), y_m=float(y_m), radius_m=float(radius_m), category=str(category))
         return self.update_world_object(x_m, y_m, category=category, mobility='stationary', relevance='deferred', radius_m=radius_m, detail=detail)
 
     def clear_world(self) -> dict:
         if hasattr(self.observations, 'record_world_event'):
             self.observations.record_world_event('clear')
+        self._rec('clear_world')
         return {'cleared': True}
 
     # --- Motion & Manipulation Primitives ---
@@ -879,9 +885,11 @@ class GoalContext:
         ))
 
     def deploy_arm(self, settle=True) -> dict:
+        self._rec('deploy_arm', settle=bool(settle))
         return self.executor.deploy(settle=settle)
 
     def align_target(self, color: str) -> dict:
+        self._rec('align_target', color=str(color))
         return self.executor.align_front(color)
 
     def arm_safe(self, m3_deg: float, m4_deg: float, m5_deg: float = 0., m6_deg: float = 90.) -> bool:
@@ -932,7 +940,9 @@ class GoalContext:
             return None
 
     def move_arm(self, m3_deg: float, m4_deg: float, m5_deg: float = 0.) -> dict:
-        return self.executor.move_arm((m3_deg, m4_deg, m5_deg))
+        res = self.executor.move_arm((m3_deg, m4_deg, m5_deg))
+        self._rec('move_arm', target=[round(float(m3_deg)), round(float(m4_deg)), round(float(m5_deg))], steps_executed=int(res.get('steps_executed', 0)))
+        return res
 
     def arm_step(self, m3: int = 0, m4: int = 0, m5: int = 0) -> dict:
         if any(v not in (0, 1, 2) for v in (m3, m4, m5)) or not any((m3, m4, m5)):
@@ -947,6 +957,7 @@ class GoalContext:
             nxt = (cur[0] + deltas[0], cur[1] + deltas[1], cur[2] + deltas[2], cur[3])
             if not (planner.safe(nxt) and planner.safe_edge(cur, nxt)):
                 raise ValueError(f'unsafe arm_step from {cur[:3]} to {nxt[:3]}')
+        self._rec('arm_step', m3=int(m3), m4=int(m4), m5=int(m5))
         return self.rpc('app_arm_move', {'m': [int(m3), int(m4), int(m5)]}, timeout_ms=3000)
 
     def hand_step(self, direction: int) -> dict:
@@ -963,29 +974,37 @@ class GoalContext:
             sol = vendor_inverse(x + delta[0] * HAND_STEP_M, y + delta[1] * HAND_STEP_M, (m3, m4))
             if sol is None or vendor_check(sol[0], sol[1], m5) != 'SUCCESS' or not planner.safe((sol[0], sol[1], m5, m6)):
                 raise ValueError(f'unreachable hand_step direction {direction}')
+        self._rec('hand_step', direction=int(direction))
         return self.rpc('app_arm_direction_move', {'direction': int(direction)}, timeout_ms=3000)
 
     def open_jaws(self):
+        self._rec('open_jaws')
         self.executor.open_jaws()
 
     def set_arm_anchor(self, anchor: str, reason: str = '') -> dict:
         if not self.commands:
             raise PermissionError('dry-run forbids arm re-anchoring')
+        self._rec('set_arm_anchor', anchor=str(anchor), reason=str(reason))
         return self.commands.set_arm_anchor(anchor, reason)
 
     def grasp_and_lift(self, lift_steps: int = 2, verify_color: str = '') -> dict:
+        self._rec('grasp_and_lift', lift_steps=int(lift_steps), verify_color=str(verify_color))
         return self.executor.grasp_and_lift(lift_steps=lift_steps, verify_color=verify_color)
 
     def release_and_stow(self, put_down: bool = True) -> dict:
+        self._rec('release_and_stow', put_down=bool(put_down))
         return self.executor.release_and_stow(put_down=put_down)
 
     def pulse(self, velocity: float = 0., omega: float = 0., duration: int = 300):
+        self._rec('pulse', velocity=float(velocity), omega=float(omega), duration=int(duration))
         return self.executor.pulse(velocity=velocity, omega=omega, duration=duration)
 
     def rpc(self, method: str, params=None, timeout_ms: int = 5000) -> dict:
+        self._rec('rpc', method=str(method), params=params)
         return self.client.rpc(method, [] if params is None else params, timeout_ms=timeout_ms)
 
     def stop(self):
+        self._rec('stop')
         if self.commands:
             self.commands.stop()
 
