@@ -193,7 +193,7 @@ def test_validation_token_and_closed_error_contract(system, tmp_path):
         'kind': 'move_arm', 'goal': {'m3_deg': 260.0, 'm4_deg': 160.0, 'm5_deg': 0.0},
     }).status_code == 400
     primitives = {p['name'] for p in catalog['context_primitives']}
-    assert {'status', 'arm', 'map_pose', 'safe_interior', 'objects', 'garments', 'world_objects', 'update_world_object', 'mark_obstacle', 'clear_world', 'navigate', 'deploy_arm', 'align_target', 'move_arm', 'grasp_and_lift', 'release_and_stow', 'pulse', 'rpc', 'feedback', 'outcome'} <= primitives
+    assert {'status', 'arm', 'map_pose', 'safe_interior', 'select_camera', 'objects', 'garments', 'world_objects', 'update_world_object', 'mark_obstacle', 'clear_world', 'navigate', 'deploy_arm', 'align_target', 'move_arm', 'grasp_and_lift', 'release_and_stow', 'pulse', 'rpc', 'feedback', 'outcome'} <= primitives
     world_pub = system['peer'].create_publisher(String, '/z70/world/objects', LATCHED)
     spatial_pub = system['peer'].create_publisher(String, '/z70/map/spatial_context', LATCHED)
     dyn_pub = system['peer'].create_publisher(OccupancyGrid, '/z70/map/dynamic_obstacles', LATCHED)
