@@ -1013,6 +1013,8 @@ def test_simulate_goal_tracks_stateful_arm_world_and_trace():
     assert simulate_goal(ALL_GOALS['deliver_garment'], SimpleNamespace(category='jeans', drop_x_m=1.0, drop_y_m=1.0, max_duration_s=60.0, allow_towing=False, dry_run=True), garments=g_scene)[1].status_code == 'UNSUPPORTED_GARMENT_SKIP'
     assert simulate_goal(ALL_GOALS['deliver_garment'], SimpleNamespace(category='sock', drop_x_m=1.0, drop_y_m=1.0, max_duration_s=60.0, allow_towing=False, dry_run=True), plan_route=None)[1].status_code == 'LOADED_ROUTE_BLOCKED'
     assert simulate_goal(ALL_GOALS['pin_and_go'], SimpleNamespace(target_x_m=1.0, target_y_m=1.0, max_duration_s=60.0, dry_run=True), corridor_safe=False)[1].status_code == 'TARGET_OUTSIDE_INTERIOR'
+    assert simulate_goal(ALL_GOALS['pin_and_go'], SimpleNamespace(target_x_m=1.0, target_y_m=1.0, max_duration_s=60.0, dry_run=False), status={'state': 3, 'error_code': 0, 'battery': 10.0, 'common_status': 51202})[1].status_code == 'ARM_NOT_STOWED'
+    assert simulate_goal(ALL_GOALS['pick'], SimpleNamespace(color='yellow', dry_run=False), status={'state': 3, 'error_code': 0, 'battery': 10.0, 'common_status': 51202})[0] is False
     ok_patrol, patrol_res = simulate_goal(ALL_GOALS['patrol_collect'], SimpleNamespace(drop_x_m=1.0, drop_y_m=1.0, max_duration_s=60.0, max_items=5, allow_towing=False, dry_run=False), garments=g_scene)
     assert ok_patrol is True and patrol_res.completed is False and patrol_res.partial_completion is True and patrol_res.items_delivered == 1 and patrol_res.items_skipped == 1 and patrol_res.status_code == 'PARTIAL_COMPLETION_SMALL_ITEMS_ONLY'
     ok_unsafe, unsafe_res = simulate_goal(

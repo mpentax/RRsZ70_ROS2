@@ -188,8 +188,20 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
     def _rec(primitive: str, **info):
         trace.append({'primitive': primitive, **info})
 
+    def _status_check():
+        st = defaults['status']() if callable(defaults.get('status')) else {}
+        if not isinstance(st, dict):
+            return
+        if st.get('error_code', 0):
+            raise LookupError(f"robot error: {st['error_code']}")
+        if st.get('in_cleaning') or st.get('in_returning'):
+            raise LookupError('unexpected clean/dock')
+        if float(st.get('battery', 100.)) <= 15.:
+            raise LookupError('battery at charging threshold; charge before pickup')
+
     def _deploy_arm(settle=True):
         nonlocal arm_unrestored
+        _status_check()
         arm_unrestored = True
         sim_arm.update(state='WORKING_POS', joints={'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.})
         _rec('deploy_arm', settle=bool(settle))
@@ -197,6 +209,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
 
     def _move_arm(m3_deg, m4_deg, m5_deg=0.):
         nonlocal arm_unrestored
+        _status_check()
         arm_unrestored = True
         j = sim_arm.get('joints') or {}
         cur = [150., 45., 0.] if sim_arm.get('state') == 'IN_ROBOT' else [
@@ -370,7 +383,9 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
 
     def _navigate(target_x_m, target_y_m, max_duration_s=60., dry_run=False):
         _rec('navigate', target_x_m=float(target_x_m), target_y_m=float(target_y_m), dry_run=bool(dry_run))
-        if arm_unrestored and sim_arm.get('state', 'IN_ROBOT') != 'IN_ROBOT':
+        st = defaults['status']() if callable(defaults.get('status')) else {}
+        bad_status = isinstance(st, dict) and (st.get('error_code', 0) != 0 or float(st.get('battery', 100.)) <= 15. or bool(st.get('in_cleaning')) or bool(st.get('in_returning')))
+        if bad_status or (arm_unrestored and sim_arm.get('state', 'IN_ROBOT') != 'IN_ROBOT'):
             return {
                 'arrived': False, 'dry_run_valid': False, 'status_code': 'ARM_NOT_STOWED',
                 'final_position_m': [sim_pose[0], sim_pose[1]],
@@ -438,6 +453,8 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
 
     def _pick(color, dry_run=False):
         nonlocal arm_unrestored
+        if not dry_run:
+            _status_check()
         if 'objects' in overrides:
             seen = defaults['objects']('front', color)
             target = seen[0] if seen else None
@@ -457,6 +474,8 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
 
     def _stack(base_color, middle_color, top_color, dry_run=False):
         nonlocal arm_unrestored
+        if not dry_run:
+            _status_check()
         if 'objects' in overrides:
             all_vis = True
             for c in (base_color, middle_color, top_color):
@@ -477,6 +496,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         return {'stack_verified': all_vis and not dry_run, 'dry_run': bool(dry_run), 'all_targets_visible': all_vis, 'tiers_completed': 3 if all_vis else 0}
 
     def _align_target(color):
+        _status_check()
         if 'objects' in overrides:
             seen = defaults['objects']('front', color)
             if not seen:
