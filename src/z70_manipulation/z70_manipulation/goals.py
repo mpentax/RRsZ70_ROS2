@@ -365,11 +365,20 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         return {'position': pos, 'bearing_error_deg': 0., 'range_error_m': 0.}
 
     def _deliver_garment(category='any', drop_x_m=0., drop_y_m=0., max_duration_s=300., allow_towing=False, dry_run=False):
+        _rec('deliver_garment', category=str(category), drop_x_m=float(drop_x_m), drop_y_m=float(drop_y_m), dry_run=bool(dry_run))
+        if 'garments' in overrides:
+            seen = defaults['garments'](category)
+            if not seen:
+                return {'delivered': False, 'stowed': False, 'dry_run_valid': False, 'status_code': 'NO_CONFIRMED_GARMENT', 'final_position_m': [sim_pose[0], sim_pose[1]], 'detail': 'NO_CONFIRMED_GARMENT'}
+            g0 = seen[0]
+            suit = int(g0.get('transport_suitability', 1) if isinstance(g0, dict) else getattr(g0, 'transport_suitability', 1))
+            if suit != 1:
+                code = 'TOWING_UNQUALIFIED_SKIP' if (suit == 2 and allow_towing) else 'UNSUPPORTED_GARMENT_SKIP'
+                return {'delivered': False, 'stowed': False, 'dry_run_valid': False, 'status_code': code, 'final_position_m': [sim_pose[0], sim_pose[1]], 'detail': code}
         if not dry_run:
             sim_pose[0], sim_pose[1] = float(drop_x_m), float(drop_y_m)
             sim_arm.update(state='IN_ROBOT', joints={'m3': 0., 'm4': 0., 'm5': 0., 'm6': 0.})
             sim_world.mark_completed(float(drop_x_m), float(drop_y_m), category=str(category), detail='DELIVERED')
-        _rec('deliver_garment', category=str(category), drop_x_m=float(drop_x_m), drop_y_m=float(drop_y_m), dry_run=bool(dry_run))
         return {
             'delivered': not dry_run, 'stowed': not dry_run, 'dry_run_valid': bool(dry_run),
             'status_code': 'DRY_RUN_VALID' if dry_run else 'DELIVERED',
