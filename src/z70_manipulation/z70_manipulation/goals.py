@@ -636,6 +636,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         if not _nav_ready():
             return {'delivered': False, 'stowed': False, 'dry_run_valid': False, 'status_code': 'ARM_NOT_STOWED', 'final_position_m': [sim_pose[0], sim_pose[1]], 'detail': 'ARM_NOT_STOWED'}
         tid = ''
+        g0 = None
         if 'garments' in overrides or any(e.relevance == 'objective' for e in sim_world.entries.values()):
             seen = defaults['garments'](category)
             if not seen:
@@ -651,6 +652,9 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
                     sim_world.upsert_object(gx, gy, track_id=tid, category=cat, mobility=mobility_from_suitability(suit), relevance='deferred', detail=code)
                 return {'delivered': False, 'stowed': False, 'dry_run_valid': False, 'status_code': code, 'final_position_m': [sim_pose[0], sim_pose[1]], 'detail': code}
         if defaults['plan_route'](drop_x_m, drop_y_m, deployed_arm_extension_m=0.10) is None:
+            if not dry_run:
+                gx, gy = _garment_map_xy(g0) if g0 is not None else (sim_pose[0], sim_pose[1])
+                sim_world.mark_attempt_failed(gx, gy, track_id=tid, detail='LOADED_ROUTE_BLOCKED')
             return {'delivered': False, 'stowed': False, 'dry_run_valid': False, 'status_code': 'LOADED_ROUTE_BLOCKED', 'final_position_m': [sim_pose[0], sim_pose[1]], 'detail': 'LOADED_ROUTE_BLOCKED'}
         if not dry_run:
             arm_unrestored = False
