@@ -24,7 +24,7 @@ from sensor_msgs.msg import CompressedImage
 from nav_msgs.msg import OccupancyGrid
 from unique_identifier_msgs.msg import UUID
 from z70_driver.driver import frame_key, urdf_to_app
-from z70_interfaces.msg import RobotState, CameraState, ArmEstimate, CalibrationState, FrameMetadata
+from z70_interfaces.msg import RobotState, CameraState, ArmEstimate, CalibrationState, FrameMetadata, GarmentObservations
 from z70_interfaces.srv import RawRpc, Stop, SelectCamera, SetArmAnchor, SetControlSession
 from z70_driver.commands import LATCHED
 from z70_manipulation.goals import ALL_GOALS, GOAL_CONTEXT_PRIMITIVES, simulate_goal
@@ -49,6 +49,7 @@ TOPICS = (
     ('world_objects', String, '/z70/world/objects'),
     ('spatial_context', String, '/z70/map/spatial_context'),
     ('objects', String, '/z70/objects/json'),
+    ('garments', GarmentObservations, '/z70/garments/observations'),
 )
 TERMINAL = {'succeeded', 'failed', 'cancelled', 'rejected'}
 ID = r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
@@ -223,8 +224,14 @@ class Gateway(Node):
                     raw_spatial = self.samples.get('spatial_context', {}).get('data')
                     raw_world = self.samples.get('world_objects', {}).get('data')
                     raw_objects = self.samples.get('objects', {}).get('data')
+                    garments_sample = deepcopy(self.samples.get('garments'))
                     arm_sample = deepcopy(self.samples.get('arm'))
                     state_sample = deepcopy(self.samples.get('state'))
+                if isinstance(garments_sample, dict) and isinstance(garments_sample.get('garments'), list):
+                    live_ctx['garments'] = [
+                        g for g in garments_sample['garments']
+                        if isinstance(g, dict) and g.get('contact_valid', True) and g.get('inside_geofence', True)
+                    ]
                 if isinstance(raw_objects, str):
                     try:
                         obj_data = json.loads(raw_objects)
@@ -315,6 +322,8 @@ class Gateway(Node):
                         res['objects'] = json.loads(raw_obj)
                     except (ValueError, TypeError):
                         pass
+                if 'garments' in self.samples:
+                    res['garments'] = deepcopy(self.samples['garments'])
                 return 200, res, {}
         if method == 'GET' and path == '/api/ros/map':
             with self.lock:
