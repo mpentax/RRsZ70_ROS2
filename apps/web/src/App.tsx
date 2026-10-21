@@ -972,6 +972,16 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
               </p>
             ) : null;
           })()}
+          {catalog?.context_primitives?.length ? (
+            <details style={{ marginBottom: 10 }}>
+              <summary className="caption" style={{ cursor: 'pointer' }}>
+                GoalContext Primitives ({catalog.context_primitives.length})
+              </summary>
+              <pre className="readings" style={{ maxHeight: 160, overflow: 'auto', marginTop: 6 }}>
+                {catalog.context_primitives.map(p => `ctx.${p.name}${p.signature} — ${p.summary}`).join('\n')}
+              </pre>
+            </details>
+          ) : null}
           <div className="form-grid">
             <label>Goal kind<input value={simKind} onChange={e => setSimKind(e.target.value)} /></label>
             <label>Goal JSON<input value={simGoalJson} onChange={e => setSimGoalJson(e.target.value)} /></label>
