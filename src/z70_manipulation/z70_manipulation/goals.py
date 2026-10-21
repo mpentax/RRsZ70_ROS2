@@ -806,6 +806,7 @@ class GoalContext:
         return data
 
     def navigate(self, target_x_m: float, target_y_m: float, max_duration_s: float = 60., dry_run: bool = False) -> dict:
+        self._rec('navigate', target_x_m=float(target_x_m), target_y_m=float(target_y_m), dry_run=bool(dry_run))
         nav = PinAndGoNavigator(
             self.observations,
             self.commands,
@@ -823,6 +824,7 @@ class GoalContext:
         ))
 
     def navigate_room(self, room: str | int, max_duration_s: float = 60., dry_run: bool = False) -> dict:
+        self._rec('navigate_room', room=room, dry_run=bool(dry_run))
         wp = self.room_waypoint(room, refresh=True)
         if wp is None:
             return {'arrived': False, 'dry_run_valid': False, 'status_code': 'ROOM_UNREACHABLE', 'room': room, 'detail': 'ROOM_UNREACHABLE'}
@@ -830,14 +832,17 @@ class GoalContext:
         return {**res, 'room': wp['name'], 'segment_id': wp['segment_id'], 'target_x_m': wp['x'], 'target_y_m': wp['y']}
 
     def pick(self, color: str, dry_run: bool = False) -> dict:
+        self._rec('pick', color=str(color), dry_run=bool(dry_run))
         return self.executor.pick(color, dry_run=dry_run)
 
     def stack(self, base_color: str, middle_color: str, top_color: str, dry_run: bool = False) -> dict:
+        self._rec('stack', base_color=str(base_color), middle_color=str(middle_color), top_color=str(top_color), dry_run=bool(dry_run))
         self.executor.feedback = lambda _phase: self.feedback(phase=3, current_tier=1, reason='NONE')
         return self.executor.stack(base_color, middle_color, top_color, dry_run=dry_run)
 
     def deliver_garment(self, category: str = 'any', drop_x_m: float = 0., drop_y_m: float = 0.,
                         max_duration_s: float = 300., allow_towing: bool = False, dry_run: bool = False) -> dict:
+        self._rec('deliver_garment', category=str(category), drop_x_m=float(drop_x_m), drop_y_m=float(drop_y_m), dry_run=bool(dry_run))
         runner = GarmentDeliverer(
             self.observations, self.executor,
             boundary_config=self.server.navigation_config,
@@ -873,6 +878,7 @@ class GoalContext:
 
     def patrol_collect(self, drop_x_m: float = 0., drop_y_m: float = 0., max_duration_s: float = 600.,
                        max_items: int = 5, allow_towing: bool = False, dry_run: bool = False) -> dict:
+        self._rec('patrol_collect', drop_x_m=float(drop_x_m), drop_y_m=float(drop_y_m), max_items=int(max_items), dry_run=bool(dry_run))
         runner = PatrolCollector(
             self.observations, self.executor, PatrolLedger(self.server.patrol_directory),
             boundary_config=self.server.navigation_config,

@@ -672,6 +672,8 @@ class PickServer(Perception):
                 if client.commands:
                     client.commands.begin()
                 success, result = spec.run(ctx, req)
+                if ctx.trace:
+                    ctx.log('goal_trace', goal=spec.name, steps=len(ctx.trace), trace=ctx.trace)
                 if handle.is_cancel_requested:
                     handle.canceled()
                 elif success:
