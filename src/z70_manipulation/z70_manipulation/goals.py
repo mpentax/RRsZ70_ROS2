@@ -448,11 +448,14 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
                         return [(wx, wy), (tx, ty)]
         return None
 
-    def _navigate(target_x_m, target_y_m, max_duration_s=60., dry_run=False):
-        _rec('navigate', target_x_m=float(target_x_m), target_y_m=float(target_y_m), dry_run=bool(dry_run))
+    def _nav_ready() -> bool:
         st = defaults['status']() if callable(defaults.get('status')) else {}
         bad_status = isinstance(st, dict) and (st.get('error_code', 0) != 0 or float(st.get('battery', 100.)) <= 15. or bool(st.get('in_cleaning')) or bool(st.get('in_returning')))
-        if bad_status or (arm_unrestored and sim_arm.get('state', 'IN_ROBOT') != 'IN_ROBOT'):
+        return not (bad_status or (arm_unrestored and sim_arm.get('state', 'IN_ROBOT') != 'IN_ROBOT'))
+
+    def _navigate(target_x_m, target_y_m, max_duration_s=60., dry_run=False):
+        _rec('navigate', target_x_m=float(target_x_m), target_y_m=float(target_y_m), dry_run=bool(dry_run))
+        if not _nav_ready():
             return {
                 'arrived': False, 'dry_run_valid': False, 'status_code': 'ARM_NOT_STOWED',
                 'final_position_m': [sim_pose[0], sim_pose[1]],
@@ -599,6 +602,8 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
     def _deliver_garment(category='any', drop_x_m=0., drop_y_m=0., max_duration_s=300., allow_towing=False, dry_run=False):
         nonlocal arm_unrestored
         _rec('deliver_garment', category=str(category), drop_x_m=float(drop_x_m), drop_y_m=float(drop_y_m), dry_run=bool(dry_run))
+        if not _nav_ready():
+            return {'delivered': False, 'stowed': False, 'dry_run_valid': False, 'status_code': 'ARM_NOT_STOWED', 'final_position_m': [sim_pose[0], sim_pose[1]], 'detail': 'ARM_NOT_STOWED'}
         tid = ''
         if 'garments' in overrides or any(e.relevance == 'objective' for e in sim_world.entries.values()):
             seen = defaults['garments'](category)
@@ -626,6 +631,13 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
     def _patrol_collect(drop_x_m=0., drop_y_m=0., max_duration_s=600., max_items=5, allow_towing=False, dry_run=False):
         nonlocal arm_unrestored
         _rec('patrol_collect', drop_x_m=float(drop_x_m), drop_y_m=float(drop_y_m), max_items=int(max_items), dry_run=bool(dry_run))
+        if not _nav_ready():
+            return {
+                'completed': False, 'partial_completion': False, 'dry_run_valid': False,
+                'waypoints_visited': 0, 'waypoints_cleared': 0, 'waypoints_deferred': 0,
+                'items_attempted': 0, 'items_delivered': 0, 'items_skipped': 0, 'items_failed': 0,
+                'status_code': 'ARM_NOT_STOWED', 'detail': 'ARM_NOT_STOWED',
+            }
         if defaults['plan_route'](drop_x_m, drop_y_m, deployed_arm_extension_m=0.10) is None:
             return {
                 'completed': False, 'partial_completion': False, 'dry_run_valid': False,
@@ -643,14 +655,17 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
             tid = str((g.get('track_id') or g.get('id') or '') if isinstance(g, dict) else track_key(g))
             suit = int(g.get('transport_suitability', 1) if isinstance(g, dict) else getattr(g, 'transport_suitability', 1))
             cat = str((g.get('category') if isinstance(g, dict) else getattr(g, 'category', '')) or 'garment')
-            if suit == 1 and delivered < int(max_items):
-                delivered += 1
-                if not dry_run:
-                    sim_world.mark_completed(float(drop_x_m), float(drop_y_m), track_id=tid, category=cat, detail='DELIVERED')
+            gx = float((g.get('x', sim_pose[0]) if isinstance(g, dict) else getattr(g, 'x', sim_pose[0])) or sim_pose[0])
+            gy = float((g.get('y', sim_pose[1]) if isinstance(g, dict) else getattr(g, 'y', sim_pose[1])) or sim_pose[1])
+            if suit == 1:
+                if delivered < int(max_items):
+                    delivered += 1
+                    if not dry_run:
+                        sim_world.mark_completed(float(drop_x_m), float(drop_y_m), track_id=tid, category=cat, detail='DELIVERED')
             else:
                 skipped += 1
                 if not dry_run:
-                    sim_world.upsert_object(sim_pose[0], sim_pose[1], track_id=tid, category=cat, mobility='draggable', relevance='deferred', detail='UNSUPPORTED_GARMENT_SKIP')
+                    sim_world.upsert_object(gx, gy, track_id=tid, category=cat, mobility=mobility_from_suitability(suit), relevance='deferred', detail='UNSUPPORTED_GARMENT_SKIP')
         if not dry_run:
             arm_unrestored = False
             sim_arm.update(state='IN_ROBOT', joints={'m3': 0., 'm4': 0., 'm5': 0., 'm6': 0.})
