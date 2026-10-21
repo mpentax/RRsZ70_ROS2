@@ -476,11 +476,12 @@ class GoalContext:
             target_seg = room
         else:
             q = str(room).strip().lower()
-            if q.isdigit():
-                target_seg = int(q)
+            seg_str = q.removeprefix('segment ').strip()
+            if seg_str.isdigit():
+                target_seg = int(seg_str)
             else:
                 for seg, name in labels.items():
-                    if str(name).strip().lower() == q or f'segment {seg}' == q:
+                    if str(name).strip().lower() == q:
                         target_seg = int(seg)
                         break
         if target_seg is None:

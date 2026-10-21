@@ -229,7 +229,7 @@ export function MapCanvas({ mapData, busy, onReadMap, selectedTarget, onSelectTa
     </p>
     {rooms.length > 0 && (
       <div className="chip-row" style={{ marginTop: 8 }}>
-        {rooms.map(r => {
+        {rooms.filter(r => r.reachable !== false).map(r => {
           const c = Array.isArray(r.safe_waypoint) ? r.safe_waypoint : (Array.isArray(r.centroid) ? r.centroid : []);
           const cx = Number(c[0]), cy = Number(c[1]);
           return Number.isFinite(cx) && Number.isFinite(cy) ? (
