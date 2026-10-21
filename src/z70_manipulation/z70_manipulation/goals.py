@@ -366,6 +366,27 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
             sim_arm['state'] = 'IN_PROCESS_POS'
         elif m == 'app_goto_target' and isinstance(params, list) and len(params) == 2:
             sim_pose[0], sim_pose[1] = float(params[0]) / 1000., float(params[1]) / 1000.
+        elif m == 'app_start_program' and isinstance(params, dict) and isinstance(params.get('cmd_ids'), list):
+            for c in params['cmd_ids']:
+                if not isinstance(c, dict):
+                    continue
+                cmd = c.get('cmd_id')
+                n = int(c.get('step', 1)) if isinstance(c.get('step'), int) and c.get('step', 1) > 0 else 1
+                if cmd == 'arm_in':
+                    arm_unrestored = False
+                    sim_arm.update(state='IN_ROBOT', joints={'m3': 0., 'm4': 0., 'm5': 0., 'm6': 0.})
+                elif cmd == 'arm_out':
+                    arm_unrestored = True
+                    sim_arm.update(state='WORKING_POS', joints={'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.})
+                elif cmd == 'arm_joints' and isinstance(c.get('value'), list):
+                    arm_unrestored = True
+                    j = sim_arm.setdefault('joints', {'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.})
+                    for k, step, v in zip(('m3', 'm4', 'm5'), (10., 10., 15.), c['value'][:3]):
+                        if v in (1, 2):
+                            j[k] = float(j.get(k, 0.)) + (step * n if v == 1 else -step * n)
+                    if len(c['value']) >= 4 and c['value'][3] in (1, 2):
+                        j['m6'] = 90. if c['value'][3] == 1 else 0.
+                    sim_arm['state'] = 'IN_PROCESS_POS'
         _rec('rpc', method=m, params=params)
         return {'result': ['ok']}
 
