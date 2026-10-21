@@ -272,6 +272,14 @@ def test_dry_run_only_reads_and_frames(fake, tmp_path):
     result = ex.pick('yellow', dry_run=True)
     assert result['objects'] and result['target']['color'] == 'yellow'
     assert result['descent']
+    far_ex = Executor(
+        client,
+        lambda _cam, _col: [{'color': 'yellow', 'area_px': 400, 'position': [0.85, 0.15, 0.0]}],
+        tmp_path / 'dry-far',
+        sleep=lambda _: None,
+    )
+    far_res = far_ex.pick('yellow', dry_run=True)
+    assert far_res['target']['position'] == [0.85, 0.15, 0.0] and far_res['approach']['forward'] > 0.3 and far_res['descent']
     assert all(e[0] == 'GET' or e[1] == '/api/camera/frame' and e[2] == {} for e in events)
     with pytest.raises(PermissionError):
         client.rpc('app_rc_start', [])

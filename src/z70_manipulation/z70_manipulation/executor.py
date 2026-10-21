@@ -44,6 +44,13 @@ def forward_gain(gains: dict | None, default: float = 1.) -> float:
     return float((gains or {}).get('forward', {}).get('gain') or default)
 
 
+def _safe_approach(position, target=None):
+    try:
+        return planner.approach(position, target)
+    except ValueError:
+        return None
+
+
 def log_directory(repo):
     return Path(repo) / '.local/pickup' / (datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ') + '-ros')
 
@@ -717,13 +724,19 @@ class Executor:
             blobs = self.observe('front', None) or self.observe('front', color) or []
             candidates = [b for b in blobs if b['color'] == color]
             target = max(candidates, key=lambda b: b['area_px']) if candidates else None
+            try:
+                descent = planner.grasp_goal(target['position'], (150, 45))['steps'] if target else None
+            except ValueError:
+                descent = None
+            if descent is None:
+                descent = planner.grasp_goal(planner.grasp_point(), (150, 45))['steps']
             result = dict(
                 dry_run=True,
                 objects=blobs,
                 target=target,
-                approach=planner.approach(target['position']) if target else None,
-                hover=dict(state=[190, 65]),
-                descent=planner.joint_plan((150, 45), (190, 65)) + planner.grasp_goal(target['position'] if target else planner.grasp_point(), (190, 65))['steps'],
+                approach=_safe_approach(target['position']) if target else None,
+                hover=dict(state=[150, 45]),
+                descent=descent,
                 log_dir=str(self.directory),
                 arm_state=estimate.get('state'),
             )
@@ -791,7 +804,7 @@ class Executor:
                     **tier_plan,
                     'color': c,
                     'target': t,
-                    'approach': planner.approach(t['position'], op_xy + [0.]) if t and 'position' in t else None,
+                    'approach': _safe_approach(t['position'], op_xy + [0.]) if t and 'position' in t else None,
                 })
             all_found = all(targets[c] is not None for c in colors)
             result = dict(
