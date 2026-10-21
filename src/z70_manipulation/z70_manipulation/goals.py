@@ -937,6 +937,16 @@ class GoalContext:
     def arm_step(self, m3: int = 0, m4: int = 0, m5: int = 0) -> dict:
         if any(v not in (0, 1, 2) for v in (m3, m4, m5)) or not any((m3, m4, m5)):
             raise ValueError('arm_step axes must be in (0, 1, 2) with at least one nonzero axis')
+        try:
+            j = (self.arm() or {}).get('joints') or {}
+        except Exception:
+            j = {}
+        if all(k in j for k in ('m3', 'm4')):
+            cur = (float(j['m3']), float(j['m4']), float(j.get('m5', 0.)), float(j.get('m6', 90.)))
+            deltas = [10. if s == 1 else -10. if s == 2 else 0. for s in (m3, m4, m5)]
+            nxt = (cur[0] + deltas[0], cur[1] + deltas[1], cur[2] + deltas[2], cur[3])
+            if not (planner.safe(nxt) and planner.safe_edge(cur, nxt)):
+                raise ValueError(f'unsafe arm_step from {cur[:3]} to {nxt[:3]}')
         return self.rpc('app_arm_move', {'m': [int(m3), int(m4), int(m5)]}, timeout_ms=3000)
 
     def hand_step(self, direction: int) -> dict:
