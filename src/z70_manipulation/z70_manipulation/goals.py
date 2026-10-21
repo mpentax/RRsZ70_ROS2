@@ -349,6 +349,25 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
                     return False
         return True
 
+    def _plan_route(target_x_m, target_y_m, deployed_arm_extension_m=0., refresh=False):
+        tx, ty = float(target_x_m), float(target_y_m)
+        if not _corridor_safe(tx, ty, tx, ty, deployed_arm_extension_m=deployed_arm_extension_m):
+            return None
+        if _corridor_safe(sim_pose[0], sim_pose[1], tx, ty, deployed_arm_extension_m=deployed_arm_extension_m):
+            return [(tx, ty)]
+        dx, dy = tx - sim_pose[0], ty - sim_pose[1]
+        norm = math.hypot(dx, dy) or 1.
+        nx, ny = -dy / norm, dx / norm
+        for e in sim_world.entries.values():
+            if e.relevance in ('deferred', 'ignored') or e.mobility in ('stationary', 'draggable'):
+                off = e.radius_m + float(deployed_arm_extension_m) + 0.15
+                for sign in (1., -1.):
+                    wx, wy = round(e.x + sign * nx * off, 3), round(e.y + sign * ny * off, 3)
+                    if (_corridor_safe(sim_pose[0], sim_pose[1], wx, wy, deployed_arm_extension_m=deployed_arm_extension_m)
+                            and _corridor_safe(wx, wy, tx, ty, deployed_arm_extension_m=deployed_arm_extension_m)):
+                        return [(wx, wy), (tx, ty)]
+        return None
+
     def _navigate(target_x_m, target_y_m, max_duration_s=60., dry_run=False):
         _rec('navigate', target_x_m=float(target_x_m), target_y_m=float(target_y_m), dry_run=bool(dry_run))
         if arm_unrestored and sim_arm.get('state', 'IN_ROBOT') != 'IN_ROBOT':
@@ -473,6 +492,8 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
             if suit != 1:
                 code = 'TOWING_UNQUALIFIED_SKIP' if (suit == 2 and allow_towing) else 'UNSUPPORTED_GARMENT_SKIP'
                 return {'delivered': False, 'stowed': False, 'dry_run_valid': False, 'status_code': code, 'final_position_m': [sim_pose[0], sim_pose[1]], 'detail': code}
+        if _plan_route(drop_x_m, drop_y_m, deployed_arm_extension_m=0.10) is None:
+            return {'delivered': False, 'stowed': False, 'dry_run_valid': False, 'status_code': 'LOADED_ROUTE_BLOCKED', 'final_position_m': [sim_pose[0], sim_pose[1]], 'detail': 'LOADED_ROUTE_BLOCKED'}
         if not dry_run:
             arm_unrestored = False
             sim_pose[0], sim_pose[1] = float(drop_x_m), float(drop_y_m)
@@ -576,7 +597,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
             'world_objects': sim_world.summary(),
         },
         room_waypoint=_room_waypoint,
-        plan_route=lambda target_x_m, target_y_m, deployed_arm_extension_m=0., refresh=False: [(float(target_x_m), float(target_y_m))],
+        plan_route=_plan_route,
         corridor_safe=_corridor_safe,
         select_camera=_select_camera,
         objects=lambda camera='front', color=None: [],

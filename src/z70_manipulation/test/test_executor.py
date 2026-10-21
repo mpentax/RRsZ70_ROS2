@@ -940,6 +940,9 @@ def test_simulate_goal_tracks_stateful_arm_world_and_trace():
                      and len(ctx.spatial_context()['world_objects']['objectives']) == 1
                      and ctx.mark_obstacle(1.0, 0.0, radius_m=0.2)
                      and ctx.corridor_safe(0.0, 0.0, 2.0, 0.0) is False
+                     and ctx.plan_route(1.0, 0.0) is None
+                     and len(ctx.plan_route(2.0, 0.0)) == 2
+                     and ctx.deliver_garment('sock', 1.0, 0.0)['status_code'] == 'LOADED_ROUTE_BLOCKED'
                      and ctx.navigate(1.0, 0.0)['status_code'] == 'TARGET_OUTSIDE_INTERIOR'
                      and ctx.clear_world()['cleared'] is True
                      and ctx.corridor_safe(0.0, 0.0, 2.0, 0.0) is True,
