@@ -331,6 +331,39 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         _rec('clear_world')
         return {'cleared': True}
 
+    def _pick(color, dry_run=False):
+        if 'objects' in overrides:
+            seen = defaults['objects']('front', color)
+            target = seen[0] if seen else None
+        else:
+            target = {'color': str(color)}
+        ok = target is not None
+        if ok and not dry_run:
+            sim_arm.update(state='IN_ROBOT', joints={'m3': 0., 'm4': 0., 'm5': 0., 'm6': 0.})
+        _rec('pick', color=str(color), dry_run=bool(dry_run))
+        return {'verified': ok and not dry_run, 'dry_run': bool(dry_run), 'target': target}
+
+    def _stack(base_color, middle_color, top_color, dry_run=False):
+        if 'objects' in overrides:
+            all_vis = all(bool(defaults['objects']('front', c)) for c in (base_color, middle_color, top_color))
+        else:
+            all_vis = True
+        if all_vis and not dry_run:
+            sim_arm.update(state='IN_ROBOT', joints={'m3': 0., 'm4': 0., 'm5': 0., 'm6': 0.})
+        _rec('stack', base_color=str(base_color), middle_color=str(middle_color), top_color=str(top_color), dry_run=bool(dry_run))
+        return {'stack_verified': all_vis and not dry_run, 'dry_run': bool(dry_run), 'all_targets_visible': all_vis, 'tiers_completed': 3 if all_vis else 0}
+
+    def _align_target(color):
+        if 'objects' in overrides:
+            seen = defaults['objects']('front', color)
+            if not seen:
+                raise LookupError(f'target {color} not visible')
+            pos = list(seen[0].get('position', [0.35, 0., 0.04]))
+        else:
+            pos = [0.35, 0., 0.04]
+        _rec('align_target', color=str(color))
+        return {'position': pos, 'bearing_error_deg': 0., 'range_error_m': 0.}
+
     def _deliver_garment(category='any', drop_x_m=0., drop_y_m=0., max_duration_s=300., allow_towing=False, dry_run=False):
         if not dry_run:
             sim_pose[0], sim_pose[1] = float(drop_x_m), float(drop_y_m)
@@ -409,24 +442,15 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         clear_world=_clear_world,
         navigate=_navigate,
         navigate_room=_navigate_room,
-        pick=lambda color, dry_run=False: (
-            _rec('pick', color=str(color), dry_run=bool(dry_run))
-            or {'verified': not dry_run, 'dry_run': bool(dry_run), 'target': {'color': color}}
-        ),
-        stack=lambda base_color, middle_color, top_color, dry_run=False: (
-            _rec('stack', base_color=str(base_color), middle_color=str(middle_color), top_color=str(top_color), dry_run=bool(dry_run))
-            or {'stack_verified': not dry_run, 'dry_run': bool(dry_run), 'all_targets_visible': True, 'tiers_completed': 3}
-        ),
+        pick=_pick,
+        stack=_stack,
         deliver_garment=_deliver_garment,
         patrol_collect=lambda drop_x_m=0., drop_y_m=0., max_duration_s=600., max_items=5, allow_towing=False, dry_run=False: (
             _rec('patrol_collect', drop_x_m=float(drop_x_m), drop_y_m=float(drop_y_m), max_items=int(max_items), dry_run=bool(dry_run))
             or {'completed': not dry_run, 'dry_run_valid': bool(dry_run), 'status_code': 'DRY_RUN_VALID' if dry_run else 'PATROL_CLEARED', 'detail': ''}
         ),
         deploy_arm=_deploy_arm,
-        align_target=lambda color: (
-            _rec('align_target', color=str(color))
-            or {'position': [0.35, 0., 0.04], 'bearing_error_deg': 0., 'range_error_m': 0.}
-        ),
+        align_target=_align_target,
         arm_safe=lambda m3_deg, m4_deg, m5_deg=0., m6_deg=90.: planner.safe((m3_deg, m4_deg, m5_deg, m6_deg)),
         arm_kinematics=lambda m3_deg, m4_deg, m5_deg=0., m6_deg=90.: planner.arm_kinematics((m3_deg, m4_deg, m5_deg, m6_deg)),
         plan_approach=_plan_approach,

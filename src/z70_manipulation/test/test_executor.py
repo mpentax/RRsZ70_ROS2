@@ -968,6 +968,11 @@ def test_simulate_goal_tracks_stateful_arm_world_and_trace():
         navigate={'arrived': True, 'status_code': 'ARRIVED', 'extra_field': 'ignored'},
     )
     assert ok_nav_extra is True and nav_res.arrived is True
+    scene = [{'color': 'yellow', 'position': [0.35, 0.0, 0.03]}, {'color': 'red', 'position': [0.38, 0.04, 0.03]}]
+    assert simulate_goal(ALL_GOALS['pick'], SimpleNamespace(color='yellow', dry_run=True), objects=scene)[0] is True
+    assert simulate_goal(ALL_GOALS['pick'], SimpleNamespace(color='blue', dry_run=True), objects=scene)[0] is False
+    assert simulate_goal(ALL_GOALS['stack'], SimpleNamespace(base_color='yellow', middle_color='red', top_color='blue', dry_run=True), objects=scene)[0] is False
+    assert simulate_goal(ALL_GOALS['align_target'], SimpleNamespace(color='blue'), objects=scene)[0] is False
     with pytest.raises(ValueError, match='unsafe arm_step'):
         simulate_goal(
             GoalSpec('unsafe_step', MoveArm, '/z70/unsafe_step', 10., lambda _s, _r: True,
