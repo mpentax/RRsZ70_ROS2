@@ -133,6 +133,10 @@ export function MapCanvas({ mapData, busy, onReadMap, selectedTarget, onSelectTa
   const grid = unwrapGrid(mapData);
   const worldObjects = record(mapData?.world_objects);
   const entries = Array.isArray(worldObjects.entries) ? worldObjects.entries.map(record) : [];
+  const spatial = record(mapData?.spatial_context);
+  const robotPose = record(spatial.robot_pose_map);
+  const currentRoom = record(spatial.current_room);
+  const rooms = Array.isArray(spatial.rooms) ? spatial.rooms.map(record) : [];
   const info = record(grid?.info);
   const originPos = record(record(info.origin).position);
   const width = Number(info.width) || 0;
@@ -170,6 +174,22 @@ export function MapCanvas({ mapData, busy, onReadMap, selectedTarget, onSelectTa
       ctx.arc(px, py, r, 0, Math.PI * 2);
       ctx.stroke();
     }
+    const rx = Number(robotPose.x), ry = Number(robotPose.y), ryaw = Number(robotPose.yaw);
+    if (Number.isFinite(rx) && Number.isFinite(ry)) {
+      const px = (rx - originX) / resolution;
+      const py = height - 1 - (ry - originY) / resolution;
+      if (px >= 0 && px <= width && py >= 0 && py <= height) {
+        ctx.strokeStyle = '#22d3ee';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(px, py, 3.5, 0, Math.PI * 2);
+        if (Number.isFinite(ryaw)) {
+          ctx.moveTo(px, py);
+          ctx.lineTo(px + Math.cos(ryaw) * 6, py - Math.sin(ryaw) * 6);
+        }
+        ctx.stroke();
+      }
+    }
     if (selectedTarget && Number.isFinite(selectedTarget.x) && Number.isFinite(selectedTarget.y)) {
       const px = (selectedTarget.x - originX) / resolution;
       const py = height - 1 - (selectedTarget.y - originY) / resolution;
@@ -183,7 +203,7 @@ export function MapCanvas({ mapData, busy, onReadMap, selectedTarget, onSelectTa
         ctx.stroke();
       }
     }
-  }, [grid, entries, width, height, resolution, originX, originY, selectedTarget]);
+  }, [grid, entries, robotPose.x, robotPose.y, robotPose.yaw, width, height, resolution, originX, originY, selectedTarget]);
 
   function handleCanvasClick(event: MouseEvent<HTMLCanvasElement>) {
     if (!onSelectTarget || width <= 0 || height <= 0) return;
@@ -205,8 +225,21 @@ export function MapCanvas({ mapData, busy, onReadMap, selectedTarget, onSelectTa
       <button className="quiet" disabled={busy} onClick={onReadMap}>Read ROS map</button>
     </div>
     <p className="caption">
-      Click the map to set target / drop coordinates{selectedTarget ? ` (${selectedTarget.x.toFixed(2)}, ${selectedTarget.y.toFixed(2)} m)` : ''}.
+      Click the map to set target / drop coordinates{selectedTarget ? ` (${selectedTarget.x.toFixed(2)}, ${selectedTarget.y.toFixed(2)} m)` : ''}{typeof currentRoom.name === 'string' ? ` · Current room: ${currentRoom.name}` : ''}.
     </p>
+    {rooms.length > 0 && (
+      <div className="chip-row" style={{ marginTop: 8 }}>
+        {rooms.map(r => {
+          const c = Array.isArray(r.centroid) ? r.centroid : [];
+          const cx = Number(c[0]), cy = Number(c[1]);
+          return Number.isFinite(cx) && Number.isFinite(cy) ? (
+            <button key={String(r.segment_id)} type="button" className="chip" onClick={() => onSelectTarget?.(cx, cy)}>
+              {String(r.name ?? `Room ${String(r.segment_id)}`)} ({cx.toFixed(1)}, {cy.toFixed(1)})
+            </button>
+          ) : null;
+        })}
+      </div>
+    )}
     {grid && width > 0 && height > 0 && (
       <div className="map-panel" style={{ marginTop: 12, paddingTop: 12 }}>
         <figure className="map-figure">
