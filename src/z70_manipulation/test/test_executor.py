@@ -937,7 +937,12 @@ def test_simulate_goal_tracks_stateful_arm_world_and_trace():
         GoalSpec('spatial_world_check', MoveArm, '/z70/spatial_world_check', 10., lambda _s, _r: True,
                  lambda ctx, _r: (
                      ctx.update_world_object(1.0, 2.0, category='sock', mobility='pickupable', relevance='objective')
-                     and len(ctx.spatial_context()['world_objects']['objectives']) == 1,
+                     and len(ctx.spatial_context()['world_objects']['objectives']) == 1
+                     and ctx.mark_obstacle(1.0, 0.0, radius_m=0.2)
+                     and ctx.corridor_safe(0.0, 0.0, 2.0, 0.0) is False
+                     and ctx.navigate(1.0, 0.0)['status_code'] == 'TARGET_OUTSIDE_INTERIOR'
+                     and ctx.clear_world()['cleared'] is True
+                     and ctx.corridor_safe(0.0, 0.0, 2.0, 0.0) is True,
                      MoveArm.Result(),
                  )),
         SimpleNamespace(),

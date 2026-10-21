@@ -335,6 +335,20 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         _rec('rpc', method=m, params=params)
         return {'result': ['ok']}
 
+    def _seg_dist(px, py, ax, ay, bx, by):
+        dx, dy = bx - ax, by - ay
+        denom = dx * dx + dy * dy
+        t = max(0., min(1., ((px - ax) * dx + (py - ay) * dy) / denom)) if denom > 1e-12 else 0.
+        return math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+
+    def _corridor_safe(start_x_m, start_y_m, end_x_m, end_y_m, radius_m=0., deployed_arm_extension_m=0., refresh=False):
+        pad = float(radius_m) + float(deployed_arm_extension_m)
+        for e in sim_world.entries.values():
+            if e.relevance in ('deferred', 'ignored') or e.mobility in ('stationary', 'draggable'):
+                if _seg_dist(e.x, e.y, float(start_x_m), float(start_y_m), float(end_x_m), float(end_y_m)) <= e.radius_m + pad:
+                    return False
+        return True
+
     def _navigate(target_x_m, target_y_m, max_duration_s=60., dry_run=False):
         _rec('navigate', target_x_m=float(target_x_m), target_y_m=float(target_y_m), dry_run=bool(dry_run))
         if arm_unrestored and sim_arm.get('state', 'IN_ROBOT') != 'IN_ROBOT':
@@ -343,6 +357,13 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
                 'final_position_m': [sim_pose[0], sim_pose[1]],
                 'position_error_m': math.hypot(float(target_x_m) - sim_pose[0], float(target_y_m) - sim_pose[1]),
                 'detail': 'ARM_NOT_STOWED',
+            }
+        if not _corridor_safe(target_x_m, target_y_m, target_x_m, target_y_m):
+            return {
+                'arrived': False, 'dry_run_valid': False, 'status_code': 'TARGET_OUTSIDE_INTERIOR',
+                'final_position_m': [sim_pose[0], sim_pose[1]],
+                'position_error_m': math.hypot(float(target_x_m) - sim_pose[0], float(target_y_m) - sim_pose[1]),
+                'detail': 'TARGET_OUTSIDE_INTERIOR',
             }
         if not dry_run:
             sim_pose[0], sim_pose[1] = float(target_x_m), float(target_y_m)
@@ -556,7 +577,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         },
         room_waypoint=_room_waypoint,
         plan_route=lambda target_x_m, target_y_m, deployed_arm_extension_m=0., refresh=False: [(float(target_x_m), float(target_y_m))],
-        corridor_safe=lambda start_x_m, start_y_m, end_x_m, end_y_m, radius_m=0., deployed_arm_extension_m=0., refresh=False: True,
+        corridor_safe=_corridor_safe,
         select_camera=_select_camera,
         objects=lambda camera='front', color=None: [],
         wrist_pose=lambda: {'position': [0.35, 0., 0.08], 'marker_id': 68},
