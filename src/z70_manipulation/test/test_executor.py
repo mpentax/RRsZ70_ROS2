@@ -695,6 +695,11 @@ def test_simulate_goal_exercises_all_builtin_goals():
     assert real_ctx.plan_grasp(0.43, 0.0)['state'] == [250, 105]
     assert real_ctx.plan_stack_tier(1)['tier'] == 1
     assert len(real_ctx.plan_trajectory(170., 45., 0.)) == 2
+    real_ctx.arm = lambda: {'state': 'UNKNOWN', 'joints': None}
+    real_ctx.fit_wrist_joints = lambda: {'joints': [188.2, 64.1, 0.3]}
+    assert real_ctx._grid_joints() == (190, 65, 0)
+    real_ctx.arm = lambda: {'state': 'IN_ROBOT', 'joints': None}
+    assert real_ctx._grid_joints() == (150, 45, 0)
     real_ctx.safe_interior = lambda refresh=False, deployed_arm_extension_m=0.: (
         SimpleNamespace(labels={2: 'Kitchen'}),
         SimpleNamespace(waypoints=[

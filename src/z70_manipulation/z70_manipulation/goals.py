@@ -661,8 +661,18 @@ class GoalContext:
             return None
 
     def _grid_joints(self) -> tuple[int, int, int]:
-        joints = self.arm().get('joints') or {}
-        return planner.snap_grid((joints.get('m3', 190), joints.get('m4', 65), joints.get('m5', 0)))
+        arm = self.arm()
+        joints = arm.get('joints') or {}
+        if all(k in joints for k in ('m3', 'm4')):
+            return planner.snap_grid((joints['m3'], joints['m4'], joints.get('m5', 0)))
+        if arm.get('state') == 'UNKNOWN':
+            try:
+                fit = self.fit_wrist_joints()
+                if fit and 'joints' in fit:
+                    return planner.snap_grid(fit['joints'])
+            except LookupError:
+                pass
+        return (150, 45, 0)
 
     def plan_grasp(self, x_m: float, y_m: float, size_m: float = .066) -> dict | None:
         start = self._grid_joints()[:2]

@@ -590,6 +590,9 @@ class GarmentDeliverer:
             estimate=read_arm(self.executor.client)
             j=estimate.get('joints',{})
             joints=[j['m3'],j['m4']] if all(k in j for k in ('m3','m4')) else []
+            if len(joints)<2 and hasattr(self.executor,'current_arm_joints'):
+                try: joints=list(self.executor.current_arm_joints())[:2]
+                except LookupError: pass
             if len(joints)<2: raise DeliveryRejected('ARM_POSE_UNVERIFIED')
             plan=planner.grasp_goal([p.x,p.y],joints[:2],size_m=.03)
             self.operation('calibrated_descent',lambda:self.executor.move_arm(plan['state']))
