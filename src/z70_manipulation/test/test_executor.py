@@ -691,6 +691,16 @@ def test_simulate_goal_exercises_all_builtin_goals():
     assert real_ctx.plan_grasp(0.43, 0.0)['state'] == [250, 105]
     assert real_ctx.plan_stack_tier(1)['tier'] == 1
     assert len(real_ctx.plan_trajectory(170., 45., 0.)) == 2
+    real_ctx.safe_interior = lambda refresh=False, deployed_arm_extension_m=0.: (
+        SimpleNamespace(labels={2: 'Kitchen'}),
+        SimpleNamespace(waypoints=[
+            {'segment_id': 2, 'x': 2.5, 'y': 1.5, 'clearance_m': 0.6},
+            {'segment_id': 2, 'x': 3.0, 'y': 2.0, 'clearance_m': 0.9},
+        ]),
+    )
+    assert real_ctx.room_waypoint('kitchen') == {'segment_id': 2, 'name': 'Kitchen', 'x': 3.0, 'y': 2.0, 'clearance_m': 0.9}
+    assert real_ctx.room_waypoint(2)['x'] == 3.0
+    assert real_ctx.room_waypoint('attic') is None
 
     from z70_interfaces.msg import ArmEstimate
     from z70_interfaces.srv import SetArmAnchor

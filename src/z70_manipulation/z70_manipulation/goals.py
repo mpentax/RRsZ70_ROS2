@@ -48,7 +48,8 @@ GOAL_CONTEXT_PRIMITIVES: tuple[dict[str, str], ...] = (
     {'name': 'arm', 'signature': 'arm() -> dict', 'summary': 'Read the current arm joint and pose estimate dict.'},
     {'name': 'map_pose', 'signature': "map_pose(source='base_footprint') -> tuple[float, float, float]", 'summary': 'Lookup (x_m, y_m, yaw_rad) of a frame in the map.'},
     {'name': 'safe_interior', 'signature': 'safe_interior(refresh=False, deployed_arm_extension_m=0.)', 'summary': 'Return (map_snapshot, safe_interior_grid) for navigation and corridor planning.'},
-    {'name': 'spatial_context', 'signature': 'spatial_context(refresh: bool = False) -> dict', 'summary': 'Return ego-centric map context: current_room, rooms (centroids/distances/bearings), dock pose, and 8-sector clearance_sectors_m.'},
+    {'name': 'spatial_context', 'signature': 'spatial_context(refresh: bool = False) -> dict', 'summary': 'Return ego-centric map context: current_room, rooms (centroids/distances/bearings), dock pose, 8-sector clearance_sectors_m, and world_objects.'},
+    {'name': 'room_waypoint', 'signature': 'room_waypoint(room: str | int, refresh: bool = False) -> dict | None', 'summary': 'Return the highest-clearance reachable safe-interior waypoint {segment_id, name, x, y, clearance_m} for a room name or segment ID.'},
     {'name': 'plan_route', 'signature': 'plan_route(target_x_m: float, target_y_m: float, deployed_arm_extension_m: float = 0., refresh: bool = False) -> list[tuple[float, float]] | None', 'summary': 'Plan a collision-checked A* route on the eroded safe interior from the current robot pose to (target_x_m, target_y_m).'},
     {'name': 'corridor_safe', 'signature': 'corridor_safe(start_x_m: float, start_y_m: float, end_x_m: float, end_y_m: float, radius_m: float = 0., deployed_arm_extension_m: float = 0., refresh: bool = False) -> bool', 'summary': 'Check whether a straight-line swept disk from (start_x_m, start_y_m) to (end_x_m, end_y_m) stays inside the reachable safe interior.'},
     {'name': 'objects', 'signature': "objects(camera='front', color=None) -> list[dict]", 'summary': 'Detect and project HSV objects in base_footprint from a fresh camera frame.'},
@@ -283,6 +284,10 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
             'current_room': None, 'rooms': [], 'dock': None, 'clearance_sectors_m': {},
             'world_objects': sim_world.summary(),
         },
+        room_waypoint=lambda room, refresh=False: {
+            'segment_id': int(room) if isinstance(room, int) or str(room).isdigit() else 1,
+            'name': str(room), 'x': 1.0, 'y': 1.0, 'clearance_m': 0.8,
+        },
         plan_route=lambda target_x_m, target_y_m, deployed_arm_extension_m=0., refresh=False: [(float(target_x_m), float(target_y_m))],
         corridor_safe=lambda start_x_m, start_y_m, end_x_m, end_y_m, radius_m=0., deployed_arm_extension_m=0., refresh=False: True,
         objects=lambda camera='front', color=None: [],
@@ -427,6 +432,35 @@ class GoalContext:
         ctx = compute_spatial_context(snap.map, snap.labels, pose)
         ctx['world_objects'] = self.world_objects()
         return ctx
+
+    def room_waypoint(self, room: str | int, refresh: bool = False) -> dict | None:
+        snap, boundary = self.safe_interior(refresh=refresh)
+        labels = snap.labels or {}
+        target_seg = None
+        if isinstance(room, int) and not isinstance(room, bool):
+            target_seg = room
+        else:
+            q = str(room).strip().lower()
+            if q.isdigit():
+                target_seg = int(q)
+            else:
+                for seg, name in labels.items():
+                    if str(name).strip().lower() == q or f'segment {seg}' == q:
+                        target_seg = int(seg)
+                        break
+        if target_seg is None:
+            return None
+        candidates = [w for w in boundary.waypoints if int(w.get('segment_id', -1)) == target_seg]
+        if not candidates:
+            return None
+        best = max(candidates, key=lambda w: float(w.get('clearance_m', 0.)))
+        return {
+            'segment_id': target_seg,
+            'name': labels.get(target_seg, f'Segment {target_seg}'),
+            'x': float(best['x']),
+            'y': float(best['y']),
+            'clearance_m': float(best.get('clearance_m', 0.)),
+        }
 
     def plan_route(self, target_x_m: float, target_y_m: float, deployed_arm_extension_m: float = 0., refresh: bool = False) -> list[tuple[float, float]] | None:
         snap, boundary = self.safe_interior(refresh=refresh, deployed_arm_extension_m=deployed_arm_extension_m)
