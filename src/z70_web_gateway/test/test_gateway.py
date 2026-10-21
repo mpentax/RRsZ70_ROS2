@@ -172,7 +172,7 @@ def test_validation_token_and_closed_error_contract(system, tmp_path):
     request = system['request']
     catalog = request('GET', '/api/ros/goals').json()
     goals = catalog['goals']
-    assert len(goals) == 14 and all(g.get('description') for g in goals)
+    assert len(goals) == 14 and all(g.get('description') and g.get('timeout_s') > 0 for g in goals)
     assert any(
         g['kind'] == 'pick' and g['topic'] == '/z70/pick' and g['action'] == 'Pick'
         and g['fields'] == ['color', 'dry_run']

@@ -674,6 +674,10 @@ def test_simulate_goal_exercises_all_builtin_goals():
         ('app_arm_move', {'m': [1, 2, 0]}, 3000),
         ('app_arm_direction_move', {'direction': 3}, 3000),
     ]
+    real_ctx.arm = lambda: {'state': 'WORKING_POS', 'joints': {'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.}}
+    assert real_ctx.plan_grasp(0.43, 0.0)['state'] == [250, 105]
+    assert real_ctx.plan_stack_tier(1)['tier'] == 1
+    assert len(real_ctx.plan_trajectory(170., 45., 0.)) == 2
 
 
 class _FakeJawClient:

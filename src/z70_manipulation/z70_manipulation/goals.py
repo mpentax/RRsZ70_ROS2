@@ -128,6 +128,11 @@ class GoalSpec:
         raw_types = dict(goal_cls.get_fields_and_field_types()) if hasattr(goal_cls, 'get_fields_and_field_types') else {}
         field_types = {k: raw_types[k] for k in self.fields if k in raw_types} if self.fields else raw_types
         result_fields = list(result_cls.get_fields_and_field_types().keys()) if hasattr(result_cls, 'get_fields_and_field_types') else []
+        default_req = SimpleNamespace(
+            dry_run=False,
+            max_duration_s=120. if self.name == 'pin_and_go' else 300. if self.name == 'deliver_garment' else 600.,
+        )
+        timeout_s = float(self.timeout_s(default_req) if callable(self.timeout_s) else self.timeout_s)
         return {
             'kind': self.name,
             'name': self.name,
@@ -136,7 +141,7 @@ class GoalSpec:
             'fields': list(self.fields),
             'field_types': field_types,
             'result_fields': result_fields,
-            'timeout_s': float(self.timeout_s) if isinstance(self.timeout_s, (int, float)) else None,
+            'timeout_s': timeout_s,
             'navigation': self.navigation,
             'description': self.description,
         }
@@ -565,27 +570,29 @@ class GoalContext:
         except ValueError:
             return None
 
-    def plan_grasp(self, x_m: float, y_m: float, size_m: float = .066) -> dict | None:
+    def _grid_joints(self) -> tuple[int, int, int]:
         joints = self.arm().get('joints') or {}
-        start = (round(float(joints.get('m3', 190)) / 10) * 10, round(float(joints.get('m4', 65)) / 10) * 10)
+        m3 = round(float(joints.get('m3', 190)) / 10) * 10
+        m4 = round((float(joints.get('m4', 65)) - 5) / 10) * 10 + 5
+        m5 = round(float(joints.get('m5', 0)) / 10) * 10
+        return (m3, m4, m5)
+
+    def plan_grasp(self, x_m: float, y_m: float, size_m: float = .066) -> dict | None:
+        start = self._grid_joints()[:2]
         try:
             return planner.grasp_goal([float(x_m), float(y_m), 0.], start, size_m=float(size_m))
         except ValueError:
             return None
 
     def plan_stack_tier(self, tier: int, size_m: float = .066) -> dict | None:
-        joints = self.arm().get('joints') or {}
-        start = (round(float(joints.get('m3', 190)) / 10) * 10, round(float(joints.get('m4', 65)) / 10) * 10)
+        start = self._grid_joints()[:2]
         try:
             return planner.stack_tier_plan(int(tier), size_m=float(size_m), start=start)
         except ValueError:
             return None
 
     def plan_trajectory(self, m3_deg: float, m4_deg: float, m5_deg: float = 0.) -> list[dict] | None:
-        joints = self.arm().get('joints') or {}
-        start = (round(float(joints.get('m3', 150)) / 10) * 10,
-                 round(float(joints.get('m4', 45)) / 10) * 10,
-                 round(float(joints.get('m5', 0)) / 10) * 10)
+        start = self._grid_joints()
         try:
             return planner.trajectory(start, (m3_deg, m4_deg, m5_deg))
         except ValueError:
