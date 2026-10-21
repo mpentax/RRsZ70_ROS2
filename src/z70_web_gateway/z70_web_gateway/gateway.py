@@ -222,6 +222,16 @@ class Gateway(Node):
                     raw_spatial = self.samples.get('spatial_context', {}).get('data')
                     raw_world = self.samples.get('world_objects', {}).get('data')
                     arm_sample = deepcopy(self.samples.get('arm'))
+                    state_sample = deepcopy(self.samples.get('state'))
+                if isinstance(state_sample, dict) and 'battery_pct' in state_sample:
+                    live_ctx['status'] = {
+                        'state': state_sample.get('state', 3),
+                        'battery': float(state_sample.get('battery_pct', 100.)),
+                        'error': state_sample.get('error_code', 0),
+                        'grab_status': state_sample.get('arm_grab_status', 1),
+                        'grab_mode': state_sample.get('arm_grab_mode', 2),
+                        'arm_error': state_sample.get('arm_error_code', 0),
+                    }
                 if isinstance(arm_sample, dict):
                     val = arm_sample.get('validity', {}).get('value')
                     if val in (1, 2):

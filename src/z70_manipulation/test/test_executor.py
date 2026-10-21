@@ -914,6 +914,7 @@ def test_simulate_goal_tracks_stateful_arm_world_and_trace():
                  lambda ctx, _r: (
                      ctx.pulse(velocity=0.1, omega=0.0, duration=500)
                      and abs(ctx.odom()['x'] - 0.05) < 1e-6
+                     and ctx.select_camera('gripper')['active'] == 'gripper'
                      and ctx.rpc('app_arm_out_compartment')
                      and ctx.rpc('app_grip', {'flag': 0})
                      and ctx.arm()['joints']['m6'] == 0.0

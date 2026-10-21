@@ -54,6 +54,7 @@ GOAL_CONTEXT_PRIMITIVES: tuple[dict[str, str], ...] = (
     {'name': 'room_waypoint', 'signature': 'room_waypoint(room: str | int, refresh: bool = False) -> dict | None', 'summary': 'Return the highest-clearance reachable safe-interior waypoint {segment_id, name, x, y, clearance_m} for a room name or segment ID.'},
     {'name': 'plan_route', 'signature': 'plan_route(target_x_m: float, target_y_m: float, deployed_arm_extension_m: float = 0., refresh: bool = False) -> list[tuple[float, float]] | None', 'summary': 'Plan a collision-checked A* route on the eroded safe interior from the current robot pose to (target_x_m, target_y_m).'},
     {'name': 'corridor_safe', 'signature': 'corridor_safe(start_x_m: float, start_y_m: float, end_x_m: float, end_y_m: float, radius_m: float = 0., deployed_arm_extension_m: float = 0., refresh: bool = False) -> bool', 'summary': 'Check whether a straight-line swept disk from (start_x_m, start_y_m) to (end_x_m, end_y_m) stays inside the reachable safe interior.'},
+    {'name': 'select_camera', 'signature': "select_camera(camera: str) -> dict", 'summary': "Switch the active camera lens ('front' or 'gripper') via the ROS driver selector."},
     {'name': 'objects', 'signature': "objects(camera='front', color=None) -> list[dict]", 'summary': 'Detect and project HSV objects in base_footprint from a fresh camera frame.'},
     {'name': 'wrist_pose', 'signature': 'wrist_pose() -> dict | None', 'summary': 'Estimate the elevated ArUco ID68 wrist/jaw pose and grasp reference in base_footprint from the front camera.'},
     {'name': 'fit_wrist_joints', 'signature': 'fit_wrist_joints() -> dict | None', 'summary': 'Fit [M3, M4, M5] joint angles (degrees) to the front-camera ArUco ID68 wrist marker pose.'},
@@ -162,6 +163,9 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         'state': 'WORKING_POS', 'joints': {'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.},
     }
     arm_unrestored = bool(arm_override and sim_arm.get('state') != 'IN_ROBOT')
+    sim_camera = deepcopy(overrides.pop('camera')) if isinstance(overrides.get('camera'), dict) else {
+        'active': 'front', 'raw': 11685, 'ready': True,
+    }
     sim_pose = [0., 0., 0.]
     sim_world = SessionWorldMap()
     sc_base: dict[str, Any] = {'current_room': None, 'rooms': [], 'dock': None, 'clearance_sectors_m': {}}
@@ -493,6 +497,13 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
             'detail': '',
         }
 
+    def _select_camera(camera):
+        if camera not in ('front', 'gripper'):
+            raise ValueError("camera must be 'front' or 'gripper'")
+        sim_camera.update(active=str(camera), raw=44453 if camera == 'gripper' else 11685, ready=True)
+        _rec('select_camera', camera=str(camera))
+        return dict(sim_camera)
+
     def _plan_approach(x_m, y_m):
         try:
             return planner.approach([float(x_m), float(y_m), 0.])
@@ -548,6 +559,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         room_waypoint=_room_waypoint,
         plan_route=lambda target_x_m, target_y_m, deployed_arm_extension_m=0., refresh=False: [(float(target_x_m), float(target_y_m))],
         corridor_safe=lambda start_x_m, start_y_m, end_x_m, end_y_m, radius_m=0., deployed_arm_extension_m=0., refresh=False: True,
+        select_camera=_select_camera,
         objects=lambda camera='front', color=None: [],
         wrist_pose=lambda: {'position': [0.35, 0., 0.08], 'marker_id': 68},
         fit_wrist_joints=lambda: {'joints': [190., 65., 0.], 'residual_m': 0., 'residual_deg': 0., 'uncertainty_m': 0.015},
@@ -716,6 +728,11 @@ class GoalContext:
 
     def frame(self):
         return self.client.frame()
+
+    def select_camera(self, camera: str) -> dict:
+        res = self.observations.select(camera)
+        self.trace.append({'primitive': 'select_camera', 'camera': str(camera)})
+        return res
 
     def objects(self, camera='front', color=None) -> list[dict]:
         image, tag = self.client.frame()
