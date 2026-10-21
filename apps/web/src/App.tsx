@@ -644,11 +644,12 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
   const armJointsMsg = record(armState.joints);
   const armJointPositions = Array.isArray(armJointsMsg.position) ? armJointsMsg.position : [];
   const armPositions = Array.isArray(armState.position_rad) ? armState.position_rad : [];
-  const armStateLabel = typeof armState.state === 'number'
+  const armStateLabel = (typeof armState.state === 'number'
     ? (ARM_STATES[armState.state] ?? `STATE_${armState.state}`)
     : armValidity.value === 1 ? 'DEPLOYED (DEAD-RECKONED)'
+    : armValidity.value === 2 ? 'DEPLOYED (OPTICALLY CALIBRATED)'
     : armValidity.value === 3 ? 'IN_ROBOT (STOWED)'
-    : typeof armValidity.reason === 'string' && armValidity.reason ? armValidity.reason : 'UNAVAILABLE';
+    : typeof armValidity.reason === 'string' && armValidity.reason ? armValidity.reason : 'UNAVAILABLE') + (armState.restored === true ? ' · RESTORED' : '');
   const [vendorM3, vendorM4, vendorM5] = armJointPositions.length >= 3
     ? urdfToVendorDeg(armJointPositions)
     : [fmtDeg(armPositions[0]), fmtDeg(armPositions[1]), fmtDeg(armPositions[2])];
@@ -751,7 +752,7 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
           <small>
             {(armJointPositions.length >= 3 || armPositions.length >= 3)
               ? `M3 ${vendorM3} · M4 ${vendorM4} · M5 ${vendorM5}`
-              : String(armState.unknown_reason || 'Stowed / unanchored')}
+              : String(armValidity.reason || armState.unknown_reason || 'Stowed / unanchored')}
             {grabModeCode !== null ? ` · Grab ${grabModeLabel} (${grabActionLabel})` : ''}
           </small>
         </div>
