@@ -296,10 +296,11 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
     def _deliver_garment(category='any', drop_x_m=0., drop_y_m=0., max_duration_s=300., allow_towing=False, dry_run=False):
         if not dry_run:
             sim_pose[0], sim_pose[1] = float(drop_x_m), float(drop_y_m)
+            sim_arm.update(state='IN_ROBOT', joints={'m3': 0., 'm4': 0., 'm5': 0., 'm6': 0.})
             sim_world.mark_completed(float(drop_x_m), float(drop_y_m), category=str(category), detail='DELIVERED')
         _rec('deliver_garment', category=str(category), drop_x_m=float(drop_x_m), drop_y_m=float(drop_y_m), dry_run=bool(dry_run))
         return {
-            'delivered': not dry_run, 'dry_run_valid': bool(dry_run),
+            'delivered': not dry_run, 'stowed': not dry_run, 'dry_run_valid': bool(dry_run),
             'status_code': 'DRY_RUN_VALID' if dry_run else 'DELIVERED',
             'final_position_m': [sim_pose[0], sim_pose[1]], 'detail': '',
         }
@@ -875,10 +876,15 @@ def _goal_stack(ctx: 'GoalContext | SimpleNamespace', req):
     )
 
 
+def _build_ros_result(result_cls, **fields):
+    allowed = result_cls.get_fields_and_field_types()
+    return result_cls(**{k: v for k, v in fields.items() if k in allowed})
+
+
 def _goal_pin_and_go(ctx: 'GoalContext | SimpleNamespace', req):
     data = ctx.navigate(req.target_x_m, req.target_y_m, req.max_duration_s, dry_run=req.dry_run)
     success = bool(data.get('arrived') or data.get('dry_run_valid'))
-    return success, PinAndGo.Result(outcome=ctx.outcome(success), **data)
+    return success, _build_ros_result(PinAndGo.Result, outcome=ctx.outcome(success), **data)
 
 
 def _goal_garment(ctx: 'GoalContext | SimpleNamespace', req, action_cls, patrol=False):
@@ -894,9 +900,7 @@ def _goal_garment(ctx: 'GoalContext | SimpleNamespace', req, action_cls, patrol=
         )
     success = (data.get('delivered', False) or data.get('completed', False) or data.get('dry_run_valid', False)
                or data.get('status_code') == 'PARTIAL_COMPLETION_SMALL_ITEMS_ONLY')
-    result = action_cls.Result(**data)
-    result.outcome = ctx.outcome(success)
-    return success, result
+    return success, _build_ros_result(action_cls.Result, outcome=ctx.outcome(success), **data)
 
 
 BUILTIN_GOALS: dict[str, GoalSpec] = {

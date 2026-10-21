@@ -937,6 +937,7 @@ def test_simulate_goal_tracks_stateful_arm_world_and_trace():
                  lambda ctx, _r: (
                      ctx.plan_approach(0.0, 0.0) is None
                      and ctx.deliver_garment('sock', 2.5, 3.5)['status_code'] == 'DELIVERED'
+                     and ctx.arm()['state'] == 'IN_ROBOT'
                      and ctx.map_pose()[:2] == (2.5, 3.5)
                      and len(ctx.world_objects()['completed']) == 1,
                      MoveArm.Result(),
@@ -944,6 +945,12 @@ def test_simulate_goal_tracks_stateful_arm_world_and_trace():
         SimpleNamespace(),
     )
     assert ok_deliv is True
+    ok_nav_extra, nav_res = simulate_goal(
+        ALL_GOALS['pin_and_go'],
+        SimpleNamespace(target_x_m=1.0, target_y_m=2.0, max_duration_s=30.0, dry_run=False),
+        navigate={'arrived': True, 'status_code': 'ARRIVED', 'extra_field': 'ignored'},
+    )
+    assert ok_nav_extra is True and nav_res.arrived is True
     with pytest.raises(ValueError, match='unsafe arm_step'):
         simulate_goal(
             GoalSpec('unsafe_step', MoveArm, '/z70/unsafe_step', 10., lambda _s, _r: True,
