@@ -464,7 +464,9 @@ class MappingNode(Node):
                           active_map_verified=msg.active_floor_verified,
                           current_pose_verified=msg.current_pose_verified,
                           refresh_error=None)
-            with self.lock: self.pending = (m, labels, status)
+            with self.lock:
+                self.pending = (m, labels, status)
+                self.world.bind_session(session_id, msg.map_index, m.origin, m.width, m.height, m.resolution)
         except (ValueError, KeyError, TypeError):
             self.get_logger().warning('Map decode failed: INVALID_MAP', throttle_duration_sec=20)
 
@@ -475,9 +477,10 @@ class MappingNode(Node):
         self.odom = (p.x, p.y, quat_yaw(msg.pose.pose.orientation))
 
     def _current_robot_pose(self):
-        if self.current is None:
+        state = self.current or self.pending
+        if state is None:
             return None
-        m = self.current[0]
+        m = state[0]
         return transform_pose(self.anchor, self.odom) if self.anchor is not None else m.robot
 
     def on_garments(self, msg):

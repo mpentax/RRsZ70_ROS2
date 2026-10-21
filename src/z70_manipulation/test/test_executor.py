@@ -881,6 +881,16 @@ def test_simulate_goal_tracks_stateful_arm_world_and_trace():
     ok, res = simulate_goal(stateful, SimpleNamespace(m3_deg=170., m4_deg=45., m5_deg=0.), _trace=trace)
     assert ok is True and res.steps_executed == 3
     assert [t['primitive'] for t in trace] == ['deploy_arm', 'update_world_object', 'move_arm']
+    ok_ctx, _ = simulate_goal(
+        GoalSpec('spatial_world_check', MoveArm, '/z70/spatial_world_check', 10., lambda _s, _r: True,
+                 lambda ctx, _r: (
+                     ctx.update_world_object(1.0, 2.0, category='sock', mobility='pickupable', relevance='objective')
+                     and len(ctx.spatial_context()['world_objects']['objectives']) == 1,
+                     MoveArm.Result(),
+                 )),
+        SimpleNamespace(),
+    )
+    assert ok_ctx is True
 
 
 

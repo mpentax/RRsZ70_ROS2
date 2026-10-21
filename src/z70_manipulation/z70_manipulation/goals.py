@@ -277,7 +277,11 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         map_pose=lambda source='base_footprint': (sim_pose[0], sim_pose[1], sim_pose[2]),
         map_snapshot=lambda refresh=False, max_age_s=5.: None,
         safe_interior=lambda refresh=False, deployed_arm_extension_m=0.: (None, None),
-        spatial_context=lambda refresh=False: {'robot_pose_map': {'x': sim_pose[0], 'y': sim_pose[1], 'yaw': sim_pose[2]}, 'current_room': None, 'rooms': [], 'dock': None, 'clearance_sectors_m': {}},
+        spatial_context=lambda refresh=False: {
+            'robot_pose_map': {'x': sim_pose[0], 'y': sim_pose[1], 'yaw': sim_pose[2]},
+            'current_room': None, 'rooms': [], 'dock': None, 'clearance_sectors_m': {},
+            'world_objects': sim_world.summary(),
+        },
         plan_route=lambda target_x_m, target_y_m, deployed_arm_extension_m=0., refresh=False: [(float(target_x_m), float(target_y_m))],
         corridor_safe=lambda start_x_m, start_y_m, end_x_m, end_y_m, radius_m=0., deployed_arm_extension_m=0., refresh=False: True,
         objects=lambda camera='front', color=None: [],
@@ -419,7 +423,9 @@ class GoalContext:
             pose = self.map_pose()
         except LookupError:
             pose = snap.map.robot
-        return compute_spatial_context(snap.map, snap.labels, pose)
+        ctx = compute_spatial_context(snap.map, snap.labels, pose)
+        ctx['world_objects'] = self.world_objects()
+        return ctx
 
     def plan_route(self, target_x_m: float, target_y_m: float, deployed_arm_extension_m: float = 0., refresh: bool = False) -> list[tuple[float, float]] | None:
         snap, boundary = self.safe_interior(refresh=refresh, deployed_arm_extension_m=deployed_arm_extension_m)

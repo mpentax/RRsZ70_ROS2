@@ -688,8 +688,7 @@ def test_node_publishes_latched_safe_grid_and_contract_on_both_json_topics(mappi
 def test_dynamic_obstacle_layer_subtracts_cells_and_publishes_world_markers(mapping_node):
     node, pubs, _ = mapping_node
     node.snapshot(snapshot_message())
-    node.publish()
-    m = node.current[0]
+    m = node.pending[0]
     cx = float(m.origin[0] + 1.5 * m.resolution)
     cy = float(m.origin[1] + 0.5 * m.resolution)
     node.on_world_update(String(data=json.dumps({
