@@ -447,7 +447,8 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         if ok and not dry_run:
             arm_unrestored = False
             sim_arm.update(state='IN_ROBOT', joints={'m3': 0., 'm4': 0., 'm5': 0., 'm6': 0.})
-            pos = target.get('position') if isinstance(target, dict) and isinstance(target.get('position'), (list, tuple)) else [0.35, 0., 0.03]
+            raw_pos = target.get('position') if isinstance(target, dict) else None
+            pos = raw_pos if isinstance(raw_pos, (list, tuple)) and len(raw_pos) >= 2 else [0.35, 0., 0.03]
             px, py = transform_xy((float(pos[0]), float(pos[1])), (sim_pose[0], sim_pose[1], sim_pose[2]))
             sim_world.mark_completed(px, py, category=str(color), detail='PICKED')
         _rec('pick', color=str(color), dry_run=bool(dry_run))
@@ -472,9 +473,13 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
             seen = defaults['objects']('front', color)
             if not seen:
                 raise LookupError(f'target {color} not visible')
-            pos = list(seen[0].get('position', [0.35, 0., 0.04]))
+            pos = list(seen[0].get('position', [0.43, 0., 0.04]))
         else:
-            pos = [0.35, 0., 0.04]
+            pos = [0.43, 0., 0.04]
+        app = planner.approach(pos)
+        sim_pose[2] = math.atan2(math.sin(sim_pose[2] + float(app['yaw'])), math.cos(sim_pose[2] + float(app['yaw'])))
+        sim_pose[0] += float(app['forward']) * math.cos(sim_pose[2])
+        sim_pose[1] += float(app['forward']) * math.sin(sim_pose[2])
         _rec('align_target', color=str(color))
         return {'position': pos, 'bearing_error_deg': 0., 'range_error_m': 0.}
 

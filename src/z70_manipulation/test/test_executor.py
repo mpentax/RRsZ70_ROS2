@@ -1002,6 +1002,8 @@ def test_simulate_goal_tracks_stateful_arm_world_and_trace():
     assert simulate_goal(ALL_GOALS['pick'], SimpleNamespace(color='blue', dry_run=True), objects=scene)[0] is False
     assert simulate_goal(ALL_GOALS['stack'], SimpleNamespace(base_color='yellow', middle_color='red', top_color='blue', dry_run=True), objects=scene)[0] is False
     assert simulate_goal(ALL_GOALS['align_target'], SimpleNamespace(color='blue'), objects=scene)[0] is False
+    assert simulate_goal(ALL_GOALS['align_target'], SimpleNamespace(color='yellow'), objects=[{'color': 'yellow', 'position': [0.55, 0.05, 0.03]}])[0] is True
+    assert simulate_goal(ALL_GOALS['align_target'], SimpleNamespace(color='yellow'), objects=[{'color': 'yellow', 'position': [0.0, 0.0, 0.03]}])[1].outcome.error_code == 'INVALID_INPUT'
     assert simulate_goal(ALL_GOALS['grasp_and_lift'], SimpleNamespace(lift_steps=2, verify_color='yellow'), objects=scene)[1].verified_hold is True
     assert simulate_goal(ALL_GOALS['grasp_and_lift'], SimpleNamespace(lift_steps=2, verify_color='blue'), objects=scene)[1].verified_hold is False
     g_scene = [{'category': 'sock', 'transport_suitability': 1}, {'category': 'jeans', 'transport_suitability': 3}]
