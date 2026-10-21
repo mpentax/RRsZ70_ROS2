@@ -1002,6 +1002,18 @@ def test_simulate_goal_tracks_stateful_arm_world_and_trace():
     assert ok_nav_deployed is False and nav_dep_res.status_code == 'ARM_NOT_STOWED' and nav_dep_res.outcome.error_code == 'ARM_NOT_STOWED'
     scene = [{'color': 'yellow', 'position': [0.35, 0.0, 0.03]}, {'color': 'red', 'position': [0.38, 0.04, 0.03]}]
     assert simulate_goal(ALL_GOALS['pick'], SimpleNamespace(color='yellow', dry_run=True), objects=scene)[0] is True
+    ok_consume, _ = simulate_goal(
+        GoalSpec('consume_pick_check', MoveArm, '/z70/consume_pick_check', 10., lambda _s, _r: True,
+                 lambda ctx, _r: (
+                     ctx.pick('yellow', dry_run=False)['verified'] is True
+                     and ctx.pick('yellow', dry_run=False)['verified'] is False
+                     and len(ctx.objects('front', 'red')) == 1,
+                     MoveArm.Result(),
+                 )),
+        SimpleNamespace(),
+        objects=scene,
+    )
+    assert ok_consume is True
     assert simulate_goal(ALL_GOALS['pick'], SimpleNamespace(color='yellow', dry_run=True), objects=[{'color': 'yellow', 'position': [0.0, 0.0, 0.03]}])[0] is False
     assert simulate_goal(ALL_GOALS['pick'], SimpleNamespace(color='blue', dry_run=True), objects=scene)[0] is False
     assert simulate_goal(ALL_GOALS['stack'], SimpleNamespace(base_color='yellow', middle_color='red', top_color='blue', dry_run=True), objects=scene)[0] is False

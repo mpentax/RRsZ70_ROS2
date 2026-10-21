@@ -167,6 +167,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
     arm_unrestored = bool(arm_override and sim_arm.get('state') != 'IN_ROBOT')
     sim_pose = [0., 0., 0.]
     sim_world = SessionWorldMap()
+    sim_objects: list[dict] | None = deepcopy(overrides['objects']) if isinstance(overrides.get('objects'), list) else None
     sc_base: dict[str, Any] = {'current_room': None, 'rooms': [], 'dock': None, 'clearance_sectors_m': {}}
     if isinstance(overrides.get('spatial_context'), dict):
         sc_init = deepcopy(overrides.pop('spatial_context'))
@@ -537,6 +538,8 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         if ok and not dry_run:
             arm_unrestored = False
             sim_arm.update(state='IN_ROBOT', joints={'m3': 0., 'm4': 0., 'm5': 0., 'm6': 0.})
+            if sim_objects is not None and target in sim_objects:
+                sim_objects.remove(target)
             px, py = transform_xy((float(pos[0]), float(pos[1])), (sim_pose[0], sim_pose[1], sim_pose[2]))
             sim_world.mark_completed(px, py, category=str(color), detail='PICKED')
         _rec('pick', color=str(color), dry_run=bool(dry_run))
@@ -546,6 +549,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         nonlocal arm_unrestored
         if not dry_run:
             _status_check()
+        matched = []
         if 'objects' in overrides:
             all_vis = True
             for c in (base_color, middle_color, top_color):
@@ -555,11 +559,16 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
                 rp = seen[0].get('position') if isinstance(seen[0], dict) else None
                 if isinstance(rp, (list, tuple)) and len(rp) >= 2 and _plan_approach(rp[0], rp[1]) is None:
                     all_vis = False; break
+                matched.append(seen[0])
         else:
             all_vis = True
         if all_vis and not dry_run:
             arm_unrestored = False
             sim_arm.update(state='IN_ROBOT', joints={'m3': 0., 'm4': 0., 'm5': 0., 'm6': 0.})
+            if sim_objects is not None:
+                for m_obj in matched:
+                    if m_obj in sim_objects:
+                        sim_objects.remove(m_obj)
             px, py = transform_xy((0.35, 0.), (sim_pose[0], sim_pose[1], sim_pose[2]))
             sim_world.mark_completed(px, py, category=f'stack:{base_color}+{middle_color}+{top_color}', detail='STACKED')
         _rec('stack', base_color=str(base_color), middle_color=str(middle_color), top_color=str(top_color), dry_run=bool(dry_run))
@@ -820,8 +829,8 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
     callable_keys = {p['name'] for p in GOAL_CONTEXT_PRIMITIVES}
     for k, v in overrides.items():
         if k == 'objects' and isinstance(v, list):
-            defaults[k] = lambda camera='front', color=None, _v=v: [
-                o for o in _v if isinstance(o, dict) and (color is None or o.get('color') == color)
+            defaults[k] = lambda camera='front', color=None: [
+                o for o in (sim_objects or []) if isinstance(o, dict) and (color is None or o.get('color') == color)
             ]
             if 'observe_color' not in overrides:
                 defaults['observe_color'] = lambda camera, color, _fn=defaults[k]: _fn(camera, color)
