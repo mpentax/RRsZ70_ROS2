@@ -1122,10 +1122,17 @@ def _build_ros_result(result_cls, **fields):
     return result_cls(**{k: v for k, v in fields.items() if k in allowed})
 
 
+def _nav_outcome(ctx: 'GoalContext | SimpleNamespace', success: bool, data: dict) -> CommandOutcome:
+    out = ctx.outcome(success)
+    if not success and out.error_code == 'OBSERVATION_GAP' and data.get('status_code'):
+        out.error_code = str(data['status_code'])
+    return out
+
+
 def _goal_pin_and_go(ctx: 'GoalContext | SimpleNamespace', req):
     data = ctx.navigate(req.target_x_m, req.target_y_m, req.max_duration_s, dry_run=req.dry_run)
     success = bool(data.get('arrived') or data.get('dry_run_valid'))
-    return success, _build_ros_result(PinAndGo.Result, outcome=ctx.outcome(success), **data)
+    return success, _build_ros_result(PinAndGo.Result, outcome=_nav_outcome(ctx, success, data), **data)
 
 
 def _goal_garment(ctx: 'GoalContext | SimpleNamespace', req, action_cls, patrol=False):
@@ -1141,7 +1148,7 @@ def _goal_garment(ctx: 'GoalContext | SimpleNamespace', req, action_cls, patrol=
         )
     success = (data.get('delivered', False) or data.get('completed', False) or data.get('dry_run_valid', False)
                or data.get('status_code') == 'PARTIAL_COMPLETION_SMALL_ITEMS_ONLY')
-    return success, _build_ros_result(action_cls.Result, outcome=ctx.outcome(success), **data)
+    return success, _build_ros_result(action_cls.Result, outcome=_nav_outcome(ctx, success, data), **data)
 
 
 BUILTIN_GOALS: dict[str, GoalSpec] = {
