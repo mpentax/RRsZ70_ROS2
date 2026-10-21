@@ -475,6 +475,7 @@ class SimWorld:
                     self._renderer_gripper = mujoco.Renderer(self.model, height=896, width=1600)
                 renderer, maps, w, h = self._renderer_gripper, self.gripper_maps, 1600, 896
                 opt = self.scn_option
+            assert renderer is not None
             renderer.update_scene(self.data, camera=active, scene_option=opt)
             bgr = cv2.cvtColor(renderer.render(), cv2.COLOR_RGB2BGR)
             distorted = cv2.remap(bgr, maps[0], maps[1], cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
@@ -485,6 +486,21 @@ class SimWorld:
 
     def render_jpeg(self, camera: str | None = None) -> tuple[bytes, str, int, int]:
         return self._render_pool.submit(self._render_on_thread, camera).result()
+
+    def close(self) -> None:
+        def _close_gl() -> None:
+            for r in (self._renderer_front, self._renderer_gripper):
+                if r is not None:
+                    try:
+                        r.close()
+                    except Exception:
+                        pass
+            self._renderer_front = self._renderer_gripper = None
+        try:
+            self._render_pool.submit(_close_gl).result(timeout=2.0)
+        except Exception:
+            pass
+        self._render_pool.shutdown(wait=False)
 
     def handle_rpc(self, method: str, params: Any) -> tuple[str, Any]:
         """Execute a Roborock vendor RPC against the simulated state and physics.
@@ -766,6 +782,7 @@ class SimServer:
         self.httpd.server_close()
         if self._thread is not None and self._thread.is_alive():
             self._thread.join(timeout=5.0)
+        self.world.close()
 
     def emit_event(
         self,
