@@ -251,11 +251,11 @@ class Gateway(Node):
                     }
                 if isinstance(arm_sample, dict):
                     val = arm_sample.get('validity', {}).get('value')
-                    if val in (1, 2):
+                    if val in (1, 2) and not arm_sample.get('restored'):
                         j = urdf_to_app(arm_sample.get('joints', {}).get('name'), arm_sample.get('joints', {}).get('position'))
                         if j:
                             live_ctx['arm'] = {'state': 'IN_PROCESS_POS', 'joints': {**j, 'm6': 90.}}
-                    elif val == 3:
+                    elif val == 3 and arm_sample.get('validity', {}).get('reason') == 'COMMAND_DERIVED_STOW':
                         live_ctx['arm'] = {'state': 'IN_ROBOT', 'joints': {'m3': 0., 'm4': 0., 'm5': 0., 'm6': 0.}}
                 for key, raw_json in (('world_objects', raw_world), ('spatial_context', raw_spatial)):
                     if isinstance(raw_json, str):
