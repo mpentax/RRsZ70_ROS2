@@ -518,7 +518,7 @@ class Perception(Node):
         self.listener = TransformListener(self.tf, self)
         self.arm_trusted = False
         self.create_subscription(ArmEstimate, '/z70/arm_estimate', self.arm, LATCHED)
-        self.pub_json = self.create_publisher(String, '/z70/objects/json', 10)
+        self.pub_json = self.create_publisher(String, '/z70/objects/json', LATCHED)
         self.pub_markers = self.create_publisher(MarkerArray, '/z70/objects', 10)
         self.K = planner.GRIPPER_MATRIX.copy()
         self.D = planner.GRIPPER_D.copy()

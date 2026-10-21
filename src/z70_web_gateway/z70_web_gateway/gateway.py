@@ -48,6 +48,7 @@ TOPICS = (
     ('dynamic_obstacles', OccupancyGrid, '/z70/map/dynamic_obstacles'),
     ('world_objects', String, '/z70/world/objects'),
     ('spatial_context', String, '/z70/map/spatial_context'),
+    ('objects', String, '/z70/objects/json'),
 )
 TERMINAL = {'succeeded', 'failed', 'cancelled', 'rejected'}
 ID = r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
@@ -221,8 +222,16 @@ class Gateway(Node):
                 with self.lock:
                     raw_spatial = self.samples.get('spatial_context', {}).get('data')
                     raw_world = self.samples.get('world_objects', {}).get('data')
+                    raw_objects = self.samples.get('objects', {}).get('data')
                     arm_sample = deepcopy(self.samples.get('arm'))
                     state_sample = deepcopy(self.samples.get('state'))
+                if isinstance(raw_objects, str):
+                    try:
+                        obj_data = json.loads(raw_objects)
+                        if isinstance(obj_data, dict) and isinstance(obj_data.get('objects'), list):
+                            live_ctx['objects'] = obj_data['objects']
+                    except (ValueError, TypeError):
+                        pass
                 if isinstance(state_sample, dict) and state_sample.get('connected'):
                     live_ctx['status'] = {
                         'state': state_sample.get('robot_state', 3),
