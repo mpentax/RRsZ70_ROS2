@@ -240,6 +240,7 @@ def test_3d_and_image_configs_use_real_fields_and_sources():
         assert not any(c.get('imageMode', {}).get('imageTopic') == f'/camera/{removed}/image_raw/compressed'
                        for c in CONFIGS.values())
     assert CONFIGS['RawMessages!Detected-objects']['topicPath'] == '/z70/objects/json'
+    assert CONFIGS['RawMessages!Garment-observations']['topicPath'] == '/z70/garments/observations'
     assert CONFIGS['RawMessages!Camera-state']['topicPath'] == '/z70/camera/state'
     assert CONFIGS['Indicator!Active-lens']['path'] == '/z70/camera/state.selected_camera'
     assert CONFIGS['3D!Arm-closeup']['followTf'] == 'base_footprint'

@@ -490,6 +490,16 @@
       "defaultExpanded": true,
       "title": "Detected objects"
     },
+    "RawMessages!Garment-observations": {
+      "diffEnabled": false,
+      "diffMethod": "custom",
+      "diffTopicPath": "",
+      "showFullMessageForDiff": false,
+      "topicPath": "/z70/garments/observations",
+      "fontSize": 12,
+      "defaultExpanded": true,
+      "title": "Garment observations"
+    },
     "RawMessages!Camera-state": {
       "diffEnabled": false,
       "diffMethod": "custom",
@@ -1253,7 +1263,12 @@
             },
             "second": {
               "direction": "row",
-              "first": "RawMessages!Detected-objects",
+              "first": {
+                "direction": "column",
+                "first": "RawMessages!Detected-objects",
+                "second": "RawMessages!Garment-observations",
+                "splitPercentage": 50
+              },
               "second": {
                 "direction": "column",
                 "first": "Indicator!Active-lens",
