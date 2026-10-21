@@ -442,11 +442,14 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
             seen = defaults['objects']('front', color)
             target = seen[0] if seen else None
         else:
-            target = {'color': str(color)}
+            target = {'color': str(color), 'position': [0.35, 0., 0.03]}
         ok = target is not None
         if ok and not dry_run:
             arm_unrestored = False
             sim_arm.update(state='IN_ROBOT', joints={'m3': 0., 'm4': 0., 'm5': 0., 'm6': 0.})
+            pos = target.get('position') if isinstance(target, dict) and isinstance(target.get('position'), (list, tuple)) else [0.35, 0., 0.03]
+            px, py = transform_xy((float(pos[0]), float(pos[1])), (sim_pose[0], sim_pose[1], sim_pose[2]))
+            sim_world.mark_completed(px, py, category=str(color), detail='PICKED')
         _rec('pick', color=str(color), dry_run=bool(dry_run))
         return {'verified': ok and not dry_run, 'dry_run': bool(dry_run), 'target': target}
 
@@ -459,6 +462,8 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         if all_vis and not dry_run:
             arm_unrestored = False
             sim_arm.update(state='IN_ROBOT', joints={'m3': 0., 'm4': 0., 'm5': 0., 'm6': 0.})
+            px, py = transform_xy((0.35, 0.), (sim_pose[0], sim_pose[1], sim_pose[2]))
+            sim_world.mark_completed(px, py, category=f'stack:{base_color}+{middle_color}+{top_color}', detail='STACKED')
         _rec('stack', base_color=str(base_color), middle_color=str(middle_color), top_color=str(top_color), dry_run=bool(dry_run))
         return {'stack_verified': all_vis and not dry_run, 'dry_run': bool(dry_run), 'all_targets_visible': all_vis, 'tiers_completed': 3 if all_vis else 0}
 
@@ -882,15 +887,32 @@ class GoalContext:
         res = self.navigate(wp['x'], wp['y'], max_duration_s=max_duration_s, dry_run=dry_run)
         return {**res, 'room': wp['name'], 'segment_id': wp['segment_id'], 'target_x_m': wp['x'], 'target_y_m': wp['y']}
 
+    def _target_map_xy(self, rel_pos=None) -> tuple[float, float]:
+        try:
+            pose = self.map_pose()
+        except Exception:
+            pose = (0., 0., 0.)
+        rx, ry = (float(rel_pos[0]), float(rel_pos[1])) if isinstance(rel_pos, (list, tuple)) and len(rel_pos) >= 2 else (0.35, 0.)
+        return transform_xy((rx, ry), pose)
+
     def pick(self, color: str, dry_run: bool = False) -> dict:
         self._rec('pick', color=str(color), dry_run=bool(dry_run))
-        return self._ex().pick(color, dry_run=dry_run)
+        res = self._ex().pick(color, dry_run=dry_run)
+        if not dry_run and res.get('verified') and hasattr(self.observations, 'record_world_event'):
+            tpos = (res.get('target') or {}).get('position') if isinstance(res.get('target'), dict) else None
+            mx, my = self._target_map_xy(tpos)
+            self.observations.record_world_event('completed', x=mx, y=my, category=str(color), mobility='pickupable', detail='PICKED')
+        return res
 
     def stack(self, base_color: str, middle_color: str, top_color: str, dry_run: bool = False) -> dict:
         self._rec('stack', base_color=str(base_color), middle_color=str(middle_color), top_color=str(top_color), dry_run=bool(dry_run))
         ex = self._ex()
         ex.feedback = lambda _phase: self.feedback(phase=3, current_tier=1, reason='NONE')
-        return ex.stack(base_color, middle_color, top_color, dry_run=dry_run)
+        res = ex.stack(base_color, middle_color, top_color, dry_run=dry_run)
+        if not dry_run and res.get('stack_verified') and hasattr(self.observations, 'record_world_event'):
+            mx, my = self._target_map_xy()
+            self.observations.record_world_event('completed', x=mx, y=my, category=f'stack:{base_color}+{middle_color}+{top_color}', mobility='pickupable', detail='STACKED')
+        return res
 
     def deliver_garment(self, category: str = 'any', drop_x_m: float = 0., drop_y_m: float = 0.,
                         max_duration_s: float = 300., allow_towing: bool = False, dry_run: bool = False) -> dict:

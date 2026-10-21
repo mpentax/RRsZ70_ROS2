@@ -978,7 +978,8 @@ def test_simulate_goal_tracks_stateful_arm_world_and_trace():
                      and ctx.deliver_garment('sock', 2.5, 3.5)['status_code'] == 'DELIVERED'
                      and ctx.arm()['state'] == 'IN_ROBOT'
                      and ctx.map_pose()[:2] == (2.5, 3.5)
-                     and len(ctx.world_objects()['completed']) == 1,
+                     and ctx.pick('yellow', dry_run=False)['verified'] is True
+                     and len(ctx.world_objects()['completed']) == 2,
                      MoveArm.Result(),
                  )),
         SimpleNamespace(),
