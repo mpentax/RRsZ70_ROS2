@@ -244,6 +244,9 @@ def test_move_arm_nonzero_m5_dispatches_only_safe_states(tmp_path):
         current = (*step['state'], 90)
         assert planner.safe_edge(previous, current)
         previous = current
+    dispatched.clear()
+    recovered = ex.move_arm([190, 65, 0], start_joints=[207.4, 71.8, 0.2])
+    assert recovered['state'] == [190, 65, 0] and recovered['steps_executed'] == 2
 
 
 def test_lift_can_be_verified_when_marker_exits_top_but_not_when_floor_object_remains(fake, tmp_path, monkeypatch):

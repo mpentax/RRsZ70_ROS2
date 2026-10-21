@@ -110,14 +110,23 @@ def joint_plan(start,goal,allowed=None,m5=0,m6=90):
     raise ValueError('no safe 10-degree joint path')
 
 
+def snap_grid(joints, anchor=(150, 45, 0)) -> tuple[int, int, int]:
+    """Snap (m3, m4[, m5]) onto the 10-degree step lattice anchored at `anchor`."""
+    a3, a4 = round(anchor[0]), round(anchor[1])
+    a5 = round(anchor[2]) if len(anchor) > 2 else 0
+    m3 = a3 + round((float(joints[0]) - a3) / 10) * 10
+    m4 = a4 + round((float(joints[1]) - a4) / 10) * 10
+    m5 = a5 + round(((float(joints[2]) if len(joints) > 2 else 0.) - a5) / 10) * 10
+    return (max(90, min(270, m3)), max(35, min(170, m4)), max(0, min(155, m5)))
+
+
 def trajectory(start_joints, goal_joints, m6=90):
     """Plan coordinated 10-degree M3/M4/M5 steps within the collision-checked kinematic envelope."""
-    start_m3, start_m4 = round(start_joints[0]), round(start_joints[1])
-    start_m5 = round(start_joints[2]) if len(start_joints) > 2 else 0
     goal_m3, goal_m4 = round(goal_joints[0]), round(goal_joints[1])
     goal_m5 = round(goal_joints[2]) if len(goal_joints) > 2 else 0
-    if (goal_m5 - start_m5) % 10 != 0 or not (hand.LIMITS['m5'][0] <= goal_m5 <= hand.LIMITS['m5'][1]):
+    if goal_m5 % 10 != 0 or not (hand.LIMITS['m5'][0] <= goal_m5 <= hand.LIMITS['m5'][1]):
         raise ValueError('M5 must be a 10-degree step within joint limits')
+    start_m3, start_m4, start_m5 = snap_grid(start_joints, (goal_m3, goal_m4, goal_m5))
     if not safe((start_m3, start_m4, start_m5, m6)) or not safe((goal_m3, goal_m4, goal_m5, m6)):
         raise ValueError('unsafe joint endpoint')
 

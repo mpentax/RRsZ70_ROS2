@@ -572,10 +572,7 @@ class GoalContext:
 
     def _grid_joints(self) -> tuple[int, int, int]:
         joints = self.arm().get('joints') or {}
-        m3 = round(float(joints.get('m3', 190)) / 10) * 10
-        m4 = round((float(joints.get('m4', 65)) - 5) / 10) * 10 + 5
-        m5 = round(float(joints.get('m5', 0)) / 10) * 10
-        return (m3, m4, m5)
+        return planner.snap_grid((joints.get('m3', 190), joints.get('m4', 65), joints.get('m5', 0)))
 
     def plan_grasp(self, x_m: float, y_m: float, size_m: float = .066) -> dict | None:
         start = self._grid_joints()[:2]
