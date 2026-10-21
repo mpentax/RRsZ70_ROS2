@@ -579,7 +579,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         except ValueError:
             return None
 
-    defaults = dict(
+    defaults: dict[str, Any] = dict(
         request=request,
         action_cls=spec.action_cls,
         directory=Path('.'),
@@ -692,6 +692,10 @@ class GoalContext:
 
     def _rec(self, primitive: str, **info) -> None:
         self.trace.append({'primitive': primitive, **info})
+
+    def _ex(self) -> Executor:
+        assert self.executor is not None
+        return self.executor
 
     # --- State & Perception ---
 
@@ -880,12 +884,13 @@ class GoalContext:
 
     def pick(self, color: str, dry_run: bool = False) -> dict:
         self._rec('pick', color=str(color), dry_run=bool(dry_run))
-        return self.executor.pick(color, dry_run=dry_run)
+        return self._ex().pick(color, dry_run=dry_run)
 
     def stack(self, base_color: str, middle_color: str, top_color: str, dry_run: bool = False) -> dict:
         self._rec('stack', base_color=str(base_color), middle_color=str(middle_color), top_color=str(top_color), dry_run=bool(dry_run))
-        self.executor.feedback = lambda _phase: self.feedback(phase=3, current_tier=1, reason='NONE')
-        return self.executor.stack(base_color, middle_color, top_color, dry_run=dry_run)
+        ex = self._ex()
+        ex.feedback = lambda _phase: self.feedback(phase=3, current_tier=1, reason='NONE')
+        return ex.stack(base_color, middle_color, top_color, dry_run=dry_run)
 
     def deliver_garment(self, category: str = 'any', drop_x_m: float = 0., drop_y_m: float = 0.,
                         max_duration_s: float = 300., allow_towing: bool = False, dry_run: bool = False) -> dict:
@@ -939,11 +944,11 @@ class GoalContext:
 
     def deploy_arm(self, settle=True) -> dict:
         self._rec('deploy_arm', settle=bool(settle))
-        return self.executor.deploy(settle=settle)
+        return self._ex().deploy(settle=settle)
 
     def align_target(self, color: str) -> dict:
         self._rec('align_target', color=str(color))
-        return self.executor.align_front(color)
+        return self._ex().align_front(color)
 
     def arm_safe(self, m3_deg: float, m4_deg: float, m5_deg: float = 0., m6_deg: float = 90.) -> bool:
         return planner.safe((float(m3_deg), float(m4_deg), float(m5_deg), float(m6_deg)))
@@ -993,8 +998,9 @@ class GoalContext:
             return None
 
     def move_arm(self, m3_deg: float, m4_deg: float, m5_deg: float = 0.) -> dict:
-        res = self.executor.move_arm((m3_deg, m4_deg, m5_deg))
-        self._rec('move_arm', target=[round(float(m3_deg)), round(float(m4_deg)), round(float(m5_deg))], steps_executed=int(res.get('steps_executed', 0)))
+        res = self._ex().move_arm((m3_deg, m4_deg, m5_deg))
+        steps_exec = res.get('steps_executed', 0)
+        self._rec('move_arm', target=[round(float(m3_deg)), round(float(m4_deg)), round(float(m5_deg))], steps_executed=int(steps_exec) if isinstance(steps_exec, (int, float)) else 0)
         return res
 
     def arm_step(self, m3: int = 0, m4: int = 0, m5: int = 0) -> dict:
@@ -1032,7 +1038,7 @@ class GoalContext:
 
     def open_jaws(self):
         self._rec('open_jaws')
-        self.executor.open_jaws()
+        self._ex().open_jaws()
 
     def set_arm_anchor(self, anchor: str, reason: str = '') -> dict:
         if not self.commands:
@@ -1042,15 +1048,15 @@ class GoalContext:
 
     def grasp_and_lift(self, lift_steps: int = 2, verify_color: str = '') -> dict:
         self._rec('grasp_and_lift', lift_steps=int(lift_steps), verify_color=str(verify_color))
-        return self.executor.grasp_and_lift(lift_steps=lift_steps, verify_color=verify_color)
+        return self._ex().grasp_and_lift(lift_steps=lift_steps, verify_color=verify_color)
 
     def release_and_stow(self, put_down: bool = True) -> dict:
         self._rec('release_and_stow', put_down=bool(put_down))
-        return self.executor.release_and_stow(put_down=put_down)
+        return self._ex().release_and_stow(put_down=put_down)
 
     def pulse(self, velocity: float = 0., omega: float = 0., duration: int = 300):
         self._rec('pulse', velocity=float(velocity), omega=float(omega), duration=int(duration))
-        return self.executor.pulse(velocity=velocity, omega=omega, duration=duration)
+        return self._ex().pulse(velocity=velocity, omega=omega, duration=duration)
 
     def rpc(self, method: str, params=None, timeout_ms: int = 5000) -> dict:
         self._rec('rpc', method=str(method), params=params)
