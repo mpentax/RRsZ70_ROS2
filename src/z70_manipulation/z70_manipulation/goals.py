@@ -570,19 +570,20 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         rooms = [r for r in all_rooms if r.get('reachable', True)]
         lost_rooms = len(all_rooms) - len(rooms)
         wp_cnt = max(1, len(rooms))
-        seen = defaults['garments']('any') if 'garments' in overrides else []
+        seen = list(defaults['garments']('any') or [])
         delivered = skipped = 0
         for g in seen:
+            tid = str((g.get('track_id') or g.get('id') or '') if isinstance(g, dict) else track_key(g))
             suit = int(g.get('transport_suitability', 1) if isinstance(g, dict) else getattr(g, 'transport_suitability', 1))
             cat = str((g.get('category') if isinstance(g, dict) else getattr(g, 'category', '')) or 'garment')
             if suit == 1 and delivered < int(max_items):
                 delivered += 1
                 if not dry_run:
-                    sim_world.mark_completed(float(drop_x_m), float(drop_y_m), category=cat, detail='DELIVERED')
+                    sim_world.mark_completed(float(drop_x_m), float(drop_y_m), track_id=tid, category=cat, detail='DELIVERED')
             else:
                 skipped += 1
                 if not dry_run:
-                    sim_world.upsert_object(sim_pose[0], sim_pose[1], category=cat, mobility='draggable', relevance='deferred', detail='UNSUPPORTED_GARMENT_SKIP')
+                    sim_world.upsert_object(sim_pose[0], sim_pose[1], track_id=tid, category=cat, mobility='draggable', relevance='deferred', detail='UNSUPPORTED_GARMENT_SKIP')
         if not dry_run:
             arm_unrestored = False
             sim_arm.update(state='IN_ROBOT', joints={'m3': 0., 'm4': 0., 'm5': 0., 'm6': 0.})

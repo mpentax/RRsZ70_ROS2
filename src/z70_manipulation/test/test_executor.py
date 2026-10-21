@@ -946,6 +946,8 @@ def test_simulate_goal_tracks_stateful_arm_world_and_trace():
                      and ctx.deliver_garment('sock', 1.0, 0.0)['status_code'] == 'LOADED_ROUTE_BLOCKED'
                      and ctx.patrol_collect(1.0, 0.0)['status_code'] == 'TARGET_OUTSIDE_INTERIOR'
                      and ctx.navigate(1.0, 0.0)['status_code'] == 'TARGET_OUTSIDE_INTERIOR'
+                     and ctx.patrol_collect(2.0, 2.0)['items_delivered'] == 1
+                     and len(ctx.garments('sock')) == 0
                      and ctx.clear_world()['cleared'] is True
                      and ctx.corridor_safe(0.0, 0.0, 2.0, 0.0) is True,
                      MoveArm.Result(),
