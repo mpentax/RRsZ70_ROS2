@@ -19,6 +19,7 @@ from z70_interfaces.action import (
     DeployArm, AlignToTarget, MoveArm, GraspAndLift, ReleaseAndStow,
     BasePulse, ArmStep, HandStep, ArmOperation,
 )
+from z70_description.arm_model import HAND_STEP_M, vendor_check, vendor_forward, vendor_inverse
 from z70_driver.commands import ARM_OPERATION_RPCS, arm_step_vector
 from z70_driver.driver import app_to_urdf
 from z70_interfaces.msg import ArmEstimate, CommandOutcome
@@ -222,6 +223,17 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
     def _hand_step(direction):
         if direction not in (1, 2, 3, 4):
             raise ValueError('hand_step direction must be in (1, 2, 3, 4)')
+        if sim_arm.get('state') == 'IN_ROBOT':
+            sim_arm.update(state='WORKING_POS', joints={'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.})
+        j = sim_arm.setdefault('joints', {'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.})
+        delta = {1: (0, 1), 2: (0, -1), 3: (1, 0), 4: (-1, 0)}[int(direction)]
+        m3, m4, m5 = float(j.get('m3', 150.)), float(j.get('m4', 45.)), float(j.get('m5', 0.))
+        x, y = vendor_forward(m3, m4)[1]
+        sol = vendor_inverse(x + delta[0] * HAND_STEP_M, y + delta[1] * HAND_STEP_M, (m3, m4))
+        if sol is None or vendor_check(sol[0], sol[1], m5) != 'SUCCESS':
+            raise ValueError(f'unreachable hand_step direction {direction}')
+        j['m3'], j['m4'] = float(sol[0]), float(sol[1])
+        sim_arm['state'] = 'IN_PROCESS_POS'
         _rec('hand_step', direction=int(direction))
         return {'direction': int(direction)}
 

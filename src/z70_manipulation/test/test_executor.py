@@ -907,6 +907,8 @@ def test_simulate_goal_tracks_stateful_arm_world_and_trace():
     assert [t['primitive'] for t in trace] == ['deploy_arm', 'update_world_object', 'move_arm']
     ok_move, move_res = simulate_goal(ALL_GOALS['move_arm'], SimpleNamespace(m3_deg=170., m4_deg=45., m5_deg=0.))
     assert ok_move is True and move_res.estimate.validity.value == 1 and list(move_res.estimate.joints.name) == ['m3_joint', 'm4_joint', 'm5_joint']
+    ok_hand, hand_res = simulate_goal(ALL_GOALS['hand_step'], SimpleNamespace(direction=3))
+    assert ok_hand is True and hand_res.estimate.validity.value == 1 and hand_res.estimate.joints.position[0] != math.radians(150. - 270.)
     ok_pulse, _ = simulate_goal(
         GoalSpec('pulse_rpc_check', MoveArm, '/z70/pulse_rpc_check', 10., lambda _s, _r: True,
                  lambda ctx, _r: (
