@@ -1075,6 +1075,7 @@ def _valid_garment_goal(_server, r) -> bool:
 
 
 def _goal_curated(ctx: 'GoalContext | SimpleNamespace', fn, build_result, ok_pred=lambda _d: True):
+    outcome_override = None
     try:
         data = fn(ctx)
         success = bool(ok_pred(data))
@@ -1082,7 +1083,9 @@ def _goal_curated(ctx: 'GoalContext | SimpleNamespace', fn, build_result, ok_pre
         data = dict(error=type(e).__name__, reason=str(e), log_dir=str(ctx.directory))
         ctx.log('failure', **data)
         success = False
-    return success, build_result(ctx.outcome(success), success, data)
+        if isinstance(e, ValueError):
+            outcome_override = CommandOutcome(error_code='INVALID_INPUT')
+    return success, build_result(outcome_override or ctx.outcome(success), success, data)
 
 
 def _goal_pick(ctx: 'GoalContext | SimpleNamespace', req):

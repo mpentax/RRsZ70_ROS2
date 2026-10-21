@@ -999,6 +999,12 @@ def test_simulate_goal_tracks_stateful_arm_world_and_trace():
     assert simulate_goal(ALL_GOALS['deliver_garment'], SimpleNamespace(category='jeans', drop_x_m=1.0, drop_y_m=1.0, max_duration_s=60.0, allow_towing=False, dry_run=True), garments=g_scene)[1].status_code == 'UNSUPPORTED_GARMENT_SKIP'
     ok_patrol, patrol_res = simulate_goal(ALL_GOALS['patrol_collect'], SimpleNamespace(drop_x_m=1.0, drop_y_m=1.0, max_duration_s=60.0, max_items=5, allow_towing=False, dry_run=False), garments=g_scene)
     assert ok_patrol is True and patrol_res.completed is False and patrol_res.partial_completion is True and patrol_res.items_delivered == 1 and patrol_res.items_skipped == 1 and patrol_res.status_code == 'PARTIAL_COMPLETION_SMALL_ITEMS_ONLY'
+    ok_unsafe, unsafe_res = simulate_goal(
+        ALL_GOALS['arm_step'],
+        SimpleNamespace(joint=4, direction=-1),
+        arm={'state': 'WORKING_POS', 'joints': {'m3': 150., 'm4': 35., 'm5': 0., 'm6': 90.}},
+    )
+    assert ok_unsafe is False and unsafe_res.outcome.error_code == 'INVALID_INPUT'
     with pytest.raises(ValueError, match='unsafe arm_step'):
         simulate_goal(
             GoalSpec('unsafe_step', MoveArm, '/z70/unsafe_step', 10., lambda _s, _r: True,
