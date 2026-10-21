@@ -219,7 +219,23 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         if not dry_run:
             sim_pose[0], sim_pose[1] = float(target_x_m), float(target_y_m)
         _rec('navigate', target_x_m=float(target_x_m), target_y_m=float(target_y_m), dry_run=bool(dry_run))
-        return {'arrived': not dry_run, 'dry_run_valid': bool(dry_run), 'status_code': 'ARRIVED', 'detail': ''}
+        return {
+            'arrived': not dry_run, 'dry_run_valid': bool(dry_run),
+            'status_code': 'DRY_RUN_VALID' if dry_run else 'ARRIVED',
+            'final_position_m': [sim_pose[0], sim_pose[1]], 'position_error_m': 0., 'detail': '',
+        }
+
+    def _navigate_room(room, max_duration_s=60., dry_run=False):
+        if not dry_run:
+            sim_pose[0], sim_pose[1] = 1.0, 1.0
+        _rec('navigate_room', room=room, max_duration_s=float(max_duration_s), dry_run=bool(dry_run))
+        return {
+            'arrived': not dry_run, 'dry_run_valid': bool(dry_run),
+            'status_code': 'DRY_RUN_VALID' if dry_run else 'ARRIVED',
+            'room': str(room), 'segment_id': int(room) if isinstance(room, int) or str(room).isdigit() else 1,
+            'target_x_m': 1.0, 'target_y_m': 1.0,
+            'final_position_m': [sim_pose[0], sim_pose[1]], 'position_error_m': 0., 'detail': '',
+        }
 
     def _update_world_object(x_m, y_m, category='object', mobility='pickupable', relevance='objective', radius_m=0.12, detail=''):
         entry = sim_world.upsert_object(
@@ -301,10 +317,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         mark_obstacle=_mark_obstacle,
         clear_world=_clear_world,
         navigate=_navigate,
-        navigate_room=lambda room, max_duration_s=60., dry_run=False: (
-            _rec('navigate_room', room=room, max_duration_s=float(max_duration_s), dry_run=bool(dry_run))
-            or {'reached': not dry_run, 'dry_run_valid': bool(dry_run), 'status_code': 'REACHED', 'room': str(room), 'segment_id': int(room) if isinstance(room, int) or str(room).isdigit() else 1, 'target_x_m': 1.0, 'target_y_m': 1.0}
-        ),
+        navigate_room=_navigate_room,
         pick=lambda color, dry_run=False: (
             _rec('pick', color=str(color), dry_run=bool(dry_run))
             or {'verified': not dry_run, 'dry_run': bool(dry_run), 'target': {'color': color}}
@@ -569,7 +582,7 @@ class GoalContext:
     def navigate_room(self, room: str | int, max_duration_s: float = 60., dry_run: bool = False) -> dict:
         wp = self.room_waypoint(room, refresh=True)
         if wp is None:
-            return {'reached': False, 'status_code': 'ROOM_UNREACHABLE', 'room': room}
+            return {'arrived': False, 'dry_run_valid': False, 'status_code': 'ROOM_UNREACHABLE', 'room': room, 'detail': 'ROOM_UNREACHABLE'}
         res = self.navigate(wp['x'], wp['y'], max_duration_s=max_duration_s, dry_run=dry_run)
         return {**res, 'room': wp['name'], 'segment_id': wp['segment_id'], 'target_x_m': wp['x'], 'target_y_m': wp['y']}
 

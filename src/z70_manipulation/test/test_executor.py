@@ -701,9 +701,9 @@ def test_simulate_goal_exercises_all_builtin_goals():
     assert real_ctx.room_waypoint('kitchen') == {'segment_id': 2, 'name': 'Kitchen', 'x': 3.0, 'y': 2.0, 'clearance_m': 0.9}
     assert real_ctx.room_waypoint(2)['x'] == 3.0
     assert real_ctx.room_waypoint('attic') is None
-    real_ctx.navigate = lambda x, y, max_duration_s=60., dry_run=False: {'reached': True, 'status_code': 'REACHED'}
-    assert real_ctx.navigate_room('kitchen') == {'reached': True, 'status_code': 'REACHED', 'room': 'Kitchen', 'segment_id': 2, 'target_x_m': 3.0, 'target_y_m': 2.0}
-    assert real_ctx.navigate_room('attic')['status_code'] == 'ROOM_UNREACHABLE'
+    real_ctx.navigate = lambda x, y, max_duration_s=60., dry_run=False: {'arrived': True, 'dry_run_valid': False, 'status_code': 'ARRIVED'}
+    assert real_ctx.navigate_room('kitchen') == {'arrived': True, 'dry_run_valid': False, 'status_code': 'ARRIVED', 'room': 'Kitchen', 'segment_id': 2, 'target_x_m': 3.0, 'target_y_m': 2.0}
+    assert real_ctx.navigate_room('attic') == {'arrived': False, 'dry_run_valid': False, 'status_code': 'ROOM_UNREACHABLE', 'room': 'attic', 'detail': 'ROOM_UNREACHABLE'}
 
     from z70_interfaces.msg import ArmEstimate
     from z70_interfaces.srv import SetArmAnchor
