@@ -39,10 +39,19 @@ try:
     from tf2_ros import Buffer, TransformListener, TransformException
     from z70_interfaces.msg import GarmentObservation, GarmentObservations
     from z70_driver.driver import LATCHED, MatchedFrames, read_pipe_exact, stop_worker_process, worker_env
-    from z70_mapping.node import quat_yaw
+    from z70_mapping.node import quat_yaw, read_exact
 except ImportError:
     Node = object
     LATCHED = None
+
+    def read_exact(stream, count):
+        data = bytearray()
+        while len(data) < count:
+            chunk = stream.read(count - len(data))
+            if not chunk:
+                raise EOFError('Worker input ended')
+            data.extend(chunk)
+        return bytes(data)
 
 _PACKAGE_ROOT = Path(__file__).resolve().parent.parent
 
@@ -460,16 +469,6 @@ PROMPTS = ['sock or shirt or towel or pants on floor', 'bare floor tile wood car
 MAX_PACKET = 8 * 1024 * 1024
 
 
-def read_exact(stream, count):
-    data = bytearray()
-    while len(data) < count:
-        chunk = stream.read(count - len(data))
-        if not chunk:
-            raise EOFError('Worker input ended')
-        data.extend(chunk)
-    return bytes(data)
-
-
 def read_packet(stream):
     size = struct.unpack('<I', read_exact(stream, 4))[0]
     if not 0 < size <= MAX_PACKET:
@@ -647,6 +646,9 @@ def seconds(stamp):
     return stamp.sec + stamp.nanosec / 1e9
 
 
+stamp_seconds = seconds
+
+
 def observations_message(items, meta, quality, geofence_active):
     msg = GarmentObservations()
     msg.header = deepcopy(meta.header); msg.header.frame_id = 'base_footprint'
@@ -789,7 +791,8 @@ class GarmentNode(Node):
             old_x, old_y, old_yaw = self.last_pose
             dx, dy = pose[0] - old_x, pose[1] - old_y
             delta = (math.cos(old_yaw) * dx + math.sin(old_yaw) * dy,
-                     -math.sin(old_yaw) * dx + math.cos(old_yaw) * dy, pose[2] - old_yaw)
+                     -math.sin(old_yaw) * dx + math.cos(old_yaw) * dy,
+                     math.atan2(math.sin(pose[2] - old_yaw), math.cos(pose[2] - old_yaw)))
         self.last_pose, self.last_session = pose, session
         items = []
         for detection in detections:

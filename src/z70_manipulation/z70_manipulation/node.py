@@ -38,12 +38,9 @@ from . import perception, planner
 from .executor import Executor, UncertainMotion, log_directory, read_arm, read_status
 from .garment_delivery import TowingQualificationConfig
 from .goals import GoalContext, GoalSpec, BUILTIN_GOALS
+from .perception import stamp_seconds
 
 RGB = {'yellow': (1., 1., 0.), 'orange': (1., .4, 0.), 'purple': (.7, 0., 1.), 'blue': (0., .2, 1.), 'green': (0., 1., .2)}
-
-
-def stamp_seconds(stamp):
-    return stamp.sec + stamp.nanosec / 1e9
 
 
 def call_service(client, request, timeout_s, cancelled=lambda: False,
@@ -477,8 +474,7 @@ class Client:
         with obs.condition:
             result = obs.frame()
             _, meta, _ = obs.image
-            stamp = meta.evidence.received_at
-            self.frame_received_at = stamp.sec + stamp.nanosec / 1e9
+            self.frame_received_at = stamp_seconds(meta.evidence.received_at)
             self.frame_exposure_known = meta.exposure_time_known
             return result
 
