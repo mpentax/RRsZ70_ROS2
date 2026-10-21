@@ -345,6 +345,17 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
             sim_arm.setdefault('joints', {})['m6'] = 90.
         elif m == 'app_grip':
             sim_arm.setdefault('joints', {})['m6'] = 0.
+        elif m == 'app_arm_move' and isinstance(params, dict) and isinstance(params.get('m'), list) and len(params['m']) >= 3:
+            arm_unrestored = True
+            j = sim_arm.setdefault('joints', {'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.})
+            for k, step, v in zip(('m3', 'm4', 'm5'), (10., 10., 15.), params['m'][:3]):
+                if v in (1, 2):
+                    j[k] = float(j.get(k, 0.)) + (step if v == 1 else -step)
+            if len(params['m']) >= 4 and params['m'][3] in (1, 2):
+                j['m6'] = 90. if params['m'][3] == 1 else 0.
+            sim_arm['state'] = 'IN_PROCESS_POS'
+        elif m == 'app_goto_target' and isinstance(params, list) and len(params) == 2:
+            sim_pose[0], sim_pose[1] = float(params[0]) / 1000., float(params[1]) / 1000.
         _rec('rpc', method=m, params=params)
         return {'result': ['ok']}
 
