@@ -163,9 +163,6 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         'state': 'WORKING_POS', 'joints': {'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.},
     }
     arm_unrestored = bool(arm_override and sim_arm.get('state') != 'IN_ROBOT')
-    sim_camera = deepcopy(overrides.pop('camera')) if isinstance(overrides.get('camera'), dict) else {
-        'active': 'front', 'raw': 11685, 'ready': True,
-    }
     sim_pose = [0., 0., 0.]
     sim_world = SessionWorldMap()
     sc_base: dict[str, Any] = {'current_room': None, 'rooms': [], 'dock': None, 'clearance_sectors_m': {}}
@@ -500,9 +497,8 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
     def _select_camera(camera):
         if camera not in ('front', 'gripper'):
             raise ValueError("camera must be 'front' or 'gripper'")
-        sim_camera.update(active=str(camera), raw=44453 if camera == 'gripper' else 11685, ready=True)
         _rec('select_camera', camera=str(camera))
-        return dict(sim_camera)
+        return {'camera': str(camera)}
 
     def _plan_approach(x_m, y_m):
         try:
