@@ -971,6 +971,12 @@ def test_simulate_goal_tracks_stateful_arm_world_and_trace():
         navigate={'arrived': True, 'status_code': 'ARRIVED', 'extra_field': 'ignored'},
     )
     assert ok_nav_extra is True and nav_res.arrived is True
+    ok_nav_deployed, nav_dep_res = simulate_goal(
+        ALL_GOALS['pin_and_go'],
+        SimpleNamespace(target_x_m=1.0, target_y_m=2.0, max_duration_s=30.0, dry_run=False),
+        arm={'state': 'WORKING_POS', 'joints': {'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.}},
+    )
+    assert ok_nav_deployed is False and nav_dep_res.status_code == 'ARM_NOT_STOWED'
     scene = [{'color': 'yellow', 'position': [0.35, 0.0, 0.03]}, {'color': 'red', 'position': [0.38, 0.04, 0.03]}]
     assert simulate_goal(ALL_GOALS['pick'], SimpleNamespace(color='yellow', dry_run=True), objects=scene)[0] is True
     assert simulate_goal(ALL_GOALS['pick'], SimpleNamespace(color='blue', dry_run=True), objects=scene)[0] is False

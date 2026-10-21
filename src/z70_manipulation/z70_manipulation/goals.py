@@ -157,9 +157,11 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
     trace = overrides.pop('_trace', None)
     if not isinstance(trace, list):
         trace = []
-    sim_arm = deepcopy(overrides.pop('arm')) if isinstance(overrides.get('arm'), dict) else {
+    arm_override = isinstance(overrides.get('arm'), dict)
+    sim_arm = deepcopy(overrides.pop('arm')) if arm_override else {
         'state': 'WORKING_POS', 'joints': {'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.},
     }
+    arm_unrestored = bool(arm_override and sim_arm.get('state') != 'IN_ROBOT')
     sim_pose = [0., 0., 0.]
     sim_world = SessionWorldMap()
     sc_base: dict[str, Any] = {'current_room': None, 'rooms': [], 'dock': None, 'clearance_sectors_m': {}}
@@ -184,11 +186,15 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         trace.append({'primitive': primitive, **info})
 
     def _deploy_arm(settle=True):
+        nonlocal arm_unrestored
+        arm_unrestored = True
         sim_arm.update(state='WORKING_POS', joints={'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.})
         _rec('deploy_arm', settle=bool(settle))
         return {'ready': True}
 
     def _move_arm(m3_deg, m4_deg, m5_deg=0.):
+        nonlocal arm_unrestored
+        arm_unrestored = True
         j = sim_arm.get('joints') or {}
         cur = [150., 45., 0.] if sim_arm.get('state') == 'IN_ROBOT' else [
             float(j.get('m3', 150.)), float(j.get('m4', 45.)), float(j.get('m5', 0.)),
@@ -201,8 +207,10 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         return {'state': target, 'steps_executed': len(steps), 'steps': steps}
 
     def _arm_step(m3=0, m4=0, m5=0):
+        nonlocal arm_unrestored
         if any(v not in (0, 1, 2) for v in (m3, m4, m5)) or not any((m3, m4, m5)):
             raise ValueError('arm_step axes must be in (0, 1, 2) with at least one nonzero axis')
+        arm_unrestored = True
         if sim_arm.get('state') == 'IN_ROBOT':
             sim_arm.update(state='WORKING_POS', joints={'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.})
         j = sim_arm.setdefault('joints', {'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.})
@@ -259,17 +267,23 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         return {'gripped': True, 'lift_steps': int(lift_steps), 'verified': verified}
 
     def _release_and_stow(put_down=True):
+        nonlocal arm_unrestored
+        arm_unrestored = False
         sim_arm.update(state='IN_ROBOT', joints={'m3': 0., 'm4': 0., 'm5': 0., 'm6': 0.})
         _rec('release_and_stow', put_down=bool(put_down))
         return {'stowed': True}
 
     def _set_arm_anchor(anchor, reason=''):
+        nonlocal arm_unrestored
         accepted = anchor in ('unknown', 'stowed', 'deployed')
         if anchor == 'stowed':
+            arm_unrestored = False
             sim_arm.update(state='IN_ROBOT', joints={'m3': 0., 'm4': 0., 'm5': 0., 'm6': 0.})
         elif anchor == 'deployed':
+            arm_unrestored = True
             sim_arm.update(state='WORKING_POS', joints={'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.})
         elif anchor == 'unknown':
+            arm_unrestored = True
             sim_arm['state'] = 'UNKNOWN'
         _rec('set_arm_anchor', anchor=str(anchor), reason=str(reason))
         return {'accepted': accepted, 'anchor': anchor}
@@ -299,10 +313,13 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         return {'ok': True}
 
     def _rpc(method, params=None, timeout_ms=5000):
+        nonlocal arm_unrestored
         m = str(method)
         if m == 'app_arm_out_compartment':
+            arm_unrestored = True
             sim_arm.update(state='WORKING_POS', joints={'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.})
         elif m in ('app_arm_in_compartment', 'app_arm_recover'):
+            arm_unrestored = False
             sim_arm.update(state='IN_ROBOT', joints={'m3': 0., 'm4': 0., 'm5': 0., 'm6': 0.})
         elif m in ('app_open_gripper', 'app_put_down'):
             sim_arm.setdefault('joints', {})['m6'] = 90.
@@ -312,9 +329,16 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         return {'result': ['ok']}
 
     def _navigate(target_x_m, target_y_m, max_duration_s=60., dry_run=False):
+        _rec('navigate', target_x_m=float(target_x_m), target_y_m=float(target_y_m), dry_run=bool(dry_run))
+        if arm_unrestored and sim_arm.get('state', 'IN_ROBOT') != 'IN_ROBOT':
+            return {
+                'arrived': False, 'dry_run_valid': False, 'status_code': 'ARM_NOT_STOWED',
+                'final_position_m': [sim_pose[0], sim_pose[1]],
+                'position_error_m': math.hypot(float(target_x_m) - sim_pose[0], float(target_y_m) - sim_pose[1]),
+                'detail': 'ARM_NOT_STOWED',
+            }
         if not dry_run:
             sim_pose[0], sim_pose[1] = float(target_x_m), float(target_y_m)
-        _rec('navigate', target_x_m=float(target_x_m), target_y_m=float(target_y_m), dry_run=bool(dry_run))
         return {
             'arrived': not dry_run, 'dry_run_valid': bool(dry_run),
             'status_code': 'DRY_RUN_VALID' if dry_run else 'ARRIVED',
