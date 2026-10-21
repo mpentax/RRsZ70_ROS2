@@ -333,13 +333,8 @@ class Executor:
         """Plan and execute coordinated 10-degree M3/M4/M5 steps within the legal kinematic envelope."""
         goal = (round(goal_joints[0]), round(goal_joints[1]), round(goal_joints[2]) if len(goal_joints) > 2 else 0)
         if start_joints is None:
-            est = self._arm()
-            if est.get('state') in ('UNKNOWN', 'IN_ROBOT'):
-                raise LookupError(f"cannot plan arm steps from state {est.get('state')}")
-            j = est.get('joints') or {}
-            start = (round(j.get('m3', 150)), round(j.get('m4', 45)), round(j.get('m5', 0)))
-        else:
-            start = (round(start_joints[0]), round(start_joints[1]), round(start_joints[2]) if len(start_joints) > 2 else 0)
+            start_joints = self.current_arm_joints()
+        start = (round(start_joints[0]), round(start_joints[1]), round(start_joints[2]) if len(start_joints) > 2 else 0)
         steps = planner.trajectory(start, goal)
         for step in steps:
             self.jog(step)
@@ -359,7 +354,7 @@ class Executor:
 
     def front_servo(self, color, current, floor_spot):
         """Fine-align using front camera if marker ID68 is visible; do not abort if marker is out of frame."""
-        current = tuple(current[:2])
+        current = planner.snap_grid((*current[:2], 0))[:2]
         confirmed = 0
         for index in range(16):
             self.safety()
@@ -500,8 +495,10 @@ class Executor:
     def current_arm_joints(self):
         """Usable ROS pose, otherwise a fresh marker-backed conditional fit."""
         estimate = self._arm()
+        if estimate.get('state') == 'IN_ROBOT':
+            raise LookupError('cannot plan arm steps from state IN_ROBOT')
         j = estimate.get('joints') or {}
-        if estimate.get('state') not in ('UNKNOWN','IN_ROBOT') and all(k in j for k in ('m3','m4','m5')):
+        if estimate.get('state') != 'UNKNOWN' and all(k in j for k in ('m3','m4','m5')):
             return [j['m3'],j['m4'],j['m5']]
         image, tag = self.fresh_frame()
         if tag != 'front':
