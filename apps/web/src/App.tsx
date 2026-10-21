@@ -673,6 +673,8 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
     : commonStatus !== null ? ((commonStatus >> 6) & 15) : null;
   const grabModeLabel = grabModeCode !== null ? (GRAB_MODES[grabModeCode] ?? `MODE_${grabModeCode}`) : '—';
   const grabActionLabel = grabActionCode !== null ? (GRAB_ACTIONS[grabActionCode] ?? `ACT_${grabActionCode}`) : '—';
+  const detectedObjects = Array.isArray(record(state?.objects).objects) ? record(state?.objects).objects as unknown[] : [];
+  const detectedGarments = Array.isArray(record(state?.garments).garments) ? record(state?.garments).garments as unknown[] : [];
   const activeTasks = tasks.filter(t => !terminal(t)).length;
 
   return <main className="app-shell">
@@ -755,7 +757,7 @@ export function App({ session }: { session: Promise<SessionStatus> }) {
         <div className="stat-tile">
           <span className="eyebrow">ACTIVE CAMERA LENS</span>
           <strong>{selectedCam === 'gripper' ? 'GRIPPER · 1600×896' : selectedCam === 'front' ? 'FRONT · 1600×1200' : 'UNCONFIRMED'}</strong>
-          <small>Bit-15 confirmed: {cameraState.selection_confirmed ? 'Yes' : 'No'}</small>
+          <small>Bit-15 confirmed: {cameraState.selection_confirmed ? 'Yes' : 'No'}{(detectedObjects.length > 0 || detectedGarments.length > 0) ? ` · ${detectedObjects.length} obj / ${detectedGarments.length} garm` : ''}</small>
         </div>
         <div className="stat-tile">
           <span className="eyebrow">ARM ESTIMATE</span>
