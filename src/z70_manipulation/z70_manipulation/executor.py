@@ -803,7 +803,7 @@ class Executor:
                     'target': t,
                     'approach': _safe_approach(t['position'], op_xy + [0.]) if t and 'position' in t else None,
                 })
-            all_found = all(targets[c] is not None for c in colors)
+            all_found = all(targets[c] is not None and tiers[i]['approach'] is not None for i, c in enumerate(colors))
             result = dict(
                 dry_run=True,
                 base_color=base_color,

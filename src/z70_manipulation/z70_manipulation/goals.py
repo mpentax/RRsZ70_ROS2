@@ -443,21 +443,29 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
             target = seen[0] if seen else None
         else:
             target = {'color': str(color), 'position': [0.35, 0., 0.03]}
-        ok = target is not None
+        raw_pos = target.get('position') if isinstance(target, dict) else None
+        pos = raw_pos if isinstance(raw_pos, (list, tuple)) and len(raw_pos) >= 2 else [0.35, 0., 0.03]
+        approach = _plan_approach(pos[0], pos[1]) if target is not None else None
+        ok = target is not None and approach is not None
         if ok and not dry_run:
             arm_unrestored = False
             sim_arm.update(state='IN_ROBOT', joints={'m3': 0., 'm4': 0., 'm5': 0., 'm6': 0.})
-            raw_pos = target.get('position') if isinstance(target, dict) else None
-            pos = raw_pos if isinstance(raw_pos, (list, tuple)) and len(raw_pos) >= 2 else [0.35, 0., 0.03]
             px, py = transform_xy((float(pos[0]), float(pos[1])), (sim_pose[0], sim_pose[1], sim_pose[2]))
             sim_world.mark_completed(px, py, category=str(color), detail='PICKED')
         _rec('pick', color=str(color), dry_run=bool(dry_run))
-        return {'verified': ok and not dry_run, 'dry_run': bool(dry_run), 'target': target}
+        return {'verified': ok and not dry_run, 'dry_run': bool(dry_run), 'target': target, 'approach': approach}
 
     def _stack(base_color, middle_color, top_color, dry_run=False):
         nonlocal arm_unrestored
         if 'objects' in overrides:
-            all_vis = all(bool(defaults['objects']('front', c)) for c in (base_color, middle_color, top_color))
+            all_vis = True
+            for c in (base_color, middle_color, top_color):
+                seen = defaults['objects']('front', c)
+                if not seen:
+                    all_vis = False; break
+                rp = seen[0].get('position') if isinstance(seen[0], dict) else None
+                if isinstance(rp, (list, tuple)) and len(rp) >= 2 and _plan_approach(rp[0], rp[1]) is None:
+                    all_vis = False; break
         else:
             all_vis = True
         if all_vis and not dry_run:
@@ -1176,7 +1184,7 @@ def _goal_pick(ctx: 'GoalContext | SimpleNamespace', req):
             dry_run_valid=bool(req.dry_run and ok),
             evidence_uri=ctx.directory.name,
         ),
-        lambda r: r.get('verified') or (r.get('dry_run') and r.get('target') is not None),
+        lambda r: r.get('verified') or (r.get('dry_run') and r.get('target') is not None and r.get('approach', True) is not None),
     )
 
 
