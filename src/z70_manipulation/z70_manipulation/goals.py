@@ -542,6 +542,9 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
                 sim_objects.remove(target)
             px, py = transform_xy((float(pos[0]), float(pos[1])), (sim_pose[0], sim_pose[1], sim_pose[2]))
             sim_world.mark_completed(px, py, category=str(color), detail='PICKED')
+        elif not ok and not dry_run:
+            px, py = transform_xy((float(pos[0]), float(pos[1])), (sim_pose[0], sim_pose[1], sim_pose[2]))
+            sim_world.mark_attempt_failed(px, py, detail='PICK_FAILED')
         _rec('pick', color=str(color), dry_run=bool(dry_run))
         return {'verified': ok and not dry_run, 'dry_run': bool(dry_run), 'target': target, 'approach': approach}
 
@@ -573,6 +576,11 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
             bx, by = (float(bp[0]), float(bp[1])) if isinstance(bp, (list, tuple)) and len(bp) >= 2 else (0.35, 0.)
             px, py = transform_xy((bx, by), (sim_pose[0], sim_pose[1], sim_pose[2]))
             sim_world.mark_completed(px, py, category=f'stack:{base_color}+{middle_color}+{top_color}', detail='STACKED')
+        elif not all_vis and not dry_run:
+            bp = matched[0].get('position') if matched and isinstance(matched[0], dict) else None
+            bx, by = (float(bp[0]), float(bp[1])) if isinstance(bp, (list, tuple)) and len(bp) >= 2 else (0.35, 0.)
+            px, py = transform_xy((bx, by), (sim_pose[0], sim_pose[1], sim_pose[2]))
+            sim_world.mark_attempt_failed(px, py, detail='STACK_FAILED')
         _rec('stack', base_color=str(base_color), middle_color=str(middle_color), top_color=str(top_color), dry_run=bool(dry_run))
         return {'stack_verified': all_vis and not dry_run, 'dry_run': bool(dry_run), 'all_targets_visible': all_vis, 'tiers_completed': 3 if all_vis else 0}
 
