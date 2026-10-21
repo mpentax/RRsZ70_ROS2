@@ -161,6 +161,23 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
     }
     sim_pose = [0., 0., 0.]
     sim_world = SessionWorldMap()
+    sc_base: dict[str, Any] = {'current_room': None, 'rooms': [], 'dock': None, 'clearance_sectors_m': {}}
+    if isinstance(overrides.get('spatial_context'), dict):
+        sc_init = deepcopy(overrides.pop('spatial_context'))
+        if isinstance(sc_init.get('world_objects'), dict):
+            sim_world.load_entries(sc_init.pop('world_objects'))
+        rp = sc_init.get('robot_pose_map')
+        if isinstance(rp, dict) and all(rp.get(k) is not None for k in ('x', 'y')):
+            sim_pose = [float(rp['x']), float(rp['y']), float(rp.get('yaw') or 0.)]
+        sc_base.update(sc_init)
+    if isinstance(overrides.get('world_objects'), dict):
+        sim_world.load_entries(overrides.pop('world_objects'))
+    if isinstance(overrides.get('odom'), dict) and all(k in overrides['odom'] for k in ('x', 'y')):
+        od = overrides.pop('odom')
+        sim_pose = [float(od['x']), float(od['y']), float(od.get('yaw') or 0.)]
+    if isinstance(overrides.get('map_pose'), (list, tuple)) and len(overrides['map_pose']) >= 3:
+        mp = overrides.pop('map_pose')
+        sim_pose = [float(mp[0]), float(mp[1]), float(mp[2])]
 
     def _rec(primitive: str, **info):
         trace.append({'primitive': primitive, **info})
@@ -433,8 +450,8 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         map_snapshot=lambda refresh=False, max_age_s=5.: None,
         safe_interior=lambda refresh=False, deployed_arm_extension_m=0.: (None, None),
         spatial_context=lambda refresh=False: {
+            **sc_base,
             'robot_pose_map': {'x': sim_pose[0], 'y': sim_pose[1], 'yaw': sim_pose[2]},
-            'current_room': None, 'rooms': [], 'dock': None, 'clearance_sectors_m': {},
             'world_objects': sim_world.summary(),
         },
         room_waypoint=_room_waypoint,

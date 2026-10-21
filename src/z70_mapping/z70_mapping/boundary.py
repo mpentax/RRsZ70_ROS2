@@ -558,10 +558,11 @@ class SessionWorldMap:
     def load_entries(self, data: dict) -> None:
         if not isinstance(data, dict):
             return
+        defaults = dict(category='object', mobility='pickupable', relevance='objective', x=0.0, y=0.0)
         for raw in data.get('entries', ()):
             if not isinstance(raw, dict) or 'id' not in raw:
                 continue
-            fields = {k: raw[k] for k in WorldObject.__dataclass_fields__ if k in raw}
+            fields = {**defaults, **{k: raw[k] for k in WorldObject.__dataclass_fields__ if k in raw}}
             self.entries[str(raw['id'])] = WorldObject(**fields)
 
     def pending_objectives(self, pose_xy: tuple[float, float] | None = None, *,

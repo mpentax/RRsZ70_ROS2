@@ -221,6 +221,22 @@ class Gateway(Node):
                 with self.lock:
                     raw_spatial = self.samples.get('spatial_context', {}).get('data')
                     raw_world = self.samples.get('world_objects', {}).get('data')
+                    arm_sample = deepcopy(self.samples.get('arm'))
+                if isinstance(arm_sample, dict) and arm_sample.get('validity', {}).get('value') in (1, 2):
+                    jn = arm_sample.get('joints', {}).get('name') or []
+                    jp = arm_sample.get('joints', {}).get('position') or []
+                    q = dict(zip(jn, jp))
+                    if all(k in q for k in ('m3_joint', 'm4_joint', 'm5_joint')):
+                        import math
+                        live_ctx['arm'] = {
+                            'state': 'IN_PROCESS_POS',
+                            'joints': {
+                                'm3': math.degrees(q['m3_joint']) + 270.,
+                                'm4': 180. - math.degrees(q['m4_joint']),
+                                'm5': -math.degrees(q['m5_joint']),
+                                'm6': 90.,
+                            },
+                        }
                 if isinstance(raw_spatial, str):
                     try:
                         sp = json.loads(raw_spatial)
@@ -230,9 +246,6 @@ class Gateway(Node):
                             except (ValueError, TypeError):
                                 pass
                         live_ctx['spatial_context'] = sp
-                        rp = sp.get('robot_pose_map') or {}
-                        if all(k in rp for k in ('x', 'y', 'yaw')):
-                            live_ctx['map_pose'] = (float(rp['x']), float(rp['y']), float(rp['yaw']))
                     except (ValueError, TypeError):
                         pass
                 trace = []
