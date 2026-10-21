@@ -160,7 +160,7 @@ export class RoboClawHttpError extends Error {
 
 function rosErrorEvidence(data: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
   if (!data) return undefined;
-  const codes = ['ROS_UNAVAILABLE', 'RESPONSE_TIMEOUT', 'INVALID_INPUT', 'REJECTED', 'TASK_NOT_FOUND', 'TASK_FINISHED', 'CANCEL_REJECTED', 'OBSERVATION_GAP', 'CAPACITY'];
+  const codes = ['ROS_UNAVAILABLE', 'RESPONSE_TIMEOUT', 'INVALID_INPUT', 'REJECTED', 'TASK_NOT_FOUND', 'TASK_FINISHED', 'CANCEL_REJECTED', 'OBSERVATION_GAP', 'CAPACITY', 'SESSION_STOPPED'];
   return { ...(typeof data.error === 'string' && codes.includes(data.error) ? { error: data.error } : {}),
     ...(['unknown', 'not_sent', 'sent'].includes(String(data.dispatch)) ? { dispatch: data.dispatch } : {}),
     ...(typeof data.id === 'string' && /^[0-9a-f-]{36}$/.test(data.id) ? { id: data.id } : {}) };
@@ -268,7 +268,7 @@ export function createRoboClawMcp(client: RoboClawMcpClient): McpServer {
     jsonTool((payload) => client.request('/api/ros/stop', 18000, payload)));
   server.registerTool('control_session', {title:'Stop or resume control and streams', description:'Enable or suspend robot control and shared streams.', inputSchema:{enabled:z.boolean()}, annotations:ACTUATION},
     jsonTool((payload) => client.request('/api/ros/control/session', 40000, payload)));
-  server.registerTool('get_map', {title:'Read shared ROS map', description:'Read the current ROS OccupancyGrid map along with session-scoped dynamic obstacles and tracked world objects when published.', annotations:READONLY},
+  server.registerTool('get_map', {title:'Read shared ROS map', description:'Read the current ROS OccupancyGrid map along with spatial context (rooms, dock, clearance sectors), session-scoped dynamic obstacles, and tracked world objects when published.', annotations:READONLY},
     jsonTool(() => client.request('/api/ros/map')));
   return server;
 }

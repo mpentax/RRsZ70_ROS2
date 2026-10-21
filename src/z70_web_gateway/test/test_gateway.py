@@ -195,17 +195,21 @@ def test_validation_token_and_closed_error_contract(system, tmp_path):
     primitives = {p['name'] for p in catalog['context_primitives']}
     assert {'status', 'arm', 'map_pose', 'safe_interior', 'objects', 'garments', 'world_objects', 'update_world_object', 'mark_obstacle', 'clear_world', 'navigate', 'deploy_arm', 'align_target', 'move_arm', 'grasp_and_lift', 'release_and_stow', 'pulse', 'rpc', 'feedback', 'outcome'} <= primitives
     world_pub = system['peer'].create_publisher(String, '/z70/world/objects', LATCHED)
+    spatial_pub = system['peer'].create_publisher(String, '/z70/map/spatial_context', LATCHED)
     dyn_pub = system['peer'].create_publisher(OccupancyGrid, '/z70/map/dynamic_obstacles', LATCHED)
     try:
         world_pub.publish(String(data=json.dumps({'session_bound': True, 'objectives': [{'id': 'sock_1'}], 'obstacles': [], 'delivered_piles': [], 'entries': [{'id': 'sock_1'}]})))
+        spatial_pub.publish(String(data=json.dumps({'current_room': {'segment_id': 2, 'name': 'Kitchen'}, 'rooms': []})))
         dyn_grid = OccupancyGrid(); dyn_grid.info.width = 4; dyn_grid.info.height = 4; dyn_grid.data = [0] * 16
         dyn_pub.publish(dyn_grid)
-        wait(lambda: 'world_objects' in request('GET', '/api/ros/map').json() and 'dynamic_obstacles' in request('GET', '/api/ros/map').json())
+        wait(lambda: all(k in request('GET', '/api/ros/map').json() for k in ('world_objects', 'spatial_context', 'dynamic_obstacles')))
         map_res = request('GET', '/api/ros/map').json()
         assert map_res['world_objects']['objectives'] == [{'id': 'sock_1'}]
+        assert map_res['spatial_context']['current_room']['name'] == 'Kitchen'
         assert map_res['dynamic_obstacles']['info']['width'] == 4
     finally:
         system['peer'].destroy_publisher(world_pub)
+        system['peer'].destroy_publisher(spatial_pub)
         system['peer'].destroy_publisher(dyn_pub)
     valid = request('POST', '/api/ros/goals/validate', {'kind': 'pick', 'goal': {'color': 'yellow', 'dry_run': True}})
     assert valid.status_code == 200 and valid.json() == {'valid': True, 'kind': 'pick', 'topic': '/z70/pick', 'action': 'Pick'}

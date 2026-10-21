@@ -17,7 +17,7 @@ Proxied by the sidecar to `z70_web_gateway` (`127.0.0.1:57020`). Task IDs are lo
 | Method & Path | Request / Response |
 | :--- | :--- |
 | `GET /api/ros/state` | `{available, session_enabled, state, camera, arm, calibration}` (`state.grab_status` decoded from `common_status` bits `6..9`, `grab_mode` in bits `10..11`). |
-| `GET /api/ros/map` | `{map: OccupancyGrid \| null, dynamic_obstacles?: OccupancyGrid, world_objects?: dict}` |
+| `GET /api/ros/map` | `{map: OccupancyGrid \| null, dynamic_obstacles?: OccupancyGrid, world_objects?: dict, spatial_context?: dict}` |
 | `POST /api/ros/frame` | `{}` returns the active camera JPEG; `{camera: "front" \| "gripper"}` filters by lens without switching cameras. Response headers include `X-Roboclaw-Camera`, `X-Roboclaw-Frame-Id`, `X-Roboclaw-Camera-Session`, and `X-Roboclaw-Received-At`. |
 | `POST /api/ros/camera/select` | `{camera: "front" \| "gripper"}` -> calls `/z70/camera/select` (`SelectCamera`). |
 | `POST /api/ros/arm/anchor` | `{anchor: "unknown" \| "stowed" \| "deployed", reason?: string}` -> calls `/z70/arm/anchor` (`SetArmAnchor`). |

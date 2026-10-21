@@ -47,6 +47,7 @@ TOPICS = (
     ('map', OccupancyGrid, '/map'),
     ('dynamic_obstacles', OccupancyGrid, '/z70/map/dynamic_obstacles'),
     ('world_objects', String, '/z70/world/objects'),
+    ('spatial_context', String, '/z70/map/spatial_context'),
 )
 TERMINAL = {'succeeded', 'failed', 'cancelled', 'rejected'}
 ID = r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
@@ -276,12 +277,13 @@ class Gateway(Node):
                 res = {'map': deepcopy(self.samples.get('map'))}
                 if 'dynamic_obstacles' in self.samples:
                     res['dynamic_obstacles'] = deepcopy(self.samples['dynamic_obstacles'])
-                raw_world = self.samples.get('world_objects', {}).get('data')
-                if isinstance(raw_world, str):
-                    try:
-                        res['world_objects'] = json.loads(raw_world)
-                    except (ValueError, TypeError):
-                        pass
+                for key in ('world_objects', 'spatial_context'):
+                    raw_json = self.samples.get(key, {}).get('data')
+                    if isinstance(raw_json, str):
+                        try:
+                            res[key] = json.loads(raw_json)
+                        except (ValueError, TypeError):
+                            pass
                 return 200, res, {}
         if method == 'GET' and path == '/api/ros/goals':
             return 200, {
