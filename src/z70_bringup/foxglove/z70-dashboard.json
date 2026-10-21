@@ -406,6 +406,16 @@
       "defaultExpanded": true,
       "title": "Spatial context"
     },
+    "RawMessages!World-objects": {
+      "diffEnabled": false,
+      "diffMethod": "custom",
+      "diffTopicPath": "",
+      "showFullMessageForDiff": false,
+      "topicPath": "/z70/world/objects",
+      "fontSize": 12,
+      "defaultExpanded": true,
+      "title": "World objects"
+    },
     "Indicator!Active-lens": {
       "path": "/z70/camera/state.selected_camera",
       "style": "background",
@@ -1214,8 +1224,13 @@
                   "second": {
                     "direction": "row",
                     "first": "RawMessages!Robot-status",
-                    "second": "RawMessages!Spatial-context",
-                    "splitPercentage": 50
+                    "second": {
+                      "direction": "column",
+                      "first": "RawMessages!Spatial-context",
+                      "second": "RawMessages!World-objects",
+                      "splitPercentage": 55
+                    },
+                    "splitPercentage": 45
                   },
                   "splitPercentage": 35
                 },

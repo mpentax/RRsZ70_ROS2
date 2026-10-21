@@ -21,7 +21,7 @@ pixi run bringup mapping:=false     # disable vendor map node
 | `/z70/world/update` | `std_msgs/msg/String` (JSON) — updates the session-scoped world object registry (`upsert`, `obstacle`, `completed`, `failed`, `objective`, `clear`) |
 | `/z70/map/robot_pose`, `/z70/map/dock_pose` | `geometry_msgs/msg/PoseStamped` from the vendor map snapshot |
 | `/z70/map/markers` | `visualization_msgs/msg/MarkerArray` — room boundaries/labels, dock, paths, virtual walls, zones, carpet, and patrol waypoints |
-| `/z70/map/spatial_context` | `std_msgs/msg/String` (JSON) — current room, 8-sector clearance raycasts, and `boundary_contract` |
+| `/z70/map/spatial_context` | `std_msgs/msg/String` (JSON) — current room, per-room `safe_waypoint` & `reachable` flags, 8-sector clearance raycasts, and `boundary_contract` |
 | `/z70/map/status` | `std_msgs/msg/String` (JSON) — map cache age, sequence, block counts, and alignment metadata |
 | `/tf` | `map -> odom` transform (`5 Hz`) |
 | `/camera/front/depth/points` | `sensor_msgs/msg/PointCloud2` — metric `xyz` `float32` cloud in `camera_optical_frame` |

@@ -248,8 +248,10 @@ def test_3d_and_image_configs_use_real_fields_and_sources():
 def test_spatial_context_and_floor_mosaic_are_visible_in_dashboard_tabs():
     assert CONFIGS['RawMessages!Robot-status']['topicPath'] == '/z70/state'
     assert CONFIGS['RawMessages!Spatial-context']['topicPath'] == '/z70/map/spatial_context'
+    assert CONFIGS['RawMessages!World-objects']['topicPath'] == '/z70/world/objects'
     overview = CONFIGS['Tab!z70-dashboard']['tabs'][0]['layout']
     assert 'RawMessages!Spatial-context' in json.dumps(overview)
+    assert 'RawMessages!World-objects' in json.dumps(overview)
     mosaic = CONFIGS['Image!Floor-mosaic']['imageMode']
     assert mosaic['imageTopic'] == '/z70/floor_mosaic'
     assert mosaic['imageSchemaName'] == 'sensor_msgs/msg/Image'

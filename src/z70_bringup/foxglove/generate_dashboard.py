@@ -123,7 +123,7 @@ error = indicator('Error', '/z70/error_code', [('0', 'NO ERROR', '#0f766e')])
 summary = panel('DiagnosticSummary', 'Health', dict(minLevel=0, topicToRender='/diagnostics', sortByLevel=True, secondsUntilStale=5))
 overview = row(scene('Robot-map-and-depth'), col(image('Front-live', 'front'),
     col(row(battery, state), col(row(connection, error), row(raw('Robot-status', '/z70/state'),
-        raw('Spatial-context', '/z70/map/spatial_context'), 50), 35), 30), 47), 62)
+        col(raw('Spatial-context', '/z70/map/spatial_context'), raw('World-objects', '/z70/world/objects'), 55), 45), 35), 30), 47), 62)
 
 active_lens = indicator(
     'Active-lens', '/z70/camera/state.selected_camera',
