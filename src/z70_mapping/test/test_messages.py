@@ -142,8 +142,8 @@ def test_spatial_context_tracks_transformed_odometry(mapping_node):
     assert node.anchor == anchor
     assert tf.sendTransform.call_count == 2
     payload = json.loads(pubs['/z70/map/spatial_context'].publish.call_args.args[0].data)
-    assert payload.pop('boundary_contract')['frame_id'] == 'map'
-    assert payload == spatial_context(node.current[0], {2: 'Kitchen'}, transform_pose(anchor, node.odom))
+    assert payload['boundary_contract']['frame_id'] == 'map'
+    assert payload == json.loads(json.dumps(spatial_context(node.current[0], {2: 'Kitchen'}, transform_pose(anchor, node.odom), boundary_result=node.boundary)))
 
 
 def test_alignment_refresh_only_on_new_sequence(mapping_node):

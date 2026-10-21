@@ -459,12 +459,12 @@ class GoalContext:
         return snap, compute_safe_interior(snap.map, snap.labels, cfg, snap.map.robot, dynamic_obstacles=dyn)
 
     def spatial_context(self, refresh: bool = False) -> dict:
-        snap = self.map_snapshot(refresh=refresh)
+        snap, boundary = self.safe_interior(refresh=refresh)
         try:
             pose = self.map_pose()
         except LookupError:
             pose = snap.map.robot
-        ctx = compute_spatial_context(snap.map, snap.labels, pose)
+        ctx = compute_spatial_context(snap.map, snap.labels, pose, boundary_result=boundary)
         ctx['world_objects'] = self.world_objects()
         return ctx
 

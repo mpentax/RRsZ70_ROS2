@@ -170,7 +170,7 @@ def room_names(mapping, rooms):
             if isinstance(r, list) and len(r) >= 2 and str(r[1]) in labels}
 
 
-def spatial_context(m, labels, robot_pose_map=None) -> dict:
+def spatial_context(m, labels, robot_pose_map=None, boundary_result=None) -> dict:
     """Compute current room, relative room/dock bearings, and 8-sector clearance rays."""
     pose = robot_pose_map if robot_pose_map is not None else m.robot
 
@@ -209,12 +209,23 @@ def spatial_context(m, labels, robot_pose_map=None) -> dict:
                 current_room = {'segment_id': segment, 'name': labels.get(segment, f'Segment {segment}')}
 
     rooms = []
+    wp_by_seg = {}
+    if boundary_result is not None:
+        for w in getattr(boundary_result, 'waypoints', ()):
+            s = int(w.get('segment_id', -1))
+            if s not in wp_by_seg or float(w.get('clearance_m', 0.)) > float(wp_by_seg[s].get('clearance_m', 0.)):
+                wp_by_seg[s] = w
     for seg, room in sorted(m.rooms.items()):
         x, y = room['centroid']
         distance, bearing = relative(x, y)
-        rooms.append({'segment_id': seg, 'name': labels.get(seg, f'Segment {seg}'),
-                      'centroid': [round(x, 3), round(y, 3)], 'area_m2': round(room['area_m2'], 3),
-                      'distance_m': distance, 'bearing_rad': bearing})
+        entry = {'segment_id': seg, 'name': labels.get(seg, f'Segment {seg}'),
+                 'centroid': [round(x, 3), round(y, 3)], 'area_m2': round(room['area_m2'], 3),
+                 'distance_m': distance, 'bearing_rad': bearing}
+        if boundary_result is not None:
+            wp = wp_by_seg.get(int(seg))
+            entry['safe_waypoint'] = [round(float(wp['x']), 3), round(float(wp['y']), 3)] if wp else None
+            entry['reachable'] = wp is not None
+        rooms.append(entry)
     if pose is not None:
         rooms.sort(key=lambda room: room['distance_m'])
 
@@ -243,8 +254,11 @@ def spatial_context(m, labels, robot_pose_map=None) -> dict:
     robot_pose = ({'x': round(pose[0], 3), 'y': round(pose[1], 3),
                    'yaw': round(pose[2], 3) if pose[2] is not None else None}
                   if pose is not None else None)
-    return {'robot_pose_map': robot_pose, 'current_room': current_room,
-            'rooms': rooms, 'dock': dock, 'clearance_sectors_m': sectors}
+    res = {'robot_pose_map': robot_pose, 'current_room': current_room,
+           'rooms': rooms, 'dock': dock, 'clearance_sectors_m': sectors}
+    if boundary_result is not None and hasattr(boundary_result, 'summary'):
+        res['boundary_contract'] = boundary_result.summary()
+    return res
 
 
 def stamp(ms):
@@ -555,9 +569,8 @@ class MappingNode(Node):
                 self.pub_pose.publish(pose_message(m.robot, now_ms))
             if m.dock:
                 self.pub_dock.publish(pose_message(m.dock, now_ms))
-        contract = self.boundary.summary()
-        ctx = spatial_context(m, labels, robot_map)
-        ctx['boundary_contract'] = contract
+        ctx = spatial_context(m, labels, robot_map, boundary_result=self.boundary)
+        contract = ctx['boundary_contract']
         self.pub_spatial.publish(String(data=json.dumps(ctx)))
         diagnostic = {k: v for k, v in status.items() if k != 'session_id'}
         diagnostic.update(boundary_contract=contract,

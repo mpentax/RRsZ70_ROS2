@@ -239,7 +239,7 @@ class Gateway(Node):
                                 q = str(room).strip().lower()
                                 for r in _rooms:
                                     if (isinstance(room, int) and r.get('segment_id') == room) or str(r.get('segment_id')) == q or str(r.get('name', '')).strip().lower() == q:
-                                        c = r.get('centroid') or [1.0, 1.0]
+                                        c = r.get('safe_waypoint') or r.get('centroid') or [1.0, 1.0]
                                         return {'segment_id': int(r['segment_id']), 'name': str(r.get('name', room)), 'x': float(c[0]), 'y': float(c[1]), 'clearance_m': 0.8}
                                 return None
                             live_ctx['room_waypoint'] = _live_room_wp
