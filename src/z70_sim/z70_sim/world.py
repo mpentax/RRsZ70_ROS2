@@ -929,7 +929,20 @@ class SimServer:
                     self._json(200, {'available': not sim.stop_event.is_set(), 'simulator': 'mujoco'})
                     return
                 if self.path == '/api/session':
-                    self._json(200, {'authenticated': True, 'setupAvailable': False, 'setupSession': False})
+                    self._json(200, {'authenticated': True, 'scope': 'control', 'setupAvailable': False})
+                    return
+                if self.path == '/api/setup':
+                    self._json(200, {
+                        'device': {
+                            'id': 'sim-z70-duid',
+                            'name': 'Roborock Saros Z70 (MuJoCo Sim)',
+                            'model': 'roborock.vacuum.a179',
+                            'host': '127.0.0.1',
+                            'localProtocol': 'L01',
+                        },
+                        'accountConfigured': True,
+                        'pinConfigured': True,
+                    })
                     return
                 if not self.path.startswith('/api/'):
                     web_root = (Path(os.environ.get('Z70_REPO', '.')).resolve() / 'dist' / 'web').resolve()
@@ -1052,7 +1065,8 @@ class SimServer:
 
             def do_POST(self) -> None:
                 if self.path == '/api/session':
-                    self._json(200, {'authenticated': True, 'setupAvailable': False, 'setupSession': False})
+                    self._read_json()
+                    self._json(200, {'authenticated': True, 'scope': 'control', 'setupAvailable': False})
                     return
                 if self.path.startswith('/api/ros/'):
                     self._proxy_ros('POST')
