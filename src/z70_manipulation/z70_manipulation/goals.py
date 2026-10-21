@@ -242,9 +242,21 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         _rec('open_jaws')
 
     def _grasp_and_lift(lift_steps=2, verify_color=''):
-        sim_arm.setdefault('joints', {})['m6'] = 0.
+        if sim_arm.get('state') == 'IN_ROBOT':
+            sim_arm.update(state='WORKING_POS', joints={'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.})
+        j = sim_arm.setdefault('joints', {'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.})
+        j['m6'] = 0.
+        m3, m4, m5 = float(j.get('m3', 150.)), float(j.get('m4', 45.)), float(j.get('m5', 0.))
+        for _ in range(max(0, int(lift_steps))):
+            x, y = vendor_forward(m3, m4)[1]
+            sol = vendor_inverse(x, y + HAND_STEP_M, (m3, m4))
+            if sol is not None and vendor_check(sol[0], sol[1], m5) == 'SUCCESS':
+                m3, m4 = float(sol[0]), float(sol[1])
+        j['m3'], j['m4'] = m3, m4
+        sim_arm['state'] = 'IN_PROCESS_POS'
+        verified = bool(defaults['objects']('front', verify_color)) if (verify_color and 'objects' in overrides) else True
         _rec('grasp_and_lift', lift_steps=int(lift_steps), verify_color=str(verify_color))
-        return {'verified': True}
+        return {'gripped': True, 'lift_steps': int(lift_steps), 'verified': verified}
 
     def _release_and_stow(put_down=True):
         sim_arm.update(state='IN_ROBOT', joints={'m3': 0., 'm4': 0., 'm5': 0., 'm6': 0.})

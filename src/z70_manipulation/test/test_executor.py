@@ -976,6 +976,8 @@ def test_simulate_goal_tracks_stateful_arm_world_and_trace():
     assert simulate_goal(ALL_GOALS['pick'], SimpleNamespace(color='blue', dry_run=True), objects=scene)[0] is False
     assert simulate_goal(ALL_GOALS['stack'], SimpleNamespace(base_color='yellow', middle_color='red', top_color='blue', dry_run=True), objects=scene)[0] is False
     assert simulate_goal(ALL_GOALS['align_target'], SimpleNamespace(color='blue'), objects=scene)[0] is False
+    assert simulate_goal(ALL_GOALS['grasp_and_lift'], SimpleNamespace(lift_steps=2, verify_color='yellow'), objects=scene)[1].verified_hold is True
+    assert simulate_goal(ALL_GOALS['grasp_and_lift'], SimpleNamespace(lift_steps=2, verify_color='blue'), objects=scene)[1].verified_hold is False
     g_scene = [{'category': 'sock', 'transport_suitability': 1}, {'category': 'jeans', 'transport_suitability': 3}]
     assert simulate_goal(ALL_GOALS['deliver_garment'], SimpleNamespace(category='sock', drop_x_m=1.0, drop_y_m=1.0, max_duration_s=60.0, allow_towing=False, dry_run=True), garments=g_scene)[0] is True
     assert simulate_goal(ALL_GOALS['deliver_garment'], SimpleNamespace(category='towel', drop_x_m=1.0, drop_y_m=1.0, max_duration_s=60.0, allow_towing=False, dry_run=True), garments=g_scene)[1].status_code == 'NO_CONFIRMED_GARMENT'
