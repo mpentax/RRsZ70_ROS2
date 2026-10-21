@@ -44,6 +44,19 @@ def dynamic_obstacles(observations, snapshot, pose_xy=None, world=None):
     return None
 
 
+def map_identity(snapshot):
+    m = snapshot.map
+    return [
+        getattr(snapshot, 'map_index', None),
+        getattr(snapshot, 'map_sequence', getattr(snapshot, 'sequence', None)),
+        list(m.origin), m.width, m.height, m.resolution,
+    ]
+
+
+def same_map_frame(a, b) -> bool:
+    return a[:1] + a[2:] == b[:1] + b[2:]
+
+
 class PinAndGoNavigator:
     def __init__(self, observations, commands=None, *, boundary_config=None,
                  max_pose_age_s=5., arrival_tolerance_m=.25, stopping_margin_m=.05,
@@ -109,11 +122,8 @@ class PinAndGoNavigator:
         return b
 
     def monitor_boundary(self, baseline, boundary, snapshot):
-        m, current = baseline.map, snapshot.map
-        same_frame = (getattr(snapshot, 'map_index', None) == getattr(baseline, 'map_index', None)
-                      and getattr(snapshot, 'session_id', None) == getattr(baseline, 'session_id', None)
-                      and current.origin == m.origin and current.width == m.width
-                      and current.height == m.height and current.resolution == m.resolution)
+        same_frame = (same_map_frame(map_identity(baseline), map_identity(snapshot))
+                      and getattr(snapshot, 'session_id', None) == getattr(baseline, 'session_id', None))
         try:
             valid = (same_frame and inside(boundary, self.position, self.stopping_margin_m)
                      and inside(self.validate(snapshot), self.position, self.stopping_margin_m))
@@ -266,8 +276,13 @@ class DeliveryRejected(RuntimeError):
     pass
 
 
-def track_key(garment):
-    return bytes(garment.track_id.uuid).hex()
+def track_key(garment) -> str:
+    if garment is None:
+        return ''
+    tid = getattr(garment, 'track_id', garment)
+    if hasattr(tid, 'uuid'):
+        return bytes(tid.uuid).hex()
+    return str(tid)
 
 
 def graspable_garments(garments, category='any', key=None) -> list:
@@ -277,15 +292,6 @@ def graspable_garments(garments, category='any', key=None) -> list:
         and all(getattr(g, f) for f in ('reachable_for_grasp', 'inside_geofence', 'geofence_verified', 'grasp_valid', 'contact_valid'))
         and (key is None or track_key(g) == key)
     ]
-
-
-def map_identity(snapshot):
-    m = snapshot.map
-    return [snapshot.map_index, snapshot.map_sequence, list(m.origin), m.width, m.height, m.resolution]
-
-
-def same_map_frame(a, b) -> bool:
-    return a[:1] + a[2:] == b[:1] + b[2:]
 
 
 def tf_jumped(a, b) -> bool:

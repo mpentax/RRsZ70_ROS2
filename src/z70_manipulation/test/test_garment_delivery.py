@@ -711,12 +711,13 @@ def test_deliver_garment_deferred_world_event_transforms_point_in_map_frame(monk
             self.latest_observation = None
             self.current_pose = (1.0, 2.0, 0.0)
             self.track = SimpleNamespace(
+                track_id=SimpleNamespace(uuid=bytes(range(16))),
                 category='jeans', transport_suitability=3,
                 floor_contact_m=SimpleNamespace(x=0.5, y=0.25),
             )
 
         def execute(self, req):
-            return {'delivered': False, 'status_code': 'UNSUPPORTED_GARMENT_SKIP', 'track_id': 'jeans-1'}
+            return {'delivered': False, 'status_code': 'UNSUPPORTED_GARMENT_SKIP', 'track_id': self.track.track_id}
 
     monkeypatch.setattr('z70_manipulation.goals.GarmentDeliverer', FakeDeliverer)
     res = ctx.deliver_garment(category='jeans', drop_x_m=3.0, drop_y_m=4.0, dry_run=False)
@@ -725,4 +726,5 @@ def test_deliver_garment_deferred_world_event_transforms_point_in_map_frame(monk
     action, payload = events[0]
     assert action == 'upsert' and payload['x'] == pytest.approx(1.5) and payload['y'] == pytest.approx(2.25)
     assert payload['mobility'] == 'stationary' and payload['relevance'] == 'deferred'
+    assert payload['track_id'] == bytes(range(16)).hex()
 

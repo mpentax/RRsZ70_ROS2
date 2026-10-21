@@ -24,7 +24,7 @@ from z70_mapping.boundary import SessionWorldMap, check_corridor_containment, co
 from z70_mapping.node import spatial_context as compute_spatial_context
 from . import perception, planner
 from .executor import Executor, read_arm, read_status
-from .garment_delivery import GarmentDeliverer, PatrolCollector, PatrolLedger, PinAndGoNavigator, dynamic_obstacles, graspable_garments, loaded_route
+from .garment_delivery import GarmentDeliverer, PatrolCollector, PatrolLedger, PinAndGoNavigator, dynamic_obstacles, graspable_garments, loaded_route, track_key
 from .perception import transform_xy
 
 COLOR_RE = re.compile(r'[a-zA-Z0-9_-]{1,32}')
@@ -523,7 +523,7 @@ class GoalContext:
             max_duration_s=float(max_duration_s), allow_towing=bool(allow_towing), dry_run=bool(dry_run),
         ))
         if not dry_run and hasattr(self.observations, 'record_world_event'):
-            tid = str(res.get('track_id', ''))
+            tid = track_key(runner.track or res.get('track_id', ''))
             mob = mobility_from_suitability(int(getattr(runner.track, 'transport_suitability', 1))) if runner.track is not None else 'pickupable'
             if res.get('delivered'):
                 self.observations.record_world_event(
