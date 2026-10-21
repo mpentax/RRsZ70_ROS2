@@ -242,15 +242,36 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
             'final_position_m': [sim_pose[0], sim_pose[1]], 'position_error_m': 0., 'detail': '',
         }
 
+    def _room_waypoint(room, refresh=False):
+        sc = defaults['spatial_context'](refresh=refresh) if callable(defaults.get('spatial_context')) else {}
+        rooms = (sc or {}).get('rooms') or []
+        if rooms:
+            q = str(room).strip().lower()
+            seg_str = q.removeprefix('segment ').strip()
+            for r in rooms:
+                if (isinstance(room, int) and not isinstance(room, bool) and r.get('segment_id') == room) or str(r.get('segment_id')) == seg_str or str(r.get('name', '')).strip().lower() == q:
+                    if r.get('reachable') is False:
+                        return None
+                    c = r.get('safe_waypoint') or r.get('centroid') or [1.0, 1.0]
+                    return {'segment_id': int(r['segment_id']), 'name': str(r.get('name', room)), 'x': float(c[0]), 'y': float(c[1]), 'clearance_m': 0.8}
+            return None
+        return {
+            'segment_id': int(room) if isinstance(room, int) or str(room).isdigit() else 1,
+            'name': str(room), 'x': 1.0, 'y': 1.0, 'clearance_m': 0.8,
+        }
+
     def _navigate_room(room, max_duration_s=60., dry_run=False):
-        if not dry_run:
-            sim_pose[0], sim_pose[1] = 1.0, 1.0
+        wp = defaults['room_waypoint'](room, refresh=True)
         _rec('navigate_room', room=room, max_duration_s=float(max_duration_s), dry_run=bool(dry_run))
+        if wp is None:
+            return {'arrived': False, 'dry_run_valid': False, 'status_code': 'ROOM_UNREACHABLE', 'room': room, 'detail': 'ROOM_UNREACHABLE'}
+        if not dry_run:
+            sim_pose[0], sim_pose[1] = float(wp['x']), float(wp['y'])
         return {
             'arrived': not dry_run, 'dry_run_valid': bool(dry_run),
             'status_code': 'DRY_RUN_VALID' if dry_run else 'ARRIVED',
-            'room': str(room), 'segment_id': int(room) if isinstance(room, int) or str(room).isdigit() else 1,
-            'target_x_m': 1.0, 'target_y_m': 1.0,
+            'room': wp['name'], 'segment_id': wp['segment_id'],
+            'target_x_m': float(wp['x']), 'target_y_m': float(wp['y']),
             'final_position_m': [sim_pose[0], sim_pose[1]], 'position_error_m': 0., 'detail': '',
         }
 
@@ -318,10 +339,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
             'current_room': None, 'rooms': [], 'dock': None, 'clearance_sectors_m': {},
             'world_objects': sim_world.summary(),
         },
-        room_waypoint=lambda room, refresh=False: {
-            'segment_id': int(room) if isinstance(room, int) or str(room).isdigit() else 1,
-            'name': str(room), 'x': 1.0, 'y': 1.0, 'clearance_m': 0.8,
-        },
+        room_waypoint=_room_waypoint,
         plan_route=lambda target_x_m, target_y_m, deployed_arm_extension_m=0., refresh=False: [(float(target_x_m), float(target_y_m))],
         corridor_safe=lambda start_x_m, start_y_m, end_x_m, end_y_m, radius_m=0., deployed_arm_extension_m=0., refresh=False: True,
         objects=lambda camera='front', color=None: [],

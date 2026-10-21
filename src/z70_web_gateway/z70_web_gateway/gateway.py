@@ -233,18 +233,6 @@ class Gateway(Node):
                         rp = sp.get('robot_pose_map') or {}
                         if all(k in rp for k in ('x', 'y', 'yaw')):
                             live_ctx['map_pose'] = (float(rp['x']), float(rp['y']), float(rp['yaw']))
-                        rooms = sp.get('rooms') or []
-                        if rooms:
-                            def _live_room_wp(room, refresh=False, _rooms=rooms):
-                                q = str(room).strip().lower().removeprefix('segment ').strip()
-                                for r in _rooms:
-                                    if (isinstance(room, int) and r.get('segment_id') == room) or str(r.get('segment_id')) == q or str(r.get('name', '')).strip().lower() == str(room).strip().lower():
-                                        if r.get('reachable') is False:
-                                            return None
-                                        c = r.get('safe_waypoint') or r.get('centroid') or [1.0, 1.0]
-                                        return {'segment_id': int(r['segment_id']), 'name': str(r.get('name', room)), 'x': float(c[0]), 'y': float(c[1]), 'clearance_m': 0.8}
-                                return None
-                            live_ctx['room_waypoint'] = _live_room_wp
                     except (ValueError, TypeError):
                         pass
                 trace = []

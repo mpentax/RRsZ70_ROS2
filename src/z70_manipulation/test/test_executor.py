@@ -915,6 +915,23 @@ def test_simulate_goal_tracks_stateful_arm_world_and_trace():
         SimpleNamespace(),
     )
     assert ok_ctx is True
+    ok_room, _ = simulate_goal(
+        GoalSpec('room_nav_check', MoveArm, '/z70/room_nav_check', 10., lambda _s, _r: True,
+                 lambda ctx, _r: (
+                     ctx.navigate_room('Kitchen')['target_x_m'] == 4.2
+                     and ctx.map_pose()[:2] == (4.2, 1.8)
+                     and ctx.navigate_room('Balcony')['status_code'] == 'ROOM_UNREACHABLE',
+                     MoveArm.Result(),
+                 )),
+        SimpleNamespace(),
+        spatial_context={
+            'rooms': [
+                {'segment_id': 2, 'name': 'Kitchen', 'centroid': [4.0, 2.0], 'safe_waypoint': [4.2, 1.8], 'reachable': True},
+                {'segment_id': 3, 'name': 'Balcony', 'centroid': [6.0, 2.0], 'safe_waypoint': None, 'reachable': False},
+            ],
+        },
+    )
+    assert ok_room is True
     with pytest.raises(ValueError, match='unsafe arm_step'):
         simulate_goal(
             GoalSpec('unsafe_step', MoveArm, '/z70/unsafe_step', 10., lambda _s, _r: True,
