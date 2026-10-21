@@ -23,7 +23,7 @@ from rosidl_runtime_py.set_message import set_message_fields
 from sensor_msgs.msg import CompressedImage
 from nav_msgs.msg import OccupancyGrid
 from unique_identifier_msgs.msg import UUID
-from z70_driver.driver import frame_key
+from z70_driver.driver import frame_key, urdf_to_app
 from z70_interfaces.msg import RobotState, CameraState, ArmEstimate, CalibrationState, FrameMetadata
 from z70_interfaces.srv import RawRpc, Stop, SelectCamera, SetArmAnchor, SetControlSession
 from z70_driver.commands import LATCHED
@@ -223,20 +223,9 @@ class Gateway(Node):
                     raw_world = self.samples.get('world_objects', {}).get('data')
                     arm_sample = deepcopy(self.samples.get('arm'))
                 if isinstance(arm_sample, dict) and arm_sample.get('validity', {}).get('value') in (1, 2):
-                    jn = arm_sample.get('joints', {}).get('name') or []
-                    jp = arm_sample.get('joints', {}).get('position') or []
-                    q = dict(zip(jn, jp))
-                    if all(k in q for k in ('m3_joint', 'm4_joint', 'm5_joint')):
-                        import math
-                        live_ctx['arm'] = {
-                            'state': 'IN_PROCESS_POS',
-                            'joints': {
-                                'm3': math.degrees(q['m3_joint']) + 270.,
-                                'm4': 180. - math.degrees(q['m4_joint']),
-                                'm5': -math.degrees(q['m5_joint']),
-                                'm6': 90.,
-                            },
-                        }
+                    j = urdf_to_app(arm_sample.get('joints', {}).get('name'), arm_sample.get('joints', {}).get('position'))
+                    if j:
+                        live_ctx['arm'] = {'state': 'IN_PROCESS_POS', 'joints': {**j, 'm6': 90.}}
                 if isinstance(raw_spatial, str):
                     try:
                         sp = json.loads(raw_spatial)

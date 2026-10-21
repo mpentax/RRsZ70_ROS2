@@ -591,6 +591,17 @@ def app_to_urdf(m3, m4, m5, m6):
                 m5_joint=-math.radians(m5), m6_left_joint=f, m6_right_joint=f)
 
 
+def urdf_to_app(names, positions) -> dict[str, float]:
+    q = dict(zip(names or (), positions or ()))
+    if not all(k in q for k in ('m3_joint', 'm4_joint', 'm5_joint')):
+        return {}
+    return {
+        'm3': math.degrees(q['m3_joint']) + 270.,
+        'm4': 180. - math.degrees(q['m4_joint']),
+        'm5': -math.degrees(q['m5_joint']),
+    }
+
+
 class Driver(CommandSurfaces, Node):
     def __init__(self, parameter_overrides=None):
         super().__init__('z70_driver', parameter_overrides=parameter_overrides or [])

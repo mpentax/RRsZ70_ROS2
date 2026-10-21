@@ -31,7 +31,7 @@ from z70_interfaces.action import Pick, Stack
 from z70_interfaces.msg import ArmEstimate, CalibrationState, CommandOutcome, FrameMetadata, GarmentObservations, MapSnapshot, RobotState
 from z70_interfaces.srv import RawRpc, RefreshMap, SelectCamera, SetArmAnchor, Stop, TaskSession
 from z70_odometry.node import gains_from_state
-from z70_driver.driver import LATCHED, MatchedFrames, frame_key
+from z70_driver.driver import LATCHED, MatchedFrames, frame_key, urdf_to_app
 from z70_mapping.boundary import BoundaryConfig, SessionWorldMap
 from z70_mapping.node import decode_map, quat_yaw
 from . import perception, planner
@@ -284,13 +284,8 @@ class Observations:
         with self.condition:
             m = deepcopy(self.arm)
         usable = m.validity.value in (1, 2) and not m.restored
-        q = dict(zip(m.joints.name, m.joints.position))
-        j = {}
-        if usable and all(k in q for k in ('m3_joint', 'm4_joint', 'm5_joint')):
-            j = {'m3': math.degrees(q['m3_joint']) + 270, 'm4': 180 - math.degrees(q['m4_joint']),
-                 'm5': -math.degrees(q['m5_joint'])}
-        else:
-            usable = False
+        j = urdf_to_app(m.joints.name, m.joints.position) if usable else {}
+        usable = bool(j)
         state = 'IN_PROCESS_POS' if usable else 'IN_ROBOT' if m.validity.value == 3 and m.validity.reason == 'COMMAND_DERIVED_STOW' else 'UNKNOWN'
         return {'state': state, 'joints': j, 'source': 'ROS_COMMAND_ESTIMATE',
                 'updatedAt': stamp_seconds(m.evidence.source_at) * 1000, 'stepsSinceAnchor': m.steps_since_anchor}
