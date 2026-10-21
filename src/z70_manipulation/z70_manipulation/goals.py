@@ -415,15 +415,8 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         _rec('navigate_room', room=room, max_duration_s=float(max_duration_s), dry_run=bool(dry_run))
         if wp is None:
             return {'arrived': False, 'dry_run_valid': False, 'status_code': 'ROOM_UNREACHABLE', 'room': room, 'detail': 'ROOM_UNREACHABLE'}
-        if not dry_run:
-            sim_pose[0], sim_pose[1] = float(wp['x']), float(wp['y'])
-        return {
-            'arrived': not dry_run, 'dry_run_valid': bool(dry_run),
-            'status_code': 'DRY_RUN_VALID' if dry_run else 'ARRIVED',
-            'room': wp['name'], 'segment_id': wp['segment_id'],
-            'target_x_m': float(wp['x']), 'target_y_m': float(wp['y']),
-            'final_position_m': [sim_pose[0], sim_pose[1]], 'position_error_m': 0., 'detail': '',
-        }
+        res = defaults['navigate'](wp['x'], wp['y'], max_duration_s=max_duration_s, dry_run=dry_run)
+        return {**res, 'room': wp['name'], 'segment_id': wp['segment_id'], 'target_x_m': float(wp['x']), 'target_y_m': float(wp['y'])}
 
     def _update_world_object(x_m, y_m, category='object', mobility='pickupable', relevance='objective', radius_m=0.12, detail=''):
         entry = sim_world.upsert_object(

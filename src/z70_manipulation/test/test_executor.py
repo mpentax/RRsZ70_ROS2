@@ -958,7 +958,8 @@ def test_simulate_goal_tracks_stateful_arm_world_and_trace():
                      ctx.navigate_room('Kitchen')['target_x_m'] == 4.2
                      and ctx.map_pose()[:2] == (4.2, 1.8)
                      and ctx.spatial_context()['robot_pose_map']['x'] == 4.2
-                     and ctx.navigate_room('Balcony')['status_code'] == 'ROOM_UNREACHABLE',
+                     and ctx.navigate_room('Balcony')['status_code'] == 'ROOM_UNREACHABLE'
+                     and (ctx.deploy_arm(settle=False), ctx.navigate_room('Kitchen'))[-1]['status_code'] == 'ARM_NOT_STOWED',
                      MoveArm.Result(),
                  )),
         SimpleNamespace(),
