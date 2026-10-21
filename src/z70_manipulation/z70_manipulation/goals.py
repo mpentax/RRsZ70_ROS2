@@ -293,6 +293,23 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         _rec('clear_world')
         return {'cleared': True}
 
+    def _deliver_garment(category='any', drop_x_m=0., drop_y_m=0., max_duration_s=300., allow_towing=False, dry_run=False):
+        if not dry_run:
+            sim_pose[0], sim_pose[1] = float(drop_x_m), float(drop_y_m)
+            sim_world.mark_completed(float(drop_x_m), float(drop_y_m), category=str(category), detail='DELIVERED')
+        _rec('deliver_garment', category=str(category), drop_x_m=float(drop_x_m), drop_y_m=float(drop_y_m), dry_run=bool(dry_run))
+        return {
+            'delivered': not dry_run, 'dry_run_valid': bool(dry_run),
+            'status_code': 'DRY_RUN_VALID' if dry_run else 'DELIVERED',
+            'final_position_m': [sim_pose[0], sim_pose[1]], 'detail': '',
+        }
+
+    def _plan_approach(x_m, y_m):
+        try:
+            return planner.approach([float(x_m), float(y_m), 0.])
+        except ValueError:
+            return None
+
     def _plan_grasp(x_m, y_m, size_m=.066):
         j = sim_arm.get('joints') or {}
         start = planner.snap_grid((j.get('m3', 150.), j.get('m4', 45.), j.get('m5', 0.)))[:2]
@@ -361,13 +378,10 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
             _rec('stack', base_color=str(base_color), middle_color=str(middle_color), top_color=str(top_color), dry_run=bool(dry_run))
             or {'stack_verified': not dry_run, 'dry_run': bool(dry_run), 'all_targets_visible': True, 'tiers_completed': 3}
         ),
-        deliver_garment=lambda category='any', drop_x_m=0., drop_y_m=0., max_duration_s=300., allow_towing=False, dry_run=False: (
-            _rec('deliver_garment', category=str(category), drop_x_m=float(drop_x_m), drop_y_m=float(drop_y_m), dry_run=bool(dry_run))
-            or {'delivered': not dry_run, 'dry_run_valid': bool(dry_run), 'status_code': 'DELIVERED', 'detail': ''}
-        ),
+        deliver_garment=_deliver_garment,
         patrol_collect=lambda drop_x_m=0., drop_y_m=0., max_duration_s=600., max_items=5, allow_towing=False, dry_run=False: (
             _rec('patrol_collect', drop_x_m=float(drop_x_m), drop_y_m=float(drop_y_m), max_items=int(max_items), dry_run=bool(dry_run))
-            or {'completed': not dry_run, 'dry_run_valid': bool(dry_run), 'status_code': 'COMPLETED', 'detail': ''}
+            or {'completed': not dry_run, 'dry_run_valid': bool(dry_run), 'status_code': 'DRY_RUN_VALID' if dry_run else 'PATROL_CLEARED', 'detail': ''}
         ),
         deploy_arm=_deploy_arm,
         align_target=lambda color: (
@@ -376,7 +390,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         ),
         arm_safe=lambda m3_deg, m4_deg, m5_deg=0., m6_deg=90.: planner.safe((m3_deg, m4_deg, m5_deg, m6_deg)),
         arm_kinematics=lambda m3_deg, m4_deg, m5_deg=0., m6_deg=90.: planner.arm_kinematics((m3_deg, m4_deg, m5_deg, m6_deg)),
-        plan_approach=lambda x_m, y_m: planner.approach([float(x_m), float(y_m), 0.]),
+        plan_approach=_plan_approach,
         plan_grasp=_plan_grasp,
         plan_stack_tier=_plan_stack_tier,
         plan_trajectory=_plan_trajectory,

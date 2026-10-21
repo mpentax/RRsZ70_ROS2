@@ -932,6 +932,18 @@ def test_simulate_goal_tracks_stateful_arm_world_and_trace():
         },
     )
     assert ok_room is True
+    ok_deliv, _ = simulate_goal(
+        GoalSpec('deliver_sim_check', MoveArm, '/z70/deliver_sim_check', 10., lambda _s, _r: True,
+                 lambda ctx, _r: (
+                     ctx.plan_approach(0.0, 0.0) is None
+                     and ctx.deliver_garment('sock', 2.5, 3.5)['status_code'] == 'DELIVERED'
+                     and ctx.map_pose()[:2] == (2.5, 3.5)
+                     and len(ctx.world_objects()['completed']) == 1,
+                     MoveArm.Result(),
+                 )),
+        SimpleNamespace(),
+    )
+    assert ok_deliv is True
     with pytest.raises(ValueError, match='unsafe arm_step'):
         simulate_goal(
             GoalSpec('unsafe_step', MoveArm, '/z70/unsafe_step', 10., lambda _s, _r: True,
