@@ -6,6 +6,8 @@ and for invoking navigation, base pulses, and multi-axis arm primitives.
 """
 from copy import deepcopy
 from dataclasses import dataclass, replace
+from datetime import datetime, timezone
+import json
 import math
 from pathlib import Path
 import re
@@ -1017,6 +1019,11 @@ class GoalContext:
     def log(self, stage: str, **fields):
         if self.executor:
             self.executor.log(stage, **fields)
+        elif self.directory:
+            self.directory.mkdir(parents=True, exist_ok=True)
+            row = dict(t=datetime.now(timezone.utc).isoformat(), event=stage, **fields)
+            with (self.directory / 'timeline.jsonl').open('a') as f:
+                f.write(json.dumps(row, allow_nan=False) + '\n')
 
     # --- Lifecycle, Cancellation & Feedback ---
 

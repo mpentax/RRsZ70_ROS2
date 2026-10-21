@@ -659,6 +659,7 @@ class PickServer(Perception):
         self.active_handle = handle
         self.navigation_active = spec.navigation
         client = None
+        ctx = None
         try:
             req = handle.request
             client = Client(read_only=spec.read_only(req), observations=self.observations)
@@ -690,6 +691,11 @@ class PickServer(Perception):
                 client.close()
         except Exception as exc:
             self.get_logger().warning(f'{spec.name} failed: {type(exc).__name__}: {exc}')
+            if ctx and ctx.trace:
+                try:
+                    ctx.log('goal_trace', goal=spec.name, steps=len(ctx.trace), trace=ctx.trace, error=str(exc))
+                except Exception:
+                    pass
             if spec.navigation and client and client.commands:
                 try:
                     client.commands.stop()
