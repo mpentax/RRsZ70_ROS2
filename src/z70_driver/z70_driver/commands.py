@@ -175,6 +175,32 @@ def outcome_ok(outcome):
     return outcome.dispatch == 1 and outcome.response == 1 and outcome.error_code == 'NONE'
 
 
+ARM_OPERATION_RPCS = {
+    1: ('app_arm_out_compartment', {}),
+    2: ('app_arm_in_compartment', {}),
+    3: ('app_open_gripper', {}),
+    4: ('app_grip', {}),
+    5: ('app_put_down', {'flag': 0}),
+    6: ('app_pick_up_enter_exit', {'flag': 1}),
+    7: ('app_pick_up_enter_exit', {'flag': 2}),
+    8: ('app_pick_up_enter_exit', {'flag': 0}),
+    9: ('app_arm_recover', {}),
+}
+
+
+def arm_step_vector(joint: int, direction: int) -> list[int]:
+    if joint not in (3, 4, 5, 34, 43) or direction not in (-1, 1):
+        raise ValueError('INVALID_INPUT')
+    pos, neg = (1, 2) if direction == 1 else (2, 1)
+    if joint == 34:
+        return [pos, pos, 0]
+    if joint == 43:
+        return [pos, neg, 0]
+    m = [0, 0, 0]
+    m[joint - 3] = pos
+    return m
+
+
 def action_plan(kind, goal):
     """Build the vendor RPC sequence and deadline budget for an action goal."""
     if kind is BasePulse:
@@ -187,28 +213,15 @@ def action_plan(kind, goal):
         return [('app_rc_start', []), ('app_rc_move', [dict(velocity=goal.linear_mps,
             omega=goal.angular_radps, duration=max(1, round(duration*1000)), seqnum=1)])], 15.
     if kind is ArmStep:
-        if goal.joint not in (3, 4, 5, 34, 43) or goal.direction not in (-1, 1):
-            raise ValueError('INVALID_INPUT')
-        pos, neg = (1, 2) if goal.direction == 1 else (2, 1)
-        if goal.joint == 34:
-            m = [pos, pos, 0]
-        elif goal.joint == 43:
-            m = [pos, neg, 0]
-        else:
-            m = [0, 0, 0]; m[goal.joint-3] = pos
-        return [('app_arm_move', {'m': m})], 35.
+        return [('app_arm_move', {'m': arm_step_vector(goal.joint, goal.direction)})], 35.
     if kind is HandStep:
         if goal.direction not in (1, 2, 3, 4):
             raise ValueError('INVALID_INPUT')
         return [('app_arm_direction_move', {'direction': goal.direction})], 35.
     if kind is ArmOperation:
-        mapping = {1: ('app_arm_out_compartment', {}), 2: ('app_arm_in_compartment', {}),
-            3: ('app_open_gripper', {}), 4: ('app_grip', {}), 5: ('app_put_down', {'flag': 0}),
-            6: ('app_pick_up_enter_exit', {'flag': 1}), 7: ('app_pick_up_enter_exit', {'flag': 2}),
-            8: ('app_pick_up_enter_exit', {'flag': 0}), 9: ('app_arm_recover', {})}
-        if goal.operation not in mapping:
+        if goal.operation not in ARM_OPERATION_RPCS:
             raise ValueError('INVALID_INPUT')
-        return [mapping[goal.operation]], 60.
+        return [ARM_OPERATION_RPCS[goal.operation]], 60.
     raise ValueError('INVALID_INPUT')
 
 

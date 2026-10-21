@@ -19,6 +19,7 @@ from z70_interfaces.action import (
     DeployArm, AlignToTarget, MoveArm, GraspAndLift, ReleaseAndStow,
     BasePulse, ArmStep, HandStep, ArmOperation,
 )
+from z70_driver.commands import ARM_OPERATION_RPCS, arm_step_vector
 from z70_interfaces.msg import ArmEstimate, CommandOutcome
 from z70_mapping.boundary import SessionWorldMap, check_corridor_containment, compute_safe_interior, mobility_from_suitability
 from z70_mapping.node import spatial_context as compute_spatial_context
@@ -912,14 +913,7 @@ def _valid_pulse_payload(p: dict) -> bool:
 
 
 def _run_driver_arm_step(ctx: 'GoalContext | SimpleNamespace', r):
-    c = 1 if r.direction > 0 else 2
-    if r.joint == 34:
-        m3, m4, m5 = c, c, 0
-    elif r.joint == 43:
-        m3, m4, m5 = c, 3 - c, 0
-    else:
-        m3, m4, m5 = (c if r.joint == 3 else 0), (c if r.joint == 4 else 0), (c if r.joint == 5 else 0)
-    return ctx.arm_step(m3, m4, m5)
+    return ctx.arm_step(*arm_step_vector(int(r.joint), int(r.direction)))
 
 
 def _run_driver_arm_op(ctx: 'GoalContext | SimpleNamespace', r):
@@ -930,15 +924,7 @@ def _run_driver_arm_op(ctx: 'GoalContext | SimpleNamespace', r):
         return ctx.release_and_stow(put_down=False)
     if op == 3:
         ctx.open_jaws(); return {'ok': True}
-    rpc_map = {
-        4: ('app_grip', {}),
-        5: ('app_put_down', {'flag': 0}),
-        6: ('app_pick_up_enter_exit', {'flag': 1}),
-        7: ('app_pick_up_enter_exit', {'flag': 2}),
-        8: ('app_pick_up_enter_exit', {'flag': 0}),
-        9: ('app_arm_recover', {}),
-    }
-    method, params = rpc_map[op]
+    method, params = ARM_OPERATION_RPCS[op]
     return ctx.rpc(method, params)
 
 
