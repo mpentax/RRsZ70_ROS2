@@ -20,6 +20,7 @@ from z70_interfaces.action import (
     BasePulse, ArmStep, HandStep, ArmOperation,
 )
 from z70_driver.commands import ARM_OPERATION_RPCS, arm_step_vector
+from z70_driver.driver import app_to_urdf
 from z70_interfaces.msg import ArmEstimate, CommandOutcome
 from z70_mapping.boundary import SessionWorldMap, check_corridor_containment, compute_safe_interior, mobility_from_suitability
 from z70_mapping.node import spatial_context as compute_spatial_context
@@ -232,6 +233,22 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         _rec('set_arm_anchor', anchor=str(anchor), reason=str(reason))
         return {'accepted': accepted, 'anchor': anchor}
 
+    def _arm_msg():
+        st = sim_arm.get('state', 'IN_ROBOT')
+        m = ArmEstimate()
+        m.evidence.valid = True
+        if st == 'IN_ROBOT':
+            m.validity.value = 3; m.validity.reason = 'COMMAND_DERIVED_STOW'
+        elif st != 'UNKNOWN':
+            m.validity.value = 1; m.validity.reason = 'COMMAND_DEAD_RECKONING'
+            j = sim_arm.get('joints') or {}
+            q = app_to_urdf(j.get('m3', 150.), j.get('m4', 45.), j.get('m5', 0.), j.get('m6', 90.))
+            m.joints.name = list(q)[:3]
+            m.joints.position = list(q.values())[:3]
+        else:
+            m.validity.value = 0; m.validity.reason = 'UNRECONCILED_OR_UNKNOWN'
+        return m
+
     def _navigate(target_x_m, target_y_m, max_duration_s=60., dry_run=False):
         if not dry_run:
             sim_pose[0], sim_pose[1] = float(target_x_m), float(target_y_m)
@@ -347,7 +364,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         trace=trace,
         status=lambda: {'state': 3, 'error_code': 0, 'battery': 100, 'common_status': 51202},
         arm=lambda: deepcopy(sim_arm),
-        arm_msg=ArmEstimate,
+        arm_msg=_arm_msg,
         odom=lambda: {'x': sim_pose[0], 'y': sim_pose[1], 'yaw': sim_pose[2]},
         map_pose=lambda source='base_footprint': (sim_pose[0], sim_pose[1], sim_pose[2]),
         map_snapshot=lambda refresh=False, max_age_s=5.: None,
