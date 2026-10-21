@@ -26,7 +26,10 @@ export function actionOutcome(value: unknown): UiOutcome {
   if (data.status === "executing") return "in-progress";
   if (data.status === "succeeded") return "acknowledged";
   if (data.status === "failed" || data.status === "cancelled") return "failed";
-  if (data.status === "rejected") return "rejected";
+  if (data.status === "rejected" || data.valid === false) return "rejected";
+  const sim = record(data.simulated);
+  if (sim.ok === false) return "failed";
+  if (sim.ok === true || data.valid === true) return "acknowledged";
   if (data.acknowledged === true) return "acknowledged";
   if (data.accepted === true) return "accepted";
   const state = record(data.state);

@@ -189,6 +189,9 @@ test("actionOutcome maps explicit outcome envelopes and state flags", () => {
   assert.equal(actionOutcome({ status: "executing", kind: "pick" }), "in-progress");
   assert.equal(actionOutcome({ status: "succeeded", kind: "pick" }), "acknowledged");
   assert.equal(actionOutcome({ status: "failed", kind: "pick" }), "failed");
+  assert.equal(actionOutcome({ valid: false, error: "unknown field" }), "rejected");
+  assert.equal(actionOutcome({ valid: true, simulated: { ok: true, result: {} } }), "acknowledged");
+  assert.equal(actionOutcome({ valid: true, simulated: { ok: false, result: {} } }), "failed");
   assert.equal(actionOutcome({ error: "INVALID_INPUT", dispatch: "not_sent" }), "rejected");
   assert.equal(actionOutcome({ state: { busy: true } }), "in-progress");
   for (const kind of ["accepted", "acknowledged", "in-progress", "rejected", "failed", "unknown"] as const) {
