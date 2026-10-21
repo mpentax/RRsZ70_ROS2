@@ -210,6 +210,7 @@ def test_validation_token_and_closed_error_contract(system, tmp_path):
         assert map_res['spatial_context']['current_room']['name'] == 'Kitchen'
         assert map_res['dynamic_obstacles']['info']['width'] == 4
         wait(lambda: request('POST', '/api/ros/goals/validate', {'kind': 'pick', 'goal': {'color': 'blue', 'dry_run': True}, 'simulate': True}).json()['simulated']['ok'] is False)
+        assert request('GET', '/api/ros/state').json()['objects']['objects'] == [{'color': 'yellow', 'position': [0.35, 0.0, 0.03]}]
     finally:
         system['peer'].destroy_publisher(world_pub)
         system['peer'].destroy_publisher(spatial_pub)

@@ -306,9 +306,16 @@ class Gateway(Node):
     def route(self, method, path, body):
         if method == 'GET' and path == '/api/ros/state':
             with self.lock:
-                return 200, dict(available=self.ros_clients['stop'].service_is_ready(),
+                res = dict(available=self.ros_clients['stop'].service_is_ready(),
                     session_enabled=self.samples.get('session', {}).get('data'),
-                    **{k: deepcopy(self.samples.get(k)) for k in ('state', 'camera', 'arm', 'calibration')}), {}
+                    **{k: deepcopy(self.samples.get(k)) for k in ('state', 'camera', 'arm', 'calibration')})
+                raw_obj = self.samples.get('objects', {}).get('data')
+                if isinstance(raw_obj, str):
+                    try:
+                        res['objects'] = json.loads(raw_obj)
+                    except (ValueError, TypeError):
+                        pass
+                return 200, res, {}
         if method == 'GET' and path == '/api/ros/map':
             with self.lock:
                 res = {'map': deepcopy(self.samples.get('map'))}
