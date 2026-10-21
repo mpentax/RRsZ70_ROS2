@@ -222,21 +222,20 @@ class Gateway(Node):
                     raw_spatial = self.samples.get('spatial_context', {}).get('data')
                     raw_world = self.samples.get('world_objects', {}).get('data')
                     arm_sample = deepcopy(self.samples.get('arm'))
-                if isinstance(arm_sample, dict) and arm_sample.get('validity', {}).get('value') in (1, 2):
-                    j = urdf_to_app(arm_sample.get('joints', {}).get('name'), arm_sample.get('joints', {}).get('position'))
-                    if j:
-                        live_ctx['arm'] = {'state': 'IN_PROCESS_POS', 'joints': {**j, 'm6': 90.}}
-                if isinstance(raw_spatial, str):
-                    try:
-                        sp = json.loads(raw_spatial)
-                        if isinstance(raw_world, str):
-                            try:
-                                sp['world_objects'] = json.loads(raw_world)
-                            except (ValueError, TypeError):
-                                pass
-                        live_ctx['spatial_context'] = sp
-                    except (ValueError, TypeError):
-                        pass
+                if isinstance(arm_sample, dict):
+                    val = arm_sample.get('validity', {}).get('value')
+                    if val in (1, 2):
+                        j = urdf_to_app(arm_sample.get('joints', {}).get('name'), arm_sample.get('joints', {}).get('position'))
+                        if j:
+                            live_ctx['arm'] = {'state': 'IN_PROCESS_POS', 'joints': {**j, 'm6': 90.}}
+                    elif val == 3:
+                        live_ctx['arm'] = {'state': 'IN_ROBOT', 'joints': {'m3': 0., 'm4': 0., 'm5': 0., 'm6': 0.}}
+                for key, raw_json in (('world_objects', raw_world), ('spatial_context', raw_spatial)):
+                    if isinstance(raw_json, str):
+                        try:
+                            live_ctx[key] = json.loads(raw_json)
+                        except (ValueError, TypeError):
+                            pass
                 trace = []
                 sim_ok, sim_res = simulate_goal(ALL_GOALS[kind], message, _trace=trace, **{**live_ctx, **context})
                 res['simulated'] = {'ok': bool(sim_ok), 'result': data(sim_res), 'trace': trace}
