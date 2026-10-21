@@ -1051,8 +1051,10 @@ def test_simulate_goal_tracks_stateful_arm_world_and_trace():
                      and bool(ctx.rpc('app_arm_move', {'m': [0, 1, 0, 1, 0]}))
                      and ctx.arm()['joints']['m6'] == 90.
                      and bool(ctx.rpc('app_arm_direction_move', {'direction': 2}))
-                     and bool(ctx.rpc('app_goto_target', [1500, -500]))
-                     and ctx.map_pose()[:2] == (1.5, -0.5)
+                     and bool(ctx.rpc('app_goto_target', [1500, 0]))
+                     and ctx.map_pose()[:2] == (1.5, 0.0)
+                     and bool(ctx.rpc('app_rc_move', [{'velocity': 0.5, 'omega': 0.0, 'duration': 1000}]))
+                     and ctx.map_pose()[:2] == pytest.approx((2.0, 0.0))
                      and bool(ctx.rpc('app_start_program', {'cmd_ids': [{'cmd_id': 'arm_in'}]}))
                      and ctx.arm()['state'] == 'IN_ROBOT',
                      MoveArm.Result(),

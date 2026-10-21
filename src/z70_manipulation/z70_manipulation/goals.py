@@ -366,7 +366,19 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
                 j['m3'], j['m4'] = float(sol[0]), float(sol[1])
             sim_arm['state'] = 'IN_PROCESS_POS'
         elif m == 'app_goto_target' and isinstance(params, list) and len(params) == 2:
-            sim_pose[0], sim_pose[1] = float(params[0]) / 1000., float(params[1]) / 1000.
+            tx_m, ty_m = float(params[0]) / 1000., float(params[1]) / 1000.
+            dx, dy = tx_m - sim_pose[0], ty_m - sim_pose[1]
+            if math.hypot(dx, dy) > 1e-4:
+                sim_pose[2] = math.atan2(dy, dx)
+            sim_pose[0], sim_pose[1] = tx_m, ty_m
+        elif m == 'app_rc_move':
+            cmd = params[0] if isinstance(params, list) and len(params) == 1 else params
+            if isinstance(cmd, dict):
+                dt = float(cmd.get('duration', 0.)) / 1000.
+                vel, omg = float(cmd.get('velocity', 0.)), float(cmd.get('omega', 0.))
+                sim_pose[2] = math.atan2(math.sin(sim_pose[2] + omg * dt), math.cos(sim_pose[2] + omg * dt))
+                sim_pose[0] += vel * dt * math.cos(sim_pose[2])
+                sim_pose[1] += vel * dt * math.sin(sim_pose[2])
         elif m == 'app_start_program' and isinstance(params, dict) and isinstance(params.get('cmd_ids'), list):
             for c in params['cmd_ids']:
                 if not isinstance(c, dict):
