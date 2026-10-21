@@ -217,8 +217,36 @@ class Gateway(Node):
             kind, topic, cls, message = self.goal_message({k: v for k, v in body.items() if k not in ('simulate', 'context')})
             res = {'valid': True, 'kind': kind, 'topic': topic, 'action': cls.__name__}
             if simulate:
+                live_ctx = {}
+                with self.lock:
+                    raw_spatial = self.samples.get('spatial_context', {}).get('data')
+                    raw_world = self.samples.get('world_objects', {}).get('data')
+                if isinstance(raw_spatial, str):
+                    try:
+                        sp = json.loads(raw_spatial)
+                        if isinstance(raw_world, str):
+                            try:
+                                sp['world_objects'] = json.loads(raw_world)
+                            except (ValueError, TypeError):
+                                pass
+                        live_ctx['spatial_context'] = sp
+                        rp = sp.get('robot_pose_map') or {}
+                        if all(k in rp for k in ('x', 'y', 'yaw')):
+                            live_ctx['map_pose'] = (float(rp['x']), float(rp['y']), float(rp['yaw']))
+                        rooms = sp.get('rooms') or []
+                        if rooms:
+                            def _live_room_wp(room, refresh=False, _rooms=rooms):
+                                q = str(room).strip().lower()
+                                for r in _rooms:
+                                    if (isinstance(room, int) and r.get('segment_id') == room) or str(r.get('segment_id')) == q or str(r.get('name', '')).strip().lower() == q:
+                                        c = r.get('centroid') or [1.0, 1.0]
+                                        return {'segment_id': int(r['segment_id']), 'name': str(r.get('name', room)), 'x': float(c[0]), 'y': float(c[1]), 'clearance_m': 0.8}
+                                return None
+                            live_ctx['room_waypoint'] = _live_room_wp
+                    except (ValueError, TypeError):
+                        pass
                 trace = []
-                sim_ok, sim_res = simulate_goal(ALL_GOALS[kind], message, _trace=trace, **context)
+                sim_ok, sim_res = simulate_goal(ALL_GOALS[kind], message, _trace=trace, **{**live_ctx, **context})
                 res['simulated'] = {'ok': bool(sim_ok), 'result': data(sim_res), 'trace': trace}
             return 200, res, {}
         except ApiError as e:

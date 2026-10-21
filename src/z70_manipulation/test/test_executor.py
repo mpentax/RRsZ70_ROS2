@@ -914,6 +914,18 @@ def test_simulate_goal_tracks_stateful_arm_world_and_trace():
         SimpleNamespace(),
     )
     assert ok_ctx is True
+    with pytest.raises(ValueError, match='unsafe arm_step'):
+        simulate_goal(
+            GoalSpec('unsafe_step', MoveArm, '/z70/unsafe_step', 10., lambda _s, _r: True,
+                     lambda ctx, _r: (bool((ctx.arm_step(0, 2, 0), ctx.arm_step(0, 2, 0))), MoveArm.Result())),
+            SimpleNamespace(),
+        )
+    with pytest.raises(ValueError, match='hand_step direction'):
+        simulate_goal(
+            GoalSpec('bad_hand', MoveArm, '/z70/bad_hand', 10., lambda _s, _r: True,
+                     lambda ctx, _r: (bool(ctx.hand_step(9)), MoveArm.Result())),
+            SimpleNamespace(),
+        )
 
 
 
