@@ -141,6 +141,16 @@ def test_mujoco_cameras_marker_68_floor_vo_and_v1_map():
     assert sorted(decoded.rooms) == [1, 2]
     assert decoded.robot[:2] == pytest.approx((0.25, -0.10), abs=0.005)
 
+    # 6. app_start_program arm sequence emulation
+    assert world.handle_rpc('app_start_program', {'cmd_ids': [
+        {'cmd_id': 'arm_out'},
+        {'cmd_id': 'arm_joints', 'value': [1, 0, 1, 2], 'step': 2},
+    ]}) == ('ok', ['ok'])
+    assert world.deployed is True
+    assert (world.joints['m3'], world.joints['m4'], world.joints['m5'], world.joints['m6']) == (170.0, 45.0, 20.0, 0.0)
+    assert world.handle_rpc('app_start_program', {'cmd_ids': [{'cmd_id': 'arm_in'}]}) == ('ok', ['ok'])
+    assert world.deployed is False and world.joints['m3'] == 0.0
+
 
 def test_closed_loop_pick_against_mujoco_world(tmp_path: Path):
     world = SimWorld()
