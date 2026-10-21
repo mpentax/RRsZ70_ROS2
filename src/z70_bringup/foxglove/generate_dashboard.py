@@ -132,7 +132,8 @@ active_lens = indicator(
 )
 cameras = col(
     row(image('Front-camera', 'front'), image('Gripper-camera', 'gripper'), 55),
-    row(raw('Detected-objects', '/z70/objects/json'),
+    row(col(raw('Detected-objects', '/z70/objects/json'),
+            raw('Garment-observations', '/z70/garments/observations'), 50),
         col(active_lens, row(raw('Camera-state', '/z70/camera/state'),
                              raw('Front-metadata', '/camera/front/metadata'), 50), 28), 55), 62)
 arm_state = indicator('Arm-estimate-state', '/z70/arm/state', [(n, n, c) for n, c in [
