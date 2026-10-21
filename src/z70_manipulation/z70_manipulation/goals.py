@@ -553,7 +553,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         if 'objects' in overrides:
             all_vis = True
             for c in (base_color, middle_color, top_color):
-                seen = defaults['objects']('front', c)
+                seen = [o for o in (defaults['objects']('front', c) or []) if all(o is not m for m in matched)]
                 if not seen:
                     all_vis = False; break
                 rp = seen[0].get('position') if isinstance(seen[0], dict) else None
@@ -569,7 +569,9 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
                 for m_obj in matched:
                     if m_obj in sim_objects:
                         sim_objects.remove(m_obj)
-            px, py = transform_xy((0.35, 0.), (sim_pose[0], sim_pose[1], sim_pose[2]))
+            bp = matched[0].get('position') if matched and isinstance(matched[0], dict) else None
+            bx, by = (float(bp[0]), float(bp[1])) if isinstance(bp, (list, tuple)) and len(bp) >= 2 else (0.35, 0.)
+            px, py = transform_xy((bx, by), (sim_pose[0], sim_pose[1], sim_pose[2]))
             sim_world.mark_completed(px, py, category=f'stack:{base_color}+{middle_color}+{top_color}', detail='STACKED')
         _rec('stack', base_color=str(base_color), middle_color=str(middle_color), top_color=str(top_color), dry_run=bool(dry_run))
         return {'stack_verified': all_vis and not dry_run, 'dry_run': bool(dry_run), 'all_targets_visible': all_vis, 'tiers_completed': 3 if all_vis else 0}
