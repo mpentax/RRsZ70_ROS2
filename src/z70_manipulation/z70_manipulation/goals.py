@@ -377,7 +377,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
                 'position_error_m': math.hypot(float(target_x_m) - sim_pose[0], float(target_y_m) - sim_pose[1]),
                 'detail': 'ARM_NOT_STOWED',
             }
-        if not _corridor_safe(target_x_m, target_y_m, target_x_m, target_y_m):
+        if not defaults['corridor_safe'](target_x_m, target_y_m, target_x_m, target_y_m):
             return {
                 'arrived': False, 'dry_run_valid': False, 'status_code': 'TARGET_OUTSIDE_INTERIOR',
                 'final_position_m': [sim_pose[0], sim_pose[1]],
@@ -485,7 +485,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
             if suit != 1:
                 code = 'TOWING_UNQUALIFIED_SKIP' if (suit == 2 and allow_towing) else 'UNSUPPORTED_GARMENT_SKIP'
                 return {'delivered': False, 'stowed': False, 'dry_run_valid': False, 'status_code': code, 'final_position_m': [sim_pose[0], sim_pose[1]], 'detail': code}
-        if _plan_route(drop_x_m, drop_y_m, deployed_arm_extension_m=0.10) is None:
+        if defaults['plan_route'](drop_x_m, drop_y_m, deployed_arm_extension_m=0.10) is None:
             return {'delivered': False, 'stowed': False, 'dry_run_valid': False, 'status_code': 'LOADED_ROUTE_BLOCKED', 'final_position_m': [sim_pose[0], sim_pose[1]], 'detail': 'LOADED_ROUTE_BLOCKED'}
         if not dry_run:
             arm_unrestored = False
@@ -501,7 +501,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
     def _patrol_collect(drop_x_m=0., drop_y_m=0., max_duration_s=600., max_items=5, allow_towing=False, dry_run=False):
         nonlocal arm_unrestored
         _rec('patrol_collect', drop_x_m=float(drop_x_m), drop_y_m=float(drop_y_m), max_items=int(max_items), dry_run=bool(dry_run))
-        if _plan_route(drop_x_m, drop_y_m, deployed_arm_extension_m=0.10) is None:
+        if defaults['plan_route'](drop_x_m, drop_y_m, deployed_arm_extension_m=0.10) is None:
             return {
                 'completed': False, 'partial_completion': False, 'dry_run_valid': False,
                 'waypoints_visited': 0, 'waypoints_cleared': 0, 'waypoints_deferred': 0,
