@@ -354,6 +354,16 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
             if len(params['m']) >= 4 and params['m'][3] in (1, 2):
                 j['m6'] = 90. if params['m'][3] == 1 else 0.
             sim_arm['state'] = 'IN_PROCESS_POS'
+        elif m == 'app_arm_direction_move' and isinstance(params, dict) and params.get('direction') in (1, 2, 3, 4):
+            arm_unrestored = True
+            j = sim_arm.setdefault('joints', {'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.})
+            delta = {1: (0, 1), 2: (0, -1), 3: (1, 0), 4: (-1, 0)}[int(params['direction'])]
+            m3, m4, m5 = float(j.get('m3', 150.)), float(j.get('m4', 45.)), float(j.get('m5', 0.))
+            x, y = vendor_forward(m3, m4)[1]
+            sol = vendor_inverse(x + delta[0] * HAND_STEP_M, y + delta[1] * HAND_STEP_M, (m3, m4))
+            if sol is not None and vendor_check(sol[0], sol[1], m5) == 'SUCCESS':
+                j['m3'], j['m4'] = float(sol[0]), float(sol[1])
+            sim_arm['state'] = 'IN_PROCESS_POS'
         elif m == 'app_goto_target' and isinstance(params, list) and len(params) == 2:
             sim_pose[0], sim_pose[1] = float(params[0]) / 1000., float(params[1]) / 1000.
         _rec('rpc', method=m, params=params)
