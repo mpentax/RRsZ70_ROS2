@@ -1038,6 +1038,28 @@ def test_simulate_goal_tracks_stateful_arm_world_and_trace():
                      lambda ctx, _r: (bool(ctx.hand_step(9)), MoveArm.Result())),
             SimpleNamespace(),
         )
+    ok_rpc, _ = simulate_goal(
+        GoalSpec('rpc_sim_check', MoveArm, '/z70/rpc_sim_check', 10., lambda _s, _r: True,
+                 lambda ctx, _r: (
+                     bool(ctx.rpc('app_start_program', {'cmd_ids': [
+                         {'cmd_id': 'arm_out'},
+                         {'cmd_id': 'arm_joints', 'value': [1, 0, 1, 2], 'step': 2},
+                         {'cmd_id': 'arm_move', 'direction': 1, 'step': 1},
+                     ]}))
+                     and ctx.arm()['joints']['m5'] == 20.
+                     and ctx.arm()['joints']['m6'] == 0.
+                     and bool(ctx.rpc('app_arm_move', {'m': [0, 1, 0, 1, 0]}))
+                     and ctx.arm()['joints']['m6'] == 90.
+                     and bool(ctx.rpc('app_arm_direction_move', {'direction': 2}))
+                     and bool(ctx.rpc('app_goto_target', [1500, -500]))
+                     and ctx.map_pose()[:2] == (1.5, -0.5)
+                     and bool(ctx.rpc('app_start_program', {'cmd_ids': [{'cmd_id': 'arm_in'}]}))
+                     and ctx.arm()['state'] == 'IN_ROBOT',
+                     MoveArm.Result(),
+                 )),
+        SimpleNamespace(),
+    )
+    assert ok_rpc is True
 
 
 
