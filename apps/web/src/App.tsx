@@ -135,6 +135,7 @@ export function MapCanvas({ mapData, busy, onReadMap, selectedTarget, onSelectTa
   const entries = Array.isArray(worldObjects.entries) ? worldObjects.entries.map(record) : [];
   const spatial = record(mapData?.spatial_context);
   const robotPose = record(spatial.robot_pose_map);
+  const dockPose = record(spatial.dock);
   const currentRoom = record(spatial.current_room);
   const rooms = Array.isArray(spatial.rooms) ? spatial.rooms.map(record) : [];
   const info = record(grid?.info);
@@ -174,6 +175,16 @@ export function MapCanvas({ mapData, busy, onReadMap, selectedTarget, onSelectTa
       ctx.arc(px, py, r, 0, Math.PI * 2);
       ctx.stroke();
     }
+    const dx = Number(dockPose.x), dy = Number(dockPose.y);
+    if (Number.isFinite(dx) && Number.isFinite(dy)) {
+      const px = (dx - originX) / resolution;
+      const py = height - 1 - (dy - originY) / resolution;
+      if (px >= 0 && px <= width && py >= 0 && py <= height) {
+        ctx.strokeStyle = '#a855f7';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(px - 3, py - 3, 6, 6);
+      }
+    }
     const rx = Number(robotPose.x), ry = Number(robotPose.y), ryaw = Number(robotPose.yaw);
     if (Number.isFinite(rx) && Number.isFinite(ry)) {
       const px = (rx - originX) / resolution;
@@ -203,7 +214,7 @@ export function MapCanvas({ mapData, busy, onReadMap, selectedTarget, onSelectTa
         ctx.stroke();
       }
     }
-  }, [grid, entries, robotPose.x, robotPose.y, robotPose.yaw, width, height, resolution, originX, originY, selectedTarget]);
+  }, [grid, entries, dockPose.x, dockPose.y, robotPose.x, robotPose.y, robotPose.yaw, width, height, resolution, originX, originY, selectedTarget]);
 
   function handleCanvasClick(event: MouseEvent<HTMLCanvasElement>) {
     if (!onSelectTarget || width <= 0 || height <= 0) return;
@@ -251,7 +262,7 @@ export function MapCanvas({ mapData, busy, onReadMap, selectedTarget, onSelectTa
             />
           </div>
           <figcaption className="caption">
-            Grid {String(width)}×{String(height)} cells @ {resolution.toFixed(2)} m/cell{entries.length > 0 ? ` · ${entries.length} world objects` : ''}
+            Grid {String(width)}×{String(height)} cells @ {resolution.toFixed(2)} m/cell{entries.length > 0 ? ` · ${entries.length} world objects` : ''}{Number.isFinite(Number(dockPose.x)) && Number.isFinite(Number(dockPose.y)) ? ` · Dock (${Number(dockPose.x).toFixed(1)}, ${Number(dockPose.y).toFixed(1)} m)` : ''}
           </figcaption>
         </figure>
       </div>
