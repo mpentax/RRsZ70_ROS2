@@ -682,6 +682,15 @@ def test_simulate_goal_exercises_all_builtin_goals():
     assert real_ctx.plan_stack_tier(1)['tier'] == 1
     assert len(real_ctx.plan_trajectory(170., 45., 0.)) == 2
 
+    from z70_interfaces.msg import ArmEstimate
+    from z70_interfaces.srv import SetArmAnchor
+    from z70_manipulation.node import Commands
+    cmd = Commands.__new__(Commands)
+    est = ArmEstimate(); est.validity.value = 1
+    cmd.call = lambda kind, req, timeout: SetArmAnchor.Response(estimate=est)
+    assert cmd.set_arm_anchor('deployed', 'ID68_VISIBLE') == {'accepted': True, 'anchor': 'deployed'}
+    assert cmd.set_arm_anchor('stowed', 'STOW_DONE') == {'accepted': False, 'anchor': 'stowed'}
+
 
 class _FakeJawClient:
     def __init__(self, status=None, arm=None, fill=0, fail_first=False):

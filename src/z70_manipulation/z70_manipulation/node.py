@@ -19,7 +19,6 @@ from rclpy.duration import Duration
 from rclpy.action import ActionClient, ActionServer, GoalResponse, CancelResponse
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
-from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import CameraInfo, CompressedImage
 from std_msgs.msg import String, Bool
 from nav_msgs.msg import OccupancyGrid, Odometry
@@ -408,7 +407,10 @@ class Commands:
         if anchor not in codes:
             raise ValueError("anchor must be 'unknown', 'stowed', or 'deployed'")
         reply = self.call(SetArmAnchor, SetArmAnchor.Request(anchor=codes[anchor], observation_reason=str(reason)[:64]), 3.)
-        return {'accepted': bool(reply.accepted), 'anchor': anchor}
+        est = getattr(reply, 'estimate', None)
+        expected = {'unknown': 0, 'stowed': 3, 'deployed': 1}[anchor]
+        accepted = bool(getattr(reply, 'accepted', est is not None and est.validity.value == expected))
+        return {'accepted': accepted, 'anchor': anchor}
 
     def rpc(self, method, params, timeout_ms):
         if self.cancelled.is_set():
