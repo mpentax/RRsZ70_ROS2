@@ -988,6 +988,8 @@ def test_simulate_goal_tracks_stateful_arm_world_and_trace():
     assert simulate_goal(ALL_GOALS['deliver_garment'], SimpleNamespace(category='sock', drop_x_m=1.0, drop_y_m=1.0, max_duration_s=60.0, allow_towing=False, dry_run=True), garments=g_scene)[0] is True
     assert simulate_goal(ALL_GOALS['deliver_garment'], SimpleNamespace(category='towel', drop_x_m=1.0, drop_y_m=1.0, max_duration_s=60.0, allow_towing=False, dry_run=True), garments=g_scene)[1].status_code == 'NO_CONFIRMED_GARMENT'
     assert simulate_goal(ALL_GOALS['deliver_garment'], SimpleNamespace(category='jeans', drop_x_m=1.0, drop_y_m=1.0, max_duration_s=60.0, allow_towing=False, dry_run=True), garments=g_scene)[1].status_code == 'UNSUPPORTED_GARMENT_SKIP'
+    ok_patrol, patrol_res = simulate_goal(ALL_GOALS['patrol_collect'], SimpleNamespace(drop_x_m=1.0, drop_y_m=1.0, max_duration_s=60.0, max_items=5, allow_towing=False, dry_run=False), garments=g_scene)
+    assert ok_patrol is True and patrol_res.completed is False and patrol_res.partial_completion is True and patrol_res.items_delivered == 1 and patrol_res.items_skipped == 1 and patrol_res.status_code == 'PARTIAL_COMPLETION_SMALL_ITEMS_ONLY'
     with pytest.raises(ValueError, match='unsafe arm_step'):
         simulate_goal(
             GoalSpec('unsafe_step', MoveArm, '/z70/unsafe_step', 10., lambda _s, _r: True,

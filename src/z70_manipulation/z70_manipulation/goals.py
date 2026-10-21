@@ -460,6 +460,39 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
             'final_position_m': [sim_pose[0], sim_pose[1]], 'detail': '',
         }
 
+    def _patrol_collect(drop_x_m=0., drop_y_m=0., max_duration_s=600., max_items=5, allow_towing=False, dry_run=False):
+        nonlocal arm_unrestored
+        _rec('patrol_collect', drop_x_m=float(drop_x_m), drop_y_m=float(drop_y_m), max_items=int(max_items), dry_run=bool(dry_run))
+        rooms = [r for r in (sc_base.get('rooms') or []) if isinstance(r, dict) and r.get('reachable', True)]
+        wp_cnt = max(1, len(rooms))
+        seen = defaults['garments']('any') if 'garments' in overrides else []
+        delivered = skipped = 0
+        for g in seen:
+            suit = int(g.get('transport_suitability', 1) if isinstance(g, dict) else getattr(g, 'transport_suitability', 1))
+            cat = str((g.get('category') if isinstance(g, dict) else getattr(g, 'category', '')) or 'garment')
+            if suit == 1 and delivered < int(max_items):
+                delivered += 1
+                if not dry_run:
+                    sim_world.mark_completed(float(drop_x_m), float(drop_y_m), category=cat, detail='DELIVERED')
+            else:
+                skipped += 1
+                if not dry_run:
+                    sim_world.upsert_object(sim_pose[0], sim_pose[1], category=cat, mobility='draggable', relevance='deferred', detail='UNSUPPORTED_GARMENT_SKIP')
+        if not dry_run:
+            arm_unrestored = False
+            sim_arm.update(state='IN_ROBOT', joints={'m3': 0., 'm4': 0., 'm5': 0., 'm6': 0.})
+            if delivered > 0 or 'garments' not in overrides:
+                sim_pose[0], sim_pose[1] = float(drop_x_m), float(drop_y_m)
+        complete = not dry_run and skipped == 0
+        return {
+            'completed': complete, 'partial_completion': bool(not dry_run and skipped > 0), 'dry_run_valid': bool(dry_run),
+            'waypoints_visited': 0 if dry_run else wp_cnt, 'waypoints_cleared': 0 if dry_run else wp_cnt, 'waypoints_deferred': 0,
+            'items_attempted': 0 if dry_run else delivered, 'items_delivered': 0 if dry_run else delivered,
+            'items_skipped': 0 if dry_run else skipped, 'items_failed': 0,
+            'status_code': 'DRY_RUN_VALID' if dry_run else ('PATROL_CLEARED' if skipped == 0 else 'PARTIAL_COMPLETION_SMALL_ITEMS_ONLY'),
+            'detail': '',
+        }
+
     def _plan_approach(x_m, y_m):
         try:
             return planner.approach([float(x_m), float(y_m), 0.])
@@ -529,10 +562,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         pick=_pick,
         stack=_stack,
         deliver_garment=_deliver_garment,
-        patrol_collect=lambda drop_x_m=0., drop_y_m=0., max_duration_s=600., max_items=5, allow_towing=False, dry_run=False: (
-            _rec('patrol_collect', drop_x_m=float(drop_x_m), drop_y_m=float(drop_y_m), max_items=int(max_items), dry_run=bool(dry_run))
-            or {'completed': not dry_run, 'dry_run_valid': bool(dry_run), 'status_code': 'DRY_RUN_VALID' if dry_run else 'PATROL_CLEARED', 'detail': ''}
-        ),
+        patrol_collect=_patrol_collect,
         deploy_arm=_deploy_arm,
         align_target=_align_target,
         arm_safe=lambda m3_deg, m4_deg, m5_deg=0., m6_deg=90.: planner.safe((m3_deg, m4_deg, m5_deg, m6_deg)),
