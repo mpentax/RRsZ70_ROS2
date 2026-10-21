@@ -763,7 +763,7 @@ class Executor:
             verified = lift_res['verified']
             self.release_and_stow(put_down=True)
             self.log('complete', verified=verified, odom=self.odom())
-            return dict(verified=verified, log_dir=str(self.directory))
+            return dict(verified=verified, target=target, log_dir=str(self.directory))
         except BaseException as e:
             self._emergency_stop(e)
             raise
@@ -866,7 +866,7 @@ class Executor:
                 tiers_completed = tier_idx
             self.stow()
             self.log('stack_complete', tiers_completed=tiers_completed, stack_verified=tiers_completed == 3, odom=self.odom())
-            return dict(tiers_completed=tiers_completed, stack_verified=tiers_completed == 3, log_dir=str(self.directory))
+            return dict(tiers_completed=tiers_completed, stack_verified=tiers_completed == 3, tower_spot=tower_spot, log_dir=str(self.directory))
         except (LookupError, ValueError, UncertainMotion, requests.RequestException) as e:
             return stack_incomplete(detail=str(e))
         except BaseException as e:

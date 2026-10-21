@@ -915,7 +915,7 @@ class GoalContext:
         ex.feedback = lambda _phase: self.feedback(phase=3, current_tier=1, reason='NONE')
         res = ex.stack(base_color, middle_color, top_color, dry_run=dry_run)
         if not dry_run and res.get('stack_verified') and hasattr(self.observations, 'record_world_event'):
-            mx, my = self._target_map_xy()
+            mx, my = self._target_map_xy(res.get('tower_spot'))
             self.observations.record_world_event('completed', x=mx, y=my, category=f'stack:{base_color}+{middle_color}+{top_color}', mobility='pickupable', detail='STACKED')
         return res
 
