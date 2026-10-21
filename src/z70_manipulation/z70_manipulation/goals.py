@@ -1083,10 +1083,13 @@ class GoalContext:
     def pick(self, color: str, dry_run: bool = False) -> dict:
         self._rec('pick', color=str(color), dry_run=bool(dry_run))
         res = self._ex().pick(color, dry_run=dry_run)
-        if not dry_run and res.get('verified') and hasattr(self.observations, 'record_world_event'):
+        if not dry_run and hasattr(self.observations, 'record_world_event'):
             tpos = (res.get('target') or {}).get('position') if isinstance(res.get('target'), dict) else None
             mx, my = self._target_map_xy(tpos)
-            self.observations.record_world_event('completed', x=mx, y=my, category=str(color), mobility='pickupable', detail='PICKED')
+            if res.get('verified'):
+                self.observations.record_world_event('completed', x=mx, y=my, category=str(color), mobility='pickupable', detail='PICKED')
+            else:
+                self.observations.record_world_event('failed', x=mx, y=my, detail='PICK_FAILED')
         return res
 
     def stack(self, base_color: str, middle_color: str, top_color: str, dry_run: bool = False) -> dict:
@@ -1094,9 +1097,12 @@ class GoalContext:
         ex = self._ex()
         ex.feedback = lambda _phase: self.feedback(phase=3, current_tier=1, reason='NONE')
         res = ex.stack(base_color, middle_color, top_color, dry_run=dry_run)
-        if not dry_run and res.get('stack_verified') and hasattr(self.observations, 'record_world_event'):
+        if not dry_run and hasattr(self.observations, 'record_world_event'):
             mx, my = self._target_map_xy(res.get('tower_spot'))
-            self.observations.record_world_event('completed', x=mx, y=my, category=f'stack:{base_color}+{middle_color}+{top_color}', mobility='pickupable', detail='STACKED')
+            if res.get('stack_verified'):
+                self.observations.record_world_event('completed', x=mx, y=my, category=f'stack:{base_color}+{middle_color}+{top_color}', mobility='pickupable', detail='STACKED')
+            else:
+                self.observations.record_world_event('failed', x=mx, y=my, detail='STACK_FAILED')
         return res
 
     def deliver_garment(self, category: str = 'any', drop_x_m: float = 0., drop_y_m: float = 0.,

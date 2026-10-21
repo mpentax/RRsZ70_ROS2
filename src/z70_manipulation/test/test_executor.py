@@ -1005,7 +1005,7 @@ def test_simulate_goal_tracks_stateful_arm_world_and_trace():
     ok_consume, _ = simulate_goal(
         GoalSpec('consume_pick_check', MoveArm, '/z70/consume_pick_check', 10., lambda _s, _r: True,
                  lambda ctx, _r: (
-                     ctx.update_world_object(0.35, 0.0, category='blue', mobility='pickupable', relevance='objective')
+                     bool(ctx.update_world_object(0.35, 0.0, category='blue', mobility='pickupable', relevance='objective'))
                      and ctx.pick('blue', dry_run=False)['verified'] is False
                      and ctx.pick('blue', dry_run=False)['verified'] is False
                      and len(ctx.world_objects()['obstacles']) == 1
