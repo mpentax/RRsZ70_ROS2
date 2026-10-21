@@ -637,18 +637,19 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
             return {'delivered': False, 'stowed': False, 'dry_run_valid': False, 'status_code': 'ARM_NOT_STOWED', 'final_position_m': [sim_pose[0], sim_pose[1]], 'detail': 'ARM_NOT_STOWED'}
         tid = ''
         g0 = None
+        cat = str(category)
         if 'garments' in overrides or any(e.relevance == 'objective' for e in sim_world.entries.values()):
             seen = defaults['garments'](category)
             if not seen:
                 return {'delivered': False, 'stowed': False, 'dry_run_valid': False, 'status_code': 'NO_CONFIRMED_GARMENT', 'final_position_m': [sim_pose[0], sim_pose[1]], 'detail': 'NO_CONFIRMED_GARMENT'}
             g0 = seen[0]
             tid = track_key(g0)
+            cat = str((g0.get('category') if isinstance(g0, dict) else getattr(g0, 'category', '')) or category)
             suit = int(g0.get('transport_suitability', 1) if isinstance(g0, dict) else getattr(g0, 'transport_suitability', 1))
             if suit != 1:
                 code = 'TOWING_UNQUALIFIED_SKIP' if (suit == 2 and allow_towing) else 'UNSUPPORTED_GARMENT_SKIP'
                 if not dry_run:
                     gx, gy = _garment_map_xy(g0)
-                    cat = str((g0.get('category') if isinstance(g0, dict) else getattr(g0, 'category', '')) or category)
                     sim_world.upsert_object(gx, gy, track_id=tid, category=cat, mobility=mobility_from_suitability(suit), relevance='deferred', detail=code)
                 return {'delivered': False, 'stowed': False, 'dry_run_valid': False, 'status_code': code, 'final_position_m': [sim_pose[0], sim_pose[1]], 'detail': code}
         if defaults['plan_route'](drop_x_m, drop_y_m, deployed_arm_extension_m=0.10) is None:
@@ -660,7 +661,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
             arm_unrestored = False
             sim_pose[0], sim_pose[1] = float(drop_x_m), float(drop_y_m)
             sim_arm.update(state='IN_ROBOT', joints={'m3': 0., 'm4': 0., 'm5': 0., 'm6': 0.})
-            sim_world.mark_completed(float(drop_x_m), float(drop_y_m), track_id=tid, category=str(category), detail='DELIVERED')
+            sim_world.mark_completed(float(drop_x_m), float(drop_y_m), track_id=tid, category=cat, detail='DELIVERED')
         return {
             'delivered': not dry_run, 'stowed': not dry_run, 'dry_run_valid': bool(dry_run),
             'status_code': 'DRY_RUN_VALID' if dry_run else 'DELIVERED',
