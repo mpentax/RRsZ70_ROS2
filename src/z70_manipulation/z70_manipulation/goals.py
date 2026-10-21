@@ -182,13 +182,30 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         return {'state': target, 'steps_executed': len(steps), 'steps': steps}
 
     def _arm_step(m3=0, m4=0, m5=0):
+        if any(v not in (0, 1, 2) for v in (m3, m4, m5)) or not any((m3, m4, m5)):
+            raise ValueError('arm_step axes must be in (0, 1, 2) with at least one nonzero axis')
+        if sim_arm.get('state') == 'IN_ROBOT':
+            sim_arm.update(state='WORKING_POS', joints={'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.})
         j = sim_arm.setdefault('joints', {'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.})
-        for key, sel, (lo, hi) in (('m3', m3, (90., 270.)), ('m4', m4, (35., 170.)), ('m5', m5, (0., 155.))):
-            if sel in (1, 2):
-                j[key] = max(lo, min(hi, float(j.get(key, lo)) + (10. if sel == 1 else -10.)))
+        cur = (float(j.get('m3', 150.)), float(j.get('m4', 45.)), float(j.get('m5', 0.)), float(j.get('m6', 90.)))
+        nxt = [
+            cur[0] + (10. if m3 == 1 else -10. if m3 == 2 else 0.),
+            cur[1] + (10. if m4 == 1 else -10. if m4 == 2 else 0.),
+            cur[2] + (10. if m5 == 1 else -10. if m5 == 2 else 0.),
+            cur[3],
+        ]
+        if not planner.safe(nxt) or not planner.safe_edge(cur, nxt):
+            raise ValueError(f'unsafe arm_step transition {cur[:3]} -> {nxt[:3]}')
+        j['m3'], j['m4'], j['m5'] = nxt[0], nxt[1], nxt[2]
         sim_arm['state'] = 'IN_PROCESS_POS'
         _rec('arm_step', m3=int(m3), m4=int(m4), m5=int(m5))
         return {'m3': int(m3), 'm4': int(m4), 'm5': int(m5)}
+
+    def _hand_step(direction):
+        if direction not in (1, 2, 3, 4):
+            raise ValueError('hand_step direction must be in (1, 2, 3, 4)')
+        _rec('hand_step', direction=int(direction))
+        return {'direction': int(direction)}
 
     def _open_jaws():
         sim_arm.setdefault('joints', {})['m6'] = 90.
@@ -347,7 +364,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         plan_trajectory=_plan_trajectory,
         move_arm=_move_arm,
         arm_step=_arm_step,
-        hand_step=lambda direction: (_rec('hand_step', direction=int(direction)) or {'direction': int(direction)}),
+        hand_step=_hand_step,
         open_jaws=_open_jaws,
         set_arm_anchor=_set_arm_anchor,
         grasp_and_lift=_grasp_and_lift,
