@@ -938,6 +938,7 @@ def test_simulate_goal_tracks_stateful_arm_world_and_trace():
                  lambda ctx, _r: (
                      ctx.update_world_object(1.0, 2.0, category='sock', mobility='pickupable', relevance='objective')
                      and len(ctx.spatial_context()['world_objects']['objectives']) == 1
+                     and len(ctx.garments('sock')) == 1
                      and ctx.mark_obstacle(1.0, 0.0, radius_m=0.2)
                      and ctx.corridor_safe(0.0, 0.0, 2.0, 0.0) is False
                      and ctx.plan_route(1.0, 0.0) is None

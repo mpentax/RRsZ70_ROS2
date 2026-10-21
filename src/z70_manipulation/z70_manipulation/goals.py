@@ -511,14 +511,34 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         _rec('align_target', color=str(color))
         return {'position': pos, 'bearing_error_deg': 0., 'range_error_m': 0.}
 
+    def _garments(category='any', after=None):
+        inactive = {k for k, e in sim_world.entries.items() if e.relevance in ('completed', 'deferred', 'ignored')}
+        if 'garments' in overrides and isinstance(overrides['garments'], list):
+            res = []
+            for g in overrides['garments']:
+                g_cat = g.get('category') if isinstance(g, dict) else getattr(g, 'category', '')
+                tid = str((g.get('track_id') or g.get('id') or '') if isinstance(g, dict) else track_key(g))
+                if tid and tid in inactive:
+                    continue
+                if category in ('', 'any') or g_cat == category:
+                    res.append(g)
+            return res
+        return [
+            {**e.to_dict(), 'transport_suitability': 1 if e.mobility == 'pickupable' else 2 if e.mobility == 'draggable' else 3}
+            for e in sim_world.entries.values()
+            if e.relevance == 'objective' and (category in ('', 'any') or e.category == category)
+        ]
+
     def _deliver_garment(category='any', drop_x_m=0., drop_y_m=0., max_duration_s=300., allow_towing=False, dry_run=False):
         nonlocal arm_unrestored
         _rec('deliver_garment', category=str(category), drop_x_m=float(drop_x_m), drop_y_m=float(drop_y_m), dry_run=bool(dry_run))
-        if 'garments' in overrides:
+        tid = ''
+        if 'garments' in overrides or any(e.relevance == 'objective' for e in sim_world.entries.values()):
             seen = defaults['garments'](category)
             if not seen:
                 return {'delivered': False, 'stowed': False, 'dry_run_valid': False, 'status_code': 'NO_CONFIRMED_GARMENT', 'final_position_m': [sim_pose[0], sim_pose[1]], 'detail': 'NO_CONFIRMED_GARMENT'}
             g0 = seen[0]
+            tid = str((g0.get('track_id') or g0.get('id') or '') if isinstance(g0, dict) else track_key(g0))
             suit = int(g0.get('transport_suitability', 1) if isinstance(g0, dict) else getattr(g0, 'transport_suitability', 1))
             if suit != 1:
                 code = 'TOWING_UNQUALIFIED_SKIP' if (suit == 2 and allow_towing) else 'UNSUPPORTED_GARMENT_SKIP'
@@ -529,7 +549,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
             arm_unrestored = False
             sim_pose[0], sim_pose[1] = float(drop_x_m), float(drop_y_m)
             sim_arm.update(state='IN_ROBOT', joints={'m3': 0., 'm4': 0., 'm5': 0., 'm6': 0.})
-            sim_world.mark_completed(float(drop_x_m), float(drop_y_m), category=str(category), detail='DELIVERED')
+            sim_world.mark_completed(float(drop_x_m), float(drop_y_m), track_id=tid, category=str(category), detail='DELIVERED')
         return {
             'delivered': not dry_run, 'stowed': not dry_run, 'dry_run_valid': bool(dry_run),
             'status_code': 'DRY_RUN_VALID' if dry_run else 'DELIVERED',
@@ -645,7 +665,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         wrist_pose=lambda: {'position': [0.35, 0., 0.08], 'marker_id': 68},
         fit_wrist_joints=lambda: {'joints': [190., 65., 0.], 'residual_m': 0., 'residual_deg': 0., 'uncertainty_m': 0.015},
         observe_color=lambda camera, color: [],
-        garments=lambda category='any', after=None: [],
+        garments=_garments,
         world_objects=sim_world.summary,
         update_world_object=_update_world_object,
         mark_obstacle=_mark_obstacle,
@@ -690,10 +710,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
             if 'observe_color' not in overrides:
                 defaults['observe_color'] = lambda camera, color, _fn=defaults[k]: _fn(camera, color)
         elif k == 'garments' and isinstance(v, list):
-            defaults[k] = lambda category='any', after=None, _v=v: [
-                g for g in _v
-                if category in ('', 'any') or (g.get('category') if isinstance(g, dict) else getattr(g, 'category', '')) == category
-            ]
+            defaults[k] = _garments
         else:
             defaults[k] = (lambda *_a, _v=v, **_kw: _v) if k in callable_keys and not callable(v) else v
     return spec.run(SimpleNamespace(**defaults), request)
