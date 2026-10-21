@@ -236,6 +236,32 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         _rec('clear_world')
         return {'cleared': True}
 
+    def _plan_grasp(x_m, y_m, size_m=.066):
+        j = sim_arm.get('joints') or {}
+        start = planner.snap_grid((j.get('m3', 150.), j.get('m4', 45.), j.get('m5', 0.)))[:2]
+        try:
+            return planner.grasp_goal([float(x_m), float(y_m), 0.], start, size_m=float(size_m))
+        except ValueError:
+            return None
+
+    def _plan_stack_tier(tier, size_m=.066):
+        j = sim_arm.get('joints') or {}
+        start = planner.snap_grid((j.get('m3', 190.), j.get('m4', 65.), j.get('m5', 0.)))[:2]
+        try:
+            return planner.stack_tier_plan(int(tier), size_m=float(size_m), start=start)
+        except ValueError:
+            return None
+
+    def _plan_trajectory(m3_deg, m4_deg, m5_deg=0.):
+        j = sim_arm.get('joints') or {}
+        start = (150, 45, 0) if sim_arm.get('state') == 'IN_ROBOT' else planner.snap_grid((
+            j.get('m3', 150.), j.get('m4', 45.), j.get('m5', 0.),
+        ))
+        try:
+            return planner.trajectory(start, (m3_deg, m4_deg, m5_deg))
+        except ValueError:
+            return None
+
     defaults = dict(
         request=request,
         action_cls=spec.action_cls,
@@ -288,16 +314,9 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         arm_safe=lambda m3_deg, m4_deg, m5_deg=0., m6_deg=90.: planner.safe((m3_deg, m4_deg, m5_deg, m6_deg)),
         arm_kinematics=lambda m3_deg, m4_deg, m5_deg=0., m6_deg=90.: planner.arm_kinematics((m3_deg, m4_deg, m5_deg, m6_deg)),
         plan_approach=lambda x_m, y_m: planner.approach([float(x_m), float(y_m), 0.]),
-        plan_grasp=lambda x_m, y_m, size_m=.066: {'state': [250, 95], 'error_m': 0., 'steps': []},
-        plan_stack_tier=lambda tier, size_m=.066: planner.stack_tier_plan(int(tier), size_m=float(size_m)),
-        plan_trajectory=lambda m3_deg, m4_deg, m5_deg=0.: planner.trajectory(
-            [150., 45., 0.] if sim_arm.get('state') == 'IN_ROBOT' else [
-                float((sim_arm.get('joints') or {}).get('m3', 150.)),
-                float((sim_arm.get('joints') or {}).get('m4', 45.)),
-                float((sim_arm.get('joints') or {}).get('m5', 0.)),
-            ],
-            [float(m3_deg), float(m4_deg), float(m5_deg)],
-        ),
+        plan_grasp=_plan_grasp,
+        plan_stack_tier=_plan_stack_tier,
+        plan_trajectory=_plan_trajectory,
         move_arm=_move_arm,
         arm_step=_arm_step,
         hand_step=lambda direction: (_rec('hand_step', direction=int(direction)) or {'direction': int(direction)}),

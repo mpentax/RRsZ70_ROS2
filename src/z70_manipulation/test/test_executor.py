@@ -657,7 +657,8 @@ def test_simulate_goal_exercises_all_builtin_goals():
                                   and ctx.fit_wrist_joints()['joints'] == [190., 65., 0.]
                                   and ctx.arm_safe(150., 45., 0., 90.) is True
                                   and 'yaw' in ctx.plan_approach(.5, .05)
-                                  and ctx.plan_grasp(.43, 0.)['state'] == [250, 95]
+                                  and ctx.plan_grasp(.43, 0.)['state'] == [250, 105]
+                                  and ctx.plan_grasp(2.0, 0.) is None
                                   and ctx.arm_step(1, 2, 0) == {'m3': 1, 'm4': 2, 'm5': 0}
                                   and ctx.hand_step(1) == {'direction': 1}
                                   and ctx.open_jaws() is None
