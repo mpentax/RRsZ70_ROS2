@@ -589,8 +589,8 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         fc = g.get('floor_contact_m') if isinstance(g, dict) else getattr(g, 'floor_contact_m', None)
         if isinstance(fc, dict) and 'x' in fc and 'y' in fc:
             return transform_xy((float(fc['x']), float(fc['y'])), (sim_pose[0], sim_pose[1], sim_pose[2]))
-        if fc is not None and hasattr(fc, 'x') and hasattr(fc, 'y'):
-            return transform_xy((float(fc.x), float(fc.y)), (sim_pose[0], sim_pose[1], sim_pose[2]))
+        if fc is not None and not isinstance(fc, dict) and hasattr(fc, 'x') and hasattr(fc, 'y'):
+            return transform_xy((float(getattr(fc, 'x')), float(getattr(fc, 'y'))), (sim_pose[0], sim_pose[1], sim_pose[2]))
         return float(sim_pose[0]), float(sim_pose[1])
 
     def _garments(category='any', after=None):

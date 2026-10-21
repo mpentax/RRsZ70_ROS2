@@ -282,8 +282,9 @@ def track_key(garment) -> str:
     tid = (garment.get('track_id') or garment.get('id') or '') if isinstance(garment, dict) else getattr(garment, 'track_id', garment)
     if isinstance(tid, dict) and isinstance(tid.get('uuid'), (list, tuple)):
         return bytes(int(b) & 0xff for b in tid['uuid']).hex()
-    if hasattr(tid, 'uuid'):
-        return bytes(tid.uuid).hex()
+    raw_uuid = getattr(tid, 'uuid', None)
+    if raw_uuid is not None:
+        return bytes(raw_uuid).hex()
     return str(tid)
 
 
