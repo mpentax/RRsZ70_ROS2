@@ -581,13 +581,25 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         _rec('align_target', color=str(color))
         return {'position': pos, 'bearing_error_deg': 0., 'range_error_m': 0.}
 
+    def _garment_map_xy(g) -> tuple[float, float]:
+        if isinstance(g, dict) and 'x' in g and 'y' in g:
+            return float(g['x']), float(g['y'])
+        if not isinstance(g, dict) and hasattr(g, 'x') and hasattr(g, 'y'):
+            return float(getattr(g, 'x')), float(getattr(g, 'y'))
+        fc = g.get('floor_contact_m') if isinstance(g, dict) else getattr(g, 'floor_contact_m', None)
+        if isinstance(fc, dict) and 'x' in fc and 'y' in fc:
+            return transform_xy((float(fc['x']), float(fc['y'])), (sim_pose[0], sim_pose[1], sim_pose[2]))
+        if fc is not None and hasattr(fc, 'x') and hasattr(fc, 'y'):
+            return transform_xy((float(fc.x), float(fc.y)), (sim_pose[0], sim_pose[1], sim_pose[2]))
+        return float(sim_pose[0]), float(sim_pose[1])
+
     def _garments(category='any', after=None):
         inactive = {k for k, e in sim_world.entries.items() if e.relevance in ('completed', 'deferred', 'ignored')}
         if 'garments' in overrides and isinstance(overrides['garments'], list):
             res = []
             for g in overrides['garments']:
                 g_cat = g.get('category') if isinstance(g, dict) else getattr(g, 'category', '')
-                tid = str((g.get('track_id') or g.get('id') or '') if isinstance(g, dict) else track_key(g))
+                tid = track_key(g)
                 if tid and tid in inactive:
                     continue
                 if category in ('', 'any') or g_cat == category:
@@ -610,13 +622,12 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
             if not seen:
                 return {'delivered': False, 'stowed': False, 'dry_run_valid': False, 'status_code': 'NO_CONFIRMED_GARMENT', 'final_position_m': [sim_pose[0], sim_pose[1]], 'detail': 'NO_CONFIRMED_GARMENT'}
             g0 = seen[0]
-            tid = str((g0.get('track_id') or g0.get('id') or '') if isinstance(g0, dict) else track_key(g0))
+            tid = track_key(g0)
             suit = int(g0.get('transport_suitability', 1) if isinstance(g0, dict) else getattr(g0, 'transport_suitability', 1))
             if suit != 1:
                 code = 'TOWING_UNQUALIFIED_SKIP' if (suit == 2 and allow_towing) else 'UNSUPPORTED_GARMENT_SKIP'
                 if not dry_run:
-                    gx = float((g0.get('x', sim_pose[0]) if isinstance(g0, dict) else getattr(g0, 'x', sim_pose[0])) or sim_pose[0])
-                    gy = float((g0.get('y', sim_pose[1]) if isinstance(g0, dict) else getattr(g0, 'y', sim_pose[1])) or sim_pose[1])
+                    gx, gy = _garment_map_xy(g0)
                     cat = str((g0.get('category') if isinstance(g0, dict) else getattr(g0, 'category', '')) or category)
                     sim_world.upsert_object(gx, gy, track_id=tid, category=cat, mobility=mobility_from_suitability(suit), relevance='deferred', detail=code)
                 return {'delivered': False, 'stowed': False, 'dry_run_valid': False, 'status_code': code, 'final_position_m': [sim_pose[0], sim_pose[1]], 'detail': code}
@@ -657,11 +668,10 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         seen = list(defaults['garments']('any') or [])
         delivered = skipped = 0
         for g in seen:
-            tid = str((g.get('track_id') or g.get('id') or '') if isinstance(g, dict) else track_key(g))
+            tid = track_key(g)
             suit = int(g.get('transport_suitability', 1) if isinstance(g, dict) else getattr(g, 'transport_suitability', 1))
             cat = str((g.get('category') if isinstance(g, dict) else getattr(g, 'category', '')) or 'garment')
-            gx = float((g.get('x', sim_pose[0]) if isinstance(g, dict) else getattr(g, 'x', sim_pose[0])) or sim_pose[0])
-            gy = float((g.get('y', sim_pose[1]) if isinstance(g, dict) else getattr(g, 'y', sim_pose[1])) or sim_pose[1])
+            gx, gy = _garment_map_xy(g)
             if suit == 1:
                 if delivered < int(max_items):
                     delivered += 1

@@ -279,7 +279,9 @@ class DeliveryRejected(RuntimeError):
 def track_key(garment) -> str:
     if garment is None:
         return ''
-    tid = getattr(garment, 'track_id', garment)
+    tid = (garment.get('track_id') or garment.get('id') or '') if isinstance(garment, dict) else getattr(garment, 'track_id', garment)
+    if isinstance(tid, dict) and isinstance(tid.get('uuid'), (list, tuple)):
+        return bytes(int(b) & 0xff for b in tid['uuid']).hex()
     if hasattr(tid, 'uuid'):
         return bytes(tid.uuid).hex()
     return str(tid)

@@ -1022,7 +1022,7 @@ def test_simulate_goal_tracks_stateful_arm_world_and_trace():
                      MoveArm.Result(),
                  )),
         SimpleNamespace(),
-        garments=[{'id': 'jeans_1', 'category': 'jeans', 'transport_suitability': 3, 'x': 1.2, 'y': 0.8}],
+        garments=[{'track_id': {'uuid': [1] * 16}, 'category': 'jeans', 'transport_suitability': 3, 'floor_contact_m': {'x': 0.5, 'y': -0.2}}],
     )
     assert ok_skip_defer is True
     assert simulate_goal(ALL_GOALS['deliver_garment'], SimpleNamespace(category='sock', drop_x_m=1.0, drop_y_m=1.0, max_duration_s=60.0, allow_towing=False, dry_run=True), plan_route=None)[1].status_code == 'LOADED_ROUTE_BLOCKED'
