@@ -123,8 +123,8 @@ def test_first_snapshot_aligns_before_any_odometry_and_publishes_spatial_context
     publisher = pubs['/z70/map/spatial_context']
     assert publisher.qos.durability == DurabilityPolicy.TRANSIENT_LOCAL
     payload = json.loads(publisher.publish.call_args.args[0].data)
-    assert payload.pop('boundary_contract')['frame_id'] == 'map'
-    assert payload == spatial_context(node.current[0], {2: 'Kitchen'})
+    assert payload['boundary_contract']['frame_id'] == 'map'
+    assert payload == json.loads(json.dumps(spatial_context(node.current[0], {2: 'Kitchen'}, boundary_result=node.boundary)))
 
 
 def test_spatial_context_tracks_transformed_odometry(mapping_node):

@@ -241,9 +241,48 @@ def test_tracker_rotation_and_out_of_gate():
 
 def test_suitability_requires_explicit_qualification():
     assert perception.suitability(.05, .05)[0] == 0
-    assert perception.suitability(.05, .05, qualified_small_lift=True)[0] == 1
-    assert perception.suitability(.5, .05, qualified_small_lift=True)[0] == 0
-    assert perception.suitability(.5, .05, qualified_small_lift=True, allow_tow=True)[0] == 2
+    assert perception.suitability(.05, .05, category='sock', qualified_small_lift=True)[0] == 1
+    assert perception.suitability(.20, .05, category='sock', qualified_small_lift=True)[0] == 1
+    assert perception.suitability(.20, .05, category='sock', qualified_small_lift=True, max_small_extent_m=.10)[0] == 0
+    assert perception.suitability(.20, .05, category='sock', qualified_small_lift=True, max_small_extent_m=.10, allow_tow=True)[0] == 2
+    assert perception.suitability(.5, .05, category='sock', qualified_small_lift=True)[0] == 0
+    assert perception.suitability(.5, .05, category='sock', qualified_small_lift=True, allow_tow=True)[0] == 2
+    for cat in ('towel', 'shirt', 'pants', 'jeans', 'hoodie', 'sweater', 'garment'):
+        assert perception.suitability(.18, .08, category=cat, qualified_small_lift=True, allow_tow=True)[0] == 2
+        assert perception.suitability(.60, .40, category=cat, qualified_small_lift=True, allow_tow=True)[0] == 2
+    for obs_cat in ('shoe', 'slipper', 'cable', 'cord', 'bowl'):
+        assert perception.suitability(.10, .10, category=obs_cat, qualified_small_lift=True, allow_tow=True) == (3, 'NON_OBJECTIVE_OBSTACLE')
+    for ign_cat in ('rug', 'mat', 'carpet', 'curtain'):
+        assert perception.suitability(.30, .30, category=ign_cat, qualified_small_lift=True, allow_tow=True) == (3, 'NON_OBJECTIVE_IGNORED')
+
+
+def test_category_normalization_and_non_objective_observe_rejection():
+    assert perception.normalize_category('a blue sock.') == 'sock'
+    assert perception.normalize_category('bath towel') == 'towel'
+    assert perception.normalize_category('sweatshirt / hoodie') == 'hoodie'
+    assert perception.normalize_category('denim jeans') == 'jeans'
+    assert perception.normalize_category('power cord') == 'cord'
+    assert perception.normalize_category('running shoes') == 'shoe'
+    assert perception.normalize_category('bath mat') == 'bathmat'
+    mask = np.zeros((1200, 1600), np.uint8)
+    mask[700:900, 700:900] = 1
+    pol = dict(qualified_small_lift=True, allow_tow=True)
+    sock_obs = perception.observe(mask, CAM, category='a pair of socks', qualified_policy=pol)
+    assert sock_obs['category'] == 'sock'
+    assert sock_obs['contact_valid'] and sock_obs['grasp_valid'] and sock_obs['reachable_for_grasp']
+    assert sock_obs['transport_suitability'] == 1
+    jeans_obs = perception.observe(mask, CAM, category='jeans', qualified_policy=pol)
+    assert jeans_obs['category'] == 'jeans'
+    assert jeans_obs['contact_valid'] and jeans_obs['grasp_valid'] and jeans_obs['reachable_for_grasp']
+    assert jeans_obs['transport_suitability'] == 2
+    shoe_obs = perception.observe(mask, CAM, category='shoe', qualified_policy=pol)
+    assert shoe_obs['category'] == 'shoe'
+    assert shoe_obs['contact_valid'] and not shoe_obs['grasp_valid'] and not shoe_obs['reachable_for_grasp']
+    assert shoe_obs['transport_suitability'] == 3 and shoe_obs['suitability_reason'] == 'NON_OBJECTIVE_OBSTACLE'
+    rug_obs = perception.observe(mask, CAM, category='rug', qualified_policy=pol)
+    assert rug_obs['category'] == 'rug'
+    assert rug_obs['contact_valid'] and not rug_obs['grasp_valid'] and not rug_obs['reachable_for_grasp']
+    assert rug_obs['transport_suitability'] == 3 and rug_obs['suitability_reason'] == 'NON_OBJECTIVE_IGNORED'
 
 
 def test_worker_framing_eof_invalid_image_and_contour_backend():

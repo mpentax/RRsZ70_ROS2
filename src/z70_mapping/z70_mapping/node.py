@@ -700,6 +700,19 @@ except ImportError:
 
 class DepthNode(Node):
     def __init__(self):
+        global MatchedFrames, read_pipe_exact, stop_worker_process, worker_env
+        if worker_env is None:
+            from z70_driver.driver import (
+                MatchedFrames as _MF, read_pipe_exact as _rpe,
+                stop_worker_process as _swp, worker_env as _we,
+            )
+            worker_env = _we
+            if MatchedFrames is None:
+                MatchedFrames = _MF
+            if read_pipe_exact is None:
+                read_pipe_exact = _rpe
+            if stop_worker_process is None:
+                stop_worker_process = _swp
         super().__init__('z70_depth_cloud')
         python = self.declare_parameter('depth_python', str(Path.home() / '.venvs/roboclaw-depth/bin/python')).value
         cal = self.declare_parameter('calibration', '').value

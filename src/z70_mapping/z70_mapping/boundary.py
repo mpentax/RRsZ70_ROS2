@@ -451,15 +451,19 @@ class SessionWorldMap:
         return entry
 
     def observe_garment(self, x: float, y: float, *, category: str = 'garment', width_m: float = 0.08,
-                        depth_m: float = 0.08, transport_suitability: int = 1, track_id: str = '',
-                        confirmed: bool = True, drop_xy: tuple[float, float] | None = None) -> WorldObject | None:
+                        depth_m: float = 0.08, transport_suitability: int = 1, suitability_reason: str = '',
+                        track_id: str = '', confirmed: bool = True,
+                        drop_xy: tuple[float, float] | None = None) -> WorldObject | None:
         if drop_xy is not None and math.hypot(x - drop_xy[0], y - drop_xy[1]) <= 0.45:
             if any(e.relevance == 'completed' for e in self.entries.values()):
                 return None
+        if suitability_reason == 'NON_OBJECTIVE_IGNORED':
+            return None
         mob = mobility_from_suitability(int(transport_suitability))
         rel = 'objective' if mob in ('pickupable', 'draggable') else 'deferred'
         return self.upsert_object(x, y, category=category, mobility=mob, relevance=rel,
-                                  width_m=width_m, depth_m=depth_m, track_id=track_id, confirmed=confirmed)
+                                  width_m=width_m, depth_m=depth_m, track_id=track_id,
+                                  detail=str(suitability_reason), confirmed=confirmed)
 
     def ingest_observations(self, batch, pose: tuple[float, float, float] | None, *,
                             drop_xy: tuple[float, float] | None = None) -> list[WorldObject]:
@@ -478,6 +482,7 @@ class SessionWorldMap:
                 width_m=float(getattr(g, 'footprint_width_m', 0.08)),
                 depth_m=float(getattr(g, 'footprint_depth_m', 0.08)),
                 transport_suitability=int(getattr(g, 'transport_suitability', 1)),
+                suitability_reason=str(getattr(g, 'suitability_reason', '')),
                 track_id=tid, confirmed=True, drop_xy=drop_xy,
             )
             if entry is not None:

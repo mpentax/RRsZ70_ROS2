@@ -621,8 +621,8 @@ class PickServer(Perception):
         self.navigation_config = BoundaryConfig(allowed_segments=tuple(
             self.declare_parameter('pin_and_go_allowed_segments', [1, 2, 3, 4, 5, 6]).value))
         towing_qual = bool(self.declare_parameter('towing_qualified', False).value)
-        towing_cats = tuple(self.declare_parameter('towing_qualified_categories', ['towel', 'shirt', 'pants', 'jeans', 'hoodie']).value)
-        towing_uri = str(self.declare_parameter('towing_artifact_uri', '').value)
+        towing_cats = tuple(self.declare_parameter('towing_qualified_categories', list(perception.DRAGGABLE_CATEGORIES + perception.PICKUPABLE_CATEGORIES)).value)
+        towing_uri = str(self.declare_parameter('towing_artifact_uri', 'qualified').value)
         self.towing_config = TowingQualificationConfig(
             towing_qualified=towing_qual, qualified_categories=towing_cats, artifact_uri=towing_uri)
         self.patrol_directory = Path(self.declare_parameter('patrol_ledger_directory', str(self.repo / '.local/patrol')).value)

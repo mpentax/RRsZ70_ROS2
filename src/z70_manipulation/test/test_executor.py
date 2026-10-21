@@ -1027,10 +1027,12 @@ def test_simulate_goal_tracks_stateful_arm_world_and_trace():
     assert simulate_goal(ALL_GOALS['align_target'], SimpleNamespace(color='yellow'), objects=[{'color': 'yellow', 'position': [0.0, 0.0, 0.03]}])[1].outcome.error_code == 'INVALID_INPUT'
     assert simulate_goal(ALL_GOALS['grasp_and_lift'], SimpleNamespace(lift_steps=2, verify_color='yellow'), objects=scene)[1].verified_hold is True
     assert simulate_goal(ALL_GOALS['grasp_and_lift'], SimpleNamespace(lift_steps=2, verify_color='blue'), objects=scene)[1].verified_hold is False
-    g_scene = [{'category': 'sock', 'transport_suitability': 1}, {'category': 'jeans', 'transport_suitability': 3}]
+    g_scene = [{'category': 'sock', 'transport_suitability': 1}, {'category': 'jeans', 'transport_suitability': 2}]
     assert simulate_goal(ALL_GOALS['deliver_garment'], SimpleNamespace(category='sock', drop_x_m=1.0, drop_y_m=1.0, max_duration_s=60.0, allow_towing=False, dry_run=True), garments=g_scene)[0] is True
     assert simulate_goal(ALL_GOALS['deliver_garment'], SimpleNamespace(category='towel', drop_x_m=1.0, drop_y_m=1.0, max_duration_s=60.0, allow_towing=False, dry_run=True), garments=g_scene)[1].status_code == 'NO_CONFIRMED_GARMENT'
     assert simulate_goal(ALL_GOALS['deliver_garment'], SimpleNamespace(category='jeans', drop_x_m=1.0, drop_y_m=1.0, max_duration_s=60.0, allow_towing=False, dry_run=True), garments=g_scene)[1].status_code == 'UNSUPPORTED_GARMENT_SKIP'
+    assert simulate_goal(ALL_GOALS['deliver_garment'], SimpleNamespace(category='jeans', drop_x_m=1.0, drop_y_m=1.0, max_duration_s=60.0, allow_towing=True, dry_run=True), garments=g_scene)[1].status_code == 'TOWING_UNQUALIFIED_SKIP'
+    assert simulate_goal(ALL_GOALS['deliver_garment'], SimpleNamespace(category='jeans', drop_x_m=1.0, drop_y_m=1.0, max_duration_s=60.0, allow_towing=True, dry_run=True), garments=g_scene, towing_qualified=True)[0] is True
     ok_skip_defer, _ = simulate_goal(
         GoalSpec('skip_defer_check', MoveArm, '/z70/skip_defer_check', 10., lambda _s, _r: True,
                  lambda ctx, _r: (

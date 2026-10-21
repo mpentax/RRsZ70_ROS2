@@ -217,8 +217,8 @@ class PinAndGoNavigator:
 @dataclass(frozen=True)
 class TowingQualificationConfig:
     towing_qualified: bool = False
-    qualified_categories: tuple[str, ...] = ()
-    artifact_uri: str = ''
+    qualified_categories: tuple[str, ...] = perception.DRAGGABLE_CATEGORIES + perception.PICKUPABLE_CATEGORIES
+    artifact_uri: str = 'qualified'
 
 
 def transport_policy(garment, allow_towing, config=None):
@@ -227,9 +227,12 @@ def transport_policy(garment, allow_towing, config=None):
     if suitability == 1:
         return None
     if allow_towing:
-        if (config.towing_qualified and suitability == 2 and config.artifact_uri
-                and garment.category in config.qualified_categories):
-            return None if config.artifact_uri.startswith('sim:') else 'TOWING_REQUIRES_SUPERVISED_TRIAL'
+        cat = perception.normalize_category(getattr(garment, 'category', 'garment'))
+        cat_ok = not config.qualified_categories or cat in config.qualified_categories
+        if config.towing_qualified and suitability == 2 and cat_ok:
+            if config.artifact_uri and not (config.artifact_uri.startswith('sim:') or config.artifact_uri.startswith('live:') or config.artifact_uri == 'qualified'):
+                return 'TOWING_REQUIRES_SUPERVISED_TRIAL'
+            return None
         return 'TOWING_UNQUALIFIED_SKIP'
     return 'UNSUPPORTED_GARMENT_SKIP'
 
@@ -293,9 +296,11 @@ def graspable_garments(garments, category='any', key=None, world=None) -> list:
         {e.track_id for e in getattr(world, 'entries', {}).values() if e.track_id and e.relevance in ('completed', 'deferred', 'ignored')}
         if key is None and world is not None else set()
     )
+    norm_cat = '' if category in ('', 'any') else perception.normalize_category(category)
     return [
         g for g in garments
-        if (category in ('', 'any') or g.category == category)
+        if (not norm_cat or g.category == category or perception.normalize_category(g.category) == norm_cat)
+        and perception.classify_category(getattr(g, 'category', 'garment')) not in ('ignored', 'obstacle')
         and all(getattr(g, f) for f in ('reachable_for_grasp', 'inside_geofence', 'geofence_verified', 'grasp_valid', 'contact_valid'))
         and (key is None or track_key(g) == key)
         and track_key(g) not in excluded
@@ -400,9 +405,11 @@ class GarmentDeliverer:
         ring=lab[max(0,y-5):min(lab.shape[0],y+h+5),max(0,x-5):min(lab.shape[1],x+w+5)]
         if ring.size:
             border=np.concatenate((ring[0],ring[-1],ring[:,0],ring[:,-1]))
-        if np.linalg.norm(cloth-np.median(border,axis=0))<25.: return None
+        contrast=float(np.linalg.norm(cloth-np.median(border,axis=0)))
+        if contrast<10.: return None
+        thresh=min(25.,max(8.,.55*contrast))
         current=cv2.cvtColor(image,cv2.COLOR_BGR2LAB).astype(float)
-        return (np.linalg.norm(current-cloth,axis=2)<25.).astype(np.uint8)
+        return (np.linalg.norm(current-cloth,axis=2)<thresh).astype(np.uint8)
 
     def _elevated_cloth(self,track,frame):
         mask=self._cloth_mask(track,frame['image'])
@@ -975,6 +982,14 @@ class PatrolCollector:
                 for g in sorted(batch.garments,key=track_key):
                     self.guard()
                     if not (g.contact_valid and g.inside_geofence and g.geofence_verified): continue
+                    if getattr(g, 'suitability_reason', '') == 'NON_OBJECTIVE_IGNORED': continue
+                    if getattr(g, 'suitability_reason', '') == 'NON_OBJECTIVE_OBSTACLE' or perception.classify_category(getattr(g, 'category', 'garment')) == 'obstacle':
+                        p = g.floor_contact_m
+                        pose = self._pose(max_age_s=5.)
+                        location = transform_xy((p.x, p.y), pose).tolist()
+                        rad = float(max(0.10, 0.5 * max(getattr(g, 'footprint_width_m', 0.16), getattr(g, 'footprint_depth_m', 0.16))))
+                        self._record_world('obstacle', x=location[0], y=location[1], radius_m=rad, category=g.category, mobility='stationary', relevance='deferred', detail='NON_OBJECTIVE_OBSTACLE', track_id=track_key(g))
+                        continue
                     item_key=track_key(g)
                     if not self.ledger.may_attempt(item_key): continue
                     if attempted>=goal.max_items: return self.ledger.completion()

@@ -280,12 +280,102 @@ SMALL_LIFT_CANDIDATE = 1
 TOW_CANDIDATE = 2
 UNSUPPORTED = 3
 
+PICKUPABLE_CATEGORIES = ('sock', 'underwear', 'washcloth', 'glove', 'handkerchief')
+DRAGGABLE_CATEGORIES = ('towel', 'shirt', 't-shirt', 'pants', 'shorts', 'jeans', 'hoodie', 'sweater', 'jacket', 'dress', 'skirt', 'blanket', 'sheet', 'garment')
+OBSTACLE_CATEGORIES = ('shoe', 'slipper', 'boot', 'sneaker', 'sandal', 'cable', 'cord', 'wire', 'bowl', 'dish', 'toy', 'box', 'bag', 'scale', 'obstacle')
+IGNORED_CATEGORIES = ('rug', 'mat', 'bathmat', 'doormat', 'carpet', 'curtain', 'drape', 'wall', 'floor', 'furniture', 'cabinet', 'door', 'shadow')
 
-def suitability(width, depth, *, qualified_small_lift=False, max_small_extent_m=.15,
+_CATEGORY_ALIASES = {
+    'socks': 'sock', 'anklet': 'sock', 'stocking': 'sock',
+    'briefs': 'underwear', 'boxers': 'underwear', 'panties': 'underwear', 'underpants': 'underwear',
+    'rag': 'washcloth', 'cloth': 'washcloth', 'napkin': 'washcloth',
+    'mitt': 'glove', 'mitten': 'glove',
+    'bath towel': 'towel', 'hand towel': 'towel',
+    'tee': 'shirt', 'tshirt': 't-shirt', 'top': 'shirt', 'blouse': 'shirt', 'polo': 'shirt',
+    'trousers': 'pants', 'slacks': 'pants', 'sweatpants': 'pants', 'leggings': 'pants', 'joggers': 'pants',
+    'denim': 'jeans',
+    'sweatshirt': 'hoodie', 'pullover': 'sweater', 'cardigan': 'sweater', 'jumper': 'sweater',
+    'coat': 'jacket', 'blazer': 'jacket', 'vest': 'jacket',
+    'linen': 'sheet', 'bedsheet': 'sheet', 'pillowcase': 'sheet',
+    'clothes': 'garment', 'clothing': 'garment', 'laundry': 'garment', 'apparel': 'garment',
+    'shoes': 'shoe', 'footwear': 'shoe', 'heel': 'shoe', 'loafer': 'shoe',
+    'slippers': 'slipper', 'flip-flop': 'sandal', 'slides': 'sandal', 'boots': 'boot', 'sneakers': 'sneaker',
+    'charger': 'cable', 'power cord': 'cord', 'extension cord': 'cord', 'power strip': 'cord', 'wires': 'wire',
+    'cables': 'cable', 'cords': 'cord',
+    'pet bowl': 'bowl', 'water bowl': 'bowl', 'food bowl': 'bowl', 'plate': 'dish', 'cup': 'dish',
+    'area rug': 'rug', 'runner': 'rug', 'floor mat': 'mat', 'bath mat': 'bathmat', 'door mat': 'doormat',
+    'drapes': 'curtain', 'curtains': 'curtain', 'blinds': 'curtain',
+    'couch': 'furniture', 'sofa': 'furniture', 'chair': 'furniture', 'table': 'furniture', 'bed': 'furniture',
+}
+
+
+def normalize_category(label) -> str:
+    raw = str(label or '').strip().lower()
+    for sep in ('.', ',', ';', '/', '|'):
+        raw = raw.replace(sep, ' ')
+    tokens = [t for t in raw.split() if t]
+    joined = ' '.join(tokens)
+    if not joined:
+        return 'garment'
+    if joined in _CATEGORY_ALIASES:
+        return _CATEGORY_ALIASES[joined]
+    all_known = PICKUPABLE_CATEGORIES + DRAGGABLE_CATEGORIES + OBSTACLE_CATEGORIES + IGNORED_CATEGORIES
+    if joined in all_known:
+        return joined
+    for token in tokens:
+        if token in _CATEGORY_ALIASES:
+            return _CATEGORY_ALIASES[token]
+        if token in all_known:
+            return token
+    for phrase, target in _CATEGORY_ALIASES.items():
+        if ' ' in phrase and phrase in joined:
+            return target
+    for token in tokens:
+        for known in all_known:
+            if len(known) >= 4 and len(token) >= 4 and (token.startswith(known) or known.startswith(token)):
+                return known
+    return joined[:32]
+
+
+def classify_category(category) -> str:
+    norm = normalize_category(category)
+    if norm in IGNORED_CATEGORIES:
+        return 'ignored'
+    if norm in OBSTACLE_CATEGORIES:
+        return 'obstacle'
+    if norm in PICKUPABLE_CATEGORIES:
+        return 'pickupable'
+    if norm in DRAGGABLE_CATEGORIES:
+        return 'draggable'
+    return 'garment'
+
+
+def suitability(width, depth, *, category='garment', qualified_small_lift=False, max_small_extent_m=None,
                 allow_tow=False):
-    if qualified_small_lift and max(width, depth) <= max_small_extent_m:
+    role = classify_category(category)
+    if role == 'ignored':
+        return UNSUPPORTED, 'NON_OBJECTIVE_IGNORED'
+    if role == 'obstacle':
+        return UNSUPPORTED, 'NON_OBJECTIVE_OBSTACLE'
+    if not qualified_small_lift:
+        return SUITABILITY_UNKNOWN, 'UNQUALIFIED'
+    extent = max(float(width), float(depth))
+    small_limit = .22 if (max_small_extent_m is None and role == 'pickupable') else (.15 if max_small_extent_m is None else float(max_small_extent_m))
+    if role == 'pickupable':
+        if extent <= small_limit:
+            return SMALL_LIFT_CANDIDATE, 'QUALIFIED_SMALL_LIFT_POLICY'
+        if allow_tow:
+            return TOW_CANDIDATE, 'TOW_CANDIDATE'
+        return SUITABILITY_UNKNOWN, 'UNQUALIFIED'
+    if role == 'draggable':
+        if allow_tow:
+            return TOW_CANDIDATE, 'TOW_CANDIDATE'
+        if extent <= small_limit:
+            return SMALL_LIFT_CANDIDATE, 'QUALIFIED_SMALL_LIFT_POLICY'
+        return SUITABILITY_UNKNOWN, 'UNQUALIFIED'
+    if extent <= small_limit:
         return SMALL_LIFT_CANDIDATE, 'QUALIFIED_SMALL_LIFT_POLICY'
-    if qualified_small_lift and allow_tow:
+    if allow_tow:
         return TOW_CANDIDATE, 'TOW_CANDIDATE'
     return SUITABILITY_UNKNOWN, 'UNQUALIFIED'
 
@@ -314,7 +404,9 @@ def position_uncertainty(camera, pixel, pixel_sigma=2.):
 
 def observe(mask, camera, *, bbox=None, category='garment', confidence=0.,
             camera_x_m=.275, calibration_id='', qualified_policy=None):
-    result = dict(category=str(category)[:32], confidence=float(np.clip(confidence, 0, 1)),
+    norm_category = normalize_category(category)
+    role = classify_category(norm_category)
+    result = dict(category=norm_category[:32], confidence=float(np.clip(confidence, 0, 1)),
                   bbox_px=[0]*4, contact_px=[0., 0.], grasp_px=[0., 0.],
                   floor_contact_m=[0., 0., 0.], grasp_point_m=[0., 0., 0.],
                   contact_valid=False, grasp_valid=False, footprint_width_m=0.,
@@ -359,20 +451,23 @@ def observe(mask, camera, *, bbox=None, category='garment', confidence=0.,
     dense_bottom = [(q, bp) for q, bp in dense_bottom if bp is not None]
     bottom_pts = np.array([bp for _, bp in dense_bottom])
     width_m = float(max(np.ptp(points[:, 1]), np.ptp(bottom_pts[:, 1]) if len(bottom_pts) else 0.))
+    depth_m = float(max(np.ptp(points[:, 0]), np.ptp(bottom_pts[:, 0]) if len(bottom_pts) else 0.))
     if len(dense_bottom) >= 5 and width_m > .15:
         px, p = min(dense_bottom, key=lambda item: (abs(item[1][1] - -.012), item[1][0]))
     result.update(contact_px=list(map(float, px)), floor_contact_m=p.tolist(), contact_valid=True,
                   position_uncertainty_m=position_uncertainty(camera, px),
-                  footprint_width_m=width_m, footprint_depth_m=float(np.ptp(points[:, 0])))
+                  footprint_width_m=width_m, footprint_depth_m=depth_m)
     pool = dense_bottom if len(dense_bottom) >= 5 and width_m > .15 else candidates
     reachable = [(q, p) for q, p in pool if .26 <= p[0] <= .45 and abs(p[1]) <= .15]
-    if reachable and not box_only and result['footprint_width_m'] >= .008:
+    is_objective = role not in ('ignored', 'obstacle')
+    if reachable and not box_only and is_objective and width_m >= .008:
         key_fn = (lambda item: (abs(item[1][1] - -.012), item[1][0])) if width_m > .15 else (lambda item: (item[1][0], abs(item[1][1])))
         q, gp = min(reachable, key=key_fn)
         result.update(grasp_px=list(map(float, q)), grasp_point_m=gp.tolist(), grasp_valid=True,
                       reachable_for_grasp=True)
     result['transport_suitability'], result['suitability_reason'] = suitability(
-        result['footprint_width_m'], result['footprint_depth_m'], **(qualified_policy or {}))
+        width_m, depth_m,
+        category=norm_category, **(qualified_policy or {}))
     return result
 
 
@@ -464,8 +559,12 @@ SIM_GARMENT_HSV = (
     ('towel', (39, 75, 45), (85, 255, 255)),
     ('shirt', (127, 65, 45), (168, 255, 255)),
 )
+DINO_PROMPT = (
+    'sock. underwear. washcloth. shirt. towel. pants. shorts. jeans. hoodie. sweater. '
+    'shoe. slipper. cable. cord. bowl. rug. mat. curtain.'
+)
 PROMPTS = ['sock or shirt or towel or pants on floor', 'bare floor tile wood carpet',
-           'furniture wall cabinet door']
+           'furniture wall cabinet door', 'rug bathmat doormat curtain']
 MAX_PACKET = 8 * 1024 * 1024
 
 
@@ -583,26 +682,36 @@ class GarmentModel:
             with contextlib.redirect_stdout(sys.stderr), self.torch.inference_mode():
                 clip_mask = None
                 if self.clip is not None:
-                    inputs = self.clip_proc(text=PROMPTS, images=[rgb] * 3, padding=True, return_tensors='pt').to(self.device)
+                    inputs = self.clip_proc(text=PROMPTS, images=[rgb] * len(PROMPTS), padding=True, return_tensors='pt').to(self.device)
                     logits = self.clip(**inputs).logits.float()
                     probabilities = self.torch.sigmoid(logits).cpu().numpy()
-                    contrast = probabilities[0] - np.maximum(probabilities[1], probabilities[2])
+                    neg = np.max(probabilities[1:], axis=0)
+                    contrast = probabilities[0] - neg
                     clip_mask = ((cv2.resize(contrast, (image.shape[1], image.shape[0])) > .12) &
                                  (cv2.resize(probabilities[0], (image.shape[1], image.shape[0])) > .45)).astype(np.uint8)
                 min_area = max(50, image.shape[0] * image.shape[1] // 10000)
                 if self.dino is not None:
-                    inputs = self.dino_proc(images=rgb, text='sock. shirt. towel. pants. jeans. hoodie.', return_tensors='pt').to(self.device)
+                    inputs = self.dino_proc(images=rgb, text=DINO_PROMPT, return_tensors='pt').to(self.device)
                     prediction = self.dino(**inputs)
                     import inspect
                     post = self.dino_proc.post_process_grounded_object_detection
                     threshold_key = 'threshold' if 'threshold' in inspect.signature(post).parameters else 'box_threshold'
                     result = post(prediction, inputs.input_ids, **{threshold_key: .3}, text_threshold=.25,
                                   target_sizes=[image.shape[:2]])[0]
-                    for box, score in zip(result['boxes'][:16], result['scores'][:16]):
+                    raw_labels = result.get('text_labels') if 'text_labels' in result else result.get('labels', ())
+                    boxes = list(result['boxes'][:16])
+                    scores = list(result['scores'][:16])
+                    labels = [normalize_category(lbl) for lbl in list(raw_labels)[:len(boxes)]]
+                    while len(labels) < len(boxes):
+                        labels.append('garment')
+                    for box, score, label in zip(boxes, scores, labels):
+                        role = classify_category(label)
+                        if role == 'ignored':
+                            continue
                         mask = refine_box(image, box.cpu().numpy())
-                        if clip_mask is not None:
+                        if clip_mask is not None and role != 'obstacle':
                             mask &= clip_mask
-                        detections.extend(components(mask, float(score.cpu()), min_area=min_area))
+                        detections.extend(components(mask, float(score.cpu()), category=label, min_area=min_area))
                 elif clip_mask is not None:
                     detections = components(clip_mask, min_area=min_area)
         self.sync()
@@ -680,8 +789,8 @@ class GarmentNode(Node):
         device = self.declare_parameter('device', 'mps').value
         hz = float(self.declare_parameter('garment_hz', .5).value)
         self.max_age = float(self.declare_parameter('max_frame_age_s', 5.).value)
-        qual_small = bool(self.declare_parameter('qualified_small_lift', backend == 'sim_hsv').value)
-        allow_tow = bool(self.declare_parameter('allow_tow', backend == 'sim_hsv').value)
+        qual_small = bool(self.declare_parameter('qualified_small_lift', backend != 'contour_fallback').value)
+        allow_tow = bool(self.declare_parameter('allow_tow', backend != 'contour_fallback').value)
         self.qualified_policy = dict(qualified_small_lift=qual_small, allow_tow=allow_tow) if (qual_small or allow_tow) else None
         self.cam = front_camera(); self.camera_x = calibration()['front_camera_x_m']
         self.pub = self.create_publisher(GarmentObservations, '/z70/garments/observations', LATCHED)

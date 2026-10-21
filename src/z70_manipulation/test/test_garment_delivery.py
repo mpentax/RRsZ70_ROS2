@@ -46,9 +46,12 @@ def _grid_map(size=30, pose=(1., 1., 0.)):
 
 
 def test_towing_is_not_implicitly_qualified():
-    garment = NS(transport_suitability=2)
+    garment = NS(transport_suitability=2, category='towel')
     assert transport_policy(garment, True, TowingQualificationConfig()) == 'TOWING_UNQUALIFIED_SKIP'
-    assert transport_policy(NS(transport_suitability=1), True, TowingQualificationConfig()) is None
+    assert transport_policy(NS(transport_suitability=1, category='sock'), True, TowingQualificationConfig()) is None
+    qual = TowingQualificationConfig(towing_qualified=True)
+    for cat in ('towel', 'shirt', 'pants', 'jeans', 'hoodie', 'sweater', 'garment'):
+        assert transport_policy(NS(transport_suitability=2, category=cat), True, qual) is None
 
 
 def test_loaded_route_is_four_connected_and_respects_deployed_envelope():

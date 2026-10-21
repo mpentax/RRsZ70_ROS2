@@ -29,7 +29,7 @@ from z70_mapping.boundary import SessionWorldMap, check_corridor_containment, co
 from z70_mapping.node import spatial_context as compute_spatial_context
 from . import perception, planner
 from .executor import Executor, read_arm, read_status
-from .garment_delivery import GarmentDeliverer, PatrolCollector, PatrolLedger, PinAndGoNavigator, dynamic_obstacles, graspable_garments, loaded_route, track_key
+from .garment_delivery import GarmentDeliverer, PatrolCollector, PatrolLedger, PinAndGoNavigator, TowingQualificationConfig, dynamic_obstacles, graspable_garments, loaded_route, track_key, transport_policy
 from .perception import transform_xy
 
 COLOR_RE = re.compile(r'[a-zA-Z0-9_-]{1,32}')
@@ -160,6 +160,9 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
     trace = overrides.pop('_trace', None)
     if not isinstance(trace, list):
         trace = []
+    towing_cfg_raw = overrides.pop('towing_config', None)
+    towing_qual = bool(overrides.pop('towing_qualified', getattr(towing_cfg_raw, 'towing_qualified', False)))
+    sim_towing_cfg = towing_cfg_raw if isinstance(towing_cfg_raw, TowingQualificationConfig) else TowingQualificationConfig(towing_qualified=towing_qual)
     arm_override = isinstance(overrides.get('arm'), dict)
     sim_arm = deepcopy(overrides.pop('arm')) if arm_override else {
         'state': 'WORKING_POS', 'joints': {'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.},
@@ -646,8 +649,8 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
             tid = track_key(g0)
             cat = str((g0.get('category') if isinstance(g0, dict) else getattr(g0, 'category', '')) or category)
             suit = int(g0.get('transport_suitability', 1) if isinstance(g0, dict) else getattr(g0, 'transport_suitability', 1))
-            if suit != 1:
-                code = 'TOWING_UNQUALIFIED_SKIP' if (suit == 2 and allow_towing) else 'UNSUPPORTED_GARMENT_SKIP'
+            code = transport_policy(SimpleNamespace(transport_suitability=suit, category=cat), allow_towing, sim_towing_cfg)
+            if code:
                 if not dry_run:
                     gx, gy = _garment_map_xy(g0)
                     sim_world.upsert_object(gx, gy, track_id=tid, category=cat, mobility=mobility_from_suitability(suit), relevance='deferred', detail=code)
@@ -696,7 +699,8 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
             suit = int(g.get('transport_suitability', 1) if isinstance(g, dict) else getattr(g, 'transport_suitability', 1))
             cat = str((g.get('category') if isinstance(g, dict) else getattr(g, 'category', '')) or 'garment')
             gx, gy = _garment_map_xy(g)
-            if suit == 1:
+            code = transport_policy(SimpleNamespace(transport_suitability=suit, category=cat), allow_towing, sim_towing_cfg)
+            if not code:
                 if delivered < int(max_items):
                     delivered += 1
                     if not dry_run:
@@ -704,7 +708,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
             else:
                 skipped += 1
                 if not dry_run:
-                    sim_world.upsert_object(gx, gy, track_id=tid, category=cat, mobility=mobility_from_suitability(suit), relevance='deferred', detail='UNSUPPORTED_GARMENT_SKIP')
+                    sim_world.upsert_object(gx, gy, track_id=tid, category=cat, mobility=mobility_from_suitability(suit), relevance='deferred', detail=code)
         if not dry_run:
             arm_unrestored = False
             sim_arm.update(state='IN_ROBOT', joints={'m3': 0., 'm4': 0., 'm5': 0., 'm6': 0.})
