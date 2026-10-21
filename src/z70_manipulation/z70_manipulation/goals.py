@@ -23,7 +23,7 @@ from z70_interfaces.action import (
 )
 from z70_description.arm_model import HAND_STEP_M, vendor_check, vendor_forward, vendor_inverse
 from z70_driver.commands import ARM_OPERATION_RPCS, arm_step_vector
-from z70_driver.driver import app_to_urdf
+from z70_driver.driver import LIMITS, app_to_urdf
 from z70_interfaces.msg import ArmEstimate, CommandOutcome
 from z70_mapping.boundary import SessionWorldMap, check_corridor_containment, compute_safe_interior, mobility_from_suitability
 from z70_mapping.node import spatial_context as compute_spatial_context
@@ -348,9 +348,10 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         elif m == 'app_arm_move' and isinstance(params, dict) and isinstance(params.get('m'), list) and len(params['m']) >= 3:
             arm_unrestored = True
             j = sim_arm.setdefault('joints', {'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.})
-            for k, step, v in zip(('m3', 'm4', 'm5'), (10., 10., 15.), params['m'][:3]):
+            for k, v in zip(('m3', 'm4', 'm5'), params['m'][:3]):
                 if v in (1, 2):
-                    j[k] = float(j.get(k, 0.)) + (step if v == 1 else -step)
+                    lo, hi = LIMITS[k]
+                    j[k] = max(lo, min(hi, float(j.get(k, 0.)) + (10. if v == 1 else -10.)))
             if len(params['m']) >= 4 and params['m'][3] in (1, 2):
                 j['m6'] = 90. if params['m'][3] == 1 else 0.
             sim_arm['state'] = 'IN_PROCESS_POS'
@@ -381,11 +382,23 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
                 elif cmd == 'arm_joints' and isinstance(c.get('value'), list):
                     arm_unrestored = True
                     j = sim_arm.setdefault('joints', {'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.})
-                    for k, step, v in zip(('m3', 'm4', 'm5'), (10., 10., 15.), c['value'][:3]):
+                    for k, v in zip(('m3', 'm4', 'm5'), c['value'][:3]):
                         if v in (1, 2):
-                            j[k] = float(j.get(k, 0.)) + (step * n if v == 1 else -step * n)
+                            lo, hi = LIMITS[k]
+                            j[k] = max(lo, min(hi, float(j.get(k, 0.)) + (10. * n if v == 1 else -10. * n)))
                     if len(c['value']) >= 4 and c['value'][3] in (1, 2):
                         j['m6'] = 90. if c['value'][3] == 1 else 0.
+                    sim_arm['state'] = 'IN_PROCESS_POS'
+                elif cmd == 'arm_move' and c.get('direction') in (1, 2, 3, 4):
+                    arm_unrestored = True
+                    j = sim_arm.setdefault('joints', {'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.})
+                    delta = {1: (0, 1), 2: (0, -1), 3: (1, 0), 4: (-1, 0)}[int(c['direction'])]
+                    for _ in range(n):
+                        m3, m4, m5 = float(j.get('m3', 150.)), float(j.get('m4', 45.)), float(j.get('m5', 0.))
+                        x, y = vendor_forward(m3, m4)[1]
+                        sol = vendor_inverse(x + delta[0] * HAND_STEP_M, y + delta[1] * HAND_STEP_M, (m3, m4))
+                        if sol is not None and vendor_check(sol[0], sol[1], m5) == 'SUCCESS':
+                            j['m3'], j['m4'] = float(sol[0]), float(sol[1])
                     sim_arm['state'] = 'IN_PROCESS_POS'
         _rec('rpc', method=m, params=params)
         return {'result': ['ok']}

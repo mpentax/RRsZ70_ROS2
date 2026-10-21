@@ -589,6 +589,42 @@ class SimWorld:
                     self.joints['m3'], self.joints['m4'] = float(sol[0]), float(sol[1])
                 self._sync_kinematics()
                 return 'ok', ['ok']
+            if method == 'app_start_program':
+                if not isinstance(p, dict) or not isinstance(p.get('cmd_ids'), list):
+                    return 'vendor_error', -10007
+                for c in p['cmd_ids']:
+                    if not isinstance(c, dict):
+                        continue
+                    cmd = c.get('cmd_id')
+                    n = int(c.get('step', 1)) if isinstance(c.get('step'), int) and c.get('step', 1) > 0 else 1
+                    if cmd == 'arm_in':
+                        self.deployed = False
+                        self.gripped_object = None
+                        self.joints = dict(POSES['IN_ROBOT'])
+                        self.robot_state = 3
+                    elif cmd == 'arm_out':
+                        self.deployed = True
+                        if self.grab_mode == 0:
+                            self.grab_mode = 1
+                        self.robot_state = 39
+                        self.joints = dict(POSES['WORKING_POS'])
+                    elif cmd == 'arm_joints' and isinstance(c.get('value'), list):
+                        for key, sel in zip(('m3', 'm4', 'm5'), c['value'][:3]):
+                            direction = 1 if sel == 1 else -1 if sel == 2 else 0
+                            if direction:
+                                lo, hi = LIMITS[key]
+                                self.joints[key] = max(lo, min(hi, self.joints[key] + direction * JOINT_STEP_DEG * n))
+                        if len(c['value']) >= 4 and c['value'][3] in (1, 2):
+                            self.joints['m6'] = 90.0 if c['value'][3] == 1 else 0.0
+                    elif cmd == 'arm_move' and c.get('direction') in (1, 2, 3, 4):
+                        delta = {1: (0, 1), 2: (0, -1), 3: (1, 0), 4: (-1, 0)}[int(c['direction'])]
+                        for _ in range(n):
+                            x, y = vendor_forward(self.joints['m3'], self.joints['m4'])[1]
+                            sol = vendor_inverse(x + delta[0] * HAND_STEP_M, y + delta[1] * HAND_STEP_M, (self.joints['m3'], self.joints['m4']))
+                            if sol is not None and vendor_check(sol[0], sol[1], self.joints['m5']) == 'SUCCESS':
+                                self.joints['m3'], self.joints['m4'] = float(sol[0]), float(sol[1])
+                self._sync_kinematics()
+                return 'ok', ['ok']
             if method in ('app_rc_start', 'app_rc_stop', 'app_rc_end', 'app_stop_grasp', 'app_stop', 'stop_goto_target'):
                 if method == 'stop_goto_target':
                     self.robot_state = 3
