@@ -8,6 +8,7 @@ import hmac
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import math
+import os
 from pathlib import Path
 import queue
 import secrets
@@ -930,6 +931,22 @@ class SimServer:
                 if self.path == '/api/session':
                     self._json(200, {'authenticated': True, 'setupAvailable': False, 'setupSession': False})
                     return
+                if not self.path.startswith('/api/'):
+                    web_root = (Path(os.environ.get('Z70_REPO', '.')).resolve() / 'dist' / 'web').resolve()
+                    rel = self.path.split('?', 1)[0].lstrip('/') or 'index.html'
+                    target = (web_root / rel).resolve()
+                    if not (target.is_relative_to(web_root) and target.is_file()):
+                        target = web_root / 'index.html'
+                    if target.is_file():
+                        mime = {
+                            '.html': 'text/html; charset=utf-8',
+                            '.js': 'text/javascript; charset=utf-8',
+                            '.css': 'text/css; charset=utf-8',
+                            '.svg': 'image/svg+xml',
+                            '.json': 'application/json; charset=utf-8',
+                        }.get(target.suffix.lower(), 'application/octet-stream')
+                        self._send(200, mime, target.read_bytes())
+                        return
                 if self.path.startswith('/api/ros/'):
                     self._proxy_ros('GET')
                     return
