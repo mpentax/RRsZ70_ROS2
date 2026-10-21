@@ -229,8 +229,10 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         return {'m3': int(m3), 'm4': int(m4), 'm5': int(m5)}
 
     def _hand_step(direction):
+        nonlocal arm_unrestored
         if direction not in (1, 2, 3, 4):
             raise ValueError('hand_step direction must be in (1, 2, 3, 4)')
+        arm_unrestored = True
         if sim_arm.get('state') == 'IN_ROBOT':
             sim_arm.update(state='WORKING_POS', joints={'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.})
         j = sim_arm.setdefault('joints', {'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.})
@@ -250,6 +252,8 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         _rec('open_jaws')
 
     def _grasp_and_lift(lift_steps=2, verify_color=''):
+        nonlocal arm_unrestored
+        arm_unrestored = True
         if sim_arm.get('state') == 'IN_ROBOT':
             sim_arm.update(state='WORKING_POS', joints={'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.})
         j = sim_arm.setdefault('joints', {'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.})
@@ -397,6 +401,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         return {'cleared': True}
 
     def _pick(color, dry_run=False):
+        nonlocal arm_unrestored
         if 'objects' in overrides:
             seen = defaults['objects']('front', color)
             target = seen[0] if seen else None
@@ -404,16 +409,19 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
             target = {'color': str(color)}
         ok = target is not None
         if ok and not dry_run:
+            arm_unrestored = False
             sim_arm.update(state='IN_ROBOT', joints={'m3': 0., 'm4': 0., 'm5': 0., 'm6': 0.})
         _rec('pick', color=str(color), dry_run=bool(dry_run))
         return {'verified': ok and not dry_run, 'dry_run': bool(dry_run), 'target': target}
 
     def _stack(base_color, middle_color, top_color, dry_run=False):
+        nonlocal arm_unrestored
         if 'objects' in overrides:
             all_vis = all(bool(defaults['objects']('front', c)) for c in (base_color, middle_color, top_color))
         else:
             all_vis = True
         if all_vis and not dry_run:
+            arm_unrestored = False
             sim_arm.update(state='IN_ROBOT', joints={'m3': 0., 'm4': 0., 'm5': 0., 'm6': 0.})
         _rec('stack', base_color=str(base_color), middle_color=str(middle_color), top_color=str(top_color), dry_run=bool(dry_run))
         return {'stack_verified': all_vis and not dry_run, 'dry_run': bool(dry_run), 'all_targets_visible': all_vis, 'tiers_completed': 3 if all_vis else 0}
@@ -430,6 +438,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         return {'position': pos, 'bearing_error_deg': 0., 'range_error_m': 0.}
 
     def _deliver_garment(category='any', drop_x_m=0., drop_y_m=0., max_duration_s=300., allow_towing=False, dry_run=False):
+        nonlocal arm_unrestored
         _rec('deliver_garment', category=str(category), drop_x_m=float(drop_x_m), drop_y_m=float(drop_y_m), dry_run=bool(dry_run))
         if 'garments' in overrides:
             seen = defaults['garments'](category)
@@ -441,6 +450,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
                 code = 'TOWING_UNQUALIFIED_SKIP' if (suit == 2 and allow_towing) else 'UNSUPPORTED_GARMENT_SKIP'
                 return {'delivered': False, 'stowed': False, 'dry_run_valid': False, 'status_code': code, 'final_position_m': [sim_pose[0], sim_pose[1]], 'detail': code}
         if not dry_run:
+            arm_unrestored = False
             sim_pose[0], sim_pose[1] = float(drop_x_m), float(drop_y_m)
             sim_arm.update(state='IN_ROBOT', joints={'m3': 0., 'm4': 0., 'm5': 0., 'm6': 0.})
             sim_world.mark_completed(float(drop_x_m), float(drop_y_m), category=str(category), detail='DELIVERED')
