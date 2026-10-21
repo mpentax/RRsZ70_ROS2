@@ -1014,6 +1014,17 @@ def test_simulate_goal_tracks_stateful_arm_world_and_trace():
     assert simulate_goal(ALL_GOALS['deliver_garment'], SimpleNamespace(category='sock', drop_x_m=1.0, drop_y_m=1.0, max_duration_s=60.0, allow_towing=False, dry_run=True), garments=g_scene)[0] is True
     assert simulate_goal(ALL_GOALS['deliver_garment'], SimpleNamespace(category='towel', drop_x_m=1.0, drop_y_m=1.0, max_duration_s=60.0, allow_towing=False, dry_run=True), garments=g_scene)[1].status_code == 'NO_CONFIRMED_GARMENT'
     assert simulate_goal(ALL_GOALS['deliver_garment'], SimpleNamespace(category='jeans', drop_x_m=1.0, drop_y_m=1.0, max_duration_s=60.0, allow_towing=False, dry_run=True), garments=g_scene)[1].status_code == 'UNSUPPORTED_GARMENT_SKIP'
+    ok_skip_defer, _ = simulate_goal(
+        GoalSpec('skip_defer_check', MoveArm, '/z70/skip_defer_check', 10., lambda _s, _r: True,
+                 lambda ctx, _r: (
+                     ctx.deliver_garment('jeans', 1.0, 1.0, dry_run=False)['status_code'] == 'UNSUPPORTED_GARMENT_SKIP'
+                     and len(ctx.world_objects()['obstacles']) == 1,
+                     MoveArm.Result(),
+                 )),
+        SimpleNamespace(),
+        garments=[{'id': 'jeans_1', 'category': 'jeans', 'transport_suitability': 3, 'x': 1.2, 'y': 0.8}],
+    )
+    assert ok_skip_defer is True
     assert simulate_goal(ALL_GOALS['deliver_garment'], SimpleNamespace(category='sock', drop_x_m=1.0, drop_y_m=1.0, max_duration_s=60.0, allow_towing=False, dry_run=True), plan_route=None)[1].status_code == 'LOADED_ROUTE_BLOCKED'
     assert simulate_goal(ALL_GOALS['pin_and_go'], SimpleNamespace(target_x_m=1.0, target_y_m=1.0, max_duration_s=60.0, dry_run=True), corridor_safe=False)[1].status_code == 'TARGET_OUTSIDE_INTERIOR'
     assert simulate_goal(ALL_GOALS['pin_and_go'], SimpleNamespace(target_x_m=1.0, target_y_m=1.0, max_duration_s=60.0, dry_run=False), status={'state': 3, 'error_code': 0, 'battery': 10.0, 'common_status': 51202})[1].status_code == 'ARM_NOT_STOWED'

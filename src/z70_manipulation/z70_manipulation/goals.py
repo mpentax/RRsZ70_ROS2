@@ -614,6 +614,11 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
             suit = int(g0.get('transport_suitability', 1) if isinstance(g0, dict) else getattr(g0, 'transport_suitability', 1))
             if suit != 1:
                 code = 'TOWING_UNQUALIFIED_SKIP' if (suit == 2 and allow_towing) else 'UNSUPPORTED_GARMENT_SKIP'
+                if not dry_run:
+                    gx = float((g0.get('x', sim_pose[0]) if isinstance(g0, dict) else getattr(g0, 'x', sim_pose[0])) or sim_pose[0])
+                    gy = float((g0.get('y', sim_pose[1]) if isinstance(g0, dict) else getattr(g0, 'y', sim_pose[1])) or sim_pose[1])
+                    cat = str((g0.get('category') if isinstance(g0, dict) else getattr(g0, 'category', '')) or category)
+                    sim_world.upsert_object(gx, gy, track_id=tid, category=cat, mobility=mobility_from_suitability(suit), relevance='deferred', detail=code)
                 return {'delivered': False, 'stowed': False, 'dry_run_valid': False, 'status_code': code, 'final_position_m': [sim_pose[0], sim_pose[1]], 'detail': code}
         if defaults['plan_route'](drop_x_m, drop_y_m, deployed_arm_extension_m=0.10) is None:
             return {'delivered': False, 'stowed': False, 'dry_run_valid': False, 'status_code': 'LOADED_ROUTE_BLOCKED', 'final_position_m': [sim_pose[0], sim_pose[1]], 'detail': 'LOADED_ROUTE_BLOCKED'}
