@@ -508,7 +508,16 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
     def _patrol_collect(drop_x_m=0., drop_y_m=0., max_duration_s=600., max_items=5, allow_towing=False, dry_run=False):
         nonlocal arm_unrestored
         _rec('patrol_collect', drop_x_m=float(drop_x_m), drop_y_m=float(drop_y_m), max_items=int(max_items), dry_run=bool(dry_run))
-        rooms = [r for r in (sc_base.get('rooms') or []) if isinstance(r, dict) and r.get('reachable', True)]
+        if _plan_route(drop_x_m, drop_y_m, deployed_arm_extension_m=0.10) is None:
+            return {
+                'completed': False, 'partial_completion': False, 'dry_run_valid': False,
+                'waypoints_visited': 0, 'waypoints_cleared': 0, 'waypoints_deferred': 0,
+                'items_attempted': 0, 'items_delivered': 0, 'items_skipped': 0, 'items_failed': 0,
+                'status_code': 'TARGET_OUTSIDE_INTERIOR', 'detail': 'TARGET_OUTSIDE_INTERIOR',
+            }
+        all_rooms = [r for r in (sc_base.get('rooms') or []) if isinstance(r, dict)]
+        rooms = [r for r in all_rooms if r.get('reachable', True)]
+        lost_rooms = len(all_rooms) - len(rooms)
         wp_cnt = max(1, len(rooms))
         seen = defaults['garments']('any') if 'garments' in overrides else []
         delivered = skipped = 0
@@ -528,13 +537,14 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
             sim_arm.update(state='IN_ROBOT', joints={'m3': 0., 'm4': 0., 'm5': 0., 'm6': 0.})
             if delivered > 0 or 'garments' not in overrides:
                 sim_pose[0], sim_pose[1] = float(drop_x_m), float(drop_y_m)
-        complete = not dry_run and skipped == 0
+        complete = not dry_run and skipped == 0 and lost_rooms == 0
+        partial = bool(not dry_run and not complete)
         return {
-            'completed': complete, 'partial_completion': bool(not dry_run and skipped > 0), 'dry_run_valid': bool(dry_run),
+            'completed': complete, 'partial_completion': partial, 'dry_run_valid': bool(dry_run),
             'waypoints_visited': 0 if dry_run else wp_cnt, 'waypoints_cleared': 0 if dry_run else wp_cnt, 'waypoints_deferred': 0,
             'items_attempted': 0 if dry_run else delivered, 'items_delivered': 0 if dry_run else delivered,
             'items_skipped': 0 if dry_run else skipped, 'items_failed': 0,
-            'status_code': 'DRY_RUN_VALID' if dry_run else ('PATROL_CLEARED' if skipped == 0 else 'PARTIAL_COMPLETION_SMALL_ITEMS_ONLY'),
+            'status_code': 'DRY_RUN_VALID' if dry_run else ('PATROL_CLEARED' if complete else 'PARTIAL_COMPLETION_SMALL_ITEMS_ONLY'),
             'detail': '',
         }
 
