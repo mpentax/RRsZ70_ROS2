@@ -735,6 +735,24 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         except ValueError:
             return None
 
+    def _wrist_pose():
+        j = sim_arm.get('joints') or {}
+        active = arm_unrestored and sim_arm.get('state') not in ('IN_ROBOT', 'UNKNOWN')
+        m3 = float(j['m3']) if active and 'm3' in j else 190.
+        m4 = float(j['m4']) if active and 'm4' in j else 65.
+        m5 = float(j.get('m5', 0.)) if active else 0.
+        T = planner.hand.hand_pose([m3, m4, m5])
+        grasp_ref = (T[:3, :3] @ planner.hand.grasp_reference() + T[:3, 3]).tolist()
+        return {'position': T[:3, 3].tolist(), 'grasp_reference': grasp_ref, 'hand_pose_base': T.tolist(), 'marker_id': 68, 'rms_px': 0.1}
+
+    def _fit_wrist_joints():
+        j = sim_arm.get('joints') or {}
+        active = arm_unrestored and sim_arm.get('state') not in ('IN_ROBOT', 'UNKNOWN')
+        m3 = float(j['m3']) if active and 'm3' in j else 190.
+        m4 = float(j['m4']) if active and 'm4' in j else 65.
+        m5 = float(j.get('m5', 0.)) if active else 0.
+        return {'joints': [m3, m4, m5], 'residual_m': 0., 'residual_deg': 0., 'uncertainty_m': 0.015}
+
     defaults: dict[str, Any] = dict(
         request=request,
         action_cls=spec.action_cls,
@@ -760,8 +778,8 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         corridor_safe=_corridor_safe,
         select_camera=_select_camera,
         objects=lambda camera='front', color=None: [],
-        wrist_pose=lambda: {'position': [0.35, 0., 0.08], 'marker_id': 68},
-        fit_wrist_joints=lambda: {'joints': [190., 65., 0.], 'residual_m': 0., 'residual_deg': 0., 'uncertainty_m': 0.015},
+        wrist_pose=_wrist_pose,
+        fit_wrist_joints=_fit_wrist_joints,
         observe_color=lambda camera, color: [],
         garments=_garments,
         world_objects=sim_world.summary,

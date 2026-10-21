@@ -1063,6 +1063,8 @@ def test_simulate_goal_tracks_stateful_arm_world_and_trace():
                      and ctx.arm()['joints']['m6'] == 0.
                      and bool(ctx.rpc('app_arm_move', {'m': [0, 1, 0, 1, 0]}))
                      and ctx.arm()['joints']['m6'] == 90.
+                     and (ctx.fit_wrist_joints() or {}).get('joints') == [ctx.arm()['joints']['m3'], ctx.arm()['joints']['m4'], ctx.arm()['joints']['m5']]
+                     and 'hand_pose_base' in (ctx.wrist_pose() or {})
                      and bool(ctx.rpc('app_arm_direction_move', {'direction': 2}))
                      and bool(ctx.rpc('app_goto_target', [1500, 0]))
                      and ctx.map_pose()[:2] == (1.5, 0.0)
