@@ -532,7 +532,7 @@ class GoalContext:
                 )
             elif res.get('status_code') in ('TOWING_UNQUALIFIED_SKIP', 'UNSUPPORTED_GARMENT_SKIP', 'TOWING_REQUIRES_SUPERVISED_TRIAL') and runner.track is not None:
                 p = runner.track.floor_contact_m
-                ox, oy = transform_xy(getattr(runner, 'current_pose', (0., 0., 0.)), (p.x, p.y))
+                ox, oy = transform_xy((p.x, p.y), getattr(runner, 'current_pose', (0., 0., 0.)))
                 self.observations.record_world_event(
                     'upsert', x=float(ox), y=float(oy),
                     radius_m=0.14, category=str(runner.track.category), mobility=mob, relevance='deferred', detail=res['status_code'], track_id=tid,

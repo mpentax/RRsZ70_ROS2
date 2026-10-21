@@ -694,3 +694,35 @@ def test_real_dds_pin_and_go_dry_run_and_unverified_map():
         if peer is not None:
             peer.destroy_node()
         rclpy.try_shutdown()
+
+
+def test_deliver_garment_deferred_world_event_transforms_point_in_map_frame(monkeypatch):
+    from pathlib import Path
+    from types import SimpleNamespace
+    from z70_manipulation.goals import GoalContext
+    events = []
+    obs = SimpleNamespace(record_world_event=lambda action, **kw: events.append((action, kw)))
+    server = SimpleNamespace(observations=obs, navigation_config=BoundaryConfig(), towing_config=None, gains={})
+    handle = SimpleNamespace(request=SimpleNamespace(), is_cancel_requested=False)
+    ctx = GoalContext(server, handle, None, None, Path('.'), create_executor=False)
+
+    class FakeDeliverer:
+        def __init__(self, *a, **kw):
+            self.latest_observation = None
+            self.current_pose = (1.0, 2.0, 0.0)
+            self.track = SimpleNamespace(
+                category='jeans', transport_suitability=3,
+                floor_contact_m=SimpleNamespace(x=0.5, y=0.25),
+            )
+
+        def execute(self, req):
+            return {'delivered': False, 'status_code': 'UNSUPPORTED_GARMENT_SKIP', 'track_id': 'jeans-1'}
+
+    monkeypatch.setattr('z70_manipulation.goals.GarmentDeliverer', FakeDeliverer)
+    res = ctx.deliver_garment(category='jeans', drop_x_m=3.0, drop_y_m=4.0, dry_run=False)
+    assert res['status_code'] == 'UNSUPPORTED_GARMENT_SKIP'
+    assert len(events) == 1
+    action, payload = events[0]
+    assert action == 'upsert' and payload['x'] == pytest.approx(1.5) and payload['y'] == pytest.approx(2.25)
+    assert payload['mobility'] == 'stationary' and payload['relevance'] == 'deferred'
+

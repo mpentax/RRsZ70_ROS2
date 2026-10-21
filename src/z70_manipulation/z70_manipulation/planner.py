@@ -245,6 +245,7 @@ def descent_plan(start,target=None,goal=GRASP,min_tip=.015,equator_height=.033):
 
 def grasp_goal(object_xy,start,size_m=.066):
     """Find the closest reachable grid state placing the grasp reference at the object equator."""
+    start = snap_grid(start)[:2]
     best=None
     for a in range(90,271,10):
         for b in range(35,171,10):
@@ -264,6 +265,7 @@ def stack_tier_plan(tier, size_m=.066, start=(190, 65)):
     """Plan arm pose and lift requirements for placing or holding at tier 1..3 of a 3-dodecahedron stack."""
     if tier not in (1, 2, 3):
         raise ValueError('stack tier must be 1, 2, or 3')
+    start = snap_grid(start)[:2]
     target_equator_z = (tier - 0.5) * size_m
     tower_top_below_z = (tier - 1) * size_m
     clearance_z = tower_top_below_z + size_m * 0.5 + 0.012
