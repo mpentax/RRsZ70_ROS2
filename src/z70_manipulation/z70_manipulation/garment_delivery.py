@@ -285,12 +285,17 @@ def track_key(garment) -> str:
     return str(tid)
 
 
-def graspable_garments(garments, category='any', key=None) -> list:
+def graspable_garments(garments, category='any', key=None, world=None) -> list:
+    excluded = (
+        {e.track_id for e in getattr(world, 'entries', {}).values() if e.track_id and e.relevance in ('completed', 'deferred', 'ignored')}
+        if key is None and world is not None else set()
+    )
     return [
         g for g in garments
         if (category in ('', 'any') or g.category == category)
         and all(getattr(g, f) for f in ('reachable_for_grasp', 'inside_geofence', 'geofence_verified', 'grasp_valid', 'contact_valid'))
         and (key is None or track_key(g) == key)
+        and track_key(g) not in excluded
     ]
 
 
@@ -355,7 +360,8 @@ class GarmentDeliverer:
     def acquire(self, category, after=None, key=None):
         batch=self.observations.garment_snapshot(after=after)
         self.latest_observation=batch.evidence
-        candidates=graspable_garments(batch.garments, category, key)
+        wm=self.observations.world_map() if hasattr(self.observations,'world_map') else None
+        candidates=graspable_garments(batch.garments, category, key, world=wm)
         return (min(candidates,key=track_key) if candidates else None),batch
 
     def operation(self, name, fn):

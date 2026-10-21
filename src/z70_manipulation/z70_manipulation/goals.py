@@ -527,7 +527,8 @@ class GoalContext:
     def garments(self, category='any', after=None) -> list:
         batch = self.observations.garment_snapshot(after=after)
         self.latest_observation = batch.evidence
-        return graspable_garments(batch.garments, category)
+        wm = self.observations.world_map() if hasattr(self.observations, 'world_map') else None
+        return graspable_garments(batch.garments, category, world=wm)
 
     def world_objects(self) -> dict:
         wm = self.observations.world_map() if hasattr(self.observations, 'world_map') else None

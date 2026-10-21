@@ -737,3 +737,14 @@ def test_deliver_garment_deferred_world_event_transforms_point_in_map_frame(monk
     assert action2 == 'failed' and payload2['x'] == pytest.approx(1.5) and payload2['y'] == pytest.approx(2.25)
     assert payload2['track_id'] == bytes(range(16)).hex() and payload2['detail'] == 'GRASP_MISS'
 
+    from z70_mapping.boundary import SessionWorldMap
+    from z70_manipulation.garment_delivery import graspable_garments
+    wm = SessionWorldMap()
+    wm.bind_session('m1', 1, (0., 0.), 20, 20, 0.05)
+    wm.upsert_object(1.0, 1.0, category='sock', mobility='pickupable', relevance='deferred', track_id='01' * 16)
+    flags = dict(category='sock', reachable_for_grasp=True, inside_geofence=True, geofence_verified=True, grasp_valid=True, contact_valid=True)
+    g1 = NS(track_id=NS(uuid=bytes.fromhex('01' * 16)), **flags)
+    g2 = NS(track_id=NS(uuid=bytes.fromhex('02' * 16)), **flags)
+    assert [bytes(g.track_id.uuid).hex() for g in graspable_garments([g1, g2], world=wm)] == ['02' * 16]
+    assert [bytes(g.track_id.uuid).hex() for g in graspable_garments([g1, g2], key='01' * 16, world=wm)] == ['01' * 16]
+
