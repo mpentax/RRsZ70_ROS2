@@ -927,6 +927,9 @@ class SimServer:
                 if self.path == '/healthz':
                     self._json(200, {'available': not sim.stop_event.is_set(), 'simulator': 'mujoco'})
                     return
+                if self.path == '/api/session':
+                    self._json(200, {'authenticated': True, 'setupAvailable': False, 'setupSession': False})
+                    return
                 if self.path.startswith('/api/ros/'):
                     self._proxy_ros('GET')
                     return
@@ -1024,7 +1027,16 @@ class SimServer:
 
                 self._json(404, {'error': 'Not found.'})
 
+            def do_DELETE(self) -> None:
+                if self.path == '/api/session':
+                    self._send(204, 'text/plain', b'')
+                    return
+                self._json(404, {'error': 'Not found.'})
+
             def do_POST(self) -> None:
+                if self.path == '/api/session':
+                    self._json(200, {'authenticated': True, 'setupAvailable': False, 'setupSession': False})
+                    return
                 if self.path.startswith('/api/ros/'):
                     self._proxy_ros('POST')
                     return
@@ -1054,7 +1066,11 @@ class SimServer:
                     if not sim.session_enabled:
                         self._json(409, {'error': 'SESSION_STOPPED', 'dispatch': 'not_sent'})
                         return
-                    jpeg, active, w, h = sim.world.render_jpeg()
+                    req_cam = body.get('camera')
+                    if req_cam is not None and req_cam not in ('front', 'gripper'):
+                        self._json(400, {'error': 'INVALID_INPUT', 'dispatch': 'not_sent'})
+                        return
+                    jpeg, active, w, h = sim.world.render_jpeg(req_cam)
                     self._send(
                         200,
                         'image/jpeg',
