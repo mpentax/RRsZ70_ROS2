@@ -695,6 +695,9 @@ def test_simulate_goal_exercises_all_builtin_goals():
     with pytest.raises(ValueError, match='unsafe arm_step'):
         real_ctx.arm = lambda: {'state': 'WORKING_POS', 'joints': {'m3': 150., 'm4': 35., 'm5': 0., 'm6': 90.}}
         real_ctx.arm_step(0, 2, 0)
+    with pytest.raises(ValueError, match='unreachable hand_step'):
+        real_ctx.arm = lambda: {'state': 'WORKING_POS', 'joints': {'m3': 250., 'm4': 105., 'm5': 0., 'm6': 90.}}
+        real_ctx.hand_step(2)
     real_ctx.arm = lambda: {'state': 'WORKING_POS', 'joints': {'m3': 150., 'm4': 45., 'm5': 0., 'm6': 90.}}
     assert real_ctx.plan_grasp(0.43, 0.0)['state'] == [250, 105]
     assert real_ctx.plan_stack_tier(1)['tier'] == 1

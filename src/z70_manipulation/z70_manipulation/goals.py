@@ -241,7 +241,7 @@ def simulate_goal(spec: GoalSpec, request, **overrides) -> tuple[bool, Any]:
         m3, m4, m5 = float(j.get('m3', 150.)), float(j.get('m4', 45.)), float(j.get('m5', 0.))
         x, y = vendor_forward(m3, m4)[1]
         sol = vendor_inverse(x + delta[0] * HAND_STEP_M, y + delta[1] * HAND_STEP_M, (m3, m4))
-        if sol is None or vendor_check(sol[0], sol[1], m5) != 'SUCCESS':
+        if sol is None or vendor_check(sol[0], sol[1], m5) != 'SUCCESS' or not planner.safe((sol[0], sol[1], m5, float(j.get('m6', 90.)))):
             raise ValueError(f'unreachable hand_step direction {direction}')
         j['m3'], j['m4'] = float(sol[0]), float(sol[1])
         sim_arm['state'] = 'IN_PROCESS_POS'
@@ -952,6 +952,17 @@ class GoalContext:
     def hand_step(self, direction: int) -> dict:
         if direction not in (1, 2, 3, 4):
             raise ValueError('hand_step direction must be in (1, 2, 3, 4)')
+        try:
+            j = (self.arm() or {}).get('joints') or {}
+        except Exception:
+            j = {}
+        if all(k in j for k in ('m3', 'm4')):
+            delta = {1: (0, 1), 2: (0, -1), 3: (1, 0), 4: (-1, 0)}[int(direction)]
+            m3, m4, m5, m6 = float(j['m3']), float(j['m4']), float(j.get('m5', 0.)), float(j.get('m6', 90.))
+            x, y = vendor_forward(m3, m4)[1]
+            sol = vendor_inverse(x + delta[0] * HAND_STEP_M, y + delta[1] * HAND_STEP_M, (m3, m4))
+            if sol is None or vendor_check(sol[0], sol[1], m5) != 'SUCCESS' or not planner.safe((sol[0], sol[1], m5, m6)):
+                raise ValueError(f'unreachable hand_step direction {direction}')
         return self.rpc('app_arm_direction_move', {'direction': int(direction)}, timeout_ms=3000)
 
     def open_jaws(self):
