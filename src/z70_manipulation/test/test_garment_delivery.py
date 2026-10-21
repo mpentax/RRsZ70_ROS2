@@ -728,3 +728,12 @@ def test_deliver_garment_deferred_world_event_transforms_point_in_map_frame(monk
     assert payload['mobility'] == 'stationary' and payload['relevance'] == 'deferred'
     assert payload['track_id'] == bytes(range(16)).hex()
 
+    events.clear()
+    FakeDeliverer.execute = lambda self, req: {'delivered': False, 'status_code': 'GRASP_MISS', 'track_id': self.track.track_id}
+    res2 = ctx.deliver_garment(category='sock', drop_x_m=3.0, drop_y_m=4.0, dry_run=False)
+    assert res2['status_code'] == 'GRASP_MISS'
+    assert len(events) == 1
+    action2, payload2 = events[0]
+    assert action2 == 'failed' and payload2['x'] == pytest.approx(1.5) and payload2['y'] == pytest.approx(2.25)
+    assert payload2['track_id'] == bytes(range(16)).hex() and payload2['detail'] == 'GRASP_MISS'
+
