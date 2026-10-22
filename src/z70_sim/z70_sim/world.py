@@ -285,10 +285,17 @@ class SimWorld:
     <texture name="floor_tex" type="2d" file="{self.floor_tex_path}"/>
     <material name="floor_mat" texture="floor_tex" texrepeat="2 2" texuniform="true" reflectance="0" specular="0"/>
     <material name="wall_mat" rgba="0.86 0.86 0.84 1" reflectance="0" specular="0"/>
-    <material name="body_mat" rgba="0.96 0.96 0.96 1" specular="0.05"/>
-    <material name="dark_mat" rgba="0.14 0.14 0.15 1" specular="0.05"/>
+    <material name="body_mat" rgba="0.14 0.16 0.20 1" specular="0.20"/>
+    <material name="dark_mat" rgba="0.10 0.11 0.14 1" specular="0.15"/>
     <mesh name="cad_body" file="cad_body.stl"/>
+    <mesh name="cad_lid_base" file="cad_lid_base.stl"/>
+    <mesh name="cad_lid" file="cad_lid.stl"/>
     <mesh name="cad_bumper_front" file="cad_bumper_front.stl"/>
+    <mesh name="cad_bumper_rear" file="cad_bumper_rear.stl"/>
+    <mesh name="cad_wheels" file="cad_wheels.stl"/>
+    <mesh name="cad_mops" file="cad_mops.stl"/>
+    <mesh name="cad_spinners" file="cad_spinners.stl"/>
+    <mesh name="cad_shoulder_mount" file="cad_shoulder_mount.stl"/>
     <mesh name="cad_link1" file="cad_link1.stl"/>
     <mesh name="cad_link2" file="cad_link2.stl"/>
     <mesh name="cad_hand" file="cad_hand.stl"/>
@@ -310,6 +317,16 @@ class SimWorld:
       <joint name="base_yaw" type="hinge" axis="0 0 1"/>
       <geom name="chassis_visual" type="mesh" mesh="cad_body" material="body_mat" contype="0" conaffinity="0"/>
       <geom name="bumper_visual" type="mesh" mesh="cad_bumper_front" material="dark_mat" contype="0" conaffinity="0"/>
+      <geom name="bumper_rear_visual" type="mesh" mesh="cad_bumper_rear" material="dark_mat" contype="0" conaffinity="0"/>
+      <geom name="wheels_visual" type="mesh" mesh="cad_wheels" material="dark_mat" contype="0" conaffinity="0"/>
+      <geom name="mops_visual" type="mesh" mesh="cad_mops" material="dark_mat" contype="0" conaffinity="0"/>
+      <geom name="spinners_visual" type="mesh" mesh="cad_spinners" material="dark_mat" contype="0" conaffinity="0"/>
+      <body name="arm_lid_base" pos="0 0 0">
+        <geom name="lid_base_visual" type="mesh" mesh="cad_lid_base" material="dark_mat" contype="0" conaffinity="0"/>
+        <body name="arm_compartment_lid" pos="0.0348 0 0.0966">
+          <geom name="lid_visual" type="mesh" mesh="cad_lid" material="dark_mat" contype="0" conaffinity="0"/>
+        </body>
+      </body>
 
       <camera name="front" pos="{self.cal['front_camera_x_m']} 0 {cam.h / 1000.0}" xyaxes="{front_xy}"
               resolution="1600 1200" sensorsize="1.6 1.2" focalpixel="{cam.f} {cam.f}"
@@ -317,6 +334,7 @@ class SimWorld:
 
       <body name="arm_vendor_frame" pos="{vendor_pos}" xyaxes="{vendor_xy}">
         <body name="arm_shoulder_link" pos="{sh_pos}">
+          <geom name="shoulder_mount_visual" type="mesh" mesh="cad_shoulder_mount" material="dark_mat" contype="0" conaffinity="0"/>
           <body name="arm_link1" pos="0 0 0" xyaxes="{m3_xy}">
             <inertial pos="{l1 / 2} 0 0" mass="0.18" diaginertia="0.0005 0.0005 0.0002"/>
             <joint name="m3_joint" type="hinge" axis="0 1 0"/>

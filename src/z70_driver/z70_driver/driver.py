@@ -878,9 +878,10 @@ class Driver(CommandSurfaces, Node):
             m.validity.value = 3; m.validity.reason = 'COMMAND_DERIVED_STOW'
         m.unknown_reason = '' if usable else 'UNRECONCILED_OR_UNKNOWN'
         q = app_to_urdf(**estimate_to_app(d))
+        lid = 0.058 if d.get('state') == 'IN_ROBOT' else 0.0
         display = JointState(); display.header = deepcopy(m.header)
         display.name = [*q, 'shoulder_lift', 'shoulder_yaw', 'arm_lid']
-        display.position = [*q.values(), 0., 0., 0.]
+        display.position = [*q.values(), 0., 0., lid]
         if usable:
             # Only the three arm joints have even heuristic uncertainty in ArmEstimate.
             m.joints = JointState(header=deepcopy(m.header), name=list(q)[:3], position=list(q.values())[:3])

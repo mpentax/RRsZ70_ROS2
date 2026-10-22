@@ -35,9 +35,8 @@ def measured_point(state,endpoint):
             shoulder[1]+x*math.sin(YAW)+endpoint[1]*math.cos(YAW),shoulder[2]+z]
 
 def operational_point(state):
-    """Return grasp reference point in base_footprint coordinates."""
-    T=hand.hand_pose(state)
-    return (T[:3,:3]@hand.grasp_reference()+T[:3,3]).tolist()
+    """Return CAD grasp reference point in base_footprint coordinates."""
+    return hand.cad_forward(state)[3].tolist()
 
 
 def grasp_point(state=(240,95)):
@@ -220,11 +219,15 @@ def tip_floor_bound(state):
 def arm_kinematics(state):
     """Return forward kinematics, floor clearance, and safety status for a joint state."""
     st = (float(state[0]), float(state[1]), float(state[2]) if len(state) > 2 else 0., float(state[3]) if len(state) > 3 else 90.)
-    op = operational_point(st)
+    sh, el, wr, gr = hand.cad_forward(st)
+    op = gr.tolist()
     vx, vz = vendor_endpoint(st)
     return dict(
         state=list(st),
         safe=safe(st),
+        shoulder_point_m=[round(float(x), 4) for x in sh],
+        elbow_point_m=[round(float(x), 4) for x in el],
+        wrist_point_m=[round(float(x), 4) for x in wr],
         operational_point_m=[round(x, 4) for x in op],
         grasp_point_m=[round(op[0], 4), round(op[1], 4), 0.0],
         tip_height_m=round(tip_height(st), 4),

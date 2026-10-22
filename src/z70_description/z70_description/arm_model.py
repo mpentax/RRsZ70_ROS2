@@ -295,6 +295,21 @@ def grasp_reference():
     return np.array([tip[0] + CONFIG['grasp_aim_ahead_of_tip_m'], 0, CONFIG['root_z_m']])
 
 
+def cad_forward(state):
+    """Return CAD (shoulder_xyz, elbow_xyz, wrist_xyz, grasp_xyz) in base_footprint."""
+    m3, m4, m5, _ = validate_state(state)
+    a1 = math.radians(270 - m3 + CAL['measured_M3_offset_deg'])
+    a2 = math.radians(m4 - m3 + 90)
+    yaw = math.radians(CAL['arm_yaw_deg'])
+    shoulder = np.array(CAD['shoulder_in_base_m'], float)
+    elbow = shoulder + rpy([0, 0, yaw]) @ np.array([L1 * math.cos(a1), 0.0, L1 * math.sin(a1)])
+    B = rpy([0, -a2, yaw])
+    Q = rpy([math.radians(m5), 0, 0])
+    wrist = elbow + B @ np.array([L2, 0.0, 0.0])
+    grasp = wrist + (B @ Q) @ grasp_reference()
+    return shoulder, elbow, wrist, grasp
+
+
 def articulated_geometry(state):
     """Per-finger poses, terminal points, pad regions, OBBs, and terminal gap."""
     st = validate_state(state); T = hand_pose(st)
