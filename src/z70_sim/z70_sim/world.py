@@ -295,6 +295,7 @@ class SimWorld:
     <mesh name="cad_wheels" file="cad_wheels.stl"/>
     <mesh name="cad_mops" file="cad_mops.stl"/>
     <mesh name="cad_spinners" file="cad_spinners.stl"/>
+    <mesh name="cad_lenses" file="cad_lenses.stl"/>
     <mesh name="cad_shoulder_mount" file="cad_shoulder_mount.stl"/>
     <mesh name="cad_link1" file="cad_link1.stl"/>
     <mesh name="cad_link2" file="cad_link2.stl"/>
@@ -321,7 +322,9 @@ class SimWorld:
       <geom name="wheels_visual" type="mesh" mesh="cad_wheels" material="dark_mat" contype="0" conaffinity="0"/>
       <geom name="mops_visual" type="mesh" mesh="cad_mops" material="dark_mat" contype="0" conaffinity="0"/>
       <geom name="spinners_visual" type="mesh" mesh="cad_spinners" material="dark_mat" contype="0" conaffinity="0"/>
+      <geom name="lenses_visual" type="mesh" mesh="cad_lenses" material="dark_mat" contype="0" conaffinity="0"/>
       <body name="arm_lid_base" pos="0 0 0">
+        <joint name="arm_lid" type="slide" axis="1 0 0"/>
         <geom name="lid_base_visual" type="mesh" mesh="cad_lid_base" material="dark_mat" contype="0" conaffinity="0"/>
         <body name="arm_compartment_lid" pos="0.0348 0 0.0966">
           <geom name="lid_visual" type="mesh" mesh="cad_lid" material="dark_mat" contype="0" conaffinity="0"/>
@@ -440,6 +443,7 @@ class SimWorld:
         self.data.qpos[self._joint_qpos_adr('base_x')] = self.pose[0]
         self.data.qpos[self._joint_qpos_adr('base_y')] = self.pose[1]
         self.data.qpos[self._joint_qpos_adr('base_yaw')] = self.pose[2]
+        self.data.qpos[self._joint_qpos_adr('arm_lid')] = 0.0 if self.deployed else 0.058
         q = app_to_urdf(*self._active_joints())
         self.data.qpos[self._joint_qpos_adr('m3_joint')] = q['m3_joint']
         self.data.qpos[self._joint_qpos_adr('m4_joint')] = q['m4_joint']

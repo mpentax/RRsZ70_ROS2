@@ -130,10 +130,10 @@ def rpy(angles):
                      [sy * cp, sy * sp * sr + cy * cr, sy * sp * cr - cy * sr], [-sp, cp * sr, cp * cr]])
 
 
-CAM_R = rpy(np.radians([CAL['gripper_roll_deg'], CAL['gripper_pitch_down_deg'], CAL['gripper_yaw_deg']]))
+CAM_R = rpy(CAD['camera_rpy'])
 CAM_C = np.array(CAD['camera_from_wrist_m'], float)
-MARK_R = np.array(CAL['marker_rotation_link2'])
-MARK_C = np.array(CAL['marker_effective_from_elbow_m']) - np.array([L2, 0, 0])
+MARK_R = rpy(CAD['marker_rpy'])
+MARK_C = np.array(CAD['marker_from_wrist_m'], float)
 
 
 def rounded_rectangle(half_y, half_z, radius):

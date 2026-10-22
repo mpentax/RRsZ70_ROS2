@@ -368,3 +368,108 @@ def test_actual_published_finger_frames_match_operational_four_angle_geometry(tf
         tr = transforms['finger_' + side].transform
         assert [tr.translation.x, tr.translation.y, tr.translation.z] == pytest.approx(expected[:3, 3], abs=1e-8)
         assert quat_matrix(tr.rotation) == pytest.approx(expected[:3, :3], abs=1e-8)
+
+
+def test_cad_urdf_planner_mujoco_full_joint_sweep_agreement():
+    import mujoco  # type: ignore[import-not-found]
+    from z70_sim.world import DEFAULT_OBJECTS, SimWorld  # type: ignore[import-not-found]
+
+    def all_urdf_frames(angles):
+        frames = {'base_footprint': np.eye(4)}
+        pending = list(ROBOT.findall('joint'))
+        while pending:
+            for joint in pending[:]:
+                parent_el = joint.find('parent')
+                child_el = joint.find('child')
+                assert parent_el is not None and child_el is not None
+                parent = parent_el.get('link') or ''
+                child = child_el.get('link') or ''
+                if parent not in frames:
+                    continue
+                motion = np.eye(4)
+                jtype = joint.get('type')
+                if jtype in ('revolute', 'continuous', 'prismatic'):
+                    axis_el = joint.find('axis')
+                    assert axis_el is not None
+                    axis = np.fromstring(axis_el.get('xyz', '0 0 1'), sep=' ')
+                    val = angles.get(joint.get('name') or '', 0.)
+                    mimic = joint.find('mimic')
+                    if mimic is not None:
+                        val = angles.get(mimic.get('joint') or '', 0.) * float(mimic.get('multiplier', '1')) + float(mimic.get('offset', '0'))
+                    if jtype == 'prismatic':
+                        motion[:3, 3] = axis * val
+                    else:
+                        motion[:3, :3] = rotation(axis, val)
+                frames[child] = frames[parent] @ origin(joint.find('origin')) @ motion
+                pending.remove(joint)
+        return frames
+
+    w = SimWorld(objects=DEFAULT_OBJECTS)
+    body_names = (
+        'base_footprint', 'arm_lid_base', 'arm_compartment_lid', 'arm_vendor_frame',
+        'arm_shoulder_link', 'arm_link1', 'arm_link2', 'arm_wrist_link',
+        'jaw_left', 'jaw_right', 'pincher_marker_68',
+    )
+
+    for deployed in (False, True):
+        for base_pose in ((0.0, 0.0, 0.0), (0.35, -0.20, 0.45), (-0.15, 0.40, -1.10)):
+            bx, by, byaw = base_pose
+            cb, sb = math.cos(byaw), math.sin(byaw)
+            T_world_base = np.array([
+                [cb, -sb, 0.0, bx],
+                [sb, cb, 0.0, by],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ])
+            states = [(90.0, 170.0, 0.0, 0.0)] if not deployed else [
+                (m3, m4, m5, m6)
+                for m3 in (95.0, 150.0, 195.0, 240.0, 265.0)
+                for m4 in (36.0, 75.0, 115.0, 165.0)
+                for m5 in (0.0, 40.0, 155.0)
+                for m6 in (0.0, 45.0, 90.0)
+            ]
+            for st in states:
+                w.deployed = deployed
+                w.pose = list(base_pose)
+                w.joints = dict(m3=st[0], m4=st[1], m5=st[2], m6=st[3])
+                w._sync_kinematics()
+                mujoco.mj_forward(w.model, w.data)
+
+                active = w._active_joints()
+                q = app_to_urdf(*active)
+                q['arm_lid'] = 0.0 if deployed else 0.058
+                uf = all_urdf_frames(q)
+
+                sh, el, wr, gr = g.cad_forward(active)
+                T_hand = g.hand_pose(active)
+                assert np.linalg.norm(uf['arm_shoulder_link'][:3, 3] - sh) < 5e-4
+                assert np.linalg.norm(uf['arm_link2'][:3, 3] - el) < 5e-4
+                assert np.linalg.norm(uf['arm_wrist_link'][:3, 3] - wr) < 5e-4
+                assert np.linalg.norm(T_hand[:3, 3] - wr) < 1e-9
+                assert np.allclose(uf['arm_wrist_link'][:3, :3], T_hand[:3, :3], atol=1e-6)
+                assert np.allclose(planner.operational_point(active), gr, atol=1e-9)
+
+                cam_p, cam_R = planner.camera_pose(active[:3])
+                assert np.linalg.norm(uf['gripper_camera_optical_frame'][:3, 3] - cam_p) < 5e-4
+                assert np.allclose(uf['gripper_camera_optical_frame'][:3, :3], cam_R, atol=1e-6)
+
+                for bname in body_names:
+                    bid = mujoco.mj_name2id(w.model, mujoco.mjtObj.mjOBJ_BODY, bname)
+                    mj_p = w.data.xpos[bid]
+                    mj_R = w.data.xmat[bid].reshape(3, 3)
+                    T_urdf_world = T_world_base @ uf[bname]
+                    pos_err = float(np.linalg.norm(mj_p - T_urdf_world[:3, 3]))
+                    rot_err = math.acos(max(-1.0, min(1.0, (float(np.trace(mj_R @ T_urdf_world[:3, :3].T)) - 1.0) / 2.0)))
+                    assert pos_err < 5e-4, f'{bname} pos_err={pos_err}'
+                    assert rot_err < 2e-3, f'{bname} rot_err={rot_err}'
+
+                for cname, ulink in (('front', 'camera_optical_frame'), ('gripper', 'gripper_camera_optical_frame')):
+                    cid = mujoco.mj_name2id(w.model, mujoco.mjtObj.mjOBJ_CAMERA, cname)
+                    mj_p = w.data.cam_xpos[cid]
+                    mj_R_opt = w.data.cam_xmat[cid].reshape(3, 3) @ np.diag([1.0, -1.0, -1.0])
+                    T_cam_world = T_world_base @ uf[ulink]
+                    pos_err = float(np.linalg.norm(mj_p - T_cam_world[:3, 3]))
+                    rot_err = math.acos(max(-1.0, min(1.0, (float(np.trace(mj_R_opt @ T_cam_world[:3, :3].T)) - 1.0) / 2.0)))
+                    assert pos_err < 5e-4, f'camera {cname} pos_err={pos_err}'
+                    assert rot_err < 2e-3, f'camera {cname} rot_err={rot_err}'
+

@@ -1,9 +1,9 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
   <xacro:macro name="arm_wrist_link_collisions">
     <collision>
-      <origin xyz="0.0138 0 -0.00175732744058" />
+      <origin xyz="0.0138 0 -0.00185" />
       <geometry>
-        <box size="0.067 0.032 0.0215146548812" />
+        <box size="0.067 0.032 0.0217" />
       </geometry>
     </collision>
   </xacro:macro>
