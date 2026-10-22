@@ -4,6 +4,8 @@ ROS 2 Lyrical stack, 3D visualization, web operator console, and MCP control pla
 
 > This is an independent community project; it is not affiliated with, endorsed by, or supported by Roborock.
 
+![Simulated 5-DOF Pickup Sequence](docs/assets/hero-overview.gif)
+
 ## Getting Started
 
 Target platform: **macOS Apple Silicon (`osx-arm64`)** with [Pixi](https://pixi.sh) on `PATH`. Run commands from the repository root:
@@ -21,6 +23,10 @@ Open **`http://127.0.0.1:57010`**. On first run, click **Start local setup** to 
 
 - Connect **Foxglove Studio** to `ws://127.0.0.1:8765` and import [`src/z70_bringup/foxglove/z70-dashboard.json`](src/z70_bringup/foxglove/z70-dashboard.json).
 - Monocular depth is enabled by default when `~/.venvs/roboclaw-depth` is provisioned ([setup instructions](docs/ros2.md#optional-depth-worker)); pass `depth:=false` to disable it.
+
+| Web Operator Console (`http://127.0.0.1:57010`) | Foxglove Studio Dashboard (`ws://127.0.0.1:8765`) |
+| :---: | :---: |
+| ![Web Operator Console](docs/assets/web-console.png) | ![Foxglove Studio Dashboard](docs/assets/foxglove-overview.png) |
 
 ## Architecture Overview
 

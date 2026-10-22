@@ -2,6 +2,8 @@
 
 Connect Foxglove Studio to **`ws://127.0.0.1:8765`** while `pixi run bringup` is running, and import [`z70-dashboard.json`](z70-dashboard.json).
 
+![Foxglove Studio 5-Tab Dashboard](../../../docs/assets/foxglove-overview.png)
+
 ## Tabs and Panels
 
 - **Overview:** Map-fixed 3D view showing `/map`, room/zone/carpet markers (`/z70/map/markers`), session-scoped world object markers (`/z70/world/markers`), garment markers (`/z70/garments`), robot/dock poses, and the full CAD URDF model, alongside `/z70/state`, `/z70/map/spatial_context`, and `/z70/world/objects`.

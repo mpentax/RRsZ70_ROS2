@@ -44,6 +44,8 @@ All actions are available through ROS 2, the web console, and MCP `start_task` (
 
 ### Coordinated Multi-Axis Trajectory Planning (`planner.py` & `executor.py`)
 
+![Simulated 5-DOF Pickup Sequence](../../docs/assets/hero-overview.gif)
+
 - **Simultaneous Diagonal Joint Steps:** `planner.joint_plan` prioritizes simultaneous two-axis diagonal steps (`[1, 1, 0]`, `[2, 2, 0]`, `[1, 2, 0]`, `[2, 1, 0]`) ahead of single-axis steps while checking `safe()` and `safe_edge()` at `<= 0.5°` resolution across the CAD collision bodies and floor bounds. Moving `M3 +10°` and `M4 +10°` together (`[1, 1, 0]`) translates the hand downward and forward while holding the forearm world pitch (`M4 - M3 + 90°`) constant, reducing the descent from `WORKING_POS` `(150°, 45°)` to `(250°, 105°)` from 16 single-axis staircase steps to 10 smooth diagonal steps.
 - **3-Axis `MoveArm` Folding:** When `m5_deg` also changes, `planner.trajectory` (called by `Executor.move_arm` and `GoalContext.plan_trajectory`) folds `M5` roll steps (`1` or `2`) into the `M3/M4` step vectors (`[m3, m4, m5]`) whenever the 3-axis `safe_edge` check passes, falling back to sequential `M5` steps when needed.
 - **Coordinated Visual Servoing & Tower Descent:** `Executor.front_servo` and `planner.descent_step` evaluate all 8 single- and dual-axis `(M3, M4)` step combinations (`[c3, c4, 0]`), enabling constant-pitch reach adjustments over the object equator and finer vertical descent increments (down to ~18.7 mm with `< 30 mm` lateral drift) when seating a held dodecahedron onto a support tier.
@@ -52,6 +54,8 @@ All actions are available through ROS 2, the web console, and MCP `start_task` (
 ---
 
 ## Navigation, Garment Delivery, and Patrol Actions
+
+![Mapping, Safe Interior, and Garment Delivery Pipeline](../../docs/assets/mapping-safe-interior.png)
 
 | ROS Action / Type | Task Kind | Goal Fields |
 | :--- | :--- | :--- |

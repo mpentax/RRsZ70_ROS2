@@ -1,8 +1,10 @@
 # Z70 Arm Geometry, Kinematics, and Control Protocol
 
-The Z70 arm stack uses two distinct kinematic models:
-1. **Physical CAD & Optical Model (`src/z70_description/`):** Used for the ROS URDF/TF tree, 3D visualization, camera projection, and collision/swept-volume planning.
-2. **Vendor Predictive Model (`z70_description.arm_model`):** Recovered from the Roborock Android plugin (`index.android.hasm`, Function `#32735`, app 4.74.08). Used to predict firmware command admission, 40 mm Cartesian IK steps, and the 0.367 m reach clamp.
+The **CAD & Optical Model in REP-103 `base_footprint` (`src/z70_description/`)** is the single source of truth for all physical robot and arm measurements across the codebase, URDF/TF tree, 3D visualization, camera ray projection, and collision/swept-volume planning.
+
+A secondary helper in `z70_description.arm_model` (`vendor_forward`, `vendor_inverse`, `vendor_check`) mirrors the Roborock Android plugin (`index.android.hasm`, Function `#32735`, app 4.74.08) strictly to predict firmware command admission (`checkArmInvalidAction`, `40 mm` Cartesian IK step discretization, and the `0.367 m` vendor-frame reach clamp). Physically, both describe the same arm: the vendor plugin's 2-link model (`SHOULDER = (0.0475, 0.14) m`, `VENDOR_L1 = 0.1775 m`, `VENDOR_L2 = 0.205 m`) combines forearm `L2` (`0.1157 m`) and wrist-to-jaw grasp reach (`0.0853 m`, sum `0.2010 m ≈ 0.205 m`) into a single elbow-to-tip link and measures `+x` from `arm_vendor_frame` near the circular chassis center (`arm_origin_x_m = 0.1010 m` in `base_footprint`, so `0.1010 + 0.0419 = 0.1429 m` at `M3`).
+
+![Z70 5-DOF Arm CAD Geometry & Sagittal Workspace](assets/arm-kinematics.png)
 
 ---
 

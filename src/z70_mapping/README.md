@@ -46,6 +46,8 @@ pixi run bringup mapping:=false     # disable vendor map node
 
 ## Safe Interior Grid and Patrol Waypoints (`z70_mapping/boundary.py`)
 
+![Mapping, Safe Interior Erosion, and Patrol Waypoints](../../docs/assets/mapping-safe-interior.png)
+
 `boundary.compute_safe_interior(m, labels, BoundaryConfig(...), robot_pose_map=None)` computes the reachable interior mask:
 1. Unions allowlisted room segments (`boundary.allowed_segments`, default `[1, 2, 3, 4, 5, 6]`) and excludes occupied/unknown cells, forbidden polygons, and supercover virtual-wall lines.
 2. Applies `cv2.distanceTransform(DIST_L2, DIST_MASK_PRECISE)` and erodes by `chassis_radius_m + deployed_arm_extension_m + localization_uncertainty_m + stopping_distance_m`.
