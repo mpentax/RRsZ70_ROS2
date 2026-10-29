@@ -49,6 +49,35 @@ Proxied by the sidecar to `z70_web_gateway` (`127.0.0.1:57020`). Task IDs are lo
 | `pin_and_go` | `/z70/nav/pin_and_go` | `{target_x_m: -100..100, target_y_m: -100..100, max_duration_s: 1..600, dry_run: bool}` |
 | `deliver_garment` | `/z70/deliver_garment` | `{category: string, drop_x_m: -100..100, drop_y_m: -100..100, max_duration_s: 1..3600, allow_towing: bool, dry_run: bool}` |
 | `patrol_collect` | `/z70/patrol_collect` | `{drop_x_m: -100..100, drop_y_m: -100..100, max_duration_s: 1..3600, max_items: 1..1000, allow_towing: bool, dry_run: bool}` |
+| `mission` | `/z70/mission/run` (`RunMission`) | `{steps_json: string (<=4096 UTF-8 bytes), max_duration_s: 1..1800, dry_run: bool}` |
+
+### Bounded Sequential Missions
+
+`mission` runs 1–8 steps in order under one parent action, driver task session, and total deadline. `steps_json` is a JSON-encoded array of the following closed step objects; unknown operations and fields are rejected before any step runs.
+
+| `op` | Fields |
+| :--- | :--- |
+| `navigate_room` | `room`: room name (1–64 characters) or segment ID (`1..1000`); optional `max_duration_s: 1..600`. |
+| `navigate` | `target_x_m`, `target_y_m`: map coordinates in metres (`-100..100`); optional `max_duration_s: 1..600`. |
+| `observe` | Optional `camera: "front" \| "gripper"` (default `front`), `color`, and `require_visible` (defaults to true when a color is supplied). Reads a fresh matching cached frame; a stale or wrong-camera observation fails without switching lenses. |
+| `pick` | `color`: configured HSV color; runs the existing full pickup primitive. |
+
+Example HTTP task body (also the MCP `start_task` tool's `task` argument):
+
+```json
+{
+  "kind": "mission",
+  "goal": {
+    "steps_json": "[{\"op\":\"navigate_room\",\"room\":\"Kitchen\"},{\"op\":\"observe\",\"color\":\"yellow\"},{\"op\":\"pick\",\"color\":\"yellow\"}]",
+    "max_duration_s": 180,
+    "dry_run": true
+  }
+}
+```
+
+`dry_run: true` validates the complete plan and cached robot readiness. It reports `dry_run_valid`, leaves `completed` false and `steps_completed` zero, and performs no movement, camera selection, or map refresh. It does not establish room reachability or physical success. Use `/goals/validate` with `simulate: true` (MCP `start_task` with `simulate: true`) to exercise the runner against the stateful in-memory context, including when the goal itself has `dry_run: false`.
+
+Execution ends on the first failure, cancellation, hazard, or exhausted total budget; a navigation step is not started with less than its native one-second minimum remaining. The result contains `status_code`, `steps_completed`, `steps_total`, `partial_completion`, `failed_step`, and a parseable, bounded `step_results_json` array for the attempted steps. Feedback retains the zero-based `current_step` and `current_op` under the same goal UUID. There is no automatic mission-level recovery movement after a failed step.
 
 ### Task Lifecycle and Error Codes
 

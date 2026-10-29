@@ -125,6 +125,7 @@ def test_custom_simulation_ports_keep_mcp_on_the_gateway_not_the_transport(tmp_p
 
 
 MCP_PROBE = r'''
+import assert from "node:assert/strict";
 import { pathToFileURL } from "node:url";
 const [modulePath, originText, tokenFile] = process.argv.slice(2);
 const { RoboClawMcpClient, mcpServiceOrigin, RoboClawHttpError, readMcpToken } = await import(pathToFileURL(modulePath).href);
@@ -134,6 +135,32 @@ const client = new RoboClawMcpClient(origin, token);
 const catalog = await client.listGoals();
 const state = await client.request("/api/ros/state");
 const kinds = Array.isArray(catalog?.goals) ? catalog.goals.map((goal) => goal?.kind) : [];
+assert.ok(kinds.includes("mission"));
+const goal = {
+  steps_json: JSON.stringify([
+    { op: "navigate_room", room: "Kitchen" },
+    { op: "observe", camera: "front", color: "yellow" },
+    { op: "pick", color: "yellow" },
+  ]),
+  max_duration_s: 60, dry_run: false,
+};
+const context = {
+  status: { state: 3, error_code: 0, battery: 90 },
+  arm: { state: "IN_ROBOT", joints: {} },
+  spatial_context: { rooms: [{ segment_id: 2, name: "Kitchen", reachable: true, safe_waypoint: [1, 2] }] },
+  objects: [{ camera: "front", color: "yellow", position: [0.35, 0, 0.03] }],
+};
+const mission = await client.validateGoal({ kind: "mission", goal, simulate: true, context });
+assert.equal(mission.valid, true);
+assert.equal(mission.simulated?.ok, true);
+assert.equal(mission.simulated.result.completed, true);
+assert.equal(mission.simulated.result.steps_completed, 3);
+assert.equal(JSON.parse(mission.simulated.result.step_results_json).length, 3);
+const preview = await client.validateGoal({ kind: "mission", goal: { ...goal, dry_run: true }, simulate: true, context });
+assert.equal(preview.simulated?.result.dry_run_valid, true);
+assert.equal(preview.simulated.result.completed, false);
+assert.deepEqual(preview.simulated.trace, []);
+assert.deepEqual((await client.request("/api/ros/tasks")).tasks, []);
 const denied = new RoboClawMcpClient(origin, "b".repeat(43));
 let deniedStatus = 0;
 try { await denied.request("/api/ros/state"); }
@@ -142,7 +169,8 @@ if (!kinds.includes("pick") || state?.available !== true || deniedStatus !== 401
   console.error(JSON.stringify({ failed: "gateway", pick: kinds.includes("pick"), available: state?.available === true, denied: deniedStatus }));
   process.exit(1);
 }
-console.log(JSON.stringify({ origin: origin.origin, pick: true, goals: kinds.length, available: true, denied: 401 }));
+console.log(JSON.stringify({ origin: origin.origin, pick: true, mission: true, simulation_steps: 3,
+  preview: true, no_dispatch: true, goals: kinds.length, available: true, denied: 401 }));
 '''
 
 
@@ -163,7 +191,8 @@ def isolated_mcp_client(origin, token_file):
     assert_no_token_text(completed.stderr)
     assert completed.returncode == 0, completed.stderr
     payload = json.loads(completed.stdout)
-    assert payload == {'origin': origin, 'pick': True, 'goals': payload['goals'], 'available': True, 'denied': 401}
+    assert payload == {'origin': origin, 'pick': True, 'mission': True, 'simulation_steps': 3,
+                       'preview': True, 'no_dispatch': True, 'goals': payload['goals'], 'available': True, 'denied': 401}
     assert payload['goals'] > 0
     return payload
 

@@ -651,13 +651,18 @@ def test_pickup_client_delegates_observations_without_network_or_token(tmp_path,
 
 
 def test_simulate_goal_exercises_all_builtin_goals():
-    assert len(ALL_GOALS) == 14
+    assert len(ALL_GOALS) == 15
     cases = [
         ('pick', dict(color='yellow', dry_run=False), lambda r: r.verified_hold),
         ('stack', dict(base_color='blue', middle_color='purple', top_color='yellow', dry_run=False), lambda r: r.stack_verified and r.tiers_completed == 3),
         ('pin_and_go', dict(target_x_m=1., target_y_m=2., max_duration_s=60., dry_run=False), lambda r: r.arrived),
         ('deliver_garment', dict(category='sock', drop_x_m=1., drop_y_m=2., max_duration_s=60., allow_towing=False, dry_run=False), lambda r: r.delivered),
         ('patrol_collect', dict(drop_x_m=1., drop_y_m=2., max_duration_s=60., max_items=3, allow_towing=False, dry_run=False), lambda r: r.completed),
+        ('mission', dict(steps_json=json.dumps([
+            {'op': 'navigate_room', 'room': 'Kitchen'},
+            {'op': 'observe', 'color': 'yellow'},
+            {'op': 'pick', 'color': 'yellow'},
+        ]), max_duration_s=60., dry_run=False), lambda r: r.completed and r.steps_completed == 3),
         ('deploy_arm', dict(settle=True), lambda r: r.ready),
         ('align_target', dict(color='yellow'), lambda r: r.aligned),
         ('move_arm', dict(m3_deg=160., m4_deg=45., m5_deg=0.), lambda r: r.steps_executed == 1),
@@ -671,7 +676,8 @@ def test_simulate_goal_exercises_all_builtin_goals():
     for name, payload, check in cases:
         spec = ALL_GOALS[name]
         assert spec.validate_payload(payload), name
-        ok, res = simulate_goal(spec, SimpleNamespace(**payload))
+        context = {'objects': [{'color': 'yellow', 'position': [0.35, 0., 0.03]}]} if name == 'mission' else {}
+        ok, res = simulate_goal(spec, SimpleNamespace(**payload), **context)
         assert ok and check(res) and isinstance(message_to_ordereddict(res), dict), name
 
     route_spec = BUILTIN_GOALS['pin_and_go']
@@ -1511,4 +1517,84 @@ def test_navigate_honors_parent_lifecycle_and_room_preview_is_read_only(tmp_path
     assert missing['status_code'] == 'ROOM_UNREACHABLE' and obs.refreshes == [True] and commands.calls == []
 
 
+@pytest.mark.parametrize('ending,expected', [
+    ('deadline', 'TIMED_OUT'), ('cancel', 'CANCELLED'), ('safety_stop', 'SAFETY_STOP'),
+    ('step_deadline', 'TIMED_OUT'), ('boundary', 'BOUNDARY_ABORT'), ('unknown_dispatch', 'UNKNOWN_DISPATCH'),
+])
+def test_mission_navigation_preserves_parent_terminal_cause(tmp_path, monkeypatch, ending, expected):
+    from z70_interfaces.action import RunMission
+    from z70_manipulation.garment_delivery import PinAndGoNavigator
+    from z70_mapping.boundary import BoundaryConfig
 
+    now = [100.]
+    class NavCommands(_NavCmd):
+        def rpc(self, method, params, timeout_ms=5000):
+            reply = super().rpc(method, params, timeout_ms)
+            return {'dispatch': 'unknown', 'response': 'transport_error'} if ending == 'unknown_dispatch' and method == 'app_goto_target' else reply
+
+        def stop(self):
+            super().stop()
+            self.cancelled.set()  # A child stop also revokes the shared command client.
+
+    commands, feedback, child_codes = NavCommands(), [], []
+    navigation = {'op': 'navigate', 'target_x_m': 2., 'target_y_m': 1.}
+    if ending == 'step_deadline':
+        navigation['max_duration_s'] = 1.
+    request = RunMission.Goal(
+        steps_json=json.dumps([navigation, {'op': 'pick', 'color': 'yellow'}]),
+        max_duration_s=5., dry_run=False,
+    )
+    handle = SimpleNamespace(request=request, is_cancel_requested=False, publish_feedback=feedback.append)
+    client = SimpleNamespace(commands=commands)
+
+    class SlowPreflight(_NavObs):
+        def navigation_snapshot(self, *args, **kwargs):
+            if self.sequence == 0:
+                # The native navigation duration starts after map preflight; the parent budget starts before it.
+                now[0] += 2.
+            return super().navigation_snapshot(*args, **kwargs)
+
+    obs = SlowPreflight()
+    poses = [(1., 1., 0.), (50., 50., 0.)] if ending == 'boundary' else [(1., 1., 0.)] * 20
+    obs.reset(poses=poses, states=[3, 3] + [16] * 20)
+    server = SimpleNamespace(
+        observations=obs, navigation_config=BoundaryConfig(), gains={}, thresholds={'yellow': {}},
+        odom=lambda: {'x': 1., 'y': 1., 'yaw': 0.}, safety_stop=False, deadline=105.,
+        active_handle=handle, client=client,
+    )
+    server.hazard = lambda: PickServer.hazard(server)
+
+    def advance(_duration):
+        now[0] += 1.
+        if ending == 'deadline' and now[0] >= server.deadline:
+            commands.cancelled.set()  # Same flag the parent watchdog sets on expiry.
+        elif ending == 'cancel':
+            handle.is_cancel_requested = True
+            commands.cancelled.set()
+        elif ending == 'safety_stop':
+            server.safety_stop = True
+            commands.cancelled.set()
+
+    class TimedNavigator(PinAndGoNavigator):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs, clock=lambda: now[0], sleep=advance)
+
+        def execute(self, goal):
+            result = super().execute(goal)
+            child_codes.append(result['status_code'])
+            return result
+
+    monkeypatch.setattr('z70_manipulation.goals.time.monotonic', lambda: now[0])
+    monkeypatch.setattr('z70_manipulation.goals.PinAndGoNavigator', TimedNavigator)
+    ctx = GoalContext(server, handle, RunMission, client, tmp_path, create_executor=False)
+    ctx.clock = lambda: now[0]
+    ctx.pick = lambda *a, **kw: pytest.fail('later pick must not run after parent termination')
+    original_hazard = ctx.hazard
+    ok, result = ALL_GOALS['mission'].run(ctx, request)
+    assert not ok and result.status_code == expected, child_codes
+    assert result.outcome.error_code == expected
+    assert result.failed_step == 'navigate' and result.steps_completed == 0 and not result.partial_completion
+    assert json.loads(result.step_results_json)[0]['status_code'] == expected
+    assert [method for method, _ in commands.calls] == ['app_goto_target', 'stop_goto_target']
+    assert commands.stops == 1 and ctx.commands is commands
+    assert ctx.hazard == original_hazard and server.deadline == 105.

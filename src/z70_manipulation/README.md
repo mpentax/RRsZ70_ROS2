@@ -62,6 +62,13 @@ All actions are available through ROS 2, the web console, and MCP `start_task` (
 | `/z70/nav/pin_and_go` (`PinAndGo`) | `pin_and_go` | `{target_x_m, target_y_m, max_duration_s, dry_run}` |
 | `/z70/deliver_garment` (`DeliverGarment`) | `deliver_garment` | `{category, drop_x_m, drop_y_m, max_duration_s, allow_towing, dry_run}` |
 | `/z70/patrol_collect` (`PatrolCollect`) | `patrol_collect` | `{drop_x_m, drop_y_m, max_duration_s, max_items, allow_towing, dry_run}` |
+| `/z70/mission/run` (`RunMission`) | `mission` | `{steps_json, max_duration_s, dry_run}` |
+
+### Sequential Missions (`/z70/mission/run`)
+
+Compose 1–8 `navigate_room`, `navigate`, `observe`, and `pick` steps in a JSON array passed as `steps_json`. The runner validates the entire plan, borrows the parent `GoalContext` and driver task session, and enforces a single total deadline (`1..1800 s`). A failure stops later steps and returns per-step outcomes and honest partial progress. `observe` reads matching cached frames without changing camera selection. A dry-run validates the plan and cached robot readiness without executing the steps.
+
+The canonical `mission` `GoalSpec` registers the ROS action, HTTP task kind, MCP catalog entry, and `simulate_goal()` path together. See the [mission schema and example](../../docs/thin-api.md#bounded-sequential-missions) for step fields, result semantics, and offline simulation.
 
 ### Pin-and-Go (`/z70/nav/pin_and_go`)
 
