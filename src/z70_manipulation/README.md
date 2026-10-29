@@ -42,6 +42,15 @@ All actions are available through ROS 2, the web console, and MCP `start_task` (
 | `/z70/pick` (`Pick`) | `pick` | `{color: string, dry_run: bool}` | Full pickup sequence: `align_front` -> `deploy` -> `post_deploy_align` -> single-sweep coordinated `move_arm` descent -> `front_servo` fine alignment -> `grasp_and_lift` -> `release_and_stow`. |
 | `/z70/stack` (`Stack`) | `stack` | `{base_color: string, middle_color: string, top_color: string, dry_run: bool}` | Multi-tier dodecahedron stacking with visual carrier-to-support alignment, controlled descent (`planner.descent_step`), in-place manual jaw release, and post-withdrawal support verification. |
 
+### Snapshot Evidence
+
+Each saved pickup/stack snapshot has a `snapshot` row in `timeline.jsonl` with its
+`name`, `camera`, `source_id` (`[camera_session_uuid_hex, sequence]`),
+`frame_received_at` (host-receipt Unix seconds), and `exposure_time_known` flag.
+The identity and timing come from the metadata matched to the consumed image.
+Unavailable identity or receipt data is `null`.
+Failed image writes produce a `data_gap` row.
+
 ### Coordinated Multi-Axis Trajectory Planning (`planner.py` & `executor.py`)
 
 ![Simulated 5-DOF Pickup Sequence](../../docs/assets/hero-overview.gif)

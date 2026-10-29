@@ -471,6 +471,7 @@ class Client:
         with obs.condition:
             result = obs.frame()
             _, meta, _ = obs.image
+            self.frame_source_id = (bytes(meta.evidence.session_id.uuid).hex(), meta.evidence.sequence)
             self.frame_received_at = stamp_seconds(meta.evidence.received_at)
             self.frame_exposure_known = meta.exposure_time_known
             return result
