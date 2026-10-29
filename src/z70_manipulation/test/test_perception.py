@@ -457,10 +457,12 @@ def test_node_requires_two_time_matched_geofenced_observations_for_selection():
                pub=Publisher(), markers=Publisher(), json_pub=Publisher(), set_status=lambda _: None)
     ids = []
     for expected in (False, True):
+        meta.evidence.sequence += 1
         state.result = (meta, [d], dict(model_available=True))
         GarmentNode.publish(state)
-        msg = state.pub.messages[-1]
+        msg = deserialize_message(serialize_message(state.pub.messages[-1]), GarmentObservations)
         assert msg.geofence_active and msg.garments[0].inside_geofence
+        assert msg.garments[0].confirmed is expected
         assert msg.garments[0].reachable_for_grasp is expected
         ids.append(bytes(msg.garments[0].track_id.uuid))
     assert ids[0] == ids[1]

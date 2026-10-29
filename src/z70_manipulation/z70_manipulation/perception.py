@@ -772,6 +772,7 @@ def observations_message(items, meta, quality, geofence_active):
     for item in items:
         obs = GarmentObservation(); obs.header = deepcopy(msg.header); obs.evidence = deepcopy(msg.evidence)
         obs.track_id.uuid = list(uuid.UUID(item['track_id']).bytes)
+        obs.confirmed = bool(item.get('confirmed', False))
         for field in scalar_fields:
             setattr(obs, field, item[field])
         for field in ('floor_contact_m', 'grasp_point_m'):
