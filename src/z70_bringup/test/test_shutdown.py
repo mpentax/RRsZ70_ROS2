@@ -633,7 +633,7 @@ def test_blocked_publisher_exits_nonzero_without_destroying_under_it(tmp_path: P
 def test_second_signal_bounds_blocked_publisher_drain(tmp_path: Path):
     release = threading.Event()
     before, _estimate, _paths, methods, server, thread, log_path, log, process = _start_held_driver(
-        tmp_path, 90, release)
+        tmp_path, 91, release)
     try:
         deadline = time.monotonic() + 15
         while time.monotonic() < deadline and '/api/camera/frame' not in _paths:
@@ -662,6 +662,7 @@ def test_second_signal_bounds_blocked_publisher_drain(tmp_path: Path):
 
 
 def test_sigint_rejects_a_new_pick_while_stop_is_still_draining(tmp_path: Path):
+    from rclpy.callback_groups import ReentrantCallbackGroup
     from rclpy.executors import MultiThreadedExecutor
 
     end_release = threading.Event()
@@ -686,7 +687,7 @@ def test_sigint_rejects_a_new_pick_while_stop_is_still_draining(tmp_path: Path):
     process = subprocess.Popen(
         [sys.executable, str(Path(__file__).resolve()), 'active-pick'],
         cwd=tmp_path,
-        env=_env(tmp_path, 89),
+        env=_env(tmp_path, 97),
         stdout=log,
         stderr=subprocess.STDOUT,
     )
@@ -695,15 +696,17 @@ def test_sigint_rejects_a_new_pick_while_stop_is_still_draining(tmp_path: Path):
     executor = None
     spin = None
     try:
-        rclpy.init(context=context, domain_id=89)
+        rclpy.init(context=context, domain_id=97)
         node = rclpy.create_node('shutdown_pick_admission', context=context)
-        node.create_service(TaskSession, '/z70/tasks/session', on_session)
-        node.create_service(Stop, '/z70/stop', on_stop)
+        # Session end stays blocked while the client receives the next goal's rejection.
+        group = ReentrantCallbackGroup()
+        node.create_service(TaskSession, '/z70/tasks/session', on_session, callback_group=group)
+        node.create_service(Stop, '/z70/stop', on_stop, callback_group=group)
         executor = MultiThreadedExecutor(num_threads=4, context=context)
         executor.add_node(node)
         spin = threading.Thread(target=executor.spin, name='pick-admission-spin', daemon=True)
         spin.start()
-        client = ActionClient(node, Pick, '/z70/pick')
+        client = ActionClient(node, Pick, '/z70/pick', callback_group=group)
         deadline = time.monotonic() + 15
         while time.monotonic() < deadline and not client.server_is_ready():
             assert process.poll() is None, log_path.read_text()
@@ -739,7 +742,7 @@ def test_sigint_rejects_a_new_pick_while_stop_is_still_draining(tmp_path: Path):
         _reap(process)
         log.close()
         if executor is not None:
-            executor.shutdown(timeout_sec=0, wait_for_threads=False)
+            executor.shutdown(wait_for_threads=True)
         if spin is not None:
             spin.join(timeout=2)
         if node is not None:
