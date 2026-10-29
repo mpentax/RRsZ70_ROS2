@@ -795,7 +795,7 @@ class SimServer:
         host: str = '127.0.0.1',
         port: int = 0,
         token: str = '',
-        ros_gateway_origin: str = 'http://127.0.0.1:57020',
+        ros_gateway_origin: str = '',
     ):
         self.world = world or SimWorld()
         self.host = host
@@ -970,6 +970,9 @@ class SimServer:
                 return json.loads(raw.decode('utf-8'))
 
             def _proxy_ros(self, method: str) -> None:
+                if not sim.ros_gateway_origin:
+                    self._json(503, {'error': 'ROS_UNAVAILABLE', 'dispatch': 'not_sent'})
+                    return
                 length = int(self.headers.get('Content-Length', '0'))
                 data = self.rfile.read(length) if length > 0 else None
                 headers = {'Accept': 'application/json'}
@@ -1238,7 +1241,7 @@ def main() -> None:
     parser.add_argument('--host', default='127.0.0.1')
     parser.add_argument('--port', type=int, default=57010)
     parser.add_argument('--token-file', default='')
-    parser.add_argument('--ros-gateway-origin', default='http://127.0.0.1:57020')
+    parser.add_argument('--ros-gateway-origin', default='')
     args = parser.parse_args()
 
     token = ensure_token_file(args.token_file) if args.token_file else ''
