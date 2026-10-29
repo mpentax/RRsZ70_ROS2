@@ -5,6 +5,7 @@ import json
 import math
 import os
 from pathlib import Path
+import signal
 import threading
 import time
 from types import SimpleNamespace
@@ -18,7 +19,8 @@ from rclpy.time import Time
 from rclpy.duration import Duration
 from rclpy.action import ActionClient, ActionServer, GoalResponse, CancelResponse
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
-from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
+from rclpy.executors import ExternalShutdownException, MultiThreadedExecutor, SingleThreadedExecutor
+from rclpy.signals import SignalHandlerOptions
 from sensor_msgs.msg import CameraInfo, CompressedImage
 from std_msgs.msg import String, Bool
 from nav_msgs.msg import OccupancyGrid, Odometry
@@ -785,17 +787,33 @@ class PickServer(Perception):
 
 
 def _spin_node(node_type):
-    rclpy.init()
-    node = node_type()
-    executor = MultiThreadedExecutor(num_threads=8)
-    executor.add_node(node)
+    # The default rclpy handler invalidates the context from the signal path while
+    # an image callback can still be inside publish. Drain the executor first.
+    rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
+    node = None
+    executor = None
+    stop = threading.Event()
+
+    def _stop(_signum, _frame):
+        stop.set()
+
+    signal.signal(signal.SIGINT, _stop)
+    signal.signal(signal.SIGTERM, _stop)
     try:
-        executor.spin()
-    except KeyboardInterrupt:
+        node = node_type()
+        executor = MultiThreadedExecutor(num_threads=8)
+        executor.add_node(node)
+        while rclpy.ok() and not stop.is_set():
+            executor.spin_once(timeout_sec=0.2)
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
-        executor.shutdown()
-        node.destroy_node()
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
+        if executor is not None:
+            executor.shutdown()
+        if node is not None:
+            node.destroy_node()
         rclpy.try_shutdown()
 
 
