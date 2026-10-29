@@ -14,7 +14,7 @@ import requests
 import rclpy
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.parameter import Parameter
-from rclpy.action import ActionServer, CancelResponse, GoalResponse
+from rclpy.action import ActionClient, ActionServer, CancelResponse, GoalResponse
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from z70_driver.driver import Driver
 from z70_interfaces.action import Pick
@@ -22,8 +22,10 @@ from z70_interfaces.srv import RawRpc
 from z70_interfaces.msg import CalibrationState, FrameMetadata
 from nav_msgs.msg import OccupancyGrid
 from sensor_msgs.msg import CompressedImage
-from std_msgs.msg import String
+from std_msgs.msg import Bool, String
 from z70_driver.commands import LATCHED
+from z70_manipulation.goals import GoalSpec
+from z70_manipulation.node import PickServer
 from z70_web_gateway.gateway import Gateway, HttpServer, ApiError, goal_message, read_token
 
 TOKEN = 'f'*43  # Synthetic fixture token, not a credential.
@@ -97,7 +99,7 @@ def system():
     origin = f'http://127.0.0.1:{http.server_port}'
     def request(method, path, body=None, token=TOKEN):
         return requests.request(method, origin+path, json=body, headers={'Authorization':'Bearer '+token}, timeout=20)
-    state.update(gateway=gateway, driver=driver, peer=peer, request=request, origin=origin)
+    state.update(gateway=gateway, driver=driver, peer=peer, executor=executor, request=request, origin=origin)
     wait(lambda: gateway.ros_clients['stop'].service_is_ready())
     wait(lambda: gateway.actions['arm_step'].server_is_ready())
     try: yield state
@@ -410,6 +412,110 @@ def test_pick_feedback_and_cancel_have_same_action_identity(system):
         assert system['request']('POST',f'/api/ros/tasks/{ident}/cancel',{}).status_code == 200
         wait(lambda:task(system,ident)['status']=='cancelled')
     finally: server.destroy()
+
+
+@pytest.mark.parametrize('ending', ['success', 'cancel', 'deadline', 'safety_stop', 'step_error'])
+def test_composed_goal_keeps_parent_session_until_terminal(system, tmp_path, monkeypatch, ending):
+    dispatcher = system['driver'].dispatcher
+    begins, ends, reservations = [], [], []
+    original_begin, original_end, original_reserve = dispatcher.begin, dispatcher.end, dispatcher.reserve
+
+    def begin(*args, **kwargs):
+        response = original_begin(*args, **kwargs)
+        begins.append(response)
+        return response
+
+    def end(token):
+        ends.append(token)
+        return original_end(token)
+
+    def reserve(token=bytes(16)):
+        ticket = original_reserve(token)
+        if ticket is not None:
+            reservations.append(token)
+        return ticket
+
+    monkeypatch.setattr(dispatcher, 'begin', begin)
+    monkeypatch.setattr(dispatcher, 'end', end)
+    monkeypatch.setattr(dispatcher, 'reserve', reserve)
+    between_steps, continue_steps = threading.Event(), threading.Event()
+
+    def composed(ctx, _request):
+        ctx.rpc('app_arm_move', {'m': [1, 0, 0]})
+        ctx.feedback(phase=3, reason='BETWEEN_STEPS')
+        between_steps.set()
+        assert continue_steps.wait(8), 'test did not release the second step'
+        if ending == 'step_error':
+            raise LookupError('second step observation lost')
+        ctx.rpc('app_arm_move', {'m': [0, 1, 0]})
+        return True, Pick.Result(outcome=ctx.outcome(True))
+
+    server = PickServer(parameter_overrides=[Parameter('log_root', value=str(tmp_path))])
+    server.register_goal(GoalSpec(
+        'composed_session', Pick, '/test/composed_session', 2. if ending == 'deadline' else 15.,
+        lambda _s, _r: True, composed, read_only=lambda _: False,
+        needs_executor=lambda _: False, navigation=True,
+    ))
+    executor, peer = system['executor'], system['peer']
+    executor.add_node(server)
+    action = ActionClient(peer, Pick, '/test/composed_session')
+    safety = peer.create_publisher(Bool, '/z70/safety_stop', 10)
+    feedback = []
+    try:
+        assert action.wait_for_server(timeout_sec=5.)
+        future = action.send_goal_async(Pick.Goal(), feedback_callback=feedback.append)
+        wait(future.done)
+        handle = future.result()
+        assert handle.accepted and between_steps.wait(5)
+        result = handle.get_result_async()
+        wait(lambda: feedback)
+        assert len(begins) == 1 and begins[0][0]
+        token = begins[0][1]
+        assert token != bytes(16) and dispatcher.task_id == token and dispatcher.active is None
+        assert ends == [] and reservations == [token]
+        assert bytes(feedback[0].goal_id.uuid) == bytes(handle.goal_id.uuid)
+        assert feedback[0].feedback.reason == 'BETWEEN_STEPS'
+
+        competing = action.send_goal_async(Pick.Goal())
+        wait(competing.done)
+        assert not competing.result().accepted
+        other_command = system['request']('POST', '/api/ros/rpc', {'method': 'app_grip', 'params': {}})
+        assert other_command.status_code == 200 and other_command.json()['outcome']['error_code'] == 'BUSY'
+        assert system['calls'] == ['app_arm_move']
+
+        if ending == 'cancel':
+            cancelled = handle.cancel_goal_async()
+            wait(cancelled.done)
+            assert cancelled.result().goals_canceling
+        elif ending == 'safety_stop':
+            wait(lambda: safety.get_subscription_count() > 0)
+            safety.publish(Bool(data=True))
+        if ending in ('cancel', 'deadline', 'safety_stop'):
+            wait(lambda: server.client.commands.cancelled.is_set())
+            wait(lambda: 'app_stop_grasp' in system['calls'])
+        continue_steps.set()
+        wait(result.done)
+        reply = result.result()
+        assert reply.status == (4 if ending == 'success' else 5 if ending == 'cancel' else 6)
+        assert (reply.result.outcome.error_code == 'NONE') == (ending == 'success')
+        assert reservations == [token] * (2 if ending == 'success' else 1)
+        assert ends == [token] and dispatcher.task_id == bytes(16) and dispatcher.active is None
+        assert not server.lock.locked() and server.client is None and server.deadline is None
+        assert len(system['gateway'].tasks) == 0
+        assert system['calls'].count('app_arm_move') == (2 if ending == 'success' else 1)
+        assert not any(m in system['calls'] for m in ('app_grip', 'app_arm_in_compartment', 'app_put_down'))
+        if ending in ('cancel', 'deadline', 'safety_stop'):
+            assert all(system['calls'].count(m) == 1 for m in ('app_rc_stop', 'app_rc_end', 'app_stop_grasp'))
+    finally:
+        continue_steps.set()
+        if server.active_handle is not None:
+            server._revoke_commands()
+            wait(lambda: not server.lock.locked())
+        action.destroy()
+        peer.destroy_publisher(safety)
+        executor.remove_node(server)
+        server.observations.close()
+        server.destroy_node()
 
 
 @pytest.fixture
