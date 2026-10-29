@@ -89,8 +89,24 @@ class Executor:
         self.log('command', method=method, params=params)
         try:
             d = self.client.rpc(method, params, timeout_ms)
+            if isinstance(d, dict):
+                if d.get('dispatch') == 'not_sent':
+                    err = requests.RequestException('RPC transport failure: ' + method)
+                    err.dispatch = 'not_sent'
+                    raise err
+                if (d.get('response') == 'transport_error'
+                        and not (method in ('app_grip', 'app_open_gripper')
+                                 and d.get('dispatch') in ('sent', 'unknown')
+                                 and d.get('transportReason') == 'timeout')):
+                    if d.get('dispatch') == 'unknown' or (d.get('dispatch') == 'sent' and d.get('transportReason') == 'timeout'):
+                        raise UncertainMotion('dispatch unknown: ' + method)
+                    err = requests.RequestException('RPC transport failure: ' + method)
+                    err.dispatch = d.get('dispatch')
+                    raise err
         except (UncertainMotion, requests.RequestException) as e:
-            self.log('data_gap', method=method, kind=type(e).__name__)
+            self.log('data_gap', method=method, kind=type(e).__name__, dispatch=getattr(e, 'dispatch', None))
+            if getattr(e, 'dispatch', None) == 'not_sent':
+                raise
             if method in ('app_rc_move', 'app_arm_move'):
                 return None  # Observe before subsequent motion; never blind replay.
             raise
@@ -471,16 +487,20 @@ class Executor:
         self.snap('1-pregrip')
         if self.pregrip_jaw is None:
             self.pregrip_jaw = planner.measured_point(planner.GRASP, planner._CALIBRATION['effective_jaw_from_elbow_m'])
-        self.gripped = True
         try:
             self.command('app_grip', {'flag': 0}, timeout_ms=500)
-        except (UncertainMotion, requests.RequestException):
+        except (UncertainMotion, requests.RequestException) as e:
+            if getattr(e, 'dispatch', None) == 'not_sent':
+                raise
             self.log('data_gap', kind='grip_outcome_observe_before_deciding')
+        self.gripped = True
         self.sleep(2.)
         for lift_step in range(int(lift_steps)):
             try:
                 self.command('app_arm_direction_move', {'direction': 1}, timeout_ms=3000)
-            except (UncertainMotion, requests.RequestException):
+            except (UncertainMotion, requests.RequestException) as e:
+                if getattr(e, 'dispatch', None) == 'not_sent':
+                    raise
                 self.log('data_gap', kind='lift_outcome')
             self.sleep(2.5)
             self.snap('2-lift-step-' + str(lift_step + 1))
@@ -678,8 +698,9 @@ class Executor:
         self.log('release_start', odom=self.odom())
         try:
             self.command('app_put_down', {'flag': 0})
-        except UncertainMotion:
+        except UncertainMotion as e:
             self.log('data_gap', kind='put_down_outcome_observe')
+            raise LookupError('put_down outcome unknown; release not confirmed') from e
         for _ in range(40):
             self.safety()
             status = self._status()

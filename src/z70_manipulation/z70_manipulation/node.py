@@ -488,11 +488,14 @@ class Client:
             return d
         if method in ('app_grip', 'app_open_gripper') and d.get('dispatch') in ('sent', 'unknown') and d.get('transportReason') == 'timeout':
             return d
-        if d.get('dispatch') == 'unknown':
+        if d.get('dispatch') == 'unknown' or (d.get('dispatch') == 'sent' and d.get('transportReason') == 'timeout'):
             raise UncertainMotion('dispatch unknown: ' + method)
         if d.get('response') == 'vendor_error':
             raise RuntimeError(f'robot rejected {method} (vendor code {d.get("vendorCode")}): command format or mode problem, not a safety event')
-        raise requests.RequestException('RPC transport failure: ' + method)
+        err = requests.RequestException('RPC transport failure: ' + method)
+        err.dispatch = d.get('dispatch')
+        err.transport_reason = d.get('transportReason')
+        raise err
 
     def close(self):
         if self.commands:

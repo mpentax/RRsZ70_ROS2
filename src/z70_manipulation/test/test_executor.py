@@ -1238,8 +1238,105 @@ def test_supported_place_rejects_missing_or_unwithdrawn_jaw_and_unsent_release(t
     assert all(m != 'app_arm_direction_move' for m, _ in client_fail.calls)
 
 
-def test_put_down_and_stow_require_observed_common_status_and_preserve_cleanup_state(tmp_path):
-    # 1. put_down() with missing common_status fails closed and preserves gripped=True.
+def test_grasp_and_lift_rejects_not_sent_grip_and_lift_while_preserving_unknown_timeout_observation(fake, tmp_path, monkeypatch):
+    origin, token, events, state = fake
+    state.update(deployed=True, arm_state='WORKING_POS', joints=list(planner.GRASP), hide_marker=True)
+    client = Client(origin, token)
+
+    # 1. app_grip dispatch=not_sent fails grasp_and_lift, leaves gripped=False, never lifts, and fails GraspAndLift goal.
+    orig_rpc = client.commands.rpc
+
+    def not_sent_grip(method, params, timeout_ms):
+        events.append(('POST', '/api/v1/rpc', dict(method=method, params=params)))
+        if method == 'app_grip':
+            return {'dispatch': 'not_sent', 'response': 'transport_error', 'transportReason': 'link_unavailable'}
+        return orig_rpc(method, params, timeout_ms)
+
+    monkeypatch.setattr(client.commands, 'rpc', not_sent_grip)
+    ex = Executor(client, observer(client), tmp_path / 'grip-not-sent', sleep=lambda _: None)
+    with pytest.raises(requests.RequestException):
+        ex.grasp_and_lift(lift_steps=2, verify_color='')
+    assert ex.gripped is False
+    assert not any(e[2].get('method') == 'app_arm_direction_move' for e in events if e[1] == '/api/v1/rpc')
+
+    from z70_interfaces.msg import ArmEstimate
+    server = SimpleNamespace(
+        observations=client.observations, gains={}, odom=lambda: None,
+        thresholds={'yellow': {}}, hazard=lambda: None,
+        _current_arm_msg=lambda: ArmEstimate(),
+    )
+    req0 = SimpleNamespace(lift_steps=0, verify_color='')
+    ctx0 = GoalContext(server, SimpleNamespace(request=req0, is_cancel_requested=False, publish_feedback=lambda _: None),
+                       GraspAndLift, client, tmp_path / 'goal-grip-not-sent')
+    ctx0.executor.sleep = lambda _: None
+    ok0, res0 = BUILTIN_GOALS['grasp_and_lift'].run(ctx0, req0)
+    assert ok0 is False and res0.verified_hold is False and res0.outcome.error_code != 'NONE'
+    assert ctx0.executor.gripped is False
+
+    # 2. app_arm_direction_move dispatch=not_sent fails grasp_and_lift on the unsent step without continuing.
+    events.clear()
+
+    def not_sent_lift(method, params, timeout_ms):
+        if method == 'app_arm_direction_move':
+            events.append(('POST', '/api/v1/rpc', dict(method=method, params=params)))
+            return {'dispatch': 'not_sent', 'response': 'transport_error', 'transportReason': 'link_unavailable'}
+        return orig_rpc(method, params, timeout_ms)
+
+    monkeypatch.setattr(client.commands, 'rpc', not_sent_lift)
+    ex_lift = Executor(client, observer(client), tmp_path / 'lift-not-sent', sleep=lambda _: None)
+    with pytest.raises(requests.RequestException):
+        ex_lift.grasp_and_lift(lift_steps=2, verify_color='')
+    assert ex_lift.gripped is True
+    assert sum(1 for e in events if e[1] == '/api/v1/rpc' and e[2].get('method') == 'app_arm_direction_move') == 1
+
+    # 3. Unknown/sent-timeout dispatch still observes without blind replay.
+    events.clear()
+
+    def sent_timeout_lift(method, params, timeout_ms):
+        res = orig_rpc(method, params, timeout_ms)
+        if method == 'app_arm_direction_move':
+            return {'dispatch': 'sent', 'response': 'transport_error', 'transportReason': 'timeout'}
+        return res
+
+    monkeypatch.setattr(client.commands, 'rpc', sent_timeout_lift)
+    ex_obs = Executor(client, observer(client), tmp_path / 'lift-unknown-observe', sleep=lambda _: None)
+    res_obs = ex_obs.grasp_and_lift(lift_steps=2, verify_color='yellow', floor_spot=state['floor_point'])
+    assert res_obs['gripped'] is True and res_obs['verified'] is True
+    assert sum(1 for e in events if e[1] == '/api/v1/rpc' and e[2].get('method') == 'app_arm_direction_move') == 2
+
+
+def test_put_down_and_stow_require_observed_common_status_and_preserve_cleanup_state(fake, tmp_path, monkeypatch):
+    origin, token, events, state = fake
+    state.update(deployed=True, gripped=True, arm_state='IN_PROCESS_POS', grab_mode=1)
+    client = Client(origin, token)
+    orig_rpc = client.commands.rpc
+
+    # 1. Unknown app_put_down with unchanged deployed status (3 << 6) fails closed, keeps gripped=True, and never stows.
+    def unknown_put_down(method, params, timeout_ms):
+        events.append(('POST', '/api/v1/rpc', dict(method=method, params=params)))
+        if method == 'app_put_down':
+            return {'dispatch': 'unknown', 'response': 'transport_error', 'transportReason': 'timeout'}
+        return orig_rpc(method, params, timeout_ms)
+
+    monkeypatch.setattr(client.commands, 'rpc', unknown_put_down)
+    ex_unk = Executor(client, observer(client), tmp_path / 'put-down-unknown', sleep=lambda _: None)
+    ex_unk.deployed = True
+    ex_unk.gripped = True
+    with pytest.raises(LookupError, match='put_down outcome unknown'):
+        ex_unk.release_and_stow(put_down=True)
+    assert ex_unk.gripped is True and ex_unk.deployed is True
+    assert sum(1 for e in events if e[1] == '/api/v1/rpc' and e[2].get('method') == 'app_put_down') == 1
+    assert not any(e[2].get('method') == 'app_arm_in_compartment' for e in events if e[1] == '/api/v1/rpc')
+
+    # Acknowledged app_put_down with steady status (3 << 6) succeeds normally and clears gripped=False.
+    monkeypatch.setattr(client.commands, 'rpc', orig_rpc)
+    ex_ack = Executor(client, observer(client), tmp_path / 'put-down-ack', sleep=lambda _: None)
+    ex_ack.deployed = True
+    ex_ack.gripped = True
+    ex_ack.put_down()
+    assert ex_ack.gripped is False
+
+    # 2. put_down() with missing common_status fails closed and preserves gripped=True.
     client_pd = MemoryClient()
     client_pd.status = lambda: {}
     ex_pd = Executor(client_pd, lambda *_: [], tmp_path / 'put-down-missing', sleep=lambda _: None)
@@ -1248,7 +1345,7 @@ def test_put_down_and_stow_require_observed_common_status_and_preserve_cleanup_s
         ex_pd.put_down()
     assert ex_pd.gripped is True
 
-    # 2. stow() with missing common_status ({}) fails closed without replaying app_arm_in_compartment and preserves deployed=True.
+    # 3. stow() with missing common_status ({}) fails closed without replaying app_arm_in_compartment and preserves deployed=True.
     client_missing = MemoryClient()
     client_missing.status = lambda: {}
     client_missing.arm_estimate = lambda: {'state': 'IN_ROBOT', 'joints': {}}
@@ -1259,7 +1356,7 @@ def test_put_down_and_stow_require_observed_common_status_and_preserve_cleanup_s
     assert ex_missing.deployed is True
     assert client_missing.calls == [('app_arm_in_compartment', {})]
 
-    # 3. stow() with busy common_status (3 << 6) fails closed without replaying and dispatches app_stop_grasp on emergency stop.
+    # 4. stow() with busy common_status (3 << 6) fails closed without replaying and dispatches app_stop_grasp on emergency stop.
     client_busy = MemoryClient()
     client_busy.status = lambda: {'common_status': 3 << 6}
     client_busy.arm_estimate = lambda: {'state': 'IN_ROBOT', 'joints': {}}
@@ -1272,7 +1369,7 @@ def test_put_down_and_stow_require_observed_common_status_and_preserve_cleanup_s
     ex_busy._emergency_stop(LookupError('stow timeout'))
     assert ('app_stop_grasp', []) in client_busy.calls
 
-    # 4. stow() interrupted by cancellation/hazard raises SafetyStop while preserving deployed=True for emergency stop.
+    # 5. stow() interrupted by cancellation/hazard raises SafetyStop while preserving deployed=True for emergency stop.
     client_cancel = MemoryClient()
     client_cancel.status = lambda: {'common_status': 3 << 6}
     client_cancel.arm_estimate = lambda: {'state': 'IN_ROBOT', 'joints': {}}
