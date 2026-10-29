@@ -78,7 +78,8 @@ pixi run check
 Builds the native workspace and web frontend, typechecks both TypeScript projects,
 and runs the vendor/MCP/web and ROS test suites. Tests use synthetic inputs,
 test-owned loopback services, and MuJoCo; this command does not start the live
-robot sidecars. Run one check at a time: ROS integration tests use domains 91–99.
+robot sidecars. The runner sets ROS domain 91, matching `pixi run test`.
+Run one check at a time across checkouts: ROS integration tests use domains 91–99.
 Detailed ROS test output is retained under `build/pytest`.
 
 For focused work, use `npm run typecheck`, `npm test`, or
