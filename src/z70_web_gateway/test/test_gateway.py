@@ -112,7 +112,12 @@ def system():
         assert not spin.is_alive() and not ht.is_alive()
 
 
-@pytest.mark.parametrize('field,value', [('target_x_m', True), ('target_y_m', float('nan')), ('max_duration_s', 0), ('dry_run', 1)])
+@pytest.mark.parametrize('field,value', [
+    ('target_x_m', True), ('target_y_m', float('nan')), ('max_duration_s', 0), ('dry_run', 1),
+    pytest.param('target_x_m', 10**400, id='oversized-x'),
+    pytest.param('target_y_m', -10**400, id='oversized-negative-y'),
+    pytest.param('max_duration_s', 10**400, id='oversized-duration'),
+])
 def test_pin_and_go_validation(field, value):
     payload=dict(target_x_m=24.5,target_y_m=26.,max_duration_s=60.,dry_run=True)
     message=goal_message('pin_and_go',payload)
@@ -120,6 +125,29 @@ def test_pin_and_go_validation(field, value):
     with pytest.raises(ApiError): goal_message('pin_and_go',dict(payload,**{field:value}))
     with pytest.raises(ApiError): goal_message('pin_and_go',dict(payload,extra=True))
     with pytest.raises(ApiError): goal_message('pin_and_go',{})
+
+
+@pytest.mark.parametrize('path', ['/api/ros/goals/validate', '/api/ros/tasks'])
+def test_invalid_numeric_goals_are_rejected_before_dispatch(system, path):
+    payloads = [
+        ('pin_and_go', dict(target_x_m=10**400, target_y_m=0., max_duration_s=60., dry_run=False)),
+        ('pin_and_go', dict(target_x_m=0., target_y_m=-10**400, max_duration_s=60., dry_run=False)),
+        ('pin_and_go', dict(target_x_m=0., target_y_m=0., max_duration_s=10**400, dry_run=False)),
+        ('move_arm', dict(m3_deg=10**400, m4_deg=45., m5_deg=0.)),
+        ('base_pulse', dict(linear_mps=10**400, angular_radps=0., duration=dict(sec=0, nanosec=100000000))),
+    ]
+    for kind, goal in payloads:
+        response = system['request']('POST', path, {'kind': kind, 'goal': goal})
+        assert response.status_code == 400, response.text
+        body = response.json()
+        assert body['error'] == 'INVALID_INPUT'
+        assert body['dispatch'] == 'not_sent'
+        if path.endswith('/validate'):
+            assert body['valid'] is False
+    assert not system['gateway'].tasks
+    assert not system['calls']
+    valid = start(system)
+    wait(lambda: task(system, valid['id'])['status'] == 'succeeded')
 
 
 @pytest.mark.parametrize('kind', ['deliver_garment','patrol_collect'])

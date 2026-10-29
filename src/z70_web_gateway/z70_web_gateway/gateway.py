@@ -75,8 +75,8 @@ def goal_message(kind, payload):
     spec = ALL_GOALS.get(kind)
     if spec is None or not isinstance(payload, dict): raise ApiError(400, 'INVALID_INPUT')
     checked(payload, spec.fields, spec.fields)
-    if not spec.validate_payload(payload): raise ApiError(400, 'INVALID_INPUT')
     try:
+        if not spec.validate_payload(payload): raise ApiError(400, 'INVALID_INPUT')
         message = spec.action_cls.Goal()
         set_message_fields(message, payload)
         return message
