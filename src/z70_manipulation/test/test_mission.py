@@ -859,3 +859,101 @@ def test_run_mission_preserves_single_borrowed_goal_context_and_feedback_compati
     assert res_strict.outcome.error_code == 'TIMED_OUT'
     assert res_strict.failed_step == 'pick'
     assert server.deadline == 110.0
+
+
+@pytest.mark.parametrize(
+    'ending,child_code,expected',
+    [
+        ('deadline', 'CANCELLED', 'TIMED_OUT'),
+        ('cancel', 'CANCELLED', 'CANCELLED'),
+        ('safety_stop', 'CANCELLED', 'SAFETY_STOP'),
+        ('safety_stop_boundary', 'BOUNDARY_ABORT', 'SAFETY_STOP'),
+        ('step_deadline', 'TIMED_OUT', 'TIMED_OUT'),
+        ('boundary', 'BOUNDARY_ABORT', 'BOUNDARY_ABORT'),
+        ('unknown_dispatch', 'UNKNOWN_DISPATCH', 'UNKNOWN_DISPATCH'),
+    ],
+)
+def test_run_mission_navigation_preserves_parent_terminal_cause_and_concrete_child_failures(
+    tmp_path: Path,
+    ending: str,
+    child_code: str,
+    expected: str,
+):
+    now = [100.0]
+    revoked = [False]
+    commands = SimpleNamespace(
+        latest_outcome=None,
+        cancelled=SimpleNamespace(is_set=lambda: revoked[0], set=lambda: revoked.__setitem__(0, True)),
+    )
+    req = RunMission.Goal(
+        steps_json=json.dumps([
+            {'op': 'navigate', 'target_x_m': 2.0, 'target_y_m': 1.0, 'max_duration_s': 1.0 if ending == 'step_deadline' else 5.0},
+            {'op': 'pick', 'color': 'yellow'},
+        ]),
+        max_duration_s=5.0,
+        dry_run=False,
+    )
+    handle = SimpleNamespace(request=req, is_cancel_requested=False, publish_feedback=lambda *_: None)
+    client = SimpleNamespace(commands=commands)
+    server = SimpleNamespace(
+        observations=SimpleNamespace(),
+        thresholds={'yellow': {}},
+        gains={},
+        deadline=105.0,
+        safety_stop=False,
+        active_handle=handle,
+        client=client,
+        odom=lambda: {'x': 1.0, 'y': 1.0, 'yaw': 0.0},
+    )
+
+    def server_hazard():
+        if server.safety_stop:
+            return 'person/pet/obstacle or operator stop signal'
+        if handle.is_cancel_requested:
+            return 'operator cancelled task'
+        if server.deadline is not None and now[0] >= server.deadline:
+            return 'task deadline'
+        if commands.cancelled.is_set():
+            return 'task revoked'
+        return None
+
+    server.hazard = server_hazard
+    ctx = GoalContext(server, handle, RunMission, client, tmp_path / f'nav-{ending}', create_executor=False)
+    ctx.clock = lambda: now[0]
+    ctx.pick = lambda *_, **__: pytest.fail('later pick must not execute after failed navigation')
+
+    def fake_navigate(target_x_m, target_y_m, max_duration_s=60.0, dry_run=False):
+        if ending == 'deadline':
+            now[0] = 105.0
+            commands.cancelled.set()
+        elif ending == 'cancel':
+            now[0] = 106.0
+            handle.is_cancel_requested = True
+            commands.cancelled.set()
+        elif ending in ('safety_stop', 'safety_stop_boundary'):
+            now[0] = 106.0
+            server.safety_stop = True
+            commands.cancelled.set()
+        else:
+            # Child-local termination (step_deadline, boundary, unknown_dispatch) calls commands.stop()
+            # which sets commands.cancelled before parent deadline expires.
+            now[0] = 103.0
+            commands.cancelled.set()
+        return {
+            'arrived': False,
+            'dry_run_valid': False,
+            'status_code': child_code,
+            'final_position_m': [1.0, 1.0],
+            'position_error_m': 1.0,
+            'detail': child_code,
+        }
+
+    ctx.navigate = fake_navigate
+    ok, result = run_mission(ctx, req)
+    assert ok is False
+    assert result.status_code == expected
+    assert result.outcome.error_code == expected
+    assert result.failed_step == 'navigate'
+    assert result.steps_completed == 0
+    assert result.partial_completion is False
+    assert json.loads(result.step_results_json)[0]['status_code'] == expected

@@ -506,10 +506,15 @@ def run_mission(ctx: Any, req: Any) -> tuple[bool, RunMission.Result]:
         h = orig_hazard() if callable(orig_hazard) else None
         if h:
             return h
-        if callable(orig_cancelled) and orig_cancelled():
+        if bool(getattr(getattr(ctx, 'handle', None), 'is_cancel_requested', False)):
             return 'operator cancelled task'
         if clock() >= deadline:
             return 'task deadline'
+        if callable(orig_cancelled) and orig_cancelled():
+            cmds = getattr(ctx, 'commands', None)
+            if getattr(cmds, 'cancelled', None) is not None and cmds.cancelled.is_set():
+                return 'task revoked'
+            return 'operator cancelled task'
         return None
 
     if callable(orig_feedback):
@@ -692,12 +697,20 @@ def run_mission(ctx: Any, req: Any) -> tuple[bool, RunMission.Result]:
                 })
 
             post_interrupt = _classify_interrupt(ctx, deadline, clock)
-            if post_interrupt is not None and (ok or code in ('PICK_UNVERIFIED', 'NAVIGATION_FAILED', 'EMPTY_OBSERVATION')):
-                ok = False
-                code, step_detail = post_interrupt
-                step_results[-1]['ok'] = False
-                step_results[-1]['status_code'] = code
-                step_results[-1]['detail'] = step_detail
+            if post_interrupt is not None:
+                int_code, int_detail = post_interrupt
+                generic_revoke = (int_code == 'CANCELLED' and int_detail.lower() == 'task revoked')
+                replaceable = (
+                    ok
+                    or code in ('PICK_UNVERIFIED', 'NAVIGATION_FAILED', 'EMPTY_OBSERVATION', 'CANCELLED')
+                    or (not generic_revoke and code in ('BOUNDARY_ABORT', 'TIMED_OUT'))
+                )
+                if replaceable and code not in ('UNKNOWN_DISPATCH', 'UNCERTAIN_MOTION'):
+                    ok = False
+                    code, step_detail = int_code, int_detail
+                    step_results[-1]['ok'] = False
+                    step_results[-1]['status_code'] = code
+                    step_results[-1]['detail'] = step_detail
 
             if not ok:
                 failed_step = op
