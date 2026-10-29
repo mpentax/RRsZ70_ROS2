@@ -84,7 +84,7 @@ The robot's `get_status` response reports arm session and action state inside `c
     - `m[2]` (`1` or `2`) can be combined with `m[0..1]` for simultaneous 3-axis `M3/M4/M5` steps.
   - **Step atomicity & continuous jogging:** A single 10° step is atomic once dispatched (`app_stop_grasp: []` does not halt a 10° step mid-rotation). Continuous manual jogging is achieved by repeating step RPCs while a control is held and sending `app_stop_grasp: []` on release.
 - **Cartesian IK Hand Steps (`app_arm_direction_move: {"direction": 1..4}`, `/z70/arm/hand_step`):**
-  - `1` = Up (`+y`), `2` = Down (`−y`), `3` = Forward (`+x`), `4` = Back (`−x`).
+  - `1` = Up (vendor sagittal `+y` / `base_footprint +z`), `2` = Down (vendor sagittal `−y` / `base_footprint −z`), `3` = Forward (`+x`), `4` = Back (`−x`).
   - Displaces the vendor planar endpoint by `0.04 m` along the requested axis and solves 2-link IK (`vendor_inverse`) on the current elbow branch.
 - **Program Mode (`app_start_program`, `app_save_program`, `app_get_program`):**
   - Blockly editor blocks `arm_m3..arm_m6` compile to `{"cmd_id": "arm_joints", "value": [M3, M4, M5, M6], "step": N}`, where `step` is the count of 10° increments (`1..20`) and the first non-zero slot in `M3 -> M4 -> M5 -> M6` takes priority.
