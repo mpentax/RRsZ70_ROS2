@@ -731,9 +731,15 @@ class PickServer(Perception):
         self.gains = gains_from_state(msg)
 
     def _revoke_commands(self):
-        if self.client and self.client.commands and not self.client.commands.cancelled.is_set():
-            self.client.commands.cancelled.set()
-            threading.Thread(target=self.client.commands.stop, daemon=True).start()
+        commands = self.client.commands if self.client is not None else None
+        if commands is None or commands.cancelled.is_set():
+            return
+        commands.cancelled.set()
+        # Bind the Commands object now. The goal thread clears self.client after
+        # session end, and shutdown must still be able to finish this stop call.
+        thread = threading.Thread(target=commands.stop, name='z70_goal_stop', daemon=True)
+        self._stop_thread = thread
+        thread.start()
 
     def watchdog(self):
         expired = self.deadline is not None and time.monotonic() >= self.deadline
@@ -760,7 +766,30 @@ class PickServer(Perception):
     def odom(self):
         return self.odom_value if time.monotonic() - self.odom_at < 2. else None
 
+    def request_process_stop(self):
+        """Interrupt an owned goal without waiting out its original deadline."""
+        self.shutdown_requested = True
+        now = time.monotonic()
+        if self.deadline is None or self.deadline > now:
+            self.deadline = now
+        handle = self.active_handle
+        if handle is not None and not handle.is_cancel_requested:
+            try:
+                from rclpy.action.server import GoalEvent
+                handle._update_state(GoalEvent.CANCEL_GOAL)
+            except Exception:
+                pass
+        self._revoke_commands()
+
+    def shutdown_quiescent(self):
+        thread = getattr(self, '_stop_thread', None)
+        if thread is not None and thread.is_alive():
+            return False
+        return self.active_handle is None
+
     def hazard(self):
+        if getattr(self, 'shutdown_requested', False):
+            return 'operator cancelled task'
         if self.safety_stop:
             return 'person/pet/obstacle or operator stop signal'
         if self.active_handle and self.active_handle.is_cancel_requested:
@@ -786,15 +815,35 @@ class PickServer(Perception):
         return (p.x, p.y, quat_yaw(tr.transform.rotation))
 
 
+_SHUTDOWN_QUIESCE_S = 8.0
+
+
+def _finish_executor(executor, join_threads):
+    if executor is None:
+        return
+    # MultiThreadedExecutor.shutdown joins pool threads without applying
+    # timeout_sec. Join them only after owned callbacks have returned.
+    if hasattr(executor, '_executor'):
+        executor.shutdown(timeout_sec=2.0, wait_for_threads=bool(join_threads))
+    else:
+        executor.shutdown(timeout_sec=2.0 if join_threads else 0)
+
+
 def _spin_node(node_type):
     # The default rclpy handler invalidates the context from the signal path while
-    # an image callback can still be inside publish. Drain the executor first.
+    # an image callback can still be inside publish. A local stop flag also never
+    # reaches an active goal, so keep spinning until that goal has been revoked.
     rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
     node = None
     executor = None
     stop = threading.Event()
+    force = threading.Event()
+    quiescent = False
 
     def _stop(_signum, _frame):
+        if stop.is_set():
+            force.set()
+            return
         stop.set()
 
     signal.signal(signal.SIGINT, _stop)
@@ -805,13 +854,22 @@ def _spin_node(node_type):
         executor.add_node(node)
         while rclpy.ok() and not stop.is_set():
             executor.spin_once(timeout_sec=0.2)
+        if node is None or not callable(getattr(node, 'request_process_stop', None)):
+            quiescent = True
+        else:
+            node.request_process_stop()
+            deadline = time.monotonic() + _SHUTDOWN_QUIESCE_S
+            while rclpy.ok() and not force.is_set() and time.monotonic() < deadline:
+                if callable(getattr(node, 'shutdown_quiescent', None)) and node.shutdown_quiescent():
+                    quiescent = True
+                    break
+                executor.spin_once(timeout_sec=0.2)
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
-        signal.signal(signal.SIGINT, signal.SIG_IGN)
-        signal.signal(signal.SIGTERM, signal.SIG_IGN)
-        if executor is not None:
-            executor.shutdown()
+        # A second signal ends the quiesce above. Do not ignore SIGTERM, and do
+        # not let a still-running goal hold the pool join for its old deadline.
+        _finish_executor(executor, quiescent)
         if node is not None:
             node.destroy_node()
         rclpy.try_shutdown()
