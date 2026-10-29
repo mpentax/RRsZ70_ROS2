@@ -575,6 +575,31 @@ def camera_yaml(path,height):
         projection_matrix=dict(data=[20.,0.,8.,0.,0.,21.,height/2,0.,0.,0.,1.,0.]))))
 
 
+@pytest.mark.parametrize('valid,stale,connected,age,accepted', [
+    (True, False, True, 0., True),
+    (False, False, True, 0., False),
+    (True, True, True, 0., False),
+    (True, False, False, 0., False),
+    (True, False, True, 16., False),
+    (True, False, True, -10., False),
+])
+def test_observation_status_requires_current_connected_evidence(valid, stale, connected, age, accepted):
+    observer = Observations.__new__(Observations)
+    observer.condition = threading.Condition()
+    observer.timeout = 0.
+    observer.cancelled = lambda: False
+    state = RobotState(connected=connected, robot_state_known=True, robot_state=39)
+    state.evidence.valid = valid
+    state.evidence.stale = stale
+    state.evidence.received_at = host_time(time.time() - age)
+    observer.on_state(state)
+    if accepted:
+        assert observer.status()['state'] == 39
+    else:
+        with pytest.raises(LookupError):
+            observer.status()
+
+
 def test_shared_acquisition_serialization_late_join_switch_stale_cleanup(backend,tmp_path):
     front=tmp_path/'front.yaml';gripper=tmp_path/'gripper.yaml'
     camera_yaml(front,12);camera_yaml(gripper,10)
@@ -705,9 +730,15 @@ def test_shared_acquisition_serialization_late_join_switch_stale_cleanup(backend
             for status in roundtrip.status:
                 if status.name.startswith('z70_driver/'):
                     assert status.level==DiagnosticStatus.WARN
-        for observer in observers:observer.timeout=.1
-        with pytest.raises(LookupError):observers[0].get('/api/state')
-        with pytest.raises(LookupError):observers[0].frame()
+        # Each subscription receives independently; the diagnostic reader above is not a barrier
+        # for the actual consumers whose stale-state rejection is being tested.
+        for observer in observers:
+            wait_for(lambda: observer.state is not None and observer.state.evidence.stale
+                     and not observer.state.connected and observer.image is not None
+                     and observer.image[1].evidence.stale)
+            observer.timeout=.1
+            with pytest.raises(LookupError):observer.get('/api/state')
+            with pytest.raises(LookupError):observer.frame()
     finally:
         for observer in observers:observer.close()
         driver.close();executor.shutdown();thread.join(timeout=5)

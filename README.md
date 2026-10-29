@@ -61,3 +61,21 @@ Open **`http://127.0.0.1:57010`**. On first run, click **Start local setup** to 
 ```
 
 [Documentation index](docs/README.md) · [ROS 2 guide](docs/ros2.md) · [Arm model & protocol](docs/z70-arm-model.md) · [API contract](docs/thin-api.md) · [Apache 2.0](LICENSE) · [Third-party notices](THIRD_PARTY_NOTICES)
+
+## Development checks
+
+```sh
+pixi run check
+```
+
+Builds the native workspace and web frontend, typechecks both TypeScript projects,
+and runs the vendor/MCP/web and ROS test suites. Tests use synthetic inputs,
+test-owned loopback services, and MuJoCo; this command does not start the live
+robot sidecars. Run one check at a time: ROS integration tests use domains 91–99.
+Detailed ROS test output is retained under `build/pytest`.
+
+For focused work, use `npm run typecheck`, `npm test`, or
+`pixi run test src/z70_driver/test/test_dashboard.py`. The simulator scenarios in
+`src/z70_sim/test/test_sim.py` cover camera/marker geometry, closed-loop pickup,
+driver integration, and multi-room garment patrol. Simulated grasp attachment and
+support placement are simplified; physical repeatability is measured separately.
