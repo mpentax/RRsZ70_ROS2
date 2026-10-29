@@ -27,7 +27,7 @@ from unique_identifier_msgs.msg import UUID
 
 from z70_interfaces.action import BasePulse, Pick
 from z70_interfaces.msg import FrameMetadata
-from z70_interfaces.srv import Stop, TaskSession
+from z70_interfaces.srv import SetControlSession, Stop, TaskSession
 
 LATCHED = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL, reliability=ReliabilityPolicy.RELIABLE)
 USER_ARM_ESTIMATE = Path.home() / '.local/share/RRsZ70_ROS2/arm-estimate.json'
@@ -103,9 +103,17 @@ def _reap(process: subprocess.Popen | None) -> None:
         pass
 
 
-def _start_http(handler) -> tuple[ThreadingHTTPServer, threading.Thread, int]:
-    _JsonHandler.server_errors = []
-    server = ThreadingHTTPServer(('127.0.0.1', 0), handler)
+class _RecordingHTTPServer(ThreadingHTTPServer):
+    errors: list[str] = []
+
+    def handle_error(self, request, client_address):
+        import traceback
+        type(self).errors.append(traceback.format_exc())
+
+
+def _start_http(handler) -> tuple[_RecordingHTTPServer, threading.Thread, int]:
+    _RecordingHTTPServer.errors = []
+    server = _RecordingHTTPServer(('127.0.0.1', 0), handler)
     server.daemon_threads = True
     thread = threading.Thread(target=server.serve_forever, name='shutdown-http', daemon=True)
     thread.start()
@@ -122,11 +130,6 @@ def _stop_http(server: ThreadingHTTPServer | None, thread: threading.Thread | No
 
 class _JsonHandler(BaseHTTPRequestHandler):
     protocol_version = 'HTTP/1.1'
-    server_errors: list[str] = []
-
-    def handle_error(self):
-        import traceback
-        _JsonHandler.server_errors.append(traceback.format_exc())
 
     def _body(self) -> bytes:
         length = int(self.headers.get('Content-Length', '0') or 0)
@@ -195,7 +198,7 @@ def test_driver_sigint_drains_camera_publish_before_context_shutdown(tmp_path: P
         process.send_signal(signal.SIGINT)
         process.wait(timeout=15)
         _assert_clean(process, log_path.read_text())
-        assert not _JsonHandler.server_errors, _JsonHandler.server_errors
+        assert not _RecordingHTTPServer.errors, _RecordingHTTPServer.errors
     finally:
         _reap(process)
         _stop_http(server, thread)
@@ -367,7 +370,7 @@ def test_sigint_revokes_active_pick_and_inflight_driver_command(tmp_path: Path):
         release.set()
         driver.wait(timeout=12)
         _assert_clean(driver, driver_log.read_text())
-        assert not _JsonHandler.server_errors, _JsonHandler.server_errors
+        assert not _RecordingHTTPServer.errors, _RecordingHTTPServer.errors
         if executor is not None:
             executor.shutdown()
             executor = None
@@ -432,6 +435,317 @@ def test_sigint_revokes_active_pick_and_inflight_driver_command(tmp_path: Path):
         if pick_context.ok():
             pick_context.shutdown()
         _assert_user_arm_untouched(before)
+
+
+def test_http_server_records_handler_errors_on_the_server():
+    class Handler(_JsonHandler):
+        def do_GET(self):
+            raise RuntimeError('handler boom')
+
+    server, thread, port = _start_http(Handler)
+    try:
+        import urllib.request
+        try:
+            urllib.request.urlopen(f'http://127.0.0.1:{port}/', timeout=2)
+        except Exception:
+            pass
+        assert _RecordingHTTPServer.errors
+        assert 'handler boom' in _RecordingHTTPServer.errors[-1]
+    finally:
+        _stop_http(server, thread)
+
+
+def test_close_admission_rejects_new_work_and_keeps_stop_and_end():
+    from z70_driver.commands import Dispatcher
+
+    stopped = []
+    dispatcher = Dispatcher(lambda scope: stopped.append(scope) or [scope])
+    accepted, token, reason = dispatcher.begin()
+    assert accepted and reason == 'NONE'
+    assert dispatcher.reserve(token) is not None
+    dispatcher.close_admission()
+    assert dispatcher.reserve(token) is None
+    refused, _, why = dispatcher.begin()
+    assert refused is False and why == 'SESSION_STOPPED'
+    assert dispatcher.end(token) is True
+    assert stopped == [3]
+    assert dispatcher.stop(1) == [1]
+
+
+def _pulse_goal():
+    goal = BasePulse.Goal()
+    goal.linear_mps = 0.05
+    goal.angular_radps = 0.0
+    goal.duration.sec = 0
+    goal.duration.nanosec = 800_000_000
+    return goal
+
+
+def _held_camera_handler(release: threading.Event, paths: list, methods: list):
+    class Handler(_JsonHandler):
+        def do_GET(self):
+            self._body()
+            paths.append(self.path.split('?', 1)[0])
+            if self.path.startswith('/api/commands/events'):
+                self.close_connection = True
+                self._send(b'', 'text/plain')
+                return
+            self._send(b'{"telemetry":{},"connection":{"state":"disconnected"}}', 'application/json')
+
+        def do_POST(self):
+            raw = self._body()
+            paths.append(self.path.split('?', 1)[0])
+            if self.path.startswith('/api/camera/frame'):
+                release.wait(timeout=30)
+                self._send(b'', 'image/jpeg', {'X-Roboclaw-Camera': 'front'})
+                return
+            if self.path.startswith('/api/driver/rpc'):
+                try:
+                    methods.append(json.loads(raw.decode() or '{}').get('method', ''))
+                except (UnicodeError, json.JSONDecodeError):
+                    methods.append('')
+            self._send(b'{}', 'application/json')
+
+    return Handler
+
+
+def _start_held_driver(tmp_path: Path, domain: int, release: threading.Event):
+    before = _user_arm_stamp()
+    estimate_path = tmp_path / f'arm-{domain}.json'
+    paths: list[str] = []
+    methods: list[str] = []
+    server, thread, port = _start_http(_held_camera_handler(release, paths, methods))
+    log_path = tmp_path / f'driver-{domain}.log'
+    log = log_path.open('w')
+    process = subprocess.Popen(
+        [sys.executable, str(Path(__file__).resolve()), 'driver', str(port), str(estimate_path)],
+        cwd=tmp_path,
+        env=_env(tmp_path, domain),
+        stdout=log,
+        stderr=subprocess.STDOUT,
+    )
+    return before, estimate_path, paths, methods, server, thread, log_path, log, process
+
+
+def _wait_service(executor, client, timeout: float, output: str = '') -> None:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline and not client.service_is_ready():
+        executor.spin_once(timeout_sec=0.05)
+    assert client.service_is_ready(), output
+
+
+def _wait_log(process: subprocess.Popen, log_path: Path, text: str, timeout: float) -> None:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline and text not in log_path.read_text():
+        assert process.poll() is None, log_path.read_text()
+        time.sleep(0.05)
+    assert text in log_path.read_text(), log_path.read_text()
+
+
+def _assert_no_crash(output: str) -> None:
+    assert 'context is invalid' not in output
+    assert 'RCLError' not in output
+    assert 'process has died' not in output
+    assert 'Fatal Python error' not in output
+    assert 'TypeError' not in output
+
+
+def test_quiescence_rejects_new_motion_before_it_reaches_the_wire(tmp_path: Path):
+    release = threading.Event()
+    before, _estimate, paths, methods, server, thread, log_path, log, process = _start_held_driver(
+        tmp_path, 93, release)
+    context = Context()
+    node = None
+    executor = None
+    try:
+        rclpy.init(context=context, domain_id=93)
+        node = rclpy.create_node('shutdown_admission_probe', context=context)
+        executor = SingleThreadedExecutor(context=context)
+        executor.add_node(node)
+        pulse = ActionClient(node, BasePulse, '/z70/base/pulse')
+        _wait_action(executor, pulse, 15, log_path)
+        process.send_signal(signal.SIGINT)
+        _wait_log(process, log_path, 'shutdown admission closed', 8)
+        send = pulse.send_goal_async(_pulse_goal())
+        executor.spin_until_future_complete(send, timeout_sec=5)
+        assert send.done() and not send.result().accepted, log_path.read_text()
+        session = node.create_client(TaskSession, '/z70/tasks/session')
+        _wait_service(executor, session, 5, log_path.read_text())
+        begin = session.call_async(TaskSession.Request(begin=True))
+        executor.spin_until_future_complete(begin, timeout_sec=5)
+        assert begin.done() and not begin.result().accepted, log_path.read_text()
+        assert begin.result().reason == 'SESSION_STOPPED'
+        control = node.create_client(SetControlSession, '/z70/control/session')
+        _wait_service(executor, control, 5, log_path.read_text())
+        resume = control.call_async(SetControlSession.Request(enabled=True))
+        executor.spin_until_future_complete(resume, timeout_sec=5)
+        assert resume.done() and resume.result().enabled is False
+        assert methods == [], methods
+        assert '/api/driver/rpc' not in paths
+        assert '/api/driver/control/session' not in paths
+        release.set()
+        process.wait(timeout=10)
+        _assert_clean(process, log_path.read_text())
+        assert not _RecordingHTTPServer.errors, _RecordingHTTPServer.errors
+    finally:
+        release.set()
+        _reap(process)
+        _stop_http(server, thread)
+        log.close()
+        if executor is not None:
+            executor.shutdown()
+        if node is not None:
+            node.destroy_node()
+        if context.ok():
+            context.shutdown()
+        _assert_user_arm_untouched(before)
+
+
+def test_blocked_publisher_exits_nonzero_without_destroying_under_it(tmp_path: Path):
+    release = threading.Event()
+    before, _estimate, _paths, methods, server, thread, log_path, log, process = _start_held_driver(
+        tmp_path, 92, release)
+    try:
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline and '/api/camera/frame' not in _paths:
+            assert process.poll() is None, log_path.read_text()
+            time.sleep(0.05)
+        assert '/api/camera/frame' in _paths, log_path.read_text()
+        started = time.monotonic()
+        process.send_signal(signal.SIGINT)
+        process.wait(timeout=14)
+        elapsed = time.monotonic() - started
+        output = log_path.read_text()
+        assert process.returncode == 1, output
+        assert 'shutdown drain incomplete' in output
+        assert elapsed < 14, elapsed
+        assert not release.is_set()
+        assert methods == []
+        _assert_no_crash(output)
+    finally:
+        release.set()
+        _reap(process)
+        _stop_http(server, thread)
+        log.close()
+        _assert_user_arm_untouched(before)
+
+
+def test_second_signal_bounds_blocked_publisher_drain(tmp_path: Path):
+    release = threading.Event()
+    before, _estimate, _paths, methods, server, thread, log_path, log, process = _start_held_driver(
+        tmp_path, 90, release)
+    try:
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline and '/api/camera/frame' not in _paths:
+            assert process.poll() is None, log_path.read_text()
+            time.sleep(0.05)
+        assert '/api/camera/frame' in _paths, log_path.read_text()
+        process.send_signal(signal.SIGINT)
+        _wait_log(process, log_path, 'shutdown admission closed', 8)
+        started = time.monotonic()
+        process.send_signal(signal.SIGINT)
+        process.wait(timeout=6)
+        elapsed = time.monotonic() - started
+        output = log_path.read_text()
+        assert process.returncode == 1, output
+        assert 'shutdown drain incomplete' in output
+        assert elapsed < 4, elapsed
+        assert not release.is_set()
+        assert methods == []
+        _assert_no_crash(output)
+    finally:
+        release.set()
+        _reap(process)
+        _stop_http(server, thread)
+        log.close()
+        _assert_user_arm_untouched(before)
+
+
+def test_sigint_rejects_a_new_pick_while_stop_is_still_draining(tmp_path: Path):
+    from rclpy.executors import MultiThreadedExecutor
+
+    end_release = threading.Event()
+    sessions = []
+    stops = []
+
+    def on_session(request, response):
+        sessions.append(bool(request.begin))
+        response.accepted = True
+        response.task_id = UUID(uuid=list(uuid.uuid4().bytes))
+        response.reason = ''
+        if not request.begin:
+            end_release.wait(timeout=6)
+        return response
+
+    def on_stop(request, response):
+        stops.append(int(request.scope))
+        return response
+
+    log_path = tmp_path / 'pick-admission.log'
+    log = log_path.open('w')
+    process = subprocess.Popen(
+        [sys.executable, str(Path(__file__).resolve()), 'active-pick'],
+        cwd=tmp_path,
+        env=_env(tmp_path, 89),
+        stdout=log,
+        stderr=subprocess.STDOUT,
+    )
+    context = Context()
+    node = None
+    executor = None
+    spin = None
+    try:
+        rclpy.init(context=context, domain_id=89)
+        node = rclpy.create_node('shutdown_pick_admission', context=context)
+        node.create_service(TaskSession, '/z70/tasks/session', on_session)
+        node.create_service(Stop, '/z70/stop', on_stop)
+        executor = MultiThreadedExecutor(num_threads=4, context=context)
+        executor.add_node(node)
+        spin = threading.Thread(target=executor.spin, name='pick-admission-spin', daemon=True)
+        spin.start()
+        client = ActionClient(node, Pick, '/z70/pick')
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline and not client.server_is_ready():
+            assert process.poll() is None, log_path.read_text()
+            time.sleep(0.05)
+        assert client.server_is_ready(), log_path.read_text()
+        first = client.send_goal_async(Pick.Goal(color='yellow', dry_run=False))
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline and not first.done():
+            time.sleep(0.05)
+        assert first.done() and first.result().accepted, log_path.read_text()
+        deadline = time.monotonic() + 8
+        while time.monotonic() < deadline and True not in sessions:
+            time.sleep(0.05)
+        assert True in sessions, log_path.read_text()
+        process.send_signal(signal.SIGINT)
+        deadline = time.monotonic() + 6
+        while time.monotonic() < deadline and not stops:
+            time.sleep(0.05)
+        assert stops, log_path.read_text()
+        second = client.send_goal_async(Pick.Goal(color='yellow', dry_run=False))
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline and not second.done():
+            assert process.poll() is None, log_path.read_text()
+            time.sleep(0.05)
+        assert second.done() and not second.result().accepted, log_path.read_text()
+        assert sessions.count(True) == 1, sessions
+        end_release.set()
+        process.wait(timeout=12)
+        _assert_clean(process, log_path.read_text())
+        assert False in sessions, sessions
+    finally:
+        end_release.set()
+        _reap(process)
+        log.close()
+        if executor is not None:
+            executor.shutdown(timeout_sec=0, wait_for_threads=False)
+        if spin is not None:
+            spin.join(timeout=2)
+        if node is not None:
+            node.destroy_node()
+        if context.ok():
+            context.shutdown()
 
 
 def _child_driver(port: str, estimate_path: str) -> None:

@@ -33,7 +33,7 @@ from z70_interfaces.action import Pick, Stack
 from z70_interfaces.msg import ArmEstimate, CalibrationState, CommandOutcome, FrameMetadata, GarmentObservations, MapSnapshot, RobotState
 from z70_interfaces.srv import RawRpc, RefreshMap, SelectCamera, SetArmAnchor, Stop, TaskSession
 from z70_odometry.node import gains_from_state
-from z70_driver.driver import LATCHED, MatchedFrames, frame_key, urdf_to_app
+from z70_driver.driver import LATCHED, MatchedFrames, abort_incomplete_drain, bounded_callback_drain, frame_key, urdf_to_app
 from z70_mapping.boundary import BoundaryConfig, SessionWorldMap
 from z70_mapping.node import decode_map, quat_yaw
 from . import perception, planner
@@ -614,6 +614,8 @@ class PickServer(Perception):
         self.client = None
         self.gains = {}
         self.deadline = None
+        self.shutdown_requested = False
+        self._stop_thread = None
         self.create_subscription(Bool, '/z70/safety_stop', self.stop_signal, 10)
         self.create_subscription(Odometry, '/odom', self.odometry, 30)
         self.group = ReentrantCallbackGroup()
@@ -643,13 +645,23 @@ class PickServer(Perception):
             spec.action_cls,
             spec.topic,
             execute_callback=lambda handle, sp=spec: self._run_goal(handle, sp),
-            goal_callback=lambda req, sp=spec: GoalResponse.ACCEPT if sp.validate(self, req) and self.lock.acquire(blocking=False) else GoalResponse.REJECT,
+            goal_callback=lambda req, sp=spec: self._admit_goal(sp, req),
             cancel_callback=self.cancel,
             callback_group=self.group,
         )
         self.action_servers.append(server)
         self.goal_specs[spec.name] = spec
         return server
+
+    def _admit_goal(self, spec, req):
+        if self.shutdown_requested:
+            return GoalResponse.REJECT
+        if not spec.validate(self, req) or not self.lock.acquire(blocking=False):
+            return GoalResponse.REJECT
+        if self.shutdown_requested:
+            self.lock.release()
+            return GoalResponse.REJECT
+        return GoalResponse.ACCEPT
 
     def destroy_node(self):
         for server in self.action_servers:
@@ -666,6 +678,12 @@ class PickServer(Perception):
         client = None
         ctx = None
         try:
+            if self.shutdown_requested:
+                try:
+                    handle.abort()
+                except Exception:
+                    pass
+                return spec.action_cls.Result()
             req = handle.request
             client = Client(read_only=spec.read_only(req), observations=self.observations)
             self.client = client
@@ -818,17 +836,6 @@ class PickServer(Perception):
 _SHUTDOWN_QUIESCE_S = 8.0
 
 
-def _finish_executor(executor, join_threads):
-    if executor is None:
-        return
-    # MultiThreadedExecutor.shutdown joins pool threads without applying
-    # timeout_sec. Join them only after owned callbacks have returned.
-    if hasattr(executor, '_executor'):
-        executor.shutdown(timeout_sec=2.0, wait_for_threads=bool(join_threads))
-    else:
-        executor.shutdown(timeout_sec=2.0 if join_threads else 0)
-
-
 def _spin_node(node_type):
     # The default rclpy handler invalidates the context from the signal path while
     # an image callback can still be inside publish. A local stop flag also never
@@ -838,7 +845,7 @@ def _spin_node(node_type):
     executor = None
     stop = threading.Event()
     force = threading.Event()
-    quiescent = False
+    drained = False
 
     def _stop(_signum, _frame):
         if stop.is_set():
@@ -854,25 +861,31 @@ def _spin_node(node_type):
         executor.add_node(node)
         while rclpy.ok() and not stop.is_set():
             executor.spin_once(timeout_sec=0.2)
-        if node is None or not callable(getattr(node, 'request_process_stop', None)):
-            quiescent = True
-        else:
+        goal_done = node is None or not callable(getattr(node, 'request_process_stop', None))
+        if not goal_done:
             node.request_process_stop()
             deadline = time.monotonic() + _SHUTDOWN_QUIESCE_S
             while rclpy.ok() and not force.is_set() and time.monotonic() < deadline:
                 if callable(getattr(node, 'shutdown_quiescent', None)) and node.shutdown_quiescent():
-                    quiescent = True
+                    goal_done = True
                     break
                 executor.spin_once(timeout_sec=0.2)
+        callbacks_done = bounded_callback_drain(executor, 2.0, force)
+        drained = bool(goal_done and callbacks_done)
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
-        # A second signal ends the quiesce above. Do not ignore SIGTERM, and do
-        # not let a still-running goal hold the pool join for its old deadline.
-        _finish_executor(executor, quiescent)
-        if node is not None:
+        # A second signal ends the wait. Do not destroy a context a callback is
+        # still using, and do not return into the interpreter's unbounded pool join.
+        if node is None:
+            if executor is not None and not getattr(executor, '_is_shutdown', False):
+                bounded_callback_drain(executor, 0, force)
+            rclpy.try_shutdown()
+        elif drained:
             node.destroy_node()
-        rclpy.try_shutdown()
+            rclpy.try_shutdown()
+        else:
+            abort_incomplete_drain()
 
 
 def perception_main():
