@@ -763,10 +763,11 @@ class PickServer(Perception):
             return 'person/pet/obstacle or operator stop signal'
         if self.active_handle and self.active_handle.is_cancel_requested:
             return 'operator cancelled task'
-        if self.client and self.client.commands and self.client.commands.cancelled.is_set():
-            return 'task revoked'
+        # The watchdog also sets commands.cancelled on expiry; keep its cause visible.
         if self.deadline is not None and time.monotonic() >= self.deadline:
             return 'task deadline'
+        if self.client and self.client.commands and self.client.commands.cancelled.is_set():
+            return 'task revoked'
         return None
 
     def _current_arm_msg(self):
