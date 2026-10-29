@@ -1,0 +1,24 @@
+string<=4096 steps_json
+float64 max_duration_s
+bool dry_run
+---
+z70_interfaces/CommandOutcome outcome
+string<=64 status_code
+bool completed
+bool partial_completion
+bool dry_run_valid
+uint32 steps_completed
+uint32 steps_total
+string<=64 failed_step
+string<=128 detail
+string<=4096 step_results_json
+string<=256 evidence_uri
+---
+uint8 phase
+uint32 current_step
+string<=64 current_op
+string<=64 reason
+float64[2] current_position_m
+float64 remaining_distance_m
+z70_interfaces/CommandOutcome latest_outcome
+z70_interfaces/EvidenceStamp latest_observation
