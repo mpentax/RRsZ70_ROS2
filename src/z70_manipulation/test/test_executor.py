@@ -14,7 +14,7 @@ import requests
 from rosidl_runtime_py.convert import message_to_ordereddict
 from std_msgs.msg import String
 from visualization_msgs.msg import MarkerArray
-from z70_interfaces.action import AlignToTarget, DeployArm, GraspAndLift, MoveArm, Pick, ReleaseAndStow, Stack
+from z70_interfaces.action import AlignToTarget, DeployArm, GraspAndLift, MoveArm, Pick, PinAndGo, ReleaseAndStow, Stack
 from z70_manipulation import perception, planner
 from z70_manipulation.executor import Executor
 from z70_manipulation.goals import ALL_GOALS, BUILTIN_GOALS, GoalContext, GoalSpec, simulate_goal
@@ -1381,6 +1381,134 @@ def test_put_down_and_stow_require_observed_common_status_and_preserve_cleanup_s
     ex_cancel._emergency_stop('operator cancelled task')
     assert ('app_stop_grasp', []) in client_cancel.calls
 
+
+def _nav_room(pose=(1., 1., 0.)):
+    pixels = np.full((80, 80), 15, np.uint8)
+    pixels[[0, -1], :] = 1
+    pixels[:, [0, -1]] = 1
+    occupancy = np.where(pixels == 1, 100, 0).astype(np.int8)
+    from z70_mapping.node import VendorMap
+    return VendorMap(80, 80, (0., 0.), pixels, occupancy, pose, None, {1: {}}, {}, {})
+
+
+class _NavObs:
+    def __init__(self):
+        self.labels = {1: 'Kitchen'}
+        self.refreshes = []
+        self.reset()
+
+    def reset(self, poses=None, states=None):
+        self.poses = iter(poses or [(1., 1., 0.), (1.3, 1., 0.), (2., 1., 0.), (2., 1., 0.), (2., 1., 0.)])
+        self.states = iter(states or [3, 3, 16, 3])
+        self.sequence = 0
+        self.refreshes = []
+
+    def get(self, path):
+        if path == '/api/arm/estimate':
+            return {'state': 'IN_ROBOT'}
+        return {'telemetry': {'status': {'value': {
+            'common_status': 0, 'error_code': 0, 'battery': 80,
+            'in_cleaning': False, 'in_returning': False, 'state': next(self.states, 3),
+        }}}}
+
+    def navigation_snapshot(self, refresh=False, max_age_s=5.):
+        self.refreshes.append(bool(refresh))
+        self.sequence += 1
+        pose = next(self.poses, (2., 1., 0.))
+        return SimpleNamespace(
+            map=_nav_room(pose), labels=dict(self.labels), sequence=self.sequence,
+            map_index=1, map_sequence=1, active_floor_verified=True, current_pose_verified=True,
+            cache_age_s=0., evidence=None,
+        )
+
+
+class _NavCmd:
+    def __init__(self):
+        self.calls = []
+        self.stops = 0
+        self.latest_outcome = None
+        self.cancelled = threading.Event()
+
+    def rpc(self, method, params, timeout_ms=5000):
+        self.calls.append((method, list(params)))
+        return {'dispatch': 'sent', 'response': 'received'}
+
+    def stop(self):
+        self.stops += 1
+
+
+def test_navigate_honors_parent_lifecycle_and_room_preview_is_read_only(tmp_path, monkeypatch):
+    from z70_manipulation.garment_delivery import PinAndGoNavigator
+    from z70_manipulation.goals import GoalContext as GoalContextCls
+    from z70_mapping.boundary import BoundaryConfig
+
+    seen = []
+
+    class RecordingNavigator(PinAndGoNavigator):
+        def execute(self, goal):
+            seen.append((goal.max_duration_s, self.hazard))
+            return super().execute(goal)
+
+    monkeypatch.setattr('z70_manipulation.goals.PinAndGoNavigator', RecordingNavigator)
+    obs, commands, feedback = _NavObs(), _NavCmd(), []
+    server = SimpleNamespace(
+        observations=obs, navigation_config=BoundaryConfig(), gains={},
+        odom=lambda: {'x': 1., 'y': 1., 'yaw': 0.}, safety_stop=False, deadline=None,
+        hazard=lambda: None,
+    )
+    handle = SimpleNamespace(request=SimpleNamespace(), is_cancel_requested=False, publish_feedback=feedback.append)
+    ctx = GoalContext(server, handle, PinAndGo, SimpleNamespace(commands=commands), tmp_path, create_executor=False)
+
+    arrived = ctx.navigate(2., 1., max_duration_s=4.)
+    assert arrived['status_code'] == 'ARRIVED' and arrived['arrived'] is True
+    assert commands.calls == [('app_goto_target', [2000, 1000])]
+    assert seen[-1][0] == 4. and seen[-1][1].__func__ is GoalContextCls.hazard and seen[-1][1].__self__ is ctx
+    assert feedback and feedback[-1].reason == 'MONITORING'
+    assert ctx.commands is commands
+
+    seen.clear(); commands.calls.clear(); feedback.clear(); obs.reset()
+    rejected = ctx.navigate(2., 1., max_duration_s=0.4)
+    assert rejected['status_code'] == 'INVALID_INPUT' and commands.calls == [] and seen[-1][0] == 0.4
+
+    seen.clear(); commands.calls.clear(); obs.reset()
+    server.deadline = time.monotonic() + 4.
+    capped = ctx.navigate(2., 1., max_duration_s=40.)
+    assert capped['status_code'] == 'ARRIVED' and commands.calls == [('app_goto_target', [2000, 1000])]
+    assert 1. <= seen[-1][0] < 4.05 and seen[-1][0] < 40.
+
+    seen.clear(); commands.calls.clear(); obs.reset()
+    server.deadline = time.monotonic() + 0.4
+    short = ctx.navigate(2., 1., max_duration_s=40.)
+    assert short['status_code'] == 'TIMED_OUT' and short['status_code'] != 'INVALID_INPUT'
+    assert short['arrived'] is False and commands.calls == [] and seen == []
+
+    server.deadline = time.monotonic() - 1.
+    expired = ctx.navigate(2., 1., max_duration_s=40.)
+    assert expired['status_code'] == 'TIMED_OUT' and commands.calls == [] and seen == []
+
+    seen.clear(); commands.calls.clear(); obs.reset()
+    server.deadline = None
+    handle.is_cancel_requested = True
+    cancelled = ctx.navigate(2., 1., max_duration_s=4.)
+    assert cancelled['status_code'] == 'CANCELLED' and commands.calls == []
+
+    seen.clear(); commands.calls.clear(); obs.reset()
+    handle.is_cancel_requested = False
+    server.safety_stop = False
+    server.hazard = lambda: 'task revoked'
+    aborted = ctx.navigate(2., 1., max_duration_s=4.)
+    assert aborted['status_code'] == 'BOUNDARY_ABORT' and commands.calls == [] and server.safety_stop is False
+
+    commands.calls.clear(); obs.reset(); obs.labels = {1: 'Kitchen'}
+    server.hazard = lambda: None
+    preview = ctx.navigate_room('kitchen', dry_run=True)
+    assert preview['dry_run_valid'] is True and preview['room'] == 'Kitchen'
+    assert obs.refreshes and all(flag is False for flag in obs.refreshes)
+    assert commands.calls == []
+
+    obs.reset(); obs.labels = {}
+    missing = ctx.navigate_room('kitchen')
+    assert missing['status_code'] == 'ROOM_UNREACHABLE' and obs.refreshes == [True] and commands.calls == []
 
 
 
