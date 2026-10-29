@@ -103,10 +103,10 @@ GOAL_DESCRIPTIONS: dict[str, str] = {
     'move_arm': 'Plan and execute collision-checked, coordinated multi-axis 10-degree arm steps to target joint angles.',
     'grasp_and_lift': 'Close jaws, execute upward hand steps, and optionally verify target elevation in the front camera.',
     'release_and_stow': 'Optionally open jaws in place, stow the arm into the compartment, and anchor IN_ROBOT.',
-    'base_pulse': 'Execute a single bounded linear or angular chassis velocity pulse.',
-    'arm_step': 'Execute a single 10-degree joint step on M3..M5 or a coordinated M3+M4 step (34/43).',
-    'hand_step': 'Execute a single 40 mm Cartesian IK hand step (up, down, forward, back).',
-    'arm_operation': 'Invoke a discrete arm mode or lifecycle operation (unstow, stow, recovery-open, grip, put-down, mode entry/exit, recover).',
+    'base_pulse': 'Execute a bounded linear or angular chassis RC pulse (<=0.8 s, |v|<=0.1 m/s, |w|<=0.5 rad/s).',
+    'arm_step': 'Step arm joint M3 (3), M4 (4), M5 (5), or coupled M3+M4 (34/43) by +/-10 deg.',
+    'hand_step': 'Step the end-effector by 0.04 m via sagittal IK: 1=up (vendor +Y / base_footprint +Z), 2=down (vendor -Y / base_footprint -Z), 3=forward (+X), 4=back (-X).',
+    'arm_operation': 'Execute vendor arm operation (1=deploy, 2=stow, 3=open_gripper, 4=grip, 5=put_down, 6=manual_arm_mode [flag=1], 7=remote_pickup_mode [flag=2], 8=exit_arm_mode [flag=0], 9=recover).',
 }
 
 
@@ -1629,7 +1629,7 @@ DRIVER_GOALS: dict[str, GoalSpec] = {
             read_only=lambda _: False,
             fields=('direction',),
             validate_payload=lambda p: _int_in(p['direction'], 1, 4),
-            description='Step end-effector along +Y (1), -Y (2), +X (3), or -X (4) by 0.04 m via sagittal IK.',
+            description='Step the end-effector by 0.04 m via sagittal IK: 1=up (vendor +Y / base_footprint +Z), 2=down (vendor -Y / base_footprint -Z), 3=forward (+X), 4=back (-X).',
         ),
         GoalSpec(
             'arm_operation', ArmOperation, '/z70/arm/operation', 60.,
@@ -1641,7 +1641,7 @@ DRIVER_GOALS: dict[str, GoalSpec] = {
             read_only=lambda _: False,
             fields=('operation',),
             validate_payload=lambda p: _int_in(p['operation'], 1, 9),
-            description='Execute vendor arm operation (1=deploy, 2=stow, 3=open_gripper, 4=grip, 5=put_down, 6=enter_pickup, 7=manual_arm_mode, 8=exit_pickup, 9=recover).',
+            description='Execute vendor arm operation (1=deploy, 2=stow, 3=open_gripper, 4=grip, 5=put_down, 6=manual_arm_mode [flag=1], 7=remote_pickup_mode [flag=2], 8=exit_arm_mode [flag=0], 9=recover).',
         ),
     )
 }
