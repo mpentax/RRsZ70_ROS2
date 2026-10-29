@@ -607,7 +607,11 @@ class Executor:
             self.end_rc()
             before_separation = sample['jaw_separation_m']
             before_jaw_pos = (sample.get('jaw') or {}).get('position')
-            before_jaw_z = float(before_jaw_pos[2]) if isinstance(before_jaw_pos, (list, tuple)) and len(before_jaw_pos) >= 3 else None
+            before_jaw_z = (
+                float(before_jaw_pos[2])
+                if isinstance(before_jaw_pos, (list, tuple)) and len(before_jaw_pos) >= 3 and math.isfinite(before_jaw_pos[2])
+                else None
+            )
             try:
                 self.open_jaws()
             except UncertainMotion:
@@ -624,10 +628,15 @@ class Executor:
             for _ in range(3):
                 sample = self.placement_sample(color, support_color, base_color, tower_spot, released=True, after=barrier)
                 after_jaw_pos = (sample.get('jaw') or {}).get('position')
-                after_jaw_z = float(after_jaw_pos[2]) if isinstance(after_jaw_pos, (list, tuple)) and len(after_jaw_pos) >= 3 else None
+                after_jaw_z = (
+                    float(after_jaw_pos[2])
+                    if isinstance(after_jaw_pos, (list, tuple)) and len(after_jaw_pos) >= 3 and math.isfinite(after_jaw_pos[2])
+                    else None
+                )
                 jaw_withdrawn = (
-                    before_jaw_z is None or after_jaw_z is None
-                    or (after_jaw_z >= before_jaw_z + .015 and after_jaw_z - float(sample['held_center_m'][2]) >= .015)
+                    before_jaw_z is not None and after_jaw_z is not None
+                    and after_jaw_z >= before_jaw_z + .015
+                    and after_jaw_z - float(sample['held_center_m'][2]) >= .015
                 )
                 if (abs(sample['gap_m']) > .005 or np.linalg.norm(sample['lateral_error_m']) > .012
                         or sample['jaw_separation_m'] < max(.045,before_separation+.015)
@@ -690,28 +699,33 @@ class Executor:
         for _ in range(20):
             try:
                 estimate = self._arm()
-                if estimate.get('state') == 'IN_ROBOT':
-                    self.log('stow_estimate', state='IN_ROBOT')
-                    for _ in range(40):
-                        reason = self.hazard()
-                        if reason:
-                            raise SafetyStop(reason)
-                        status = self._status()
-                        if status.get('error_code', 0):
-                            raise SafetyStop('robot error: ' + str(status['error_code']))
-                        if 'common_status' not in status or ((int(status['common_status']) >> 6) & 15) == 0:
-                            break
-                        self.sleep(.5)
-                    else:
-                        self.log('data_gap', kind='stow_common_status_busy')
-                        break
-                    self.deployed = False
-                    self.sleep(1.)
-                    self.snap('6-stowed')
-                    self.log('stow_observation', odom=self.odom())
-                    return dict(stowed=True, state='IN_ROBOT')
             except (requests.RequestException, LookupError):
                 self.log('data_gap', kind='stow_estimate')
+                self.sleep(.3)
+                continue
+            if estimate.get('state') == 'IN_ROBOT':
+                self.log('stow_estimate', state='IN_ROBOT')
+                for _ in range(40):
+                    reason = self.hazard()
+                    if reason:
+                        raise SafetyStop(reason)
+                    try:
+                        status = self._status()
+                    except (requests.RequestException, LookupError):
+                        self.log('data_gap', kind='stow_status')
+                        self.sleep(.5)
+                        continue
+                    if status.get('error_code', 0):
+                        raise SafetyStop('robot error: ' + str(status['error_code']))
+                    if 'common_status' in status and ((int(status['common_status']) >> 6) & 15) == 0:
+                        self.deployed = False
+                        self.sleep(1.)
+                        self.snap('6-stowed')
+                        self.log('stow_observation', odom=self.odom())
+                        return dict(stowed=True, state='IN_ROBOT')
+                    self.sleep(.5)
+                self.log('data_gap', kind='stow_common_status_busy')
+                break
             self.sleep(.3)
         raise LookupError('stow dispatched but estimate not reconciled; no blind replay')
 

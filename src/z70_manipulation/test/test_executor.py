@@ -395,11 +395,17 @@ def test_normal_open_requires_observed_manual_mode_before_in_place_release(tmp_p
     assert all(method != 'app_put_down' for method,_ in client.calls)
 
 
-def placement_sample(gap, lateral=(0.,0.), separation=.03):
-    return dict(gap_m=gap, lateral_error_m=list(lateral), held_center_m=[.5,0.,.10],
-                held_bottom_m=[.5,0.,.066+gap], support_top_m=[.5,0.,.066],
-                tower_spot=[.5,0.,0.], jaw_separation_m=separation,
-                jaw=dict(hand_pose_base=np.eye(4).tolist()), uncertainty_m=.015)
+def placement_sample(gap, lateral=(0.,0.), separation=.03, jaw_z=None):
+    center = [.5, 0., .10]
+    z = center[2] + separation if jaw_z is None else float(jaw_z)
+    dx = math.sqrt(max(0., separation * separation - (z - center[2]) ** 2))
+    jaw_pos = [center[0] - dx, center[1], z]
+    pose = np.eye(4)
+    pose[:3, 3] = jaw_pos
+    return dict(gap_m=gap, lateral_error_m=list(lateral), held_center_m=center,
+                held_bottom_m=[.5, 0., .066 + gap], support_top_m=[.5, 0., .066],
+                tower_spot=[.5, 0., 0.], jaw_separation_m=float(np.linalg.norm(np.subtract(center, jaw_pos))),
+                jaw=dict(position=jaw_pos, hand_pose_base=pose.tolist()), uncertainty_m=.015)
 
 
 def test_supported_place_descends_observes_contact_then_verifies_detach_stability(tmp_path):
@@ -1106,21 +1112,19 @@ def test_simulate_goal_tracks_stateful_arm_world_and_trace():
     assert ok_rpc is True
 
 
-def test_pickup_rejects_floor_supported_or_ambiguous_or_slipped_hold_and_cleans_up(fake, tmp_path, monkeypatch):
-    origin, token, events, state = fake
-    state['hide_marker'] = True
+def test_held_front_rejects_displaced_floor_target_bridged_contact_and_ambiguous_blobs(fake, tmp_path, monkeypatch):
+    origin, token, _, state = fake
+    state.update(hide_marker=True, deployed=True, gripped=True, lift=.08, joints=list(planner.GRASP))
     client = Client(origin, token)
-    ex = Executor(client, observer(client), tmp_path / 'slipped-pick', sleep=lambda _: None)
+    ex = Executor(client, observer(client), tmp_path / 'held-rejections', sleep=lambda _: None)
     ex.pregrip_jaw = planner.measured_point(planner.GRASP, planner._CALIBRATION['effective_jaw_from_elbow_m'])
 
     # 1. Target nudged on floor beyond 5.5 cm (within TRACK_GATE_M = 12 cm) is still floor-supported.
-    state.update(deployed=True, gripped=True, lift=.08, joints=list(planner.GRASP))
     displaced_spot = [state['floor_point'][0], state['floor_point'][1] + .08, 0.]
     orig_front_objects = perception.front_objects
     monkeypatch.setattr(perception, 'front_objects', lambda _img, *a, **kw: [dict(color='yellow', position=displaced_spot)])
     assert not ex.held_front('yellow', state['floor_point'])
     assert ex.last_floor_gone is False
-    monkeypatch.setattr(perception, 'front_objects', orig_front_objects)
 
     # 2. Bridged/tall contour with elevated centroid but floor-supported bottom contact (bottom_z <= 0.02 m) is rejected.
     cam = perception.front_camera()
@@ -1128,7 +1132,6 @@ def test_pickup_rejects_floor_supported_or_ambiguous_or_slipped_hold_and_cleans_
     top_uv = cam.floor_to_pixel((jaw_x - .275) * 1000, ex.pregrip_jaw[1] * 1000, 120.)
     bot_uv = cam.floor_to_pixel((jaw_x - .275) * 1000, ex.pregrip_jaw[1] * 1000, 5.)
     mid_uv = [top_uv[0], (top_uv[1] + bot_uv[1]) / 2]
-    orig_detect = perception.detect
     monkeypatch.setattr(perception, 'detect', lambda *_a, **_kw: [
         dict(color='yellow', pixel=mid_uv, contact_px=list(bot_uv), bbox=[750, 450, 30, 220], size_px=220., area_px=4000., image_size=[1600, 1200]),
     ])
@@ -1143,11 +1146,14 @@ def test_pickup_rejects_floor_supported_or_ambiguous_or_slipped_hold_and_cleans_
         dict(color='yellow', pixel=[lifted_uv[0] + 8., lifted_uv[1] + 4.], contact_px=list(lifted_bot), bbox=[770, 464, 40, 40], size_px=40., area_px=1100., image_size=[1600, 1200]),
     ])
     assert not ex.held_front('yellow', state['floor_point'])
-    monkeypatch.setattr(perception, 'detect', orig_detect)
     monkeypatch.setattr(perception, 'front_objects', orig_front_objects)
 
-    # 4. Loss of hold during the 10s verification window fails pick verification while still releasing and stowing.
-    state.update(deployed=False, gripped=False, lift=0., joints=[150, 45, 0], arm_state='IN_ROBOT', floor_point=planner.grasp_point(), missed_grip=False)
+
+def test_pick_loss_of_hold_after_initial_verify_returns_unverified_and_stows(fake, tmp_path):
+    origin, token, _, state = fake
+    state['hide_marker'] = True
+    client = Client(origin, token)
+    ex = Executor(client, observer(client), tmp_path / 'slipped-pick', sleep=lambda _: None)
     real_held_front = ex.held_front
     checks = []
 
@@ -1167,97 +1173,116 @@ def test_pickup_rejects_floor_supported_or_ambiguous_or_slipped_hold_and_cleans_
     assert any(r['event'] == 'hold_start' and r['initial_held'] is True for r in timeline)
     assert any(r['event'] == 'hold_10s' and r['held'] is False and r['final_held'] is False for r in timeline)
 
-    # 5. GoalContext and GoalSpec preserve the distinction between RPC acknowledgement ('NONE') and physical verification failure.
-    from z70_interfaces.msg import ArmEstimate, CommandOutcome
-    acked_commands = SimpleNamespace(
-        cancelled=threading.Event(),
-        latest_outcome=CommandOutcome(error_code='NONE', dispatch=1, response=1),
-        stop=lambda: None,
+
+def test_goal_outcome_distinguishes_rpc_ack_from_unverified_physical_hold(fake, tmp_path):
+    origin, token, _, state = fake
+    state.update(hide_marker=True, missed_grip=True)
+    client = Client(origin, token)
+    server = SimpleNamespace(
+        observations=client.observations, gains={}, odom=lambda: None,
+        thresholds={'yellow': {}}, hazard=lambda: None,
+        _current_arm_msg=lambda: SimpleNamespace(),
     )
-    fake_client = SimpleNamespace(commands=acked_commands)
-    fake_server = SimpleNamespace(
-        observations=None, gains={}, odom=lambda: None, thresholds={'yellow': {}},
-        _current_arm_msg=lambda: ArmEstimate(),
-    )
-    ctx = GoalContext(fake_server, SimpleNamespace(request=SimpleNamespace(), is_cancel_requested=False),
-                      Pick, fake_client, tmp_path / 'ctx-outcome', create_executor=False)
-    assert ctx.outcome(True).error_code == 'NONE'
-    assert ctx.outcome(False).error_code == 'OBSERVATION_GAP'
-    ctx.pick = lambda color, dry_run=False: {'verified': False, 'target': {'color': color, 'position': [.43, 0., 0.]}}
-    ok_pick, res_pick = BUILTIN_GOALS['pick'].run(ctx, SimpleNamespace(color='yellow', dry_run=False))
+    from z70_interfaces.msg import ArmEstimate
+    server._current_arm_msg = lambda: ArmEstimate()
+    handle = SimpleNamespace(request=SimpleNamespace(color='yellow', dry_run=False), is_cancel_requested=False, publish_feedback=lambda _: None)
+    ctx = GoalContext(server, handle, Pick, client, tmp_path / 'ctx-pick')
+    ctx.executor.sleep = lambda _: None
+    ok_pick, res_pick = BUILTIN_GOALS['pick'].run(ctx, handle.request)
+    assert client.commands.latest_outcome.response == 1
     assert ok_pick is False and res_pick.verified_hold is False and res_pick.outcome.error_code == 'OBSERVATION_GAP'
 
-    ctx_lift = GoalContext(fake_server, SimpleNamespace(request=SimpleNamespace(), is_cancel_requested=False),
-                           GraspAndLift, fake_client, tmp_path / 'ctx-lift', create_executor=False)
-    ctx_lift.grasp_and_lift = lambda lift_steps=2, verify_color='': {'gripped': True, 'lift_steps': lift_steps, 'verified': False}
-    ok_verify, res_verify = BUILTIN_GOALS['grasp_and_lift'].run(ctx_lift, SimpleNamespace(lift_steps=2, verify_color='yellow'))
+    state.update(deployed=True, arm_state='WORKING_POS', joints=list(planner.GRASP))
+    lift_req = SimpleNamespace(lift_steps=1, verify_color='yellow')
+    ctx_lift = GoalContext(server, SimpleNamespace(request=lift_req, is_cancel_requested=False, publish_feedback=lambda _: None),
+                           GraspAndLift, client, tmp_path / 'ctx-lift')
+    ctx_lift.executor.sleep = lambda _: None
+    ok_verify, res_verify = BUILTIN_GOALS['grasp_and_lift'].run(ctx_lift, lift_req)
     assert ok_verify is False and res_verify.verified_hold is False and res_verify.outcome.error_code == 'OBSERVATION_GAP'
-    ok_unverified, res_unverified = BUILTIN_GOALS['grasp_and_lift'].run(ctx_lift, SimpleNamespace(lift_steps=2, verify_color=''))
+    unverified_req = SimpleNamespace(lift_steps=1, verify_color='')
+    ok_unverified, res_unverified = BUILTIN_GOALS['grasp_and_lift'].run(ctx_lift, unverified_req)
     assert ok_unverified is True and res_unverified.outcome.error_code == 'NONE'
 
 
-def test_release_rejects_pre_withdrawal_contact_and_unobserved_put_down_or_stow(tmp_path):
-    # 1. Contact appearing valid before hand withdrawal (jaw Z not raised above contact/object) is rejected.
-    client = MemoryClient()
-    ex = Executor(client, lambda *_: [], tmp_path / 'pre-withdrawal', sleep=lambda _: None)
-    ex.gripped = True
+def test_supported_place_rejects_missing_or_unwithdrawn_jaw_and_unsent_release(tmp_path):
+    # 1. Missing jaw.position geometry cannot silently satisfy withdrawal.
+    ex_missing = Executor(MemoryClient(), lambda *_: [], tmp_path / 'missing-jaw', sleep=lambda _: None)
+    ex_missing.gripped = True
+    no_pos = placement_sample(.001, separation=.075)
+    no_pos['jaw'] = dict(hand_pose_base=np.eye(4).tolist())
+    samples_missing = iter([placement_sample(.002), placement_sample(.002), no_pos])
+    ex_missing.placement_sample = lambda *a, **kw: next(samples_missing)
+    res_missing = ex_missing.supported_place('purple', 'blue', 'blue', [.5, 0., 0.], tier=2)
+    assert not res_missing['verified'] and not res_missing['detached'] and ex_missing.gripped is True
 
-    def sample_with_jaw(gap, separation, jaw_z):
-        s = placement_sample(gap, separation=separation)
-        s['jaw'] = dict(position=[.43, 0., jaw_z], hand_pose_base=np.eye(4).tolist())
-        return s
-
-    unwithdrawn = iter([
-        sample_with_jaw(.002, .02, .100),
-        sample_with_jaw(.002, .02, .100),
-        sample_with_jaw(.001, .060, .105),
+    # 2. Contact appearing valid before hand withdrawal (jaw Z not raised >= 15 mm) is rejected even if 3D separation is large.
+    ex_unwithdrawn = Executor(MemoryClient(), lambda *_: [], tmp_path / 'pre-withdrawal', sleep=lambda _: None)
+    ex_unwithdrawn.gripped = True
+    samples_unwithdrawn = iter([
+        placement_sample(.002, separation=.02, jaw_z=.120),
+        placement_sample(.002, separation=.02, jaw_z=.120),
+        placement_sample(.001, separation=.060, jaw_z=.125),
     ])
-    ex.placement_sample = lambda *a, **kw: next(unwithdrawn)
-    res_unwithdrawn = ex.supported_place('purple', 'blue', 'blue', [.5, 0., 0.], tier=2)
-    assert not res_unwithdrawn['verified'] and not res_unwithdrawn['detached'] and ex.gripped is True
+    ex_unwithdrawn.placement_sample = lambda *a, **kw: next(samples_unwithdrawn)
+    res_unwithdrawn = ex_unwithdrawn.supported_place('purple', 'blue', 'blue', [.5, 0., 0.], tier=2)
+    assert not res_unwithdrawn['verified'] and not res_unwithdrawn['detached'] and ex_unwithdrawn.gripped is True
 
-    # Genuine upward hand withdrawal (jaw Z rises >= 15 mm above pre-release jaw and held center) succeeds.
-    withdrawn = iter([
-        sample_with_jaw(.002, .02, .100),
-        sample_with_jaw(.002, .02, .100),
-        sample_with_jaw(.001, .060, .140),
-        sample_with_jaw(.001, .060, .140),
-        sample_with_jaw(.001, .060, .140),
-    ])
-    ex.placement_sample = lambda *a, **kw: next(withdrawn)
-    res_withdrawn = ex.supported_place('purple', 'blue', 'blue', [.5, 0., 0.], tier=2)
-    assert res_withdrawn['verified'] is True and res_withdrawn['detached'] is True and ex.gripped is False
-
-    # 2. Definite release non-dispatch (RequestException) aborts before withdrawing the closed hand.
+    # 3. Definite release non-dispatch (RequestException) aborts before withdrawing the closed hand.
     client_fail = MemoryClient()
     ex_fail = Executor(client_fail, lambda *_: [], tmp_path / 'release-not-sent', sleep=lambda _: None)
     ex_fail.gripped = True
-    ex_fail.placement_sample = lambda *a, **kw: sample_with_jaw(.002, .02, .100)
+    ex_fail.placement_sample = lambda *a, **kw: placement_sample(.002)
     ex_fail.open_jaws = lambda: (_ for _ in ()).throw(requests.RequestException('put_down not sent'))
     res_fail = ex_fail.supported_place('purple', 'blue', 'blue', [.5, 0., 0.], tier=2)
     assert not res_fail['verified'] and ex_fail.gripped is True
     assert all(m != 'app_arm_direction_move' for m, _ in client_fail.calls)
 
-    # 3. put_down() requires observed common_status readiness before clearing gripped state.
-    client_no_status = MemoryClient()
-    client_no_status.status = lambda: {}
-    ex_pd = Executor(client_no_status, lambda *_: [], tmp_path / 'put-down-missing', sleep=lambda _: None)
+
+def test_put_down_and_stow_require_observed_common_status_and_preserve_cleanup_state(tmp_path):
+    # 1. put_down() with missing common_status fails closed and preserves gripped=True.
+    client_pd = MemoryClient()
+    client_pd.status = lambda: {}
+    ex_pd = Executor(client_pd, lambda *_: [], tmp_path / 'put-down-missing', sleep=lambda _: None)
     ex_pd.gripped = True
     with pytest.raises(LookupError, match='put_down readiness not observed'):
         ex_pd.put_down()
     assert ex_pd.gripped is True
 
-    # 4. stow() requires common_status idle and keeps deployed=True on failure/cancellation so emergency stop sends app_stop_grasp.
-    client_stow = MemoryClient()
-    client_stow.status = lambda: {'common_status': 3 << 6}
-    client_stow.arm_estimate = lambda: {'state': 'IN_ROBOT', 'joints': {}}
-    ex_stow = Executor(client_stow, lambda *_: [], tmp_path / 'stow-busy', sleep=lambda _: None)
-    ex_stow.deployed = True
+    # 2. stow() with missing common_status ({}) fails closed without replaying app_arm_in_compartment and preserves deployed=True.
+    client_missing = MemoryClient()
+    client_missing.status = lambda: {}
+    client_missing.arm_estimate = lambda: {'state': 'IN_ROBOT', 'joints': {}}
+    ex_missing = Executor(client_missing, lambda *_: [], tmp_path / 'stow-missing', sleep=lambda _: None)
+    ex_missing.deployed = True
     with pytest.raises(LookupError, match='stow dispatched but estimate not reconciled'):
-        ex_stow.stow()
-    assert ex_stow.deployed is True
-    ex_stow._emergency_stop(LookupError('stow timeout'))
-    assert ('app_stop_grasp', []) in client_stow.calls
+        ex_missing.stow()
+    assert ex_missing.deployed is True
+    assert client_missing.calls == [('app_arm_in_compartment', {})]
+
+    # 3. stow() with busy common_status (3 << 6) fails closed without replaying and dispatches app_stop_grasp on emergency stop.
+    client_busy = MemoryClient()
+    client_busy.status = lambda: {'common_status': 3 << 6}
+    client_busy.arm_estimate = lambda: {'state': 'IN_ROBOT', 'joints': {}}
+    ex_busy = Executor(client_busy, lambda *_: [], tmp_path / 'stow-busy', sleep=lambda _: None)
+    ex_busy.deployed = True
+    with pytest.raises(LookupError, match='stow dispatched but estimate not reconciled'):
+        ex_busy.stow()
+    assert ex_busy.deployed is True
+    assert client_busy.calls == [('app_arm_in_compartment', {})]
+    ex_busy._emergency_stop(LookupError('stow timeout'))
+    assert ('app_stop_grasp', []) in client_busy.calls
+
+    # 4. stow() interrupted by cancellation/hazard raises SafetyStop while preserving deployed=True for emergency stop.
+    client_cancel = MemoryClient()
+    client_cancel.status = lambda: {'common_status': 3 << 6}
+    client_cancel.arm_estimate = lambda: {'state': 'IN_ROBOT', 'joints': {}}
+    ex_cancel = Executor(client_cancel, lambda *_: [], tmp_path / 'stow-cancel', sleep=lambda _: None, hazard=lambda: 'operator cancelled task')
+    ex_cancel.deployed = True
+    with pytest.raises(RuntimeError, match='operator cancelled task'):
+        ex_cancel.stow()
+    assert ex_cancel.deployed is True
+    ex_cancel._emergency_stop('operator cancelled task')
+    assert ('app_stop_grasp', []) in client_cancel.calls
 
 
 
