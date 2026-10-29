@@ -508,13 +508,14 @@ def run_mission(ctx: Any, req: Any) -> tuple[bool, RunMission.Result]:
             return h
         if bool(getattr(getattr(ctx, 'handle', None), 'is_cancel_requested', False)):
             return 'operator cancelled task'
+        cmds = getattr(ctx, 'commands', None)
+        cmds_cancelled = bool(getattr(cmds, 'cancelled', None) is not None and cmds.cancelled.is_set())
+        if callable(orig_cancelled) and orig_cancelled() and not cmds_cancelled:
+            return 'operator cancelled task'
         if clock() >= deadline:
             return 'task deadline'
-        if callable(orig_cancelled) and orig_cancelled():
-            cmds = getattr(ctx, 'commands', None)
-            if getattr(cmds, 'cancelled', None) is not None and cmds.cancelled.is_set():
-                return 'task revoked'
-            return 'operator cancelled task'
+        if cmds_cancelled or (callable(orig_cancelled) and orig_cancelled()):
+            return 'task revoked'
         return None
 
     if callable(orig_feedback):
@@ -675,17 +676,22 @@ def run_mission(ctx: Any, req: Any) -> tuple[bool, RunMission.Result]:
             except BaseException as exc:
                 if isinstance(exc, (KeyboardInterrupt, SystemExit)):
                     raise
-                interrupt = _classify_interrupt(ctx, deadline, clock, exc)
-                if interrupt is not None:
-                    code, step_detail = interrupt
-                elif type(exc).__name__ == 'UncertainMotion':
+                if type(exc).__name__ == 'UncertainMotion':
                     code, step_detail = 'UNCERTAIN_MOTION', str(exc)[:128]
-                elif isinstance(exc, ValueError):
-                    code, step_detail = 'INVALID_INPUT', str(exc)[:128]
-                elif isinstance(exc, TimeoutError):
-                    code, step_detail = 'TIMED_OUT', str(exc)[:128]
                 else:
-                    code, step_detail = 'OBSERVATION_GAP', str(exc)[:128]
+                    interrupt = _classify_interrupt(ctx, deadline, clock, exc)
+                    if interrupt is not None and (
+                        isinstance(exc, InterruptedError)
+                        or type(exc).__name__ == 'SafetyStop'
+                        or not (interrupt[0] == 'CANCELLED' and interrupt[1].lower() == 'task revoked')
+                    ):
+                        code, step_detail = interrupt
+                    elif isinstance(exc, ValueError):
+                        code, step_detail = 'INVALID_INPUT', str(exc)[:128]
+                    elif isinstance(exc, TimeoutError):
+                        code, step_detail = 'TIMED_OUT', str(exc)[:128]
+                    else:
+                        code, step_detail = 'OBSERVATION_GAP', str(exc)[:128]
                 ok = False
                 step_results.append({
                     'index': idx,

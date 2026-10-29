@@ -632,6 +632,23 @@ def test_run_mission_obeys_total_deadline_cancellation_and_hazard_across_steps()
     )
     assert _classify_interrupt(expired_cancel_ctx, 1.0, lambda: 2.0) == ('CANCELLED', 'Operator cancelled mission')
 
+    # Runtime-level simulate_goal wrapper regression: explicit is_cancelled=True with expired clock and hazard=None returns CANCELLED.
+    sim_cancel_ticks = iter([100.0, 102.0])
+    sim_cancel_trace = []
+    ok_sc, res_sc = simulate_goal(
+        spec,
+        SimpleNamespace(steps_json='[{"op":"observe"}]', max_duration_s=1.0, dry_run=False),
+        clock=lambda: next(sim_cancel_ticks, 102.0),
+        is_cancelled=lambda: True,
+        hazard=lambda: None,
+        _trace=sim_cancel_trace,
+    )
+    assert ok_sc is False
+    assert res_sc.status_code == 'CANCELLED'
+    assert res_sc.outcome.error_code == 'CANCELLED'
+    assert res_sc.steps_completed == 0
+    assert sim_cancel_trace == []
+
     non_person_hazard_ctx = SimpleNamespace(
         is_cancelled=lambda: False,
         hazard=lambda: 'robot error: 7',
@@ -957,3 +974,94 @@ def test_run_mission_navigation_preserves_parent_terminal_cause_and_concrete_chi
     assert result.steps_completed == 0
     assert result.partial_completion is False
     assert json.loads(result.step_results_json)[0]['status_code'] == expected
+
+
+@pytest.mark.parametrize('cause,expected', [('unreachable', 'OBSERVATION_GAP'), ('unknown_dispatch', 'UNCERTAIN_MOTION')])
+def test_run_mission_preserves_executor_failure_after_emergency_stop_revokes_commands(
+    tmp_path: Path,
+    cause: str,
+    expected: str,
+):
+    from z70_manipulation import planner
+
+    revoked = [False]
+    stops = [0]
+
+    class _StopRevokingCommands:
+        def __init__(self):
+            self.latest_outcome = CommandOutcome(
+                error_code='TIMEOUT' if cause == 'unknown_dispatch' else 'NONE',
+                dispatch=2 if cause == 'unknown_dispatch' else 1,
+                response=3 if cause == 'unknown_dispatch' else 1,
+            )
+            self.cancelled = SimpleNamespace(is_set=lambda: revoked[0], set=lambda: revoked.__setitem__(0, True))
+
+        def stop(self):
+            stops[0] += 1
+            revoked[0] = True
+
+    commands = _StopRevokingCommands()
+    obs = SimpleNamespace(
+        status=lambda: {'state': 3, 'error_code': 0, 'battery': 90.0, 'common_status': 0},
+        arm_estimate=lambda: {'state': 'IN_ROBOT', 'joints': {}},
+    )
+
+    class _FakeClient:
+        def __init__(self):
+            self.commands = commands
+            self.observations = obs
+
+        def get(self, path):
+            if path == '/api/state':
+                return {'telemetry': {'status': {'value': obs.status()}}}
+            return obs.arm_estimate()
+
+        def rpc(self, method, params=None, timeout_ms=5000):
+            if cause == 'unknown_dispatch' and method == 'app_arm_out_compartment':
+                raise UncertainMotion('dispatch unknown: app_arm_out_compartment')
+            return {'dispatch': 'sent', 'response': 'received', 'result': ['ok']}
+
+    req = RunMission.Goal(
+        steps_json=json.dumps([
+            {'op': 'observe', 'color': 'yellow'},
+            {'op': 'pick', 'color': 'yellow'},
+            {'op': 'pick', 'color': 'purple'},
+        ]),
+        max_duration_s=30.0,
+        dry_run=False,
+    )
+    handle = SimpleNamespace(request=req, is_cancel_requested=False, publish_feedback=lambda *_: None)
+    client = _FakeClient()
+    server = SimpleNamespace(
+        observations=obs,
+        thresholds={'yellow': {}, 'purple': {}},
+        gains={},
+        deadline=500.0,
+        safety_stop=False,
+        active_handle=handle,
+        client=client,
+        odom=lambda: {'x': 0.0, 'y': 0.0, 'yaw': 0.0},
+        hazard=lambda: 'task revoked' if commands.cancelled.is_set() else None,
+    )
+    ctx = GoalContext(server, handle, RunMission, client, tmp_path / f'exec-stop-{cause}', create_executor=True)
+    ctx.clock = lambda: 100.0
+    ctx.executor.sleep = lambda _: None
+    position = [1.75, 0.0, 0.03] if cause == 'unreachable' else list(planner.grasp_point())
+    ctx.objects = lambda camera='front', color=None: (
+        pytest.fail('third step must not run after failed pick')
+        if color == 'purple'
+        else [{'color': 'yellow', 'position': position, 'size_px': 80, 'size_m': 0.066}]
+    )
+
+    ok, result = run_mission(ctx, req)
+    assert ok is False
+    assert result.completed is False
+    assert result.partial_completion is True
+    assert result.steps_completed == 1
+    assert result.steps_total == 3
+    assert result.failed_step == 'pick'
+    assert result.status_code == expected
+    assert stops[0] == 1 and commands.cancelled.is_set() is True
+    steps = json.loads(result.step_results_json)
+    assert len(steps) == 2
+    assert steps[0]['ok'] is True and steps[1]['ok'] is False and steps[1]['status_code'] == expected
