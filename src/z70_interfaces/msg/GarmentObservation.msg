@@ -5,6 +5,8 @@ uint8 UNSUPPORTED=3
 std_msgs/Header header
 z70_interfaces/EvidenceStamp evidence
 unique_identifier_msgs/UUID track_id
+# Temporal track confirmation, independent of immediate arm reach.
+bool confirmed
 string<=32 category
 float32 confidence
 uint32[4] bbox_px

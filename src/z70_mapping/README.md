@@ -27,6 +27,11 @@ pixi run bringup mapping:=false     # disable vendor map node
 | `/camera/front/depth/points` | `sensor_msgs/msg/PointCloud2` — metric `xyz` `float32` cloud in `camera_optical_frame` |
 | `/z70/depth/status` | `std_msgs/msg/String` (JSON) — depth worker health and floor-scale fit telemetry |
 
+Garment-sourced pickup and towing objectives require the observation's `confirmed`
+track flag. Confirmation is independent of `reachable_for_grasp`, so a confirmed
+target beyond immediate arm reach can guide patrol. Observed obstacles enter the
+collision layer immediately; explicit world-update events retain their existing semantics.
+
 ---
 
 ## Map Binary Format (`z70_mapping/node.py`)

@@ -474,6 +474,10 @@ class SessionWorldMap:
         for g in getattr(batch, 'garments', ()):
             if not (getattr(g, 'contact_valid', False) and getattr(g, 'inside_geofence', False) and getattr(g, 'geofence_verified', False)):
                 continue
+            suitability = int(getattr(g, 'transport_suitability', 1))
+            # Patrol objectives need a confirmed track; obstacles enter the collision layer immediately.
+            if suitability in (1, 2) and not getattr(g, 'confirmed', False):
+                continue
             p = g.floor_contact_m
             mx, my = float(pose[0] + c * p.x - s * p.y), float(pose[1] + s * p.x + c * p.y)
             tid = bytes(g.track_id.uuid).hex() if hasattr(g, 'track_id') and hasattr(g.track_id, 'uuid') else ''
@@ -481,7 +485,7 @@ class SessionWorldMap:
                 mx, my, category=getattr(g, 'category', 'garment'),
                 width_m=float(getattr(g, 'footprint_width_m', 0.08)),
                 depth_m=float(getattr(g, 'footprint_depth_m', 0.08)),
-                transport_suitability=int(getattr(g, 'transport_suitability', 1)),
+                transport_suitability=suitability,
                 suitability_reason=str(getattr(g, 'suitability_reason', '')),
                 track_id=tid, confirmed=True, drop_xy=drop_xy,
             )

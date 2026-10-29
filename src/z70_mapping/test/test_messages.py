@@ -14,9 +14,11 @@ from rclpy.qos import DurabilityPolicy, ReliabilityPolicy
 from rclpy.serialization import serialize_message, deserialize_message
 from std_msgs.msg import String
 from visualization_msgs.msg import Marker, MarkerArray
+from z70_interfaces.msg import GarmentObservation, GarmentObservations
 from z70_mapping import node as module
 from z70_mapping.boundary import (
     BoundaryConfig,
+    SessionWorldMap,
     check_corridor_containment,
     compute_safe_interior,
     extract_segment_ids,
@@ -41,6 +43,48 @@ def fixture(pixels=bytes([1, 23, 0, 39, 255, 7]), width=3, height=2, extra_block
     header = b'rr' + struct.pack('<HI', 20, len(body) + 20) + bytes(12)
     raw = header + body
     return raw + hashlib.sha1(raw).digest()
+
+
+@pytest.mark.parametrize('suitability', [1, 2])
+def test_world_objectives_require_track_confirmation_not_immediate_reach(suitability):
+    world = SessionWorldMap()
+    world.bind_session('test-session', 0, (0., 0.), 60, 60, .05)
+    garment = GarmentObservation(category='sock', contact_valid=True, inside_geofence=True,
+                                 geofence_verified=True, transport_suitability=suitability)
+    garment.track_id.uuid = list(range(16))
+    garment.floor_contact_m.x = garment.floor_contact_m.y = 1.
+    batch = GarmentObservations(model_available=True, geofence_active=True, garments=[garment])
+    assert not world.ingest_observations(batch, (0., 0., 0.))
+    assert not world.pending_objectives() and not world.entries
+
+    garment.confirmed = True
+    decoded = deserialize_message(serialize_message(batch), GarmentObservations)
+    assert decoded.garments[0].confirmed and not decoded.garments[0].reachable_for_grasp
+    entry, = world.ingest_observations(decoded, (0., 0., 0.))
+    assert world.pending_objectives() == [entry]
+    assert (entry.x, entry.y, entry.hits) == (1., 1., 1)
+
+    garment.confirmed = False
+    garment.floor_contact_m.x = 1.1
+    assert not world.ingest_observations(batch, (0., 0., 0.))
+    assert (entry.x, entry.y, entry.hits) == (1., 1., 1)
+    world.mark_completed(entry.x, entry.y, track_id=entry.track_id)
+    garment.confirmed = True
+    world.ingest_observations(batch, (0., 0., 0.))
+    assert entry.relevance == 'completed' and not world.pending_objectives()
+
+
+def test_tentative_obstacle_still_enters_world_collision_layer():
+    world = SessionWorldMap()
+    world.bind_session('test-session', 0, (0., 0.), 60, 60, .05)
+    obstacle = GarmentObservation(category='chair', contact_valid=True, inside_geofence=True,
+                                  geofence_verified=True, transport_suitability=3,
+                                  suitability_reason='NON_OBJECTIVE_OBSTACLE')
+    obstacle.floor_contact_m.x = obstacle.floor_contact_m.y = 1.
+    batch = GarmentObservations(model_available=True, geofence_active=True, garments=[obstacle])
+    entry, = world.ingest_observations(batch, (0., 0., 0.))
+    assert entry.is_obstacle and entry.relevance == 'deferred'
+    assert world.obstacle_mask().any() and not world.pending_objectives()
 
 
 def test_overlay_marker_geometry_and_serialization():
