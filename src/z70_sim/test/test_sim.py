@@ -158,24 +158,69 @@ def test_mujoco_cameras_marker_68_floor_vo_and_v1_map():
 
 
 def test_closed_loop_pick_against_mujoco_world(tmp_path: Path):
+    import json
+
     world = SimWorld()
-    client = DirectSimClient(world)
+    try:
+        client = DirectSimClient(world)
 
-    def observe(camera: str, color: str):
-        img, tag = client.frame()
-        blobs = perception.front_objects(img) if tag == 'front' else perception.detect(img)
-        return [b for b in blobs if b['color'] == color]
+        def observe(camera: str, color: str):
+            img, tag = client.frame()
+            blobs = perception.front_objects(img) if tag == 'front' else perception.detect(img)
+            return [b for b in blobs if b['color'] == color]
 
-    ex = Executor(
-        client,
-        observe,
-        tmp_path / 'pick_run',
-        sleep=lambda _: None,
-        odom=lambda: {'x': world.pose[0], 'y': world.pose[1], 'yaw': world.pose[2]},
-    )
-    result = ex.pick('yellow')
-    assert result['verified'] is True
-    assert not world.deployed
+        # 1. Centered reachable target ('yellow' at x=0.68, y=0.0).
+        ex = Executor(
+            client,
+            observe,
+            tmp_path / 'pick_centered',
+            sleep=lambda _: None,
+            odom=lambda: {'x': world.pose[0], 'y': world.pose[1], 'yaw': world.pose[2]},
+        )
+        result = ex.pick('yellow')
+        assert result['verified'] is True
+        assert not world.deployed and world.gripped_object is None
+
+        # 2. Non-centered reachable target ('purple' at x=0.72, y=+0.14) with 'yellow' and 'blue' distractors.
+        world.reset()
+        ex_offset = Executor(
+            client,
+            observe,
+            tmp_path / 'pick_offset_purple',
+            sleep=lambda _: None,
+            odom=lambda: {'x': world.pose[0], 'y': world.pose[1], 'yaw': world.pose[2]},
+        )
+        offset_res = ex_offset.pick('purple')
+        assert offset_res['verified'] is True
+        assert not world.deployed and world.gripped_object is None
+        assert world.pose[2] > 0.10 and world.pose[0] > 0.15
+        assert world._get_object_pos('yellow')[:2] == pytest.approx([0.68, 0.0], abs=1e-4)
+        assert world._get_object_pos('blue')[:2] == pytest.approx([0.66, -0.14], abs=1e-4)
+        offset_events = [json.loads(line) for line in (tmp_path / 'pick_offset_purple/timeline.jsonl').read_text().splitlines()]
+        first_approach = next(r for r in offset_events if r['event'] == 'approach')
+        assert first_approach['bearing_error_deg'] > 8.0
+
+        # 3. Unreachable target beyond ACQUIRE_MAX_RANGE_M (1.5 m) amidst foreground distractors fails closed without motion.
+        world.reset()
+        world._set_object_pose('yellow', [1.75, 0.0, 0.033])
+        world._sync_kinematics()
+        ex_far = Executor(
+            client,
+            observe,
+            tmp_path / 'pick_unreachable',
+            sleep=lambda _: None,
+            odom=lambda: {'x': world.pose[0], 'y': world.pose[1], 'yaw': world.pose[2]},
+        )
+        with pytest.raises(LookupError, match='target not visible; no blind movement'):
+            ex_far.pick('yellow')
+        assert ex_far.stopped is True
+        assert world.pose == [0.0, 0.0, 0.0]
+        assert not world.deployed and world.gripped_object is None
+        far_events = [json.loads(line) for line in (tmp_path / 'pick_unreachable/timeline.jsonl').read_text().splitlines()]
+        assert any(r['event'] == 'data_gap' and r.get('kind') in ('no_plausible_target', 'target_not_visible') for r in far_events)
+        assert not any(r['event'] == 'command' and r.get('method') in ('app_rc_move', 'app_arm_out_compartment') for r in far_events)
+    finally:
+        world.close()
 
 
 def test_sim_server_and_ros_driver_integration(tmp_path: Path):
