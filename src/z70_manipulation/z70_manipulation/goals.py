@@ -1057,25 +1057,39 @@ class GoalContext:
 
     def navigate(self, target_x_m: float, target_y_m: float, max_duration_s: float = 60., dry_run: bool = False) -> dict:
         self._rec('navigate', target_x_m=float(target_x_m), target_y_m=float(target_y_m), dry_run=bool(dry_run))
+        duration = float(max_duration_s)
+        deadline = getattr(self.server, 'deadline', None)
+        # A parent deadline is a monotonic timestamp. Cap the step to the time still left.
+        # PinAndGo rejects max_duration_s < 1 as INVALID_INPUT; do not inflate that remainder to 1s and dispatch.
+        if deadline is not None:
+            remaining = float(deadline) - time.monotonic()
+            if remaining < 1.:
+                return {
+                    'arrived': False, 'dry_run_valid': False, 'status_code': 'TIMED_OUT',
+                    'final_position_m': [0., 0.],
+                    'position_error_m': math.hypot(float(target_x_m), float(target_y_m)),
+                    'detail': 'TIMED_OUT',
+                }
+            duration = min(duration, remaining)
         nav = PinAndGoNavigator(
             self.observations,
             self.commands,
             boundary_config=self.server.navigation_config,
             cancelled=self.is_cancelled,
-            hazard=lambda: self.server.safety_stop,
+            hazard=self.hazard,
             odom=self.odom,
             feedback=self.feedback,
         )
         return self._run_with_feedback(nav, SimpleNamespace(
             target_x_m=float(target_x_m),
             target_y_m=float(target_y_m),
-            max_duration_s=float(max_duration_s),
+            max_duration_s=duration,
             dry_run=bool(dry_run),
         ))
 
     def navigate_room(self, room: str | int, max_duration_s: float = 60., dry_run: bool = False) -> dict:
         self._rec('navigate_room', room=room, dry_run=bool(dry_run))
-        wp = self.room_waypoint(room, refresh=True)
+        wp = self.room_waypoint(room, refresh=not dry_run)
         if wp is None:
             return {'arrived': False, 'dry_run_valid': False, 'status_code': 'ROOM_UNREACHABLE', 'room': room, 'detail': 'ROOM_UNREACHABLE'}
         res = self.navigate(wp['x'], wp['y'], max_duration_s=max_duration_s, dry_run=dry_run)
