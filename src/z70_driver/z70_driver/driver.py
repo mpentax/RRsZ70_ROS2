@@ -1108,6 +1108,9 @@ class Driver(CommandSurfaces, Node):
         """Cancel an in-flight command so shutdown does not keep its action deadline."""
         self.shutdown_requested = True
         dispatcher = getattr(self, 'dispatcher', None)
+        if dispatcher is not None and hasattr(dispatcher, 'close_admission'):
+            dispatcher.close_admission()
+        print('shutdown admission closed', flush=True)
         if dispatcher is not None:
             with dispatcher.lock:
                 tickets = [dispatcher.active] if dispatcher.active is not None else []
@@ -1139,25 +1142,68 @@ class Driver(CommandSurfaces, Node):
             busy = dispatcher.active is not None or dispatcher.stopping
         return not busy and not self.action_tickets
 
-    def close(self, deadline_s=130, raise_on_timeout=True):
+    def workers_alive(self):
+        with self.worker_lock:
+            return any(worker.is_alive() for worker in self.workers)
+
+    def close(self, deadline_s=130, raise_on_timeout=True, cancel=None):
         self.stop_event.set()
         # Network reads have finite deadlines; let their owning thread close the response.
         deadline = time.monotonic()+deadline_s
         while time.monotonic() < deadline:
+            if cancel is not None and cancel.is_set():
+                break
             with self.worker_lock:
                 workers = list(self.workers)
             alive = [w for w in workers if w.is_alive()]
             if not alive: break
             for worker in alive:
+                if cancel is not None and cancel.is_set():
+                    break
                 worker.join(timeout=max(0., min(.2, deadline-time.monotonic())))
-        if raise_on_timeout and any(w.is_alive() for w in self.workers):
+        alive = self.workers_alive()
+        if raise_on_timeout and alive:
             raise RuntimeError('driver worker failed to stop within network deadline')
+        return not alive
 
     def destroy_node(self):
         for server in self.action_servers:
             server.destroy()
         self.action_servers.clear()
         return super().destroy_node()
+
+
+def bounded_callback_drain(executor, timeout_s, cancel=None):
+    """Return True only when pool threads have actually stopped.
+
+    Installed MultiThreadedExecutor.shutdown(wait_for_threads=True) joins the
+    pool without applying timeout_sec. wait_for_threads=False does not mean the
+    callbacks finished: CPython's ThreadPoolExecutor still joins those threads
+    from _python_exit. A True result is an observed join, not the shutdown flag.
+    """
+    if executor is None:
+        return True
+    pool = getattr(executor, '_executor', None)
+    if pool is None:
+        executor.shutdown(timeout_sec=0)
+        return True
+    executor.shutdown(timeout_sec=0, wait_for_threads=False)
+    deadline = time.monotonic() + max(0.0, timeout_s)
+    threads = list(getattr(pool, '_threads', ()))
+    for thread in threads:
+        if cancel is not None and cancel.is_set():
+            thread.join(0.05)
+            continue
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        thread.join(remaining)
+    return not any(thread.is_alive() for thread in threads)
+
+
+def abort_incomplete_drain():
+    print('shutdown drain incomplete', flush=True)
+    os._exit(1)
 
 
 def main():
@@ -1170,7 +1216,7 @@ def main():
     executor = None
     stop = threading.Event()
     force = threading.Event()
-    quiescent = False
+    drained = False
 
     def _stop(_signum, _frame):
         if stop.is_set():
@@ -1190,18 +1236,28 @@ def main():
         deadline = time.monotonic() + 8.0
         while rclpy.ok() and not force.is_set() and time.monotonic() < deadline:
             if node.shutdown_quiescent():
-                quiescent = True
                 break
             executor.spin_once(timeout_sec=0.2)
+        # Keep spinning while publisher workers exit so a late goal is rejected
+        # instead of being destroyed underneath, and so stop callbacks can finish.
+        worker_deadline = time.monotonic() + 8.0
+        while rclpy.ok() and not force.is_set() and time.monotonic() < worker_deadline:
+            if node.shutdown_quiescent() and not node.workers_alive():
+                break
+            executor.spin_once(timeout_sec=0.2)
+        callbacks_done = bounded_callback_drain(executor, 2.0, force)
+        drained = bool(node.shutdown_quiescent() and not node.workers_alive() and callbacks_done)
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
-        if node is not None:
-            node.close(deadline_s=8, raise_on_timeout=False)
-        if executor is not None:
-            # Pool join ignores timeout_sec. Join only after the command callback
-            # has returned; a second signal must not wait out that command.
-            executor.shutdown(timeout_sec=2.0, wait_for_threads=quiescent)
-        if node is not None:
+        if node is None:
+            if executor is not None and not getattr(executor, '_is_shutdown', False):
+                bounded_callback_drain(executor, 0, force)
+            rclpy.try_shutdown()
+        elif drained:
             node.destroy_node()
-        rclpy.try_shutdown()
+            rclpy.try_shutdown()
+        else:
+            # Workers or callbacks are still using ROS objects. Do not destroy
+            # them, and do not return into _python_exit's unbounded pool join.
+            abort_incomplete_drain()

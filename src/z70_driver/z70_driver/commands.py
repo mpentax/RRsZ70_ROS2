@@ -39,13 +39,21 @@ class Dispatcher:
         self.stopping = 0
         self.blocked = False
         self.session_enabled = True
+        self.closing = False
         self._stop = stop
         self._stop_ok = stop_ok
         self._cancel_task = cancel_task
 
+    def close_admission(self):
+        """Reject new work. Stop and session-end stay available for cleanup."""
+        with self.lock:
+            self.closing = True
+            self.session_enabled = False
+
     def reserve(self, task_id=ZERO):
         with self.lock:
-            if not self.session_enabled or self.blocked or self.stopping or self.active is not None or task_id != self.task_id:
+            if (self.closing or not self.session_enabled or self.blocked or self.stopping
+                    or self.active is not None or task_id != self.task_id):
                 return None
             self.active = Ticket(task_id)
             return self.active
@@ -93,7 +101,7 @@ class Dispatcher:
 
     def _guarded_takeover(self, on_ready):
         with self.lock:
-            if not self.session_enabled or self.stopping:
+            if self.closing or not self.session_enabled or self.stopping:
                 return False, None
             self.stopping += 1
         try:
@@ -107,8 +115,9 @@ class Dispatcher:
                 self.stopping -= 1
 
     def begin(self, task_id=ZERO, takeover=False):
-        if not self.session_enabled:
-            return False, ZERO, 'SESSION_STOPPED'
+        with self.lock:
+            if self.closing or not self.session_enabled:
+                return False, ZERO, 'SESSION_STOPPED'
         if takeover:
             if task_id != ZERO:
                 return False, ZERO, 'INVALID_INPUT'
@@ -117,7 +126,9 @@ class Dispatcher:
                 return False, ZERO, 'BUSY'
             return (True, token, 'NONE') if token else (False, ZERO, 'STOP_UNVERIFIED')
         with self.lock:
-            if not self.session_enabled or self.stopping or self.blocked:
+            if self.closing or not self.session_enabled:
+                return False, ZERO, 'SESSION_STOPPED'
+            if self.stopping or self.blocked:
                 return False, ZERO, 'BUSY'
             if self.task_id != ZERO:
                 return (True, self.task_id, 'NONE') if task_id == self.task_id else (False, ZERO, 'BUSY')
@@ -362,6 +373,12 @@ class CommandSurfaces:
         return response
 
     def control_session(self, request, response):
+        if getattr(self, 'shutdown_requested', False) or self.dispatcher.closing:
+            response.enabled = False
+            response.streams_released = False
+            response.cessation_observed = False
+            response.outcomes = [self.local_outcome('SESSION_STOPPED')]
+            return response
         # This lock serializes deliberate resume with cleanup, never motion STOP.
         with self.session_lock:
             if request.enabled:
