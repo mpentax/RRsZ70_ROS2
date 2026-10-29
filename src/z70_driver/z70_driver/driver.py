@@ -775,6 +775,8 @@ class Driver(CommandSurfaces, Node):
             state_available = False
             try:
                 d = self.request('GET', '/api/state', timeout=8).json()
+                if self.stop_event.is_set():
+                    return
                 self.dashboard.state = d
                 self.dashboard.state_received = time.time()
                 if d.get('observationSession') and d['observationSession'] != self.backend_session:
@@ -1102,10 +1104,45 @@ class Driver(CommandSurfaces, Node):
             finally: self.stream_response = None
             self.stop_event.wait(1.)
 
-    def close(self):
+    def request_process_stop(self):
+        """Cancel an in-flight command so shutdown does not keep its action deadline."""
+        self.shutdown_requested = True
+        dispatcher = getattr(self, 'dispatcher', None)
+        if dispatcher is not None:
+            with dispatcher.lock:
+                tickets = [dispatcher.active] if dispatcher.active is not None else []
+            try:
+                tickets.extend(list(getattr(self, 'action_tickets', {}).values()))
+            except RuntimeError:
+                tickets.extend(list(self.action_tickets.values()))
+            seen = set()
+            for ticket in tickets:
+                if ticket in seen or ticket.cancelled.is_set():
+                    continue
+                seen.add(ticket)
+                dispatcher.cancel(ticket, lambda fn: self.start_worker('shutdown_stop', fn))
+            for server in self.action_servers:
+                for handle in list(getattr(server, '_goal_handles', {}).values()):
+                    try:
+                        if handle.is_active and not handle.is_cancel_requested:
+                            from rclpy.action.server import GoalEvent
+                            handle._update_state(GoalEvent.CANCEL_GOAL)
+                    except Exception:
+                        pass
+        self.stop_event.set()
+
+    def shutdown_quiescent(self):
+        dispatcher = getattr(self, 'dispatcher', None)
+        if dispatcher is None:
+            return not self.action_tickets
+        with dispatcher.lock:
+            busy = dispatcher.active is not None or dispatcher.stopping
+        return not busy and not self.action_tickets
+
+    def close(self, deadline_s=130, raise_on_timeout=True):
         self.stop_event.set()
         # Network reads have finite deadlines; let their owning thread close the response.
-        deadline = time.monotonic()+130
+        deadline = time.monotonic()+deadline_s
         while time.monotonic() < deadline:
             with self.worker_lock:
                 workers = list(self.workers)
@@ -1113,7 +1150,7 @@ class Driver(CommandSurfaces, Node):
             if not alive: break
             for worker in alive:
                 worker.join(timeout=max(0., min(.2, deadline-time.monotonic())))
-        if any(w.is_alive() for w in self.workers):
+        if raise_on_timeout and any(w.is_alive() for w in self.workers):
             raise RuntimeError('driver worker failed to stop within network deadline')
 
     def destroy_node(self):
@@ -1126,12 +1163,19 @@ class Driver(CommandSurfaces, Node):
 def main():
     # Keep the context valid until camera/event workers leave publish. The default
     # signal handler invalidates it first, and camera_loop then raises RCLError.
+    # An in-flight command is cancelled before that drain so its action deadline
+    # cannot hold shutdown; a second signal ends the wait instead of being ignored.
     rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
     node = None
     executor = None
     stop = threading.Event()
+    force = threading.Event()
+    quiescent = False
 
     def _stop(_signum, _frame):
+        if stop.is_set():
+            force.set()
+            return
         stop.set()
 
     signal.signal(signal.SIGINT, _stop)
@@ -1142,15 +1186,22 @@ def main():
         executor.add_node(node)
         while rclpy.ok() and not stop.is_set():
             executor.spin_once(timeout_sec=0.2)
+        node.request_process_stop()
+        deadline = time.monotonic() + 8.0
+        while rclpy.ok() and not force.is_set() and time.monotonic() < deadline:
+            if node.shutdown_quiescent():
+                quiescent = True
+                break
+            executor.spin_once(timeout_sec=0.2)
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
-        signal.signal(signal.SIGINT, signal.SIG_IGN)
-        signal.signal(signal.SIGTERM, signal.SIG_IGN)
         if node is not None:
-            node.close()
+            node.close(deadline_s=8, raise_on_timeout=False)
         if executor is not None:
-            executor.shutdown()
+            # Pool join ignores timeout_sec. Join only after the command callback
+            # has returned; a second signal must not wait out that command.
+            executor.shutdown(timeout_sec=2.0, wait_for_threads=quiescent)
         if node is not None:
             node.destroy_node()
         rclpy.try_shutdown()

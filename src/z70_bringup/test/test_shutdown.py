@@ -1,6 +1,7 @@
-"""SIGINT must drain publishers before the ROS context is invalidated."""
+"""SIGINT must revoke active work and drain publishers before the context is destroyed."""
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 import signal
@@ -8,31 +9,40 @@ import subprocess
 import sys
 import threading
 import time
+import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import cv2
 import numpy as np
 import pytest
 import rclpy
+from rclpy.action import ActionClient
 from rclpy.context import Context
 from rclpy.executors import SingleThreadedExecutor
+from rclpy.parameter_client import AsyncParameterClient
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import CompressedImage
 from std_msgs.msg import String
+from unique_identifier_msgs.msg import UUID
 
+from z70_interfaces.action import BasePulse, Pick
 from z70_interfaces.msg import FrameMetadata
+from z70_interfaces.srv import Stop, TaskSession
 
 LATCHED = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL, reliability=ReliabilityPolicy.RELIABLE)
-DOMAIN = 95
+USER_ARM_ESTIMATE = Path.home() / '.local/share/RRsZ70_ROS2/arm-estimate.json'
 
 
-def _env(tmp_path: Path) -> dict[str, str]:
+def _env(tmp_path: Path, domain: int) -> dict[str, str]:
     env = dict(os.environ)
+    env.pop('Z70_REPO', None)
     env.update(
-        ROS_DOMAIN_ID=str(DOMAIN),
+        ROS_DOMAIN_ID=str(domain),
         ROS_AUTOMATIC_DISCOVERY_RANGE='LOCALHOST',
         ROS_LOCALHOST_ONLY='1',
         ROS_LOG_DIR=str(tmp_path / 'ros-log'),
+        XDG_DATA_HOME=str(tmp_path / 'xdg'),
+        Z70_REPO=str(tmp_path),
     )
     return env
 
@@ -45,42 +55,110 @@ def _jpeg() -> bytes:
     return encoded.tobytes()
 
 
+def _user_arm_stamp():
+    if not USER_ARM_ESTIMATE.exists():
+        return None
+    info = USER_ARM_ESTIMATE.stat()
+    return (info.st_mtime_ns, info.st_size)
+
+
+def _assert_user_arm_untouched(before) -> None:
+    assert _user_arm_stamp() == before
+
+
+def _wait_action(executor, client, timeout: float, log_path: Path) -> None:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline and not client.server_is_ready():
+        executor.spin_once(timeout_sec=0.05)
+    assert client.server_is_ready(), log_path.read_text()
+
+
+def _assert_estimate_parameter(executor, node, expected: Path, output: str) -> None:
+    client = AsyncParameterClient(node, 'z70_driver')
+    assert client.wait_for_services(timeout_sec=10), output
+    future = client.get_parameters(['arm_estimate_path'])
+    executor.spin_until_future_complete(future, timeout_sec=5)
+    assert future.done(), output
+    configured = future.result().values[0].string_value
+    assert configured == str(expected), configured
+    assert Path(configured) != USER_ARM_ESTIMATE
+
+
 def _assert_clean(process: subprocess.Popen, output: str) -> None:
     assert process.returncode == 0, output
-    assert process.returncode != -11
     assert 'context is invalid' not in output
     assert 'RCLError' not in output
     assert 'process has died' not in output
     assert 'Fatal Python error' not in output
+    assert 'TypeError' not in output
+
+
+def _reap(process: subprocess.Popen | None) -> None:
+    if process is None or process.poll() is not None:
+        return
+    process.kill()
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        pass
+
+
+def _start_http(handler) -> tuple[ThreadingHTTPServer, threading.Thread, int]:
+    _JsonHandler.server_errors = []
+    server = ThreadingHTTPServer(('127.0.0.1', 0), handler)
+    server.daemon_threads = True
+    thread = threading.Thread(target=server.serve_forever, name='shutdown-http', daemon=True)
+    thread.start()
+    return server, thread, server.server_address[1]
+
+
+def _stop_http(server: ThreadingHTTPServer | None, thread: threading.Thread | None) -> None:
+    if server is not None:
+        server.shutdown()
+        server.server_close()
+    if thread is not None:
+        thread.join(timeout=5)
+
+
+class _JsonHandler(BaseHTTPRequestHandler):
+    protocol_version = 'HTTP/1.1'
+    server_errors: list[str] = []
+
+    def handle_error(self):
+        import traceback
+        _JsonHandler.server_errors.append(traceback.format_exc())
+
+    def _body(self) -> bytes:
+        length = int(self.headers.get('Content-Length', '0') or 0)
+        return self.rfile.read(length) if length else b''
+
+    def _send(self, body: bytes, content_type: str, extra: dict[str, str] | None = None) -> None:
+        self.send_response(200)
+        self.send_header('Content-Type', content_type)
+        self.send_header('Content-Length', str(len(body)))
+        for key, value in (extra or {}).items():
+            self.send_header(key, value)
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *_args):
+        return
 
 
 def test_driver_sigint_drains_camera_publish_before_context_shutdown(tmp_path: Path):
+    before = _user_arm_stamp()
     jpeg = _jpeg()
     seen = threading.Event()
+    estimate_path = tmp_path / 'arm-estimate.json'
 
-    class Handler(BaseHTTPRequestHandler):
-        protocol_version = 'HTTP/1.1'
-
-        def _body(self) -> bytes:
-            length = int(self.headers.get('Content-Length', '0') or 0)
-            return self.rfile.read(length) if length else b''
-
-        def _send(self, body: bytes, content_type: str, extra: dict[str, str] | None = None) -> None:
-            self.send_response(200)
-            self.send_header('Content-Type', content_type)
-            self.send_header('Content-Length', str(len(body)))
-            for key, value in (extra or {}).items():
-                self.send_header(key, value)
-            self.end_headers()
-            self.wfile.write(body)
-
+    class Handler(_JsonHandler):
         def do_GET(self):
             self._body()
             if self.path.startswith('/api/commands/events'):
                 self.close_connection = True
-                self._send(b'')
+                self._send(b'', 'text/plain')
                 return
-            self._send(b'{"telemetry":{},"connection":{"state":"disconnected"}}')
+            self._send(b'{"telemetry":{},"connection":{"state":"disconnected"}}', 'application/json')
 
         def do_POST(self):
             self._body()
@@ -88,63 +166,75 @@ def test_driver_sigint_drains_camera_publish_before_context_shutdown(tmp_path: P
                 seen.set()
                 self._send(jpeg, 'image/jpeg', {'X-Roboclaw-Camera': 'front'})
                 return
-            self._send(b'{}')
+            self._send(b'{}', 'application/json')
 
-        def log_message(self, *_args):
-            return
-
-    server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
-    port = server.server_address[1]
-    threading.Thread(target=server.serve_forever, daemon=True).start()
-    log = tmp_path / 'driver-shutdown.log'
+    server, thread, port = _start_http(Handler)
+    log_path = tmp_path / 'driver-shutdown.log'
+    log = log_path.open('w')
     process = subprocess.Popen(
-        [sys.executable, str(Path(__file__).resolve()), 'driver', str(port)],
+        [sys.executable, str(Path(__file__).resolve()), 'driver', str(port), str(estimate_path)],
         cwd=tmp_path,
-        env=_env(tmp_path),
-        stdout=log.open('w'),
-        stderr=subprocess.STDOUT,
-    )
-    try:
-        deadline = time.monotonic() + 15
-        while time.monotonic() < deadline and not seen.is_set():
-            assert process.poll() is None, log.read_text()
-            time.sleep(0.05)
-        assert seen.is_set(), log.read_text()
-        process.send_signal(signal.SIGINT)
-        process.wait(timeout=15)
-    except subprocess.TimeoutExpired:
-        process.kill()
-        process.wait(timeout=5)
-        raise AssertionError('driver did not finish bounded SIGINT shutdown:\n' + log.read_text())
-    finally:
-        server.shutdown()
-    _assert_clean(process, log.read_text())
-
-
-def test_perception_sigint_exits_without_segfault_while_publishing(tmp_path: Path):
-    log = tmp_path / 'perception-shutdown.log'
-    env = _env(tmp_path)
-    process = subprocess.Popen(
-        [sys.executable, str(Path(__file__).resolve()), 'perception'],
-        cwd=tmp_path,
-        env=env,
-        stdout=log.open('w'),
+        env=_env(tmp_path, 95),
+        stdout=log,
         stderr=subprocess.STDOUT,
     )
     context = Context()
-    rclpy.init(context=context, domain_id=DOMAIN)
-    node = rclpy.create_node('shutdown_frame_source', context=context)
-    executor = SingleThreadedExecutor(context=context)
-    executor.add_node(node)
-    published = []
-    node.create_subscription(String, '/z70/objects/json', published.append, LATCHED)
-    image_pub = node.create_publisher(CompressedImage, '/camera/front/image_raw/compressed', 2)
-    meta_pub = node.create_publisher(FrameMetadata, '/camera/front/metadata', 2)
-    jpeg = _jpeg()
+    node = None
+    executor = None
     try:
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline and not seen.is_set():
+            assert process.poll() is None, log_path.read_text()
+            time.sleep(0.05)
+        assert seen.is_set(), log_path.read_text()
+        rclpy.init(context=context, domain_id=95)
+        node = rclpy.create_node('shutdown_driver_parameters', context=context)
+        executor = SingleThreadedExecutor(context=context)
+        executor.add_node(node)
+        _assert_estimate_parameter(executor, node, estimate_path, log_path.read_text())
+        process.send_signal(signal.SIGINT)
+        process.wait(timeout=15)
+        _assert_clean(process, log_path.read_text())
+        assert not _JsonHandler.server_errors, _JsonHandler.server_errors
+    finally:
+        _reap(process)
+        _stop_http(server, thread)
+        log.close()
+        if executor is not None:
+            executor.shutdown()
+        if node is not None:
+            node.destroy_node()
+        if context.ok():
+            context.shutdown()
+        _assert_user_arm_untouched(before)
+
+
+def test_perception_sigint_exits_without_segfault_while_publishing(tmp_path: Path):
+    log_path = tmp_path / 'perception-shutdown.log'
+    log = log_path.open('w')
+    process = subprocess.Popen(
+        [sys.executable, str(Path(__file__).resolve()), 'perception'],
+        cwd=tmp_path,
+        env=_env(tmp_path, 96),
+        stdout=log,
+        stderr=subprocess.STDOUT,
+    )
+    context = Context()
+    node = None
+    executor = None
+    try:
+        rclpy.init(context=context, domain_id=96)
+        node = rclpy.create_node('shutdown_frame_source', context=context)
+        executor = SingleThreadedExecutor(context=context)
+        executor.add_node(node)
+        published = []
+        node.create_subscription(String, '/z70/objects/json', published.append, LATCHED)
+        image_pub = node.create_publisher(CompressedImage, '/camera/front/image_raw/compressed', 2)
+        meta_pub = node.create_publisher(FrameMetadata, '/camera/front/metadata', 2)
+        jpeg = _jpeg()
         deadline = time.monotonic() + 12
         while time.monotonic() < deadline and not published:
-            assert process.poll() is None, log.read_text()
+            assert process.poll() is None, log_path.read_text()
             now = time.time()
             image = CompressedImage()
             image.header.stamp.sec = int(now)
@@ -166,27 +256,192 @@ def test_perception_sigint_exits_without_segfault_while_publishing(tmp_path: Pat
             image_pub.publish(image)
             meta_pub.publish(meta)
             executor.spin_once(timeout_sec=0.05)
-        assert published, log.read_text()
+        assert published, log_path.read_text()
         process.send_signal(signal.SIGINT)
         process.wait(timeout=15)
-    except subprocess.TimeoutExpired:
-        process.kill()
-        process.wait(timeout=5)
-        raise AssertionError('perception did not finish bounded SIGINT shutdown:\n' + log.read_text())
+        _assert_clean(process, log_path.read_text())
     finally:
-        executor.shutdown()
-        node.destroy_node()
-        context.shutdown()
-    _assert_clean(process, log.read_text())
+        _reap(process)
+        log.close()
+        if executor is not None:
+            executor.shutdown()
+        if node is not None:
+            node.destroy_node()
+        if context.ok():
+            context.shutdown()
 
 
-def _child_driver(port: str) -> None:
+def test_sigint_revokes_active_pick_and_inflight_driver_command(tmp_path: Path):
+    before = _user_arm_stamp()
+    estimate_path = tmp_path / 'command-arm-estimate.json'
+    held = threading.Event()
+    release = threading.Event()
+    methods = []
+
+    class Handler(_JsonHandler):
+        def do_GET(self):
+            self._body()
+            if self.path.startswith('/api/commands/events'):
+                self.close_connection = True
+                self._send(b'', 'text/plain')
+                return
+            self._send(b'{"telemetry":{},"connection":{"state":"disconnected"}}', 'application/json')
+
+        def do_POST(self):
+            raw = self._body()
+            if self.path.startswith('/api/driver/rpc'):
+                method = ''
+                try:
+                    method = json.loads(raw.decode() or '{}').get('method', '')
+                except (UnicodeError, json.JSONDecodeError):
+                    method = ''
+                methods.append(method)
+                if method == 'app_rc_move':
+                    held.set()
+                    release.wait(timeout=20)
+                self._send(
+                    b'{"commandId":"00000000-0000-0000-0000-000000000001",'
+                    b'"attemptId":"00000000-0000-0000-0000-000000000002","attemptIndex":0,'
+                    b'"dispatch":"sent","response":"received","requestedAt":1,"finishedAt":2}',
+                    'application/json',
+                )
+                return
+            self._send(b'{}', 'application/json')
+
+    server, thread, port = _start_http(Handler)
+    driver_log = tmp_path / 'driver-command.log'
+    pick_log = tmp_path / 'pick-shutdown.log'
+    driver_out = driver_log.open('w')
+    pick_out = pick_log.open('w')
+    driver = subprocess.Popen(
+        [sys.executable, str(Path(__file__).resolve()), 'driver', str(port), str(estimate_path)],
+        cwd=tmp_path,
+        env=_env(tmp_path, 94),
+        stdout=driver_out,
+        stderr=subprocess.STDOUT,
+    )
+    sessions = []
+    stops = []
+
+    def on_session(request, response):
+        sessions.append(bool(request.begin))
+        response.accepted = True
+        response.task_id = UUID(uuid=list(uuid.uuid4().bytes))
+        response.reason = ''
+        return response
+
+    def on_stop(request, response):
+        stops.append(int(request.scope))
+        return response
+
+    context = Context()
+    node = None
+    executor = None
+    pick = None
+    pick_context = Context()
+    pick_node = None
+    pick_executor = None
+    try:
+        rclpy.init(context=context, domain_id=94)
+        node = rclpy.create_node('shutdown_command_probe', context=context)
+        executor = SingleThreadedExecutor(context=context)
+        executor.add_node(node)
+        pulse = ActionClient(node, BasePulse, '/z70/base/pulse')
+        _wait_action(executor, pulse, 15, driver_log)
+        goal = BasePulse.Goal()
+        goal.linear_mps = 0.05
+        goal.angular_radps = 0.0
+        goal.duration.sec = 0
+        goal.duration.nanosec = 800_000_000
+        send = pulse.send_goal_async(goal)
+        executor.spin_until_future_complete(send, timeout_sec=10)
+        assert send.done() and send.result().accepted, driver_log.read_text()
+        assert held.wait(timeout=10), driver_log.read_text()
+        _assert_estimate_parameter(executor, node, estimate_path, driver_log.read_text())
+        driver.send_signal(signal.SIGINT)
+        deadline = time.monotonic() + 8
+        while time.monotonic() < deadline and 'app_rc_stop' not in methods:
+            time.sleep(0.05)
+        assert 'app_rc_stop' in methods, methods
+        assert estimate_path.is_file(), methods
+        release.set()
+        driver.wait(timeout=12)
+        _assert_clean(driver, driver_log.read_text())
+        assert not _JsonHandler.server_errors, _JsonHandler.server_errors
+        if executor is not None:
+            executor.shutdown()
+            executor = None
+        if node is not None:
+            node.destroy_node()
+            node = None
+        if context.ok():
+            context.shutdown()
+
+        pick = subprocess.Popen(
+            [sys.executable, str(Path(__file__).resolve()), 'active-pick'],
+            cwd=tmp_path,
+            env=_env(tmp_path, 97),
+            stdout=pick_out,
+            stderr=subprocess.STDOUT,
+        )
+        rclpy.init(context=pick_context, domain_id=97)
+        pick_node = rclpy.create_node('shutdown_pick_probe', context=pick_context)
+        pick_node.create_service(TaskSession, '/z70/tasks/session', on_session)
+        pick_node.create_service(Stop, '/z70/stop', on_stop)
+        pick_executor = SingleThreadedExecutor(context=pick_context)
+        pick_executor.add_node(pick_node)
+        pick_client = ActionClient(pick_node, Pick, '/z70/pick')
+        _wait_action(pick_executor, pick_client, 15, pick_log)
+        pick_goal = pick_client.send_goal_async(Pick.Goal(color='yellow', dry_run=False))
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline and not pick_goal.done():
+            pick_executor.spin_once(timeout_sec=0.05)
+        assert pick_goal.done() and pick_goal.result().accepted, pick_log.read_text()
+        deadline = time.monotonic() + 8
+        while time.monotonic() < deadline and True not in sessions:
+            pick_executor.spin_once(timeout_sec=0.05)
+        assert True in sessions, pick_log.read_text()
+        time.sleep(0.3)
+        started = time.monotonic()
+        pick.send_signal(signal.SIGINT)
+        while time.monotonic() < started + 10 and (not stops or False not in sessions):
+            pick_executor.spin_once(timeout_sec=0.05)
+        pick.wait(timeout=12)
+        elapsed = time.monotonic() - started
+        _assert_clean(pick, pick_log.read_text())
+        assert elapsed < 12, elapsed
+        assert stops, pick_log.read_text()
+        assert False in sessions, sessions
+    finally:
+        release.set()
+        _reap(driver)
+        _reap(pick)
+        _stop_http(server, thread)
+        driver_out.close()
+        pick_out.close()
+        if executor is not None:
+            executor.shutdown()
+        if node is not None:
+            node.destroy_node()
+        if context.ok():
+            context.shutdown()
+        if pick_executor is not None:
+            pick_executor.shutdown()
+        if pick_node is not None:
+            pick_node.destroy_node()
+        if pick_context.ok():
+            pick_context.shutdown()
+        _assert_user_arm_untouched(before)
+
+
+def _child_driver(port: str, estimate_path: str) -> None:
     sys.argv = [
         'driver', '--ros-args',
         '-p', f'origin:=http://127.0.0.1:{port}',
         '-p', 'camera_hz:=8.0',
         '-p', 'map_refresh_s:=0.0',
         '-p', 'state_hz:=2.0',
+        '-p', f'arm_estimate_path:={estimate_path}',
     ]
     from z70_driver.driver import main
     main()
@@ -197,10 +452,26 @@ def _child_perception() -> None:
     perception_main()
 
 
+def _child_active_pick() -> None:
+    from z70_manipulation.goals import BUILTIN_GOALS
+    from z70_interfaces.action import Pick as PickAction
+
+    def run(ctx, _req):
+        ctx.sleep(45)
+        return False, PickAction.Result()
+
+    BUILTIN_GOALS['pick'].run = run
+    BUILTIN_GOALS['pick'].timeout_s = 60.0
+    from z70_manipulation.node import server_main
+    server_main()
+
+
 if __name__ == '__main__':
     if len(sys.argv) > 1 and sys.argv[1] == 'driver':
-        _child_driver(sys.argv[2])
+        _child_driver(sys.argv[2], sys.argv[3])
     elif len(sys.argv) > 1 and sys.argv[1] == 'perception':
         _child_perception()
+    elif len(sys.argv) > 1 and sys.argv[1] == 'active-pick':
+        _child_active_pick()
     else:
         raise SystemExit(pytest.main([__file__, *sys.argv[1:]]))
