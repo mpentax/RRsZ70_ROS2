@@ -442,10 +442,11 @@ def test_pick_feedback_and_cancel_have_same_action_identity(system):
     finally: server.destroy()
 
 
-@pytest.mark.parametrize('ending', ['success', 'cancel', 'deadline', 'safety_stop', 'step_error'])
+@pytest.mark.parametrize('ending', ['success', 'cancel', 'deadline', 'safety_stop', 'revoked', 'step_error'])
 def test_composed_goal_keeps_parent_session_until_terminal(system, tmp_path, monkeypatch, ending):
     dispatcher = system['driver'].dispatcher
     begins, ends, reservations = [], [], []
+    terminal_hazards = []
     original_begin, original_end, original_reserve = dispatcher.begin, dispatcher.end, dispatcher.reserve
 
     def begin(*args, **kwargs):
@@ -473,6 +474,7 @@ def test_composed_goal_keeps_parent_session_until_terminal(system, tmp_path, mon
         ctx.feedback(phase=3, reason='BETWEEN_STEPS')
         between_steps.set()
         assert continue_steps.wait(8), 'test did not release the second step'
+        terminal_hazards.append(ctx.hazard())
         if ending == 'step_error':
             raise LookupError('second step observation lost')
         ctx.rpc('app_arm_move', {'m': [0, 1, 0]})
@@ -518,12 +520,24 @@ def test_composed_goal_keeps_parent_session_until_terminal(system, tmp_path, mon
         elif ending == 'safety_stop':
             wait(lambda: safety.get_subscription_count() > 0)
             safety.publish(Bool(data=True))
-        if ending in ('cancel', 'deadline', 'safety_stop'):
+        elif ending == 'revoked':
+            server._revoke_commands()
+        if ending in ('cancel', 'deadline', 'safety_stop', 'revoked'):
             wait(lambda: server.client.commands.cancelled.is_set())
             wait(lambda: 'app_stop_grasp' in system['calls'])
+        if ending in ('cancel', 'safety_stop'):
+            # An elapsed deadline must not hide an explicit action cancel or safety stop.
+            server.deadline = time.monotonic() - 1.
         continue_steps.set()
         wait(result.done)
         reply = result.result()
+        expected_hazard = {
+            'cancel': 'operator cancelled task',
+            'deadline': 'task deadline',
+            'safety_stop': 'person/pet/obstacle or operator stop signal',
+            'revoked': 'task revoked',
+        }.get(ending)
+        assert terminal_hazards == [expected_hazard]
         assert reply.status == (4 if ending == 'success' else 5 if ending == 'cancel' else 6)
         assert (reply.result.outcome.error_code == 'NONE') == (ending == 'success')
         assert reservations == [token] * (2 if ending == 'success' else 1)
@@ -532,7 +546,7 @@ def test_composed_goal_keeps_parent_session_until_terminal(system, tmp_path, mon
         assert len(system['gateway'].tasks) == 0
         assert system['calls'].count('app_arm_move') == (2 if ending == 'success' else 1)
         assert not any(m in system['calls'] for m in ('app_grip', 'app_arm_in_compartment', 'app_put_down'))
-        if ending in ('cancel', 'deadline', 'safety_stop'):
+        if ending in ('cancel', 'deadline', 'safety_stop', 'revoked'):
             assert all(system['calls'].count(m) == 1 for m in ('app_rc_stop', 'app_rc_end', 'app_stop_grasp'))
     finally:
         continue_steps.set()
