@@ -223,6 +223,103 @@ def test_closed_loop_pick_against_mujoco_world(tmp_path: Path):
         world.close()
 
 
+def test_rendered_mission_observes_offset_pick_and_stops_after_partial_failure(tmp_path: Path):
+    """Run the committed mission runner on rendered frames, not a symbolic pickup."""
+    import json
+    from z70_interfaces.action import RunMission
+    from z70_manipulation.mission import run_mission
+
+    thresholds = perception.colors()
+    world = SimWorld()
+    try:
+        client = DirectSimClient(world)
+        feedback: list = []
+        parent_deadline = time.monotonic() + 900.0
+        server = NS(
+            observations=NS(),
+            gains={},
+            deadline=parent_deadline,
+            hazard=lambda: None,
+            odom=lambda: {'x': world.pose[0], 'y': world.pose[1], 'yaw': world.pose[2]},
+            thresholds=thresholds,
+            arm_trusted=False,
+            project=lambda image, camera, stamp=None: perception.front_objects(image, thresholds=thresholds),
+        )
+        handle = NS(request=None, is_cancel_requested=False, publish_feedback=feedback.append)
+
+        def rendered_purple():
+            image, tag = client.frame()
+            assert tag == 'front' and world.camera == 'front'
+            return next(b for b in perception.front_objects(image, thresholds=thresholds) if b['color'] == 'purple')
+
+        def run(steps, directory: Path):
+            goal = RunMission.Goal(steps_json=json.dumps(steps), max_duration_s=600.0, dry_run=False)
+            handle.request = goal
+            ctx = GoalContext(server, handle, RunMission, client, directory)
+            ctx.executor.sleep = lambda _: None
+            return ctx, run_mission(ctx, goal)
+
+        # Cached front frame matches the rendered offset purple before any mission motion.
+        seen = rendered_purple()
+        assert seen['position'][1] > 0.05
+        ctx, (ok, result) = run(
+            [
+                {'op': 'observe', 'camera': 'front', 'color': 'purple'},
+                {'op': 'pick', 'color': 'purple'},
+            ],
+            tmp_path / 'mission-offset',
+        )
+        steps = json.loads(result.step_results_json)
+        assert ok is True and result.completed is True and result.partial_completion is False
+        assert result.steps_completed == 2 and result.status_code == 'COMPLETED'
+        assert steps[0]['status_code'] == 'OBSERVED' and steps[0]['count'] >= 1
+        observed = next(obj for obj in steps[0]['objects'] if obj['color'] == 'purple')
+        assert observed['position'][:2] == pytest.approx(seen['position'][:2], abs=0.02)
+        assert steps[1]['status_code'] == 'PICKED' and steps[1]['verified'] is True
+        assert world.pose[2] > 0.10 and world.pose[0] > 0.15
+        assert world._get_object_pos('yellow')[:2] == pytest.approx([0.68, 0.0], abs=1e-4)
+        assert world._get_object_pos('blue')[:2] == pytest.approx([0.66, -0.14], abs=1e-4)
+        assert not world.deployed and world.gripped_object is None and world.camera == 'front'
+        events = [json.loads(line) for line in (tmp_path / 'mission-offset/timeline.jsonl').read_text().splitlines()]
+        assert next(row['bearing_error_deg'] for row in events if row['event'] == 'approach') > 8.0
+        assert any(msg.current_op == 'pick' and msg.reason == 'approach' for msg in feedback)
+        assert any(path.name.endswith('-front.jpg') for path in (tmp_path / 'mission-offset').glob('*.jpg'))
+        assert [row['primitive'] for row in ctx.trace] == ['objects', 'pick']
+        assert server.deadline == parent_deadline
+
+        # Observe succeeds, unreachable pick fails closed, and the later purple pick never starts.
+        world.reset()
+        feedback.clear()
+        world._set_object_pose('yellow', [1.75, 0.0, 0.033])
+        world._sync_kinematics()
+        failed_seen = rendered_purple()
+        failed_ctx, (failed_ok, failed) = run(
+            [
+                {'op': 'observe', 'camera': 'front', 'color': 'purple'},
+                {'op': 'pick', 'color': 'yellow'},
+                {'op': 'pick', 'color': 'purple'},
+            ],
+            tmp_path / 'mission-partial',
+        )
+        failed_steps = json.loads(failed.step_results_json)
+        assert failed_ok is False and failed.completed is False and failed.partial_completion is True
+        assert failed.steps_completed == 1 and failed.steps_total == 3 and failed.failed_step == 'pick'
+        assert failed.status_code == 'OBSERVATION_GAP' and failed.outcome.error_code == 'OBSERVATION_GAP'
+        assert [step['op'] for step in failed_steps] == ['observe', 'pick']
+        assert failed_steps[0]['objects'][0]['position'][:2] == pytest.approx(failed_seen['position'][:2], abs=0.02)
+        assert failed_steps[1]['ok'] is False
+        assert world.pose == [0.0, 0.0, 0.0]
+        assert not world.deployed and world.gripped_object is None
+        assert world._get_object_pos('purple')[:2] == pytest.approx([0.72, 0.14], abs=1e-4)
+        assert world._get_object_pos('yellow')[:2] == pytest.approx([1.75, 0.0], abs=1e-4)
+        assert [row['primitive'] for row in failed_ctx.trace] == ['objects', 'pick']
+        partial_events = [json.loads(line) for line in (tmp_path / 'mission-partial/timeline.jsonl').read_text().splitlines()]
+        assert not any(row['event'] == 'command' and row.get('method') in ('app_rc_move', 'app_arm_out_compartment') for row in partial_events)
+        assert server.deadline == parent_deadline
+    finally:
+        world.close()
+
+
 def test_sim_server_and_ros_driver_integration(tmp_path: Path):
     token_file = tmp_path / 'service-token'
     token_file.write_text('sim-test-bearer-token\n')
