@@ -976,13 +976,38 @@ def test_run_mission_navigation_preserves_parent_terminal_cause_and_concrete_chi
     assert json.loads(result.step_results_json)[0]['status_code'] == expected
 
 
-@pytest.mark.parametrize('cause,expected', [('unreachable', 'OBSERVATION_GAP'), ('unknown_dispatch', 'UNCERTAIN_MOTION')])
+@pytest.mark.parametrize(
+    'cause,expected',
+    [
+        ('unreachable', 'OBSERVATION_GAP'),
+        ('unknown_dispatch', 'UNCERTAIN_MOTION'),
+        ('robot_error', 'SAFETY_STOP'),
+        ('cleaning', 'SAFETY_STOP'),
+    ],
+)
 def test_run_mission_preserves_executor_failure_after_emergency_stop_revokes_commands(
     tmp_path: Path,
     cause: str,
     expected: str,
 ):
     from z70_manipulation import planner
+
+    revoked_ctx = SimpleNamespace(
+        hazard=lambda: 'task revoked',
+        is_cancelled=lambda: True,
+    )
+    assert _classify_interrupt(
+        revoked_ctx,
+        130.0,
+        lambda: 100.0,
+        SafetyStop('robot error: 7'),
+    ) == ('SAFETY_STOP', 'robot error: 7')
+    assert _classify_interrupt(
+        revoked_ctx,
+        130.0,
+        lambda: 100.0,
+        SafetyStop('unexpected clean/dock'),
+    ) == ('SAFETY_STOP', 'unexpected clean/dock')
 
     revoked = [False]
     stops = [0]
@@ -1002,7 +1027,14 @@ def test_run_mission_preserves_executor_failure_after_emergency_stop_revokes_com
 
     commands = _StopRevokingCommands()
     obs = SimpleNamespace(
-        status=lambda: {'state': 3, 'error_code': 0, 'battery': 90.0, 'common_status': 0},
+        status=lambda: {
+            'state': 3,
+            'error_code': 7 if cause == 'robot_error' else 0,
+            'in_cleaning': cause == 'cleaning',
+            'in_returning': False,
+            'battery': 90.0,
+            'common_status': 0,
+        },
         arm_estimate=lambda: {'state': 'IN_ROBOT', 'joints': {}},
     )
 
