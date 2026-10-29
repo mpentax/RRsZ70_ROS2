@@ -45,11 +45,19 @@ _FEEDBACK_FIELDS = frozenset(RunMission.Feedback.get_fields_and_field_types().ke
 
 
 def _is_num(value: Any) -> bool:
-    return type(value) in (int, float) and math.isfinite(float(value))
+    if type(value) not in (int, float):
+        return False
+    try:
+        return math.isfinite(float(value))
+    except (OverflowError, ValueError, TypeError):
+        return False
 
 
 def _num_in(value: Any, low: float, high: float) -> bool:
-    return _is_num(value) and low <= float(value) <= high
+    if not _is_num(value):
+        return False
+    val = float(value)
+    return low <= val <= high
 
 
 def _valid_color(value: Any, allowed_colors=None) -> bool:
@@ -65,7 +73,7 @@ def parse_mission_steps(steps_raw: Any, *, allowed_colors=None) -> list[dict[str
             raise ValueError('steps_json must be a non-empty JSON array <= 4096 bytes')
         try:
             parsed = json.loads(steps_raw)
-        except (ValueError, TypeError) as exc:
+        except (ValueError, TypeError, OverflowError) as exc:
             raise ValueError('steps_json is not valid JSON') from exc
     elif isinstance(steps_raw, (list, tuple)):
         parsed = list(steps_raw)
@@ -159,7 +167,7 @@ def validate_mission_payload(payload: dict, *, allowed_colors=None) -> bool:
         return False
     try:
         parse_mission_steps(payload['steps_json'], allowed_colors=allowed_colors)
-    except ValueError:
+    except (ValueError, TypeError, OverflowError):
         return False
     return True
 
@@ -174,7 +182,7 @@ def validate_mission_goal(server: Any, req: Any) -> bool:
         return False
     try:
         parse_mission_steps(steps_json, allowed_colors=thresholds)
-    except ValueError:
+    except (ValueError, TypeError, OverflowError):
         return False
     return True
 
@@ -208,31 +216,43 @@ def _classify_interrupt(ctx: Any, deadline: float, clock, exc: BaseException | N
     hazard_reason = hazard_fn() if callable(hazard_fn) else None
     is_cancelled = bool(callable(cancelled_fn) and cancelled_fn())
     expired = clock() >= deadline
-
-    if exc is not None:
-        if isinstance(exc, InterruptedError) or is_cancelled:
-            if hazard_reason and 'person' in str(hazard_reason).lower():
-                return 'SAFETY_STOP', str(hazard_reason)[:128]
-            if expired or (hazard_reason and 'deadline' in str(hazard_reason).lower()):
-                return 'TIMED_OUT', 'Mission deadline exceeded'
-            return 'CANCELLED', (str(hazard_reason or exc) or 'CANCELLED')[:128]
-        if type(exc).__name__ == 'SafetyStop':
-            text = str(exc)
-            if 'cancel' in text.lower() or 'revoked' in text.lower():
-                return 'CANCELLED', text[:128]
-            if 'deadline' in text.lower() or expired:
-                return 'TIMED_OUT', text[:128]
-            return 'SAFETY_STOP', text[:128]
+    handle = getattr(ctx, 'handle', None)
+    cancel_requested = bool(getattr(handle, 'is_cancel_requested', False))
 
     if hazard_reason:
-        text = str(hazard_reason)
-        if 'cancel' in text.lower() or 'revoked' in text.lower():
+        text = str(hazard_reason).strip()
+        lower = text.lower()
+        if 'cancel' in lower:
+            return 'CANCELLED', (text or 'Operator cancelled mission')[:128]
+        if 'deadline' in lower or 'timed out' in lower or 'timeout' in lower:
+            return 'TIMED_OUT', (text or 'Mission deadline exceeded')[:128]
+        if lower == 'task revoked':
+            if expired and not cancel_requested:
+                return 'TIMED_OUT', 'Mission deadline exceeded'
             return 'CANCELLED', text[:128]
-        if 'deadline' in text.lower() or expired:
-            return 'TIMED_OUT', text[:128]
-        return 'SAFETY_STOP', text[:128]
+        return 'SAFETY_STOP', (text or 'SAFETY_STOP')[:128]
+
+    if exc is not None:
+        text = str(exc).strip()
+        lower = text.lower()
+        if type(exc).__name__ == 'SafetyStop':
+            if 'cancel' in lower or 'revoked' in lower:
+                return 'CANCELLED', (text or 'Operator cancelled mission')[:128]
+            if 'deadline' in lower or 'timed out' in lower or 'timeout' in lower:
+                return 'TIMED_OUT', (text or 'Mission deadline exceeded')[:128]
+            return 'SAFETY_STOP', (text or 'SAFETY_STOP')[:128]
+        if isinstance(exc, InterruptedError):
+            if 'safety' in lower or 'person' in lower or 'robot error' in lower or 'unexpected clean' in lower:
+                return 'SAFETY_STOP', (text or 'SAFETY_STOP')[:128]
+            if is_cancelled or 'cancel' in lower or 'revoked' in lower:
+                detail_text = text if (text and text != 'CANCELLED_OR_DEADLINE') else 'Operator cancelled mission'
+                return 'CANCELLED', detail_text[:128]
+            if 'deadline' in lower or 'timed out' in lower or 'timeout' in lower or expired:
+                return 'TIMED_OUT', 'Mission deadline exceeded'
+            return 'CANCELLED', (text or 'CANCELLED')[:128]
+
     if is_cancelled:
-        return ('TIMED_OUT', 'Mission deadline exceeded') if expired else ('CANCELLED', 'Operator cancelled mission')
+        return 'CANCELLED', 'Operator cancelled mission'
     if expired:
         return 'TIMED_OUT', 'Mission deadline exceeded'
     return None
@@ -251,27 +271,47 @@ def _build_outcome(ctx: Any, success: bool, status_code: str) -> CommandOutcome:
     return out
 
 
+def _fits_json_bound(text: str) -> bool:
+    return len(text) <= MAX_STEPS_JSON_BYTES and len(text.encode('utf-8')) <= MAX_STEPS_JSON_BYTES
+
+
 def _encode_step_results(step_results: list[dict[str, Any]]) -> str:
-    text = json.dumps(step_results, allow_nan=False, separators=(',', ':'))
-    if len(text) <= MAX_STEPS_JSON_BYTES and len(text.encode('utf-8')) <= MAX_STEPS_JSON_BYTES:
+    bounded_steps = list(step_results[:MAX_MISSION_STEPS])
+    text = json.dumps(bounded_steps, allow_nan=False, separators=(',', ':'))
+    if _fits_json_bound(text):
         return text
     compact = [
         {k: v for k, v in item.items() if k != 'objects'}
-        for item in step_results
+        for item in bounded_steps
     ]
     text = json.dumps(compact, allow_nan=False, separators=(',', ':'))
-    if len(text) <= MAX_STEPS_JSON_BYTES and len(text.encode('utf-8')) <= MAX_STEPS_JSON_BYTES:
+    if _fits_json_bound(text):
         return text
-    minimal = [
-        {
-            'index': item.get('index', i),
-            'op': item.get('op', ''),
-            'ok': bool(item.get('ok')),
-            'status_code': str(item.get('status_code', ''))[:64],
-        }
-        for i, item in enumerate(step_results)
+    trimmed = [
+        {k: v for k, v in item.items() if k not in ('objects', 'detail', 'room', 'target')}
+        for item in bounded_steps
     ]
-    return json.dumps(minimal, allow_nan=False, separators=(',', ':'))
+    text = json.dumps(trimmed, allow_nan=False, separators=(',', ':'))
+    if _fits_json_bound(text):
+        return text
+    for code_limit in (64, 32, 16, 8, 0):
+        minimal = [
+            {
+                'index': int(item['index']) if _is_num(item.get('index')) else i,
+                'op': (
+                    str(item.get('op', ''))[:16]
+                    if code_limit > 0
+                    else str(item.get('op', '')).encode('ascii', 'ignore').decode('ascii')[:16]
+                ),
+                'ok': bool(item.get('ok')),
+                'status_code': str(item.get('status_code', ''))[:code_limit],
+            }
+            for i, item in enumerate(bounded_steps)
+        ]
+        text = json.dumps(minimal, allow_nan=False, separators=(',', ':'))
+        if _fits_json_bound(text):
+            return text
+    return '[]'
 
 
 def run_mission(ctx: Any, req: Any) -> tuple[bool, RunMission.Result]:
@@ -303,7 +343,7 @@ def run_mission(ctx: Any, req: Any) -> tuple[bool, RunMission.Result]:
 
     try:
         steps = parse_mission_steps(steps_json, allowed_colors=thresholds)
-    except ValueError as exc:
+    except (ValueError, TypeError, OverflowError) as exc:
         detail = str(exc)[:128]
         return False, RunMission.Result(
             outcome=_build_outcome(ctx, False, 'INVALID_INPUT'),
@@ -324,6 +364,35 @@ def run_mission(ctx: Any, req: Any) -> tuple[bool, RunMission.Result]:
     started_at = clock()
     requested_deadline = started_at + float(max_duration_s)
     parent_deadline = getattr(server, 'deadline', None) if server is not None else None
+
+    is_live_ctx = (
+        server is not None
+        or getattr(ctx, 'handle', None) is not None
+        or getattr(ctx, 'commands', None) is not None
+        or getattr(ctx, 'executor', None) is not None
+    )
+    if is_live_ctx and (
+        server is None
+        or not _is_num(parent_deadline)
+        or not callable(getattr(ctx, 'hazard', None))
+        or not callable(getattr(server, 'hazard', None))
+        or not callable(getattr(ctx, 'is_cancelled', None))
+    ):
+        detail = 'Live GoalContext requires an active parent server deadline and hazard lifecycle'
+        return False, RunMission.Result(
+            outcome=_build_outcome(ctx, False, 'INVALID_INPUT'),
+            status_code='INVALID_INPUT',
+            completed=False,
+            partial_completion=False,
+            dry_run_valid=False,
+            steps_completed=0,
+            steps_total=total,
+            failed_step='',
+            detail=detail[:128],
+            step_results_json='[]',
+            evidence_uri=evidence_uri[:256],
+        )
+
     deadline = (
         min(requested_deadline, float(parent_deadline))
         if _is_num(parent_deadline)
@@ -365,9 +434,11 @@ def run_mission(ctx: Any, req: Any) -> tuple[bool, RunMission.Result]:
                     step_results_json='[]',
                     evidence_uri=evidence_uri[:256],
                 )
+            bat = st.get('battery', 100.0) if isinstance(st, dict) else 100.0
             if isinstance(st, dict) and (
                 st.get('error_code', 0) != 0
-                or float(st.get('battery', 100.0)) <= 15.0
+                or not _is_num(bat)
+                or float(bat) <= 15.0
                 or bool(st.get('in_cleaning'))
                 or bool(st.get('in_returning'))
             ):
@@ -400,8 +471,11 @@ def run_mission(ctx: Any, req: Any) -> tuple[bool, RunMission.Result]:
         )
 
     orig_feedback = getattr(ctx, 'feedback', None)
+    orig_hazard = getattr(ctx, 'hazard', None)
+    orig_cancelled = getattr(ctx, 'is_cancelled', None)
     executor = getattr(ctx, 'executor', None)
     orig_ex_feedback = getattr(executor, 'feedback', None) if executor is not None else None
+    orig_ex_hazard = getattr(executor, 'hazard', None) if executor is not None else None
     active_step = [0, steps[0]['op']]
 
     def _emit_feedback(**fields):
@@ -428,10 +502,24 @@ def run_mission(ctx: Any, req: Any) -> tuple[bool, RunMission.Result]:
         filtered = {k: v for k, v in merged.items() if k in allowed}
         orig_feedback(**filtered)
 
+    def _mission_hazard():
+        h = orig_hazard() if callable(orig_hazard) else None
+        if h:
+            return h
+        if callable(orig_cancelled) and orig_cancelled():
+            return 'operator cancelled task'
+        if clock() >= deadline:
+            return 'task deadline'
+        return None
+
     if callable(orig_feedback):
         ctx.feedback = _emit_feedback
         if executor is not None:
             executor.feedback = lambda event: _emit_feedback(phase=3, reason=str(event)[:64])
+    if callable(orig_hazard):
+        ctx.hazard = _mission_hazard
+        if executor is not None:
+            executor.hazard = _mission_hazard
 
     tightened_server_deadline = False
     if server is not None and (_is_num(parent_deadline) and deadline < float(parent_deadline)):
@@ -464,10 +552,7 @@ def run_mission(ctx: Any, req: Any) -> tuple[bool, RunMission.Result]:
                 break
 
             _emit_feedback(phase=3, current_step=idx, current_op=op, reason='STEP_START')
-            now = clock()
-            remaining_s = deadline - now
-            if idx == 0 and not _is_num(parent_deadline) and float(max_duration_s) >= 1.0 and now - started_at < 0.05:
-                remaining_s = max(remaining_s, float(max_duration_s))
+            remaining_s = deadline - clock()
             if remaining_s <= 0.0 or (op in ('navigate_room', 'navigate') and remaining_s < 1.0):
                 status_code, detail = 'TIMED_OUT', 'Mission deadline exceeded'
                 failed_step = op
@@ -535,15 +620,7 @@ def run_mission(ctx: Any, req: Any) -> tuple[bool, RunMission.Result]:
                     color = step['color']
                     trace = getattr(ctx, 'trace', None)
                     before_len = len(trace) if isinstance(trace, list) else 0
-                    try:
-                        raw_objs = ctx.objects(camera, color)
-                    except LookupError as exc:
-                        select_fn = getattr(ctx, 'select_camera', None)
-                        if 'tag mismatch' in str(exc) and callable(select_fn):
-                            select_fn(camera)
-                            raw_objs = ctx.objects(camera, color)
-                        else:
-                            raise
+                    raw_objs = ctx.objects(camera, color)
                     if isinstance(trace, list) and len(trace) == before_len:
                         trace.append({'primitive': 'objects', 'camera': camera, 'color': color})
                     bounded = _bounded_objects(raw_objs)
@@ -636,8 +713,12 @@ def run_mission(ctx: Any, req: Any) -> tuple[bool, RunMission.Result]:
     finally:
         if callable(orig_feedback):
             ctx.feedback = orig_feedback
+        if callable(orig_hazard):
+            ctx.hazard = orig_hazard
         if executor is not None and orig_ex_feedback is not None:
             executor.feedback = orig_ex_feedback
+        if executor is not None and orig_ex_hazard is not None:
+            executor.hazard = orig_ex_hazard
         if tightened_server_deadline and server is not None:
             server.deadline = parent_deadline
 
