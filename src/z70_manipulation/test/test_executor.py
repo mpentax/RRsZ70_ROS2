@@ -12,13 +12,15 @@ from rclpy.action import ActionClient
 from rclpy.executors import MultiThreadedExecutor
 import requests
 from rosidl_runtime_py.convert import message_to_ordereddict
+from sensor_msgs.msg import CompressedImage
 from std_msgs.msg import String
 from visualization_msgs.msg import MarkerArray
 from z70_interfaces.action import AlignToTarget, DeployArm, GraspAndLift, MoveArm, Pick, PinAndGo, ReleaseAndStow, Stack
+from z70_interfaces.msg import FrameMetadata, RobotState
 from z70_manipulation import perception, planner
 from z70_manipulation.executor import Executor
 from z70_manipulation.goals import ALL_GOALS, BUILTIN_GOALS, GoalContext, GoalSpec, simulate_goal
-from z70_manipulation.node import Client, PickServer, run, run_stack
+from z70_manipulation.node import Client, Observations, PickServer, run, run_stack
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -557,6 +559,77 @@ def test_snapshot_names_are_unique_per_tier_attempt(tmp_path):
     ex.evidence_prefix='tier-2-attempt-1-';ex.snap('1-pregrip')
     ex.evidence_prefix='tier-3-attempt-1-';ex.snap('1-pregrip')
     assert len(list(ex.directory.glob('*pregrip-front.jpg'))) == 2
+    rows = [json.loads(line) for line in (ex.directory / 'timeline.jsonl').read_text().splitlines()]
+    assert all(row['source_id'] is None and row['frame_received_at'] is None
+               and row['exposure_time_known'] is False for row in rows)
+
+
+def test_snapshot_provenance_stays_with_consumed_pixels_when_buffer_advances(tmp_path, monkeypatch):
+    obs = Observations.__new__(Observations)
+    obs.condition = threading.Condition()
+    obs.timeout = .1
+    obs.cancelled = lambda: False
+    obs.used = obs.image = None
+    obs.frames = {}; obs.metadata = {}
+    now = int(time.time())
+    state = RobotState(connected=True)
+    state.evidence.valid = True
+    state.evidence.received_at.sec = now
+    obs.on_state(state)
+
+    def frame(session, sequence, received_ns, value, exposure_known):
+        image = CompressedImage(format='png')
+        image.header.stamp.sec = now
+        image.header.stamp.nanosec = received_ns
+        image.data = cv2.imencode('.png', np.full((16, 16, 3), value, np.uint8))[1].tobytes()
+        meta = FrameMetadata(width=16, height=16, camera=1, exposure_time_known=exposure_known)
+        meta.header = image.header
+        meta.evidence.session_id.uuid = [session] * 16
+        meta.evidence.sequence = sequence
+        meta.evidence.received_at.sec = now - 1
+        meta.evidence.received_at.nanosec = received_ns
+        meta.evidence.valid = True
+        return image, meta
+
+    first, first_meta = frame(1, 7, 100_000_000, 40, False)
+    restarted, restarted_meta = frame(2, 1, 200_000_000, 200, True)
+    obs.on_image(first, 'front'); obs.on_metadata(first_meta, 'front')
+    client = Client(read_only=True, observations=obs)
+    ex = Executor(client, lambda *_: [], tmp_path / 'evidence', sleep=lambda _: None)
+    write = cv2.imwrite
+
+    def advance_buffer(path, pixels):
+        obs.on_metadata(restarted_meta, 'front')
+        obs.on_image(restarted, 'front')
+        return write(path, pixels)
+
+    monkeypatch.setattr(cv2, 'imwrite', advance_buffer)
+    ex.snap('5-put-down')
+    monkeypatch.setattr(cv2, 'imwrite', write)
+    ex.snap('6-stowed')
+    rows = [json.loads(line) for line in (ex.directory / 'timeline.jsonl').read_text().splitlines()]
+    snapshots = [row for row in rows if row['event'] == 'snapshot']
+    assert len(snapshots) == 2
+    for row, name, session, sequence, receipt, value, exposure in (
+        (snapshots[0], '5-put-down', 1, 7, now - 1 + .1, 40, False),
+        (snapshots[1], '6-stowed', 2, 1, now - 1 + .2, 200, True),
+    ):
+        assert row['name'] == name and row['camera'] == 'front'
+        assert row['source_id'] == [bytes([session] * 16).hex(), sequence]
+        assert row['frame_received_at'] == receipt
+        assert row['exposure_time_known'] is exposure
+        assert np.all(cv2.imread(str(ex.directory / f'{name}-front.jpg')) == value)
+
+
+def test_snapshot_write_failure_is_recorded_as_gap_without_a_snapshot(tmp_path, monkeypatch):
+    ex = Executor(MemoryClient(), lambda *_: [], tmp_path / 'write-failure', sleep=lambda _: None)
+    ex.fresh_frame = lambda: (np.zeros((10, 10, 3), np.uint8), 'front')
+    monkeypatch.setattr(cv2, 'imwrite', lambda *_: False)
+    ex.snap('5-put-down')
+    rows = [json.loads(line) for line in (ex.directory / 'timeline.jsonl').read_text().splitlines()]
+    assert not any(row['event'] == 'snapshot' for row in rows)
+    assert any(row['event'] == 'data_gap' and row['kind'] == 'snapshot' for row in rows)
+    assert not list(ex.directory.glob('*.jpg'))
 
 
 def test_placement_post_command_frames_reject_earlier_receipts(tmp_path,monkeypatch):

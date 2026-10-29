@@ -201,8 +201,12 @@ class Executor:
             image, tag = self.fresh_frame()
             if image is not None:
                 name = self.evidence_prefix + name
-                cv2.imwrite(str(self.directory / f'{name}-{tag}.jpg'), image)
-                self.log('snapshot', name=name, camera=tag)
+                if not cv2.imwrite(str(self.directory / f'{name}-{tag}.jpg'), image):
+                    raise OSError('could not write snapshot')
+                self.log('snapshot', name=name, camera=tag,
+                         source_id=getattr(self.client, 'frame_source_id', None),
+                         frame_received_at=getattr(self.client, 'frame_received_at', None),
+                         exposure_time_known=getattr(self.client, 'frame_exposure_known', False))
         except SafetyStop:
             raise
         except Exception as e:
