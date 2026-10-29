@@ -44,6 +44,8 @@ const ACTUATION = { readOnlyHint: false, destructiveHint: true, idempotentHint: 
 export function mcpServiceOrigin(value: string): URL {
   let url: URL;
   try { url = new URL(value); } catch { throw new Error("Invalid local RoboClaw origin."); }
+  // Gateway and vendor facade only. The simulation transport default (:57110) stays outside
+  // this band; isolated MCP uses the simulation gateway, which checks the caller bearer.
   if (url.protocol !== "http:" || !["127.0.0.1", "[::1]"].includes(url.hostname) ||
     url.username || url.password || url.pathname !== "/" || url.search || url.hash ||
     !Number.isSafeInteger(Number(url.port)) || !url.port || Number(url.port) < 57000 || Number(url.port) > 57100) {

@@ -10,6 +10,14 @@ from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 
 
+def simulation_mcp_origin(gateway_port):
+    """Isolated MCP target: the simulation gateway, never the transport or a live port."""
+    port = int(gateway_port)
+    if not 57000 <= port <= 57100 or port in (57010, 57020):
+        raise ValueError('Isolated MCP origin must be the simulation gateway on a non-live loopback port')
+    return f'http://127.0.0.1:{port}'
+
+
 def configure_runtime(context, repo):
     def value(name):
         return LaunchConfiguration(name).perform(context)
@@ -48,20 +56,22 @@ def configure_runtime(context, repo):
             stream.write(secrets.token_urlsafe(32))
         token_file = str(token)
         runtime_repo = str(state)
+        mcp_origin = simulation_mcp_origin(gateway_port)
         actions.extend([
             SetEnvironmentVariable('ROS_DOMAIN_ID', str(domain)),
             SetEnvironmentVariable('ROS_AUTOMATIC_DISCOVERY_RANGE', 'LOCALHOST'),
             SetEnvironmentVariable('XDG_DATA_HOME', str(state / 'data')),
             SetEnvironmentVariable('ROS_LOG_DIR', str(state / 'ros-log')),
-            LogInfo(msg=f'Simulation state: {state}; ROS domain: {domain}; transport: {origin}'),
+            LogInfo(msg=f'Simulation state: {state}; ROS domain: {domain}; transport: {origin}; mcp: {mcp_origin}'),
         ])
     else:
         token_file = token_file or str(Path(repo) / '.local/service-token')
+        mcp_origin = origin.rstrip('/')
     actions.extend(SetLaunchConfiguration(name, str(setting)) for name, setting in {
         'sim': 'true' if sim else 'false',
         'origin': origin.rstrip('/'), 'token_file': token_file,
         'web_gateway_port': gateway_port, 'foxglove_port': foxglove_port,
-        'runtime_repo': runtime_repo,
+        'runtime_repo': runtime_repo, 'mcp_origin': mcp_origin,
         'sim_port': str(urlsplit(origin).port) if sim else '57110',
     }.items())
     return actions

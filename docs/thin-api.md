@@ -4,7 +4,7 @@
 
 - **`z70_driver`** owns ROS command scheduling, `ArmEstimator` dead reckoning, and shared camera/map acquisition.
 - **Vendor sidecar (`adapters/vendor`)** owns Roborock authentication, LAN/MQTT framing, and RPC correlation.
-- **`z70_web_gateway`** is a loopback ROS client (`127.0.0.1:57020`) serving both the web console (`apps/web`) and stdio MCP server (`apps/mcp`).
+- **`z70_web_gateway`** is a loopback ROS client (live `127.0.0.1:57020`, isolated simulation `127.0.0.1:57080`) serving `/api/ros/*`. Live MCP may use the vendor facade at `127.0.0.1:57010`, which authenticates the caller and then proxies those routes. Simulation has no vendor facade: MCP must use the simulation gateway and the scratch `service-token` from the launch log (`mcp:`), not the transport at `:57110` and not the live origin. The simulator proxies `/api/ros/*` for the local web console only when a gateway origin is explicit, and that proxy injects its own bearer instead of checking the MCP caller.
 
 Browser sessions use same-origin cookies (`POST /api/session {pin}`). When no camera PIN is configured yet, `GET /api/session` reports `setupAvailable: true` and `POST /api/session {setup: true}` opens a 20-minute localhost setup session for `/api/setup`, `/api/account/*`, and `/api/camera/pin`. Service-to-service calls use `Bearer <service-token>` from `.local/service-token`. Credentials are stored in `.local/pairing.json` (mode `0600`) and redacted from all API and MCP responses.
 

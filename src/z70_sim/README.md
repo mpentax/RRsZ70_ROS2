@@ -46,6 +46,10 @@ pixi run sim origin:=http://127.0.0.1:57111 web_gateway_port:=57081 foxglove_por
 `origin` must be a numeric `127.0.0.1` HTTP endpoint; the simulator and driver use
 the same port. Gateway ports must be in `57000–57100`. Live transport/gateway
 ports (`57010`, `57020`) and live Foxglove (`8765`) are rejected in simulation.
+MCP does not connect to `origin`. The launch log's `mcp:` URL is the gateway
+(default `http://127.0.0.1:57080`); use it with the scratch `service-token`.
+The default transport `:57110` is outside MCP's `57000–57100` band, and this
+proxy does not authenticate the caller.
 `sim_domain_id` must be in `91–99`; run only one stack per domain. An optional
 `sim_state_dir` must name a **new, nonexistent** directory. `token_file` overrides
 are rejected in simulation: the launch creates its own token before starting
