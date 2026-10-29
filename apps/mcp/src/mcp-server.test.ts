@@ -1,6 +1,5 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createServer } from "node:http";
 import { mkdtemp, writeFile, rm, chmod, symlink, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -77,79 +76,25 @@ test("MCP origin only accepts numeric loopback and local service ports; token st
   await assert.rejects(readMcpToken(join(dir, "linked-token")));
 });
 
-test("isolated simulation MCP uses the gateway and rejects the transport origin", async (t) => {
-  assert.equal(mcpServiceOrigin("http://127.0.0.1:57080").href, "http://127.0.0.1:57080/");
+test("isolated simulation MCP addresses the gateway and rejects the transport origin", async () => {
+  const gateway = mcpServiceOrigin("http://127.0.0.1:57080");
+  assert.equal(gateway.href, "http://127.0.0.1:57080/");
   assert.throws(() => mcpServiceOrigin("http://127.0.0.1:57110"), /57000–57100/);
-  assert.throws(() => mcpServiceOrigin("http://127.0.0.1:57111"), /57000–57100/);
-  let rejectedSends = 0;
-  assert.throws(() => new RoboClawMcpClient(mcpServiceOrigin("http://127.0.0.1:57110"), token, async () => {
-    rejectedSends++;
-    return Response.json({});
-  }));
-  assert.equal(rejectedSends, 0);
-
-  const gateway = await new Promise<{ port: number; close(): Promise<void> }>((resolve, reject) => {
-    const candidates = [57081, 57082, 57083, 57091, 57092, 57093];
-    const listen = (index: number) => {
-      if (index >= candidates.length) {
-        reject(new Error("no free loopback port in the isolated gateway band"));
-        return;
-      }
-      const port = candidates[index]!;
-      const server = createServer((req, res) => {
-        const host = req.headers.host;
-        const originHeader = req.headers.origin;
-        const authorization = req.headers.authorization;
-        if (host !== `127.0.0.1:${port}` || originHeader !== undefined) {
-          res.writeHead(403, { "content-type": "application/json" });
-          res.end(JSON.stringify({ error: "INVALID_HOST" }));
-          return;
-        }
-        if (authorization !== `Bearer ${token}`) {
-          res.writeHead(401, { "content-type": "application/json" });
-          res.end(JSON.stringify({ error: "UNAUTHORIZED" }));
-          return;
-        }
-        if (req.method === "GET" && req.url === "/api/ros/goals") {
-          res.writeHead(200, { "content-type": "application/json" });
-          res.end(JSON.stringify({ goals: [], context_primitives: [] }));
-          return;
-        }
-        res.writeHead(404, { "content-type": "application/json" });
-        res.end(JSON.stringify({ error: "NOT_FOUND" }));
-      });
-      const onError = () => listen(index + 1);
-      server.once("error", onError);
-      server.listen(port, "127.0.0.1", () => {
-        server.off("error", onError);
-        resolve({
-          port,
-          close: () => new Promise((done, fail) => server.close((error) => error ? fail(error) : done())),
-        });
-      });
-    };
-    listen(0);
-  });
-  t.after(() => gateway.close());
-  const origin = mcpServiceOrigin(`http://127.0.0.1:${gateway.port}`);
-  let requested: string | undefined;
-  const client = new RoboClawMcpClient(origin, token, async (url, init) => {
-    requested = String(url);
+  let sends = 0;
+  const client = new RoboClawMcpClient(gateway, token, async (url, init) => {
+    sends++;
     const headers = new Headers(init?.headers);
+    assert.equal(String(url), "http://127.0.0.1:57080/api/ros/goals");
     assert.equal(headers.get("authorization"), `Bearer ${token}`);
     assert.equal(headers.get("origin"), null);
-    return fetch(url, init);
+    return Response.json({ goals: [{ kind: "pick" }], context_primitives: [] });
   });
-  assert.deepEqual(await client.listGoals(), { goals: [], context_primitives: [] });
-  assert.equal(requested, `http://127.0.0.1:${gateway.port}/api/ros/goals`);
-  assert.equal(requested?.includes(":57110"), false);
-  assert.equal(requested?.includes(":57010"), false);
-  const denied = new RoboClawMcpClient(origin, "b".repeat(43));
-  await assert.rejects(denied.listGoals(), (error: unknown) => {
-    assert.ok(error instanceof RoboClawHttpError);
-    assert.equal(error.status, 401);
-    return true;
-  });
+  assert.equal((await client.listGoals()).goals[0]?.kind, "pick");
+  assert.throws(() => new RoboClawMcpClient(mcpServiceOrigin("http://127.0.0.1:57110"), token, async () => {
+    sends++;
+    return Response.json({});
+  }));
+  assert.equal(sends, 1);
 });
 
 test("unknown routes cannot receive service bearer", async () => {

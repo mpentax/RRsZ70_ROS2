@@ -1,7 +1,9 @@
 """Simulation launch isolation, without consulting the live robot or its files."""
 import importlib.util
+import json
 import os
 from pathlib import Path
+import re
 import signal
 import socket
 import subprocess
@@ -17,7 +19,7 @@ from rclpy.context import Context
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.parameter_client import AsyncParameterClient
 
-from z70_bringup.runtime import configure_runtime, simulation_mcp_origin
+from z70_bringup.runtime import configure_runtime
 from z70_web_gateway.gateway import read_token
 
 
@@ -122,15 +124,48 @@ def test_custom_simulation_ports_keep_mcp_on_the_gateway_not_the_transport(tmp_p
     assert config['sim_port'] == '57050'
 
 
-@pytest.mark.parametrize('port', [56999, 57010, 57020, 57110, 57101])
-def test_simulation_mcp_origin_rejects_live_and_transport_ports(port):
-    with pytest.raises(ValueError):
-        simulation_mcp_origin(port)
+MCP_PROBE = r'''
+import { pathToFileURL } from "node:url";
+const [modulePath, originText, tokenFile] = process.argv.slice(2);
+const { RoboClawMcpClient, mcpServiceOrigin, RoboClawHttpError, readMcpToken } = await import(pathToFileURL(modulePath).href);
+const origin = mcpServiceOrigin(originText);
+const token = await readMcpToken(tokenFile);
+const client = new RoboClawMcpClient(origin, token);
+const catalog = await client.listGoals();
+const state = await client.request("/api/ros/state");
+const kinds = Array.isArray(catalog?.goals) ? catalog.goals.map((goal) => goal?.kind) : [];
+const denied = new RoboClawMcpClient(origin, "b".repeat(43));
+let deniedStatus = 0;
+try { await denied.request("/api/ros/state"); }
+catch (error) { deniedStatus = error instanceof RoboClawHttpError ? error.status : 0; }
+if (!kinds.includes("pick") || state?.available !== true || deniedStatus !== 401) {
+  console.error(JSON.stringify({ failed: "gateway", pick: kinds.includes("pick"), available: state?.available === true, denied: deniedStatus }));
+  process.exit(1);
+}
+console.log(JSON.stringify({ origin: origin.origin, pick: true, goals: kinds.length, available: true, denied: 401 }));
+'''
 
 
-def test_simulation_mcp_origin_accepts_the_isolated_gateway_band():
-    assert simulation_mcp_origin(57080) == 'http://127.0.0.1:57080'
-    assert simulation_mcp_origin(57100) == 'http://127.0.0.1:57100'
+def assert_no_token_text(text):
+    if re.search(r'[A-Za-z0-9_-]{43}', text or ''):
+        raise AssertionError('MCP probe printed a token-shaped value')
+
+
+def isolated_mcp_client(origin, token_file):
+    repo = Path(__file__).resolve().parents[3]
+    probe = Path(token_file).parent / 'mcp-probe.mjs'
+    probe.write_text(MCP_PROBE, encoding='utf-8')
+    completed = subprocess.run(
+        ['node', str(probe), str(repo / 'apps/mcp/src/mcp-server.ts'), origin, str(token_file)],
+        cwd=repo, capture_output=True, text=True, timeout=20,
+    )
+    assert_no_token_text(completed.stdout)
+    assert_no_token_text(completed.stderr)
+    assert completed.returncode == 0, completed.stderr
+    payload = json.loads(completed.stdout)
+    assert payload == {'origin': origin, 'pick': True, 'goals': payload['goals'], 'available': True, 'denied': 401}
+    assert payload['goals'] > 0
+    return payload
 
 
 def test_standard_simulation_launch_routes_driver_and_gateway_to_owned_endpoints(tmp_path):
@@ -176,6 +211,8 @@ def test_standard_simulation_launch_routes_driver_and_gateway_to_owned_endpoints
             assert direct.status_code == 200 and direct.json()['available']
             assert requests.get(f'http://127.0.0.1:{sim_port}/healthz', timeout=2).json()['simulator'] == 'mujoco'
             assert requests.get(f'http://127.0.0.1:{gateway_port}/api/ros/state', timeout=2).status_code == 401
+            assert f'mcp: http://127.0.0.1:{gateway_port}' in log.read_text()
+            isolated_mcp_client(f'http://127.0.0.1:{gateway_port}', state / 'service-token')
             assert 'ROS domain: 98' in log.read_text()
             assert 'go2rtc' not in log.read_text() and 'service-main.ts' not in log.read_text()
             # Parameter services respond only once node construction has finished.
