@@ -444,19 +444,26 @@ class Executor:
             if b['color'] != color:
                 continue
             ray = cam.pixel_to_ray(*b['pixel'])
+            contact_ray = cam.pixel_to_ray(*b.get('contact_px', b['pixel']))
             C = np.array([camera_x, 0, cam.h / 1000])
-            if ray[0] <= 0:
+            if ray[0] <= 0 or contact_ray[0] <= 0:
                 continue
             X = C + ray * (J[0] - camera_x) / ray[0]
+            bottom_z = float((C + contact_ray * (J[0] - camera_x) / contact_ray[0])[2])
             associated = (J[2] > .070 and np.linalg.norm(X - J) < .055) if jaw_observed else (abs(X[1] - J[1]) < .04 and .05 < X[2] - J[2] < .16)
-            if X[2] > .066 and associated:
-                held.append(dict(pixel=b['pixel'], object_at_jaw_depth=X.tolist(), distance_to_jaw_m=float(np.linalg.norm(X - J))))
+            if X[2] > .066 and bottom_z > .020 and associated:
+                held.append(dict(pixel=b['pixel'], object_at_jaw_depth=X.tolist(), bottom_z_m=bottom_z, distance_to_jaw_m=float(np.linalg.norm(X - J))))
         cv2.imwrite(str(self.directory / f'held-{len(list(self.directory.glob("held-*.jpg"))):02d}-front.jpg'), image)
         floor = perception.front_objects(image)
-        floor_gone = not any(b['color'] == color and math.dist(b['position'][:2], floor_spot[:2]) < .055 for b in floor)
+        floor_gone = not any(
+            b['color'] == color and (math.dist(b['position'][:2], floor_spot[:2]) <= TRACK_GATE_M
+                                     or math.dist(b['position'][:2], J[:2]) <= TRACK_GATE_M)
+            for b in floor
+        )
+        held_unique = len(held) == 1
         self.last_floor_gone = floor_gone
-        self.log('front_held_check', jaw=J.tolist(), jaw_observed=jaw_observed, depth_source='observed_jaw' if jaw_observed else 'pregrip_lift_column', held=bool(held), candidates=held, floor_gone=floor_gone)
-        return bool(held) and floor_gone
+        self.log('front_held_check', jaw=J.tolist(), jaw_observed=jaw_observed, depth_source='observed_jaw' if jaw_observed else 'pregrip_lift_column', held=held_unique, candidates=held, floor_gone=floor_gone)
+        return held_unique and floor_gone
 
     def grasp_and_lift(self, lift_steps=2, verify_color='', floor_spot=None):
         """Close jaws, run upward hand steps, and optionally verify hold in the front camera."""
@@ -599,20 +606,32 @@ class Executor:
                 return incomplete('held-column alignment/descent did not converge')
             self.end_rc()
             before_separation = sample['jaw_separation_m']
+            before_jaw_pos = (sample.get('jaw') or {}).get('position')
+            before_jaw_z = float(before_jaw_pos[2]) if isinstance(before_jaw_pos, (list, tuple)) and len(before_jaw_pos) >= 3 else None
             try:
                 self.open_jaws()
-            except (UncertainMotion, requests.RequestException):
+            except UncertainMotion:
                 self.log('data_gap', kind='release_unknown_verify_without_replay')
             # No verification capture is requested concurrently with release.
             self.sleep(3.)
-            self.command('app_arm_direction_move', {'direction':1}, timeout_ms=3000)
+            try:
+                self.command('app_arm_direction_move', {'direction':1}, timeout_ms=3000)
+            except UncertainMotion:
+                self.log('data_gap', kind='withdrawal_unknown_verify_without_replay')
             self.sleep(2.)
             barrier = time.time()
             stable = []
             for _ in range(3):
                 sample = self.placement_sample(color, support_color, base_color, tower_spot, released=True, after=barrier)
+                after_jaw_pos = (sample.get('jaw') or {}).get('position')
+                after_jaw_z = float(after_jaw_pos[2]) if isinstance(after_jaw_pos, (list, tuple)) and len(after_jaw_pos) >= 3 else None
+                jaw_withdrawn = (
+                    before_jaw_z is None or after_jaw_z is None
+                    or (after_jaw_z >= before_jaw_z + .015 and after_jaw_z - float(sample['held_center_m'][2]) >= .015)
+                )
                 if (abs(sample['gap_m']) > .005 or np.linalg.norm(sample['lateral_error_m']) > .012
-                        or sample['jaw_separation_m'] < max(.045,before_separation+.015)):
+                        or sample['jaw_separation_m'] < max(.045,before_separation+.015)
+                        or not jaw_withdrawn):
                     return incomplete('detach or stack-supported geometry not observed')
                 center = np.asarray(sample['held_center_m'])
                 if stable and np.linalg.norm(center-stable[0]) > .005:
@@ -648,28 +667,26 @@ class Executor:
 
     def put_down(self):
         self.log('release_start', odom=self.odom())
-        self.gripped = False
         try:
             self.command('app_put_down', {'flag': 0})
-        except (UncertainMotion, requests.RequestException):
+        except UncertainMotion:
             self.log('data_gap', kind='put_down_outcome_observe')
         for _ in range(40):
             self.safety()
             status = self._status()
-            common = int(status.get('common_status', 0))
-            if ((common >> 6) & 15) in (0, 3):
+            if 'common_status' in status and ((int(status['common_status']) >> 6) & 15) in (0, 3):
                 break
             self.sleep(.5)
         else:
             raise LookupError('put_down readiness not observed')
         self.sleep(1.)
         self.safety()
+        self.gripped = False
         self.snap('5-put-down')
         self.log('release_settled', settle_seconds=1, odom=self.odom())
 
     def stow(self):
         self.command('app_arm_in_compartment', {})
-        self.deployed = False
         for _ in range(20):
             try:
                 estimate = self._arm()
@@ -685,6 +702,10 @@ class Executor:
                         if 'common_status' not in status or ((int(status['common_status']) >> 6) & 15) == 0:
                             break
                         self.sleep(.5)
+                    else:
+                        self.log('data_gap', kind='stow_common_status_busy')
+                        break
+                    self.deployed = False
                     self.sleep(1.)
                     self.snap('6-stowed')
                     self.log('stow_observation', odom=self.odom())

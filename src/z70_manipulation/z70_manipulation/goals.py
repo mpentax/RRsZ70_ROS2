@@ -1323,7 +1323,10 @@ class GoalContext:
 
     def outcome(self, success: bool) -> CommandOutcome:
         if self.commands and self.commands.latest_outcome is not None:
-            return deepcopy(self.commands.latest_outcome)
+            out = deepcopy(self.commands.latest_outcome)
+            if not success and out.error_code == 'NONE':
+                out.error_code = 'OBSERVATION_GAP'
+            return out
         return CommandOutcome(error_code='NONE' if success else 'OBSERVATION_GAP')
 
 
@@ -1528,6 +1531,7 @@ BUILTIN_GOALS: dict[str, GoalSpec] = {
                     estimate=ctx.arm_msg(),
                     verified_hold=bool(ok and data.get('verified')),
                 ),
+                lambda d: bool(d.get('verified')) if r.verify_color else bool(d.get('gripped')),
             ),
             read_only=lambda _: False,
             fields=('lift_steps', 'verify_color'),
