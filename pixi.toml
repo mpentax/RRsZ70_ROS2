@@ -33,3 +33,4 @@ build = "bash deploy/build-native.sh"
 bringup = { cmd = "bash -c 'source install/setup.bash && export Z70_REPO=\"$PWD\" && exec ros2 launch z70_bringup bringup.launch.py sidecars:=true manipulation:=true web_gateway:=true \"$@\"' --", depends-on = ["build"] }
 sim = { cmd = "bash -c 'source install/setup.bash && export Z70_REPO=\"$PWD\" && exec ros2 launch z70_bringup bringup.launch.py sim:=true manipulation:=true web_gateway:=true garment_perception:=true garment_backend:=sim_hsv towing_qualified:=true towing_artifact_uri:=sim:mujoco-qualified \"$@\"' --", depends-on = ["build"] }
 test = { cmd = "bash -c 'source install/setup.bash && export ROS_DOMAIN_ID=91 && exec python -m pytest src --basetemp build/pytest -q \"$@\"' --", depends-on = ["build"] }
+check = { cmd = "bash deploy/check-offline.sh", depends-on = ["build"] }
