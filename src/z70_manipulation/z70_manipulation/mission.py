@@ -218,25 +218,27 @@ def _classify_interrupt(ctx: Any, deadline: float, clock, exc: BaseException | N
     expired = clock() >= deadline
     handle = getattr(ctx, 'handle', None)
     cancel_requested = bool(getattr(handle, 'is_cancel_requested', False))
+    revoked_hazard = False
 
     if hazard_reason:
-        text = str(hazard_reason).strip()
-        lower = text.lower()
-        if 'cancel' in lower:
-            return 'CANCELLED', (text or 'Operator cancelled mission')[:128]
-        if 'deadline' in lower or 'timed out' in lower or 'timeout' in lower:
-            return 'TIMED_OUT', (text or 'Mission deadline exceeded')[:128]
-        if lower == 'task revoked':
-            if expired and not cancel_requested:
-                return 'TIMED_OUT', 'Mission deadline exceeded'
-            return 'CANCELLED', text[:128]
-        return 'SAFETY_STOP', (text or 'SAFETY_STOP')[:128]
+        h_text = str(hazard_reason).strip()
+        h_lower = h_text.lower()
+        if 'cancel' in h_lower:
+            return 'CANCELLED', (h_text or 'Operator cancelled mission')[:128]
+        if 'deadline' in h_lower or 'timed out' in h_lower or 'timeout' in h_lower:
+            return 'TIMED_OUT', (h_text or 'Mission deadline exceeded')[:128]
+        if h_lower == 'task revoked':
+            revoked_hazard = True
+        else:
+            return 'SAFETY_STOP', (h_text or 'SAFETY_STOP')[:128]
 
     if exc is not None:
         text = str(exc).strip()
         lower = text.lower()
         if type(exc).__name__ == 'SafetyStop':
             if 'cancel' in lower or 'revoked' in lower:
+                if expired and not cancel_requested and 'revoked' in lower:
+                    return 'TIMED_OUT', 'Mission deadline exceeded'
                 return 'CANCELLED', (text or 'Operator cancelled mission')[:128]
             if 'deadline' in lower or 'timed out' in lower or 'timeout' in lower:
                 return 'TIMED_OUT', (text or 'Mission deadline exceeded')[:128]
@@ -245,12 +247,18 @@ def _classify_interrupt(ctx: Any, deadline: float, clock, exc: BaseException | N
             if 'safety' in lower or 'person' in lower or 'robot error' in lower or 'unexpected clean' in lower:
                 return 'SAFETY_STOP', (text or 'SAFETY_STOP')[:128]
             if is_cancelled or 'cancel' in lower or 'revoked' in lower:
+                if revoked_hazard and expired and not cancel_requested and 'cancel' not in lower:
+                    return 'TIMED_OUT', 'Mission deadline exceeded'
                 detail_text = text if (text and text != 'CANCELLED_OR_DEADLINE') else 'Operator cancelled mission'
                 return 'CANCELLED', detail_text[:128]
             if 'deadline' in lower or 'timed out' in lower or 'timeout' in lower or expired:
                 return 'TIMED_OUT', 'Mission deadline exceeded'
             return 'CANCELLED', (text or 'CANCELLED')[:128]
 
+    if revoked_hazard:
+        if expired and not cancel_requested:
+            return 'TIMED_OUT', 'Mission deadline exceeded'
+        return 'CANCELLED', str(hazard_reason).strip()[:128]
     if is_cancelled:
         return 'CANCELLED', 'Operator cancelled mission'
     if expired:
