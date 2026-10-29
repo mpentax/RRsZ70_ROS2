@@ -10,14 +10,6 @@ from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 
 
-def simulation_mcp_origin(gateway_port):
-    """Isolated MCP target: the simulation gateway, never the transport or a live port."""
-    port = int(gateway_port)
-    if not 57000 <= port <= 57100 or port in (57010, 57020):
-        raise ValueError('Isolated MCP origin must be the simulation gateway on a non-live loopback port')
-    return f'http://127.0.0.1:{port}'
-
-
 def configure_runtime(context, repo):
     def value(name):
         return LaunchConfiguration(name).perform(context)
@@ -56,7 +48,7 @@ def configure_runtime(context, repo):
             stream.write(secrets.token_urlsafe(32))
         token_file = str(token)
         runtime_repo = str(state)
-        mcp_origin = simulation_mcp_origin(gateway_port)
+        mcp_origin = f'http://127.0.0.1:{gateway_port}'
         actions.extend([
             SetEnvironmentVariable('ROS_DOMAIN_ID', str(domain)),
             SetEnvironmentVariable('ROS_AUTOMATIC_DISCOVERY_RANGE', 'LOCALHOST'),

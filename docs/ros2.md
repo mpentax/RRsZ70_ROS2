@@ -34,7 +34,7 @@ pixi run sim
 | `towing_qualified`, `towing_artifact_uri` | `false`, `""` (`true`, `"sim:mujoco-qualified"` in `pixi run sim`) | Enable qualified garment towing and bind the qualification artifact URI on `pick_server` |
 | `camera_hz` | `3.0` | Active camera polling rate in Hz (`0` disables polling) |
 | `mapping`, `depth` | `true`, `true` | Enable vendor LiDAR map node and MPS monocular depth worker |
-| `web_gateway_port` | `57020` (simulation: `57080`) | Loopback port for `z70_web_gateway` (`57000–57100`). Simulation MCP uses this gateway, not `origin` |
+| `web_gateway_port` | `57020` (simulation: `57080`) | Loopback port for `z70_web_gateway` (`57000–57100`). Simulation MCP uses this port; see [README](../README.md#mcp-configuration) |
 | `foxglove_port` | `8765` (simulation: `8865`) | Loopback WebSocket port for `foxglove_bridge` |
 | `camera_info`, `calibration` | Installed `z70_description` config | Front camera intrinsics and floor/extrinsics JSON |
 | `depth_python` | `~/.venvs/roboclaw-depth/bin/python` | External Python interpreter for the MPS depth worker |

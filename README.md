@@ -60,7 +60,12 @@ Open **`http://127.0.0.1:57010`**. On first run, click **Start local setup** to 
 }
 ```
 
-Live MCP uses the vendor facade at `http://127.0.0.1:57010`. Isolated simulation has no vendor facade. Point MCP at the simulation gateway from the launch log (`mcp:`, default `http://127.0.0.1:57080`) and the scratch `service-token` under the printed simulation state directory. Do not use the simulator transport `http://127.0.0.1:57110` or fall back to the live origin: the transport port is outside MCP's loopback band, and the simulator injects its own bearer instead of checking the MCP caller.
+Isolated simulation uses the launch log's `mcp:` URL (default `http://127.0.0.1:57080`) and that directory's `service-token`, not the transport origin. See [simulator guide](src/z70_sim/README.md).
+
+```json
+"ROBOCLAW_MCP_ORIGIN": "http://127.0.0.1:57080",
+"ROBOCLAW_MCP_TOKEN_FILE": "/path/printed/in/simulation-state/service-token"
+```
 
 [Documentation index](docs/README.md) · [ROS 2 guide](docs/ros2.md) · [Arm model & protocol](docs/z70-arm-model.md) · [API contract](docs/thin-api.md) · [Apache 2.0](LICENSE) · [Third-party notices](THIRD_PARTY_NOTICES)
 
