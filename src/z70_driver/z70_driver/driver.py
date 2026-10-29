@@ -6,6 +6,7 @@ import math
 import os
 from pathlib import Path
 import select
+import signal
 import subprocess
 import tempfile
 import threading
@@ -23,6 +24,7 @@ from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Odometry, Path as NavPath
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor, ExternalShutdownException
+from rclpy.signals import SignalHandlerOptions
 from rclpy.node import Node
 from sensor_msgs.msg import CameraInfo, CompressedImage, Image, JointState
 from std_msgs.msg import Bool, Float32, Int32, String
@@ -905,7 +907,8 @@ class Driver(CommandSurfaces, Node):
                     if self.stop_event.is_set(): break
                     generation = self.acquisition_generation
                     r = self.request('POST', '/api/camera/frame', json={}, timeout=20)
-                    if self.dispatcher.session_enabled and generation == self.acquisition_generation:
+                    if (self.dispatcher.session_enabled and generation == self.acquisition_generation
+                            and not self.stop_event.is_set()):
                         self.publish_frame(r)
             except (requests.RequestException, ValueError, TypeError, KeyError):
                 self.gap('camera')
@@ -1121,8 +1124,33 @@ class Driver(CommandSurfaces, Node):
 
 
 def main():
-    rclpy.init(); node = Driver(); executor = MultiThreadedExecutor(num_threads=8); executor.add_node(node)
-    try: executor.spin()
-    except (KeyboardInterrupt, ExternalShutdownException): pass
+    # Keep the context valid until camera/event workers leave publish. The default
+    # signal handler invalidates it first, and camera_loop then raises RCLError.
+    rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
+    node = None
+    executor = None
+    stop = threading.Event()
+
+    def _stop(_signum, _frame):
+        stop.set()
+
+    signal.signal(signal.SIGINT, _stop)
+    signal.signal(signal.SIGTERM, _stop)
+    try:
+        node = Driver()
+        executor = MultiThreadedExecutor(num_threads=8)
+        executor.add_node(node)
+        while rclpy.ok() and not stop.is_set():
+            executor.spin_once(timeout_sec=0.2)
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass
     finally:
-        node.close(); executor.shutdown(); node.destroy_node(); rclpy.try_shutdown()
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
+        if node is not None:
+            node.close()
+        if executor is not None:
+            executor.shutdown()
+        if node is not None:
+            node.destroy_node()
+        rclpy.try_shutdown()
