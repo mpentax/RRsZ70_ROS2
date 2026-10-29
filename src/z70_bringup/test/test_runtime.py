@@ -9,7 +9,7 @@ import time
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchContext
-from launch.actions import ExecuteProcess
+from launch.actions import ExecuteProcess, LogInfo
 import pytest
 import requests
 import rclpy
@@ -17,7 +17,7 @@ from rclpy.context import Context
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.parameter_client import AsyncParameterClient
 
-from z70_bringup.runtime import configure_runtime
+from z70_bringup.runtime import configure_runtime, simulation_mcp_origin
 from z70_web_gateway.gateway import read_token
 
 
@@ -39,6 +39,7 @@ def test_simulation_defaults_are_fresh_and_separate_from_live_state(tmp_path):
     assert config['origin'] == 'http://127.0.0.1:57110'
     assert config['sim_port'] == '57110'
     assert config['web_gateway_port'] == '57080'
+    assert config['mcp_origin'] == 'http://127.0.0.1:57080'
     assert config['foxglove_port'] == '8865'
     assert context.environment['ROS_DOMAIN_ID'] == '98'
     assert context.environment['ROS_AUTOMATIC_DISCOVERY_RANGE'] == 'LOCALHOST'
@@ -58,6 +59,7 @@ def test_live_launch_defaults_remain_compatible(tmp_path):
     context = configured(tmp_path, sim='false')
     config = context.launch_configurations
     assert config['origin'] == 'http://127.0.0.1:57010'
+    assert config['mcp_origin'] == 'http://127.0.0.1:57010'
     assert config['token_file'] == str(tmp_path / 'live-repo/.local/service-token')
     assert config['web_gateway_port'] == '57020' and config['foxglove_port'] == '8765'
     assert config['runtime_repo'] == str(tmp_path / 'live-repo')
@@ -89,6 +91,46 @@ def test_simulation_disables_hardware_sidecars_even_when_requested(tmp_path, sim
                 if type(action) is ExecuteProcess and action.condition is not None]
     # Simulator is enabled; both hardware transports are disabled.
     assert [action.condition.evaluate(context) for action in sidecars] == [True, False, False]
+
+
+def test_simulation_advertises_gateway_as_isolated_mcp_origin(tmp_path):
+    context = LaunchContext()
+    context.launch_configurations.update({
+        'sim': 'true', 'sidecars': 'true', 'origin': '', 'token_file': '',
+        'web_gateway_port': '', 'foxglove_port': '', 'sim_domain_id': '98',
+        'sim_state_dir': str(tmp_path / 'simulation'),
+    })
+    actions = configure_runtime(context, repo=tmp_path / 'live-repo')
+    logs = [action for action in actions if isinstance(action, LogInfo)]
+    assert len(logs) == 1
+    message = ''.join(context.perform_substitution(part) for part in logs[0].msg)
+    assert 'transport: http://127.0.0.1:57110' in message
+    assert 'mcp: http://127.0.0.1:57080' in message
+    assert 'service-token' not in message
+    for action in actions:
+        action.execute(context)
+    assert context.launch_configurations['mcp_origin'] == 'http://127.0.0.1:57080'
+    assert context.launch_configurations['origin'] == 'http://127.0.0.1:57110'
+
+
+def test_custom_simulation_ports_keep_mcp_on_the_gateway_not_the_transport(tmp_path):
+    context = configured(tmp_path, origin='http://127.0.0.1:57050', web_gateway_port='57090')
+    config = context.launch_configurations
+    assert config['origin'] == 'http://127.0.0.1:57050'
+    assert config['mcp_origin'] == 'http://127.0.0.1:57090'
+    assert config['web_gateway_port'] == '57090'
+    assert config['sim_port'] == '57050'
+
+
+@pytest.mark.parametrize('port', [56999, 57010, 57020, 57110, 57101])
+def test_simulation_mcp_origin_rejects_live_and_transport_ports(port):
+    with pytest.raises(ValueError):
+        simulation_mcp_origin(port)
+
+
+def test_simulation_mcp_origin_accepts_the_isolated_gateway_band():
+    assert simulation_mcp_origin(57080) == 'http://127.0.0.1:57080'
+    assert simulation_mcp_origin(57100) == 'http://127.0.0.1:57100'
 
 
 def test_standard_simulation_launch_routes_driver_and_gateway_to_owned_endpoints(tmp_path):
