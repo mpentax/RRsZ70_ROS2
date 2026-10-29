@@ -6,12 +6,15 @@ from pathlib import Path
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess
+from launch.actions import DeclareLaunchArgument, EmitEvent, ExecuteProcess, OpaqueFunction, RegisterEventHandler
+from launch.event_handlers import OnProcessExit
+from launch.events import Shutdown
 from launch.conditions import IfCondition
 from launch.substitutions import Command, LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
+from z70_bringup.runtime import configure_runtime
 
 
 def generate_launch_description():
@@ -22,14 +25,26 @@ def generate_launch_description():
     mount = yaml.safe_load((calibration / 'mount_calibration.yaml').read_text())
     camera_x = mount['front_camera_x_m']
     node_bin = shutil.which("node") or "node"
-    hardware_sidecars = IfCondition(PythonExpression(["'", LaunchConfiguration("sidecars"), "' == 'true' and '", LaunchConfiguration("sim"), "' != 'true'"]))
+    hardware_sidecars = IfCondition(PythonExpression(["'", LaunchConfiguration("sidecars"), "'.lower() in ('true', '1') and '", LaunchConfiguration("sim"), "'.lower() not in ('true', '1')"]))
+    simulator = ExecuteProcess(
+        cmd=["ros2", "run", "z70_sim", "sim_sidecar", "--host", "127.0.0.1",
+             "--port", LaunchConfiguration("sim_port"),
+             "--token-file", LaunchConfiguration("token_file"),
+             "--ros-gateway-origin", ["http://127.0.0.1:", LaunchConfiguration("web_gateway_port")]],
+        cwd=str(repo), condition=IfCondition(LaunchConfiguration("sim")), output="screen",
+    )
     return LaunchDescription([
-        DeclareLaunchArgument("origin", default_value="http://127.0.0.1:57010"),
-        DeclareLaunchArgument("token_file", default_value=str(repo / ".local/service-token")),
+        DeclareLaunchArgument("origin", default_value=""),
+        DeclareLaunchArgument("token_file", default_value=""),
         DeclareLaunchArgument("camera_info", default_value=str(calibration / "z70_front_camera_info.yaml")),
         DeclareLaunchArgument("calibration", default_value=str(calibration / "front_camera.json")),
         DeclareLaunchArgument("sidecars", default_value="false"),
         DeclareLaunchArgument("sim", default_value="false"),
+        DeclareLaunchArgument("sim_state_dir", default_value=""),
+        DeclareLaunchArgument("sim_domain_id", default_value="92"),
+        DeclareLaunchArgument("web_gateway_port", default_value=""),
+        DeclareLaunchArgument("foxglove_port", default_value=""),
+        OpaqueFunction(function=configure_runtime, kwargs={'repo': repo}),
         DeclareLaunchArgument("manipulation", default_value="false"),
         DeclareLaunchArgument("garment_perception", default_value="false"),
         DeclareLaunchArgument("garment_backend", default_value="grounding_dino_clipseg"),
@@ -38,12 +53,9 @@ def generate_launch_description():
         DeclareLaunchArgument("allow_tow", default_value="true"),
         DeclareLaunchArgument("towing_qualified", default_value="false"),
         DeclareLaunchArgument("towing_artifact_uri", default_value="qualified"),
-        ExecuteProcess(
-            cmd=["ros2", "run", "z70_sim", "sim_sidecar", "--token-file", LaunchConfiguration("token_file")],
-            cwd=str(repo),
-            condition=IfCondition(LaunchConfiguration("sim")),
-            output="screen",
-        ),
+        RegisterEventHandler(OnProcessExit(target_action=simulator,
+            on_exit=[EmitEvent(event=Shutdown(reason='Simulation transport exited'))])),
+        simulator,
         ExecuteProcess(
             cmd=[str(repo / ".local/bin/go2rtc"), "-config", str(repo / "deploy/go2rtc.yaml")],
             additional_env={"ROBOCLAW_WEBRTC_HOST": os.environ.get("ROBOCLAW_WEBRTC_HOST", "127.0.0.1")},
@@ -72,13 +84,12 @@ def generate_launch_description():
                           'qualified_small_lift': ParameterValue(LaunchConfiguration('qualified_small_lift'), value_type=bool),
                           'allow_tow': ParameterValue(LaunchConfiguration('allow_tow'), value_type=bool)}]),
         DeclareLaunchArgument("web_gateway", default_value="false"),
-        DeclareLaunchArgument("web_gateway_port", default_value="57020"),
         Node(package='z70_web_gateway', executable='gateway', condition=IfCondition(LaunchConfiguration('web_gateway')),
              parameters=[{'token_file': LaunchConfiguration('token_file'),
                           'port': ParameterValue(LaunchConfiguration('web_gateway_port'), value_type=int)}]),
         Node(package='z70_manipulation', executable='perception'),
         Node(package='z70_manipulation', executable='pick_server', condition=IfCondition(LaunchConfiguration('manipulation')),
-             parameters=[{'repo': str(repo),
+             parameters=[{'repo': LaunchConfiguration('runtime_repo'),
                           'towing_qualified': ParameterValue(LaunchConfiguration('towing_qualified'), value_type=bool),
                           'towing_artifact_uri': LaunchConfiguration('towing_artifact_uri')}]),
         DeclareLaunchArgument("mapping", default_value="true"),
@@ -89,7 +100,6 @@ def generate_launch_description():
              parameters=[]),
         Node(package="z70_mapping", executable="depth_cloud", condition=IfCondition(LaunchConfiguration("depth")),
              parameters=[{"calibration": LaunchConfiguration("calibration"), "depth_python": LaunchConfiguration("depth_python")}]),
-        DeclareLaunchArgument("foxglove_port", default_value="8765"),
         Node(package="robot_state_publisher", executable="robot_state_publisher", parameters=[{"robot_description": urdf}]),
         Node(package="z70_driver", executable="driver", parameters=[{
             "origin": LaunchConfiguration("origin"),

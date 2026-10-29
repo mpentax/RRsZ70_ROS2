@@ -615,3 +615,23 @@ def test_ensure_token_file_matches_gateway_token_contract(tmp_path: Path):
     assert len(token) == 43
     assert read_token(str(path)) == token
     assert ensure_token_file(path) == token
+
+
+def test_sim_proxy_without_explicit_gateway_never_contacts_an_upstream(monkeypatch):
+    import requests
+    import urllib.request
+
+    upstream_calls = []
+    def forbidden(*args, **kwargs):
+        upstream_calls.append(args)
+        raise AssertionError('No implicit gateway is permitted')
+    monkeypatch.setattr(urllib.request, 'urlopen', forbidden)
+    server = create_sim_server()
+    try:
+        for method in ('GET', 'POST'):
+            response = requests.request(method, server.origin + '/api/ros/state', timeout=2)
+            assert response.status_code == 503
+            assert response.json() == {'error': 'ROS_UNAVAILABLE', 'dispatch': 'not_sent'}
+        assert not upstream_calls
+    finally:
+        server.stop()

@@ -24,17 +24,18 @@ pixi run sim
 
 | Launch Argument | Default (`bringup.launch.py` / `pixi run bringup`) | Description |
 | :--- | :--- | :--- |
-| `origin` | `http://127.0.0.1:57010` | Local vendor transport service URL |
-| `token_file` | `$Z70_REPO/.local/service-token` | Path to bearer token file (`Z70_REPO` defaults to `$PWD`) |
+| `origin` | `http://127.0.0.1:57010` (simulation: `:57110`) | Local vendor transport service URL; simulation sidecar uses the same port |
+| `token_file` | `$Z70_REPO/.local/service-token` (simulation: fresh scratch token) | Path to bearer token file (`Z70_REPO` defaults to `$PWD`); explicit overrides rejected in simulation |
 | `sidecars` | `false` (`true` in `pixi run bringup`) | Launch native `go2rtc` (`:57001` / `:57012`) and vendor/web HTTP service (`:57010`) |
-| `sim` | `false` (`true` in `pixi run sim`) | Launch `z70_sim` MuJoCo simulator sidecar on `:57010` instead of hardware sidecars |
+| `sim` | `false` (`true` in `pixi run sim`) | Launch isolated `z70_sim` MuJoCo simulator instead of hardware sidecars |
+| `sim_state_dir`, `sim_domain_id` | Fresh temporary directory, `92` | Simulation-only state root (must not exist) and loopback ROS domain (`91–99`); see [simulator guide](../src/z70_sim/README.md) |
 | `manipulation`, `web_gateway` | `false`, `false` (`true` in `pixi run bringup`) | Enable manipulation action servers and HTTP gateway (`:57020`) |
 | `garment_perception`, `garment_backend` | `false`, `grounding_dino_clipseg` (`true`, `sim_hsv` in `pixi run sim`) | Enable `garment_perception` node and select model backend (`grounding_dino_clipseg`, `grounding_dino`, `clipseg`, `sim_hsv`, `contour_fallback`) |
 | `towing_qualified`, `towing_artifact_uri` | `false`, `""` (`true`, `"sim:mujoco-qualified"` in `pixi run sim`) | Enable qualified garment towing and bind the qualification artifact URI on `pick_server` |
 | `camera_hz` | `3.0` | Active camera polling rate in Hz (`0` disables polling) |
 | `mapping`, `depth` | `true`, `true` | Enable vendor LiDAR map node and MPS monocular depth worker |
-| `web_gateway_port` | `57020` | Loopback port for `z70_web_gateway` |
-| `foxglove_port` | `8765` | Loopback WebSocket port for `foxglove_bridge` |
+| `web_gateway_port` | `57020` (simulation: `57080`) | Loopback port for `z70_web_gateway` (`57000–57100`) |
+| `foxglove_port` | `8765` (simulation: `8865`) | Loopback WebSocket port for `foxglove_bridge` |
 | `camera_info`, `calibration` | Installed `z70_description` config | Front camera intrinsics and floor/extrinsics JSON |
 | `depth_python` | `~/.venvs/roboclaw-depth/bin/python` | External Python interpreter for the MPS depth worker |
 
