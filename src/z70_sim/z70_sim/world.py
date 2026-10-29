@@ -1239,7 +1239,7 @@ def create_sim_server(
 def main() -> None:
     parser = argparse.ArgumentParser(description='MuJoCo Roborock Z70 simulation transport sidecar.')
     parser.add_argument('--host', default='127.0.0.1')
-    parser.add_argument('--port', type=int, default=57010)
+    parser.add_argument('--port', type=int, default=57110)
     parser.add_argument('--token-file', default='')
     parser.add_argument('--ros-gateway-origin', default='')
     args = parser.parse_args()
