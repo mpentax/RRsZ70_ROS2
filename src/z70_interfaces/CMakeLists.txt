@@ -45,6 +45,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "action/PatrolCollect.action"
   "action/Pick.action"
   "action/Stack.action"
+  "action/RunMission.action"
   DEPENDENCIES std_msgs builtin_interfaces unique_identifier_msgs sensor_msgs geometry_msgs nav_msgs action_msgs)
 ament_export_dependencies(rosidl_default_runtime)
 ament_package()
