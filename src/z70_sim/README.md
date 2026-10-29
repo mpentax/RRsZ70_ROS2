@@ -57,3 +57,6 @@ When using `SimServer` or `sim_sidecar` directly, the ROS proxy is disabled
 unless `ros_gateway_origin` / `--ros-gateway-origin` is supplied explicitly;
 there is no fallback to the live gateway. Normal non-simulation launch defaults
 are unchanged.
+
+Standalone `ros2 run z70_sim sim_sidecar` also defaults to `127.0.0.1:57110`.
+Use `--port 0` for an OS-assigned port, or `--port PORT` for an explicit port.

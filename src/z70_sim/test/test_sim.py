@@ -2,10 +2,15 @@
 from __future__ import annotations
 
 import math
+import os
 from pathlib import Path
+import select
+import signal
+import subprocess
 import threading
 import time
 from types import SimpleNamespace as NS
+from urllib.parse import urlsplit
 
 import cv2
 import numpy as np
@@ -635,3 +640,44 @@ def test_sim_proxy_without_explicit_gateway_never_contacts_an_upstream(monkeypat
         assert not upstream_calls
     finally:
         server.stop()
+
+
+@pytest.mark.parametrize('args,expected_port', [([], 57110), (['--port', '0'], None)], ids=['default', 'ephemeral'])
+def test_standalone_simulator_endpoint_and_proxy_defaults(tmp_path, args, expected_port):
+    import requests
+
+    process = subprocess.Popen(
+        ['ros2', 'run', 'z70_sim', 'sim_sidecar', *args], cwd=tmp_path,
+        env=dict(os.environ, PYTHONUNBUFFERED='1', XDG_DATA_HOME=str(tmp_path / 'data')),
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True,
+    )
+    output = ''
+    prefix = 'z70_sim MuJoCo sidecar listening on '
+    try:
+        deadline = time.monotonic() + 20.
+        origin = None
+        while origin is None:
+            remaining = deadline - time.monotonic()
+            assert remaining > 0 and select.select([process.stdout], [], [], remaining)[0], output
+            chunk = os.read(process.stdout.fileno(), 4096)
+            assert chunk, output
+            output += chunk.decode('utf-8', errors='replace')
+            origin = next((line[len(prefix):] for line in output.split('\n')[:-1] if line.startswith(prefix)), None)
+        endpoint = urlsplit(origin)
+        assert endpoint.scheme == 'http' and endpoint.hostname == '127.0.0.1'
+        assert endpoint.port == expected_port if expected_port is not None else endpoint.port > 0
+        assert requests.get(origin + '/healthz', timeout=2).json()['simulator'] == 'mujoco'
+        response = requests.get(origin + '/api/ros/state', timeout=2)
+        assert response.status_code == 503
+        assert response.json() == {'error': 'ROS_UNAVAILABLE', 'dispatch': 'not_sent'}
+        assert not (tmp_path / '.local').exists()
+    finally:
+        if process.poll() is None:
+            process.send_signal(signal.SIGINT)  # ros2 run forwards it to the sidecar.
+        try:
+            process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            os.killpg(process.pid, signal.SIGKILL); process.wait(timeout=5)
+            pytest.fail('Standalone simulator did not shut down: ' + output)
+        process.stdout.close()
+    assert process.returncode == 0, output
