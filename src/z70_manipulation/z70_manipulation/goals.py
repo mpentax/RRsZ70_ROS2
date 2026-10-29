@@ -17,7 +17,7 @@ import time
 
 from tf2_ros import TransformException
 from z70_interfaces.action import (
-    DeliverGarment, PatrolCollect, PinAndGo, Pick, Stack,
+    DeliverGarment, PatrolCollect, PinAndGo, Pick, Stack, RunMission,
     DeployArm, AlignToTarget, MoveArm, GraspAndLift, ReleaseAndStow,
     BasePulse, ArmStep, HandStep, ArmOperation,
 )
@@ -29,6 +29,7 @@ from z70_mapping.boundary import SessionWorldMap, check_corridor_containment, co
 from z70_mapping.node import spatial_context as compute_spatial_context
 from . import perception, planner
 from .executor import Executor, read_arm, read_status
+from .mission import MISSION_DESCRIPTION, MISSION_FIELDS, run_mission, validate_mission_goal, validate_mission_payload
 from .garment_delivery import GarmentDeliverer, PatrolCollector, PatrolLedger, PinAndGoNavigator, TowingQualificationConfig, dynamic_obstacles, graspable_garments, loaded_route, track_key, transport_policy
 from .perception import transform_xy
 
@@ -1488,6 +1489,26 @@ BUILTIN_GOALS: dict[str, GoalSpec] = {
             navigation=True,
             fields=('drop_x_m', 'drop_y_m', 'max_duration_s', 'max_items', 'allow_towing', 'dry_run'),
             validate_payload=lambda p: _valid_garment_payload(p) and _int_in(p['max_items'], 1, 1000),
+        ),
+        GoalSpec(
+            'mission', RunMission, '/z70/mission/run', lambda r: r.max_duration_s,
+            validate_mission_goal,
+            run_mission,
+            needs_executor=lambda r: not r.dry_run,
+            navigation=True,
+            fields=MISSION_FIELDS,
+            description=(
+                MISSION_DESCRIPTION
+                + ' steps_json is a JSON array (<=4096 UTF-8 bytes) of closed step objects: '
+                'navigate_room {op, room: name or segment ID, max_duration_s?}; '
+                'navigate {op, target_x_m, target_y_m, max_duration_s?}; '
+                'observe {op, camera?: front|gripper, color?, require_visible?}; pick {op, color}. '
+                'Coordinates are map metres in -100..100; optional navigation budgets are 1..600s; '
+                'the total max_duration_s is 1..1800s. Observe reads matching cached frames without '
+                'switching cameras. dry_run validates the plan and cached status, not physical completion '
+                'or room reachability. Execution stops at the first failed step and reports partial results.'
+            ),
+            validate_payload=validate_mission_payload,
         ),
         GoalSpec(
             'deploy_arm', DeployArm, '/z70/arm/deploy', 90.,

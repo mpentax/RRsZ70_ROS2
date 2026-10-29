@@ -24,7 +24,7 @@ from nav_msgs.msg import OccupancyGrid
 from sensor_msgs.msg import CompressedImage
 from std_msgs.msg import Bool, String
 from z70_driver.commands import LATCHED
-from z70_manipulation.goals import GoalSpec
+from z70_manipulation.goals import GoalContext, GoalSpec
 from z70_manipulation.node import PickServer
 from z70_web_gateway.gateway import Gateway, HttpServer, ApiError, goal_message, read_token
 
@@ -59,7 +59,7 @@ def system():
                 return
             if self.path == '/api/state':
                 return self.reply(dict(observationSession='fake-phase4', connection=dict(state='connected'),
-                    telemetry=dict(status=dict(value=dict(state=39, error_code=0, battery=75), observedAt=int(time.time()*1000)))))
+                    telemetry=dict(status=dict(value=dict(state=39, error_code=state.get('robot_error_code', 0), battery=75), observedAt=int(time.time()*1000)))))
             self.reply({}, 404)
         def do_POST(self):
             body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
@@ -72,7 +72,7 @@ def system():
             if self.path != '/api/driver/rpc': return self.reply({}, 404)
             method = body['method']; state['calls'].append(method)
             if method == 'app_arm_move' and state['hang']: state['release'].wait(15)
-            unknown = state['unknown'] and method == 'app_arm_move'
+            unknown = state['unknown'] and method == state.get('unknown_method', 'app_arm_move')
             reject = state['reject'] and method == 'app_arm_move'
             if method == 'stop_camera_preview':
                 assert body['params'] == {'client_id':'676f32727463'}
@@ -171,6 +171,243 @@ def task(system, ident):
     return system['request']('GET', '/api/ros/tasks/'+ident).json()
 
 
+def test_mission_catalog_validation_and_stateful_simulation(system):
+    request = system['request']
+    catalog = request('GET', '/api/ros/goals').json()['goals']
+    mission = next(goal for goal in catalog if goal['kind'] == 'mission')
+    assert mission['topic'] == '/z70/mission/run' and mission['action'] == 'RunMission'
+    assert mission['fields'] == ['steps_json', 'max_duration_s', 'dry_run']
+    assert mission['field_types'] == {'steps_json': 'string<4096>', 'max_duration_s': 'double', 'dry_run': 'boolean'}
+    assert {'steps_completed', 'partial_completion', 'step_results_json'} <= set(mission['result_fields'])
+    assert mission['navigation'] is True and mission['description']
+    steps = [
+        {'op': 'navigate_room', 'room': 'Kitchen'},
+        {'op': 'observe', 'camera': 'front', 'color': 'yellow'},
+        {'op': 'pick', 'color': 'yellow'},
+        {'op': 'navigate', 'target_x_m': 0., 'target_y_m': 0.},
+    ]
+    goal = dict(steps_json=json.dumps(steps), max_duration_s=60., dry_run=False)
+    invalid_goals = [
+        dict(goal, steps_json=json.dumps(plan)) for plan in (
+            [], [{'op': 'observe'}] * 9,
+            [steps[0], {'op': 'rpc', 'method': 'app_grip'}],
+            [steps[0], {'op': 'navigate', 'target_x_m': 10**400, 'target_y_m': 0.}],
+        )
+    ] + [dict(goal, max_duration_s=10**400), dict(goal, steps_json=' ' * 4097), dict(goal, dry_run=1)]
+    for bad in invalid_goals:
+        for path in ('/api/ros/goals/validate', '/api/ros/tasks'):
+            response = request('POST', path, {'kind': 'mission', 'goal': bad})
+            assert response.status_code == 400, response.text
+            assert response.json()['error'] == 'INVALID_INPUT'
+            assert response.json()['dispatch'] == 'not_sent'
+
+    context = {
+        'status': {'state': 3, 'error_code': 0, 'battery': 90.},
+        'arm': {'state': 'IN_ROBOT', 'joints': {}},
+        'spatial_context': {'rooms': [{'segment_id': 2, 'name': 'Kitchen', 'reachable': True, 'safe_waypoint': [1., 2.]}]},
+        'objects': [{'camera': 'front', 'color': 'yellow', 'position': [0.35, 0., 0.03]}],
+    }
+    def simulate(payload, ctx=context):
+        response = request('POST', '/api/ros/goals/validate', {
+            'kind': 'mission', 'goal': payload, 'simulate': True, 'context': ctx,
+        })
+        assert response.status_code == 200 and response.json()['valid'], response.text
+        return response.json()['simulated']
+
+    success = simulate(goal)
+    assert success['ok'] and success['result']['completed']
+    assert success['result']['steps_completed'] == 4
+    assert [step['op'] for step in json.loads(success['result']['step_results_json'])] == [step['op'] for step in steps]
+    partial = simulate(goal, {**context, 'objects': []})
+    assert not partial['ok'] and partial['result']['partial_completion']
+    assert partial['result']['steps_completed'] == 1 and partial['result']['failed_step'] == 'observe'
+    assert partial['result']['status_code'] == 'EMPTY_OBSERVATION'
+    assert [entry['primitive'] for entry in partial['trace'] if entry['primitive'] != 'feedback'] == [
+        'navigate_room', 'navigate', 'objects',
+    ]
+    preview = simulate(dict(goal, dry_run=True))
+    assert preview['ok'] and preview['result']['dry_run_valid'] and not preview['result']['completed']
+    assert preview['result']['steps_completed'] == 0 and preview['trace'] == []
+    assert not system['gateway'].tasks and not system['calls']
+
+
+@pytest.mark.parametrize('ending', ['success', 'cancel', 'deadline', 'safety_stop', 'step_failure', 'uncertain', 'dry_run'])
+def test_registered_mission_runs_through_gateway_with_one_parent_session(system, tmp_path, monkeypatch, ending):
+    # Synthetic perception/pick bodies isolate the action/runner/session boundary.
+    # Each pick still uses the real GoalContext -> ROS driver -> fake wire path.
+    dispatcher = system['driver'].dispatcher
+    begins, ends, reservations, primitives = [], [], [], []
+    original_begin, original_end, original_reserve = dispatcher.begin, dispatcher.end, dispatcher.reserve
+    def begin(*args, **kwargs):
+        response = original_begin(*args, **kwargs)
+        begins.append(response)
+        return response
+    def end(token):
+        ends.append(token)
+        return original_end(token)
+    def reserve(token=bytes(16)):
+        ticket = original_reserve(token)
+        if ticket is not None:
+            reservations.append(token)
+        return ticket
+    monkeypatch.setattr(dispatcher, 'begin', begin)
+    monkeypatch.setattr(dispatcher, 'end', end)
+    monkeypatch.setattr(dispatcher, 'reserve', reserve)
+    in_pick, continue_pick = threading.Event(), threading.Event()
+    def objects(ctx, camera='front', color=None):
+        primitives.append(('observe', camera, color))
+        return [{'color': 'yellow', 'position': [0.35, 0., 0.03]}]
+    def pick(ctx, color, dry_run=False):
+        assert dry_run is False
+        primitives.append(('pick', color))
+        ctx.rpc('app_arm_move', {'m': [1, 0, 0] if color == 'yellow' else [0, 1, 0]})
+        if color == 'yellow':
+            ctx.feedback(phase=3, reason='TEST_IN_FLIGHT')
+            in_pick.set()
+            assert continue_pick.wait(8), 'test did not release in-flight pick'
+        return {'verified': ending != 'step_failure'}
+    monkeypatch.setattr(GoalContext, 'objects', objects)
+    monkeypatch.setattr(GoalContext, 'pick', pick)
+    server = PickServer(parameter_overrides=[Parameter('log_root', value=str(tmp_path))])
+    system['executor'].add_node(server)
+    safety = system['peer'].create_publisher(Bool, '/z70/safety_stop', 10)
+    steps = [{'op': 'observe', 'color': 'yellow'}, {'op': 'pick', 'color': 'yellow'}, {'op': 'pick', 'color': 'purple'}]
+    try:
+        wait(lambda: system['gateway'].actions['mission'].server_is_ready())
+        started = start(system, 'mission', {
+            'steps_json': json.dumps(steps), 'max_duration_s': 2. if ending == 'deadline' else 30.,
+            'dry_run': ending == 'dry_run',
+        })
+        ident = started['id']
+        if ending != 'dry_run':
+            assert in_pick.wait(5)
+            wait(lambda: (task(system, ident).get('feedback') or {}).get('reason') == 'TEST_IN_FLIGHT')
+            feedback = task(system, ident)['feedback']
+            assert feedback['current_step'] == 1 and feedback['current_op'] == 'pick'
+            assert bytes(server.active_handle.goal_id.uuid) == uuid.UUID(ident).bytes
+            assert len(begins) == 1 and begins[0][0]
+            token = begins[0][1]
+            assert token != bytes(16) and dispatcher.task_id == token and reservations == [token]
+            assert ends == [] and system['calls'] == ['app_arm_move']
+            if ending == 'cancel':
+                assert system['request']('POST', f'/api/ros/tasks/{ident}/cancel', {}).status_code == 200
+            elif ending == 'safety_stop':
+                wait(lambda: safety.get_subscription_count() > 0)
+                safety.publish(Bool(data=True))
+            elif ending == 'uncertain':
+                system['unknown'] = True
+            if ending in ('cancel', 'deadline', 'safety_stop'):
+                wait(lambda: server.client.commands.cancelled.is_set())
+                wait(lambda: 'app_stop_grasp' in system['calls'])
+            continue_pick.set()
+        wait(lambda: task(system, ident)['status'] in ('succeeded', 'failed', 'cancelled'))
+        finished = task(system, ident)
+        status, code, count, moves = {
+            'success': ('succeeded', 'COMPLETED', 3, 2),
+            'cancel': ('cancelled', 'CANCELLED', 1, 1),
+            'deadline': ('failed', 'TIMED_OUT', 1, 1),
+            'safety_stop': ('failed', 'SAFETY_STOP', 1, 1),
+            'step_failure': ('failed', 'PICK_UNVERIFIED', 1, 1),
+            'uncertain': ('failed', 'UNCERTAIN_MOTION', 2, 2),
+            'dry_run': ('succeeded', 'DRY_RUN_VALID', 0, 0),
+        }[ending]
+        result = finished['result']
+        assert finished['status'] == status and finished['phase'] == 5
+        assert result['status_code'] == code and result['steps_completed'] == count and result['steps_total'] == 3
+        assert result['completed'] is (ending == 'success')
+        assert result['dry_run_valid'] is (ending == 'dry_run')
+        assert result['partial_completion'] is (status in ('failed', 'cancelled'))
+        step_results = json.loads(result['step_results_json'])
+        assert len(step_results) == (3 if ending in ('success', 'uncertain', 'dry_run') else 2)
+        if status in ('failed', 'cancelled'):
+            assert result['failed_step'] == 'pick' and not step_results[-1]['ok']
+            assert step_results[-1]['status_code'] == code
+        if ending == 'uncertain':
+            assert result['outcome']['dispatch'] == 2 and result['outcome']['response'] == 3
+        if ending == 'dry_run':
+            assert begins == ends == reservations == primitives == []
+        else:
+            assert ends == [token] and reservations == [token] * moves
+            assert len(primitives) == 1 + moves
+        assert dispatcher.task_id == bytes(16) and dispatcher.active is None
+        assert not server.lock.locked() and server.client is None and server.deadline is None
+        assert system['calls'].count('app_arm_move') == moves
+        assert not any(m in system['calls'] for m in ('app_grip', 'app_arm_in_compartment', 'app_put_down'))
+        if ending in ('cancel', 'deadline', 'safety_stop'):
+            assert all(system['calls'].count(m) == 1 for m in ('app_rc_stop', 'app_rc_end', 'app_stop_grasp'))
+    finally:
+        continue_pick.set()
+        if server.active_handle is not None:
+            server._revoke_commands()
+            wait(lambda: not server.lock.locked())
+        system['peer'].destroy_publisher(safety)
+        system['executor'].remove_node(server)
+        server.observations.close()
+        server.destroy_node()
+
+
+@pytest.mark.parametrize('cause,expected', [
+    ('unreachable', 'OBSERVATION_GAP'), ('unknown_dispatch', 'UNCERTAIN_MOTION'), ('robot_error', 'SAFETY_STOP'),
+])
+def test_registered_mission_preserves_executor_failure_after_emergency_stop(system, tmp_path, monkeypatch, cause, expected):
+    from z70_manipulation import planner
+
+    # Keep the real pickup/stop/driver path; only perception and dwell time are synthetic.
+    position = [1.75, 0., 0.03] if cause == 'unreachable' else list(planner.grasp_point())
+    monkeypatch.setattr(GoalContext, 'objects', lambda ctx, camera='front', color=None: [
+        {'color': 'yellow', 'position': position, 'size_px': 80, 'size_m': 0.066},
+    ])
+    monkeypatch.setattr(GoalContext, 'sleep', lambda ctx, duration: None)
+    picks = []
+    original_pick = GoalContext.pick
+    def pick(ctx, color, dry_run=False):
+        picks.append(color)
+        return original_pick(ctx, color, dry_run=dry_run)
+    monkeypatch.setattr(GoalContext, 'pick', pick)
+    system.update(unknown=cause == 'unknown_dispatch', unknown_method='app_arm_out_compartment',
+                  robot_error_code=7 if cause == 'robot_error' else 0)
+    server = PickServer(parameter_overrides=[Parameter('log_root', value=str(tmp_path))])
+    system['executor'].add_node(server)
+    try:
+        wait(lambda: system['gateway'].actions['mission'].server_is_ready())
+        if cause == 'robot_error':
+            wait(lambda: server.observations.state is not None
+                 and server.observations.state.error_code_known and server.observations.state.error_code == 7)
+        started = start(system, 'mission', {
+            'steps_json': json.dumps([
+                {'op': 'observe', 'color': 'yellow'},
+                {'op': 'pick', 'color': 'yellow'},
+                {'op': 'pick', 'color': 'purple'},
+            ]),
+            'max_duration_s': 30., 'dry_run': False,
+        })
+        wait(lambda: task(system, started['id'])['status'] in ('succeeded', 'failed', 'cancelled'))
+        finished = task(system, started['id'])
+        result = finished['result']
+        assert finished['status'] == 'failed' and not result['completed']
+        assert result['status_code'] == expected, result
+        assert result['steps_completed'] == 1 and result['steps_total'] == 3 and result['partial_completion']
+        steps = json.loads(result['step_results_json'])
+        assert len(steps) == 2 and steps[-1]['status_code'] == expected and not steps[-1]['ok']
+        assert picks == ['yellow']
+        assert all(system['calls'].count(method) == 1 for method in ('app_rc_stop', 'app_rc_end', 'app_stop_grasp'))
+        assert not any(method in system['calls'] for method in ('app_rc_move', 'app_grip', 'app_arm_in_compartment', 'app_put_down'))
+        if cause == 'unknown_dispatch':
+            assert system['calls'].count('app_arm_out_compartment') == 1
+            assert result['outcome']['dispatch'] == 2 and result['outcome']['response'] == 3
+        else:
+            assert 'app_arm_out_compartment' not in system['calls']
+        assert system['driver'].dispatcher.task_id == bytes(16) and system['driver'].dispatcher.active is None
+        assert not server.lock.locked() and server.client is None and server.deadline is None
+    finally:
+        if server.active_handle is not None:
+            server._revoke_commands()
+            wait(lambda: not server.lock.locked())
+        system['executor'].remove_node(server)
+        server.observations.close()
+        server.destroy_node()
+
+
 def test_native_gateway_enforces_exact_loopback_host_and_auth():
     class FakeGateway:
         def route(self, method, path, body):
@@ -202,7 +439,7 @@ def test_validation_token_and_closed_error_contract(system, tmp_path):
     request = system['request']
     catalog = request('GET', '/api/ros/goals').json()
     goals = catalog['goals']
-    assert len(goals) == 14 and all(g.get('description') and g.get('timeout_s') > 0 for g in goals)
+    assert len(goals) == 15 and all(g.get('description') and g.get('timeout_s') > 0 for g in goals)
     assert any(
         g['kind'] == 'pick' and g['topic'] == '/z70/pick' and g['action'] == 'Pick'
         and g['fields'] == ['color', 'dry_run']

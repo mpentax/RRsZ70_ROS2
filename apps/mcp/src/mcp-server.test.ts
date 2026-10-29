@@ -198,6 +198,7 @@ test("MCP exposes generic RPC and observation tools without challenges or prior 
     { kind: "deliver_garment", goal: { category: "sock", drop_x_m: 1, drop_y_m: 2, max_duration_s: 60, allow_towing: false, dry_run: true } },
     { kind: "patrol_collect", goal: { drop_x_m: 1, drop_y_m: 2, max_duration_s: 600, max_items: 10, allow_towing: false, dry_run: true } },
     { kind: "pin_and_go", goal: { target_x_m: 24.5, target_y_m: 26.0, max_duration_s: 60, dry_run: true } },
+    { kind: "mission", goal: { steps_json: JSON.stringify([{ op: "observe", camera: "front" }]), max_duration_s: 60, dry_run: true } },
     { kind: "deploy_arm", goal: { settle: true } },
     { kind: "align_target", goal: { color: "yellow" } },
     { kind: "move_arm", goal: { m3_deg: 190, m4_deg: 65, m5_deg: 0 } },
