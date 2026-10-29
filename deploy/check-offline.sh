@@ -8,6 +8,6 @@ npm run build
 npm test
 
 source install/setup.bash
-export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-91}"
+export ROS_DOMAIN_ID=91
 export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
 python -m pytest src --basetemp build/pytest -q "$@"
